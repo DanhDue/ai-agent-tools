@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Autonomous Lifecycle Runner: Headless state machine orchestrator for multi-actor development lifecycles."""
+
 from __future__ import annotations
 
 import argparse
@@ -55,11 +56,16 @@ def _upgrade_legacy_programmer_pair(
 ) -> tuple[str | None, str | None]:
     """Upgrade legacy 3.8 programmer aliases in-memory without mutating files."""
     clean_model = model.strip() if isinstance(model, str) and model.strip() else None
-    clean_effort = effort.strip() if isinstance(effort, str) and effort.strip() else None
+    clean_effort = (
+        effort.strip() if isinstance(effort, str) and effort.strip() else None
+    )
 
     if clean_model in LEGACY_PROGRAMMER_MODELS:
         clean_model = DEFAULT_PROGRAMMER_MODEL
-        if clean_effort is None or clean_effort.lower() in {"high"} | EXTRA_EFFORT_ALIASES:
+        if (
+            clean_effort is None
+            or clean_effort.lower() in {"high"} | EXTRA_EFFORT_ALIASES
+        ):
             clean_effort = DEFAULT_PROGRAMMER_EFFORT
         else:
             clean_effort = normalize_agy_effort(clean_effort)
@@ -116,7 +122,9 @@ class RunnerConfig:
     provider_priority: list[str] | None = None
     base_branch: str = "main"
 
-    def _read_review_config_programmer(self, root: Path | None) -> tuple[str | None, str | None]:
+    def _read_review_config_programmer(
+        self, root: Path | None
+    ) -> tuple[str | None, str | None]:
         """Read-only lookup of providers.programmer from .devtool/review_config.json."""
         if not root:
             return None, None
@@ -135,7 +143,11 @@ class RunnerConfig:
             return None, None
 
         raw_model = prog.get("model") if isinstance(prog.get("model"), str) else None
-        raw_effort_val = prog.get("effort") if prog.get("effort") is not None else prog.get("thinking_level")
+        raw_effort_val = (
+            prog.get("effort")
+            if prog.get("effort") is not None
+            else prog.get("thinking_level")
+        )
         raw_effort = raw_effort_val if isinstance(raw_effort_val, str) else None
         return _upgrade_legacy_programmer_pair(raw_model, raw_effort)
 
@@ -157,7 +169,9 @@ class RunnerConfig:
 
         env_model_raw = os.environ.get("AGY_PROGRAMMER_MODEL", "")
         env_effort_raw = os.environ.get("AGY_PROGRAMMER_EFFORT", "")
-        env_model, _ = _upgrade_legacy_programmer_pair(env_model_raw, env_effort_raw or None)
+        env_model, _ = _upgrade_legacy_programmer_pair(
+            env_model_raw, env_effort_raw or None
+        )
         if env_model:
             return env_model
 
@@ -181,7 +195,9 @@ class RunnerConfig:
 
         env_model_raw = os.environ.get("AGY_PROGRAMMER_MODEL", "")
         env_effort_raw = os.environ.get("AGY_PROGRAMMER_EFFORT", "")
-        _, env_effort = _upgrade_legacy_programmer_pair(env_model_raw or None, env_effort_raw)
+        _, env_effort = _upgrade_legacy_programmer_pair(
+            env_model_raw or None, env_effort_raw
+        )
         if env_effort:
             return env_effort
 
@@ -197,11 +213,7 @@ class RunnerConfig:
             if review_config_file.is_file():
                 try:
                     data = json.loads(review_config_file.read_text(encoding="utf-8"))
-                    model = (
-                        data.get("providers", {})
-                        .get("assistant", {})
-                        .get("model")
-                    )
+                    model = data.get("providers", {}).get("assistant", {}).get("model")
                     if model and isinstance(model, str):
                         return model
                 except (json.JSONDecodeError, OSError):
@@ -272,7 +284,11 @@ class ModelDispatcher:
                 check=False,
             )
             if res.returncode != 0:
-                err = res.stderr.strip() or res.stdout.strip() or f"Exit code {res.returncode}"
+                err = (
+                    res.stderr.strip()
+                    or res.stdout.strip()
+                    or f"Exit code {res.returncode}"
+                )
                 return False, err
 
             if cli == "agy":
@@ -311,7 +327,9 @@ class ModelDispatcher:
             return 1, "", f"Failed to spawn process: {exc}"
 
         try:
-            stdout, stderr = proc.communicate(input=prompt, timeout=self.timeout_seconds)
+            stdout, stderr = proc.communicate(
+                input=prompt, timeout=self.timeout_seconds
+            )
             return proc.returncode, stdout, stderr
         except subprocess.TimeoutExpired:
             pgid = proc.pid
@@ -334,7 +352,11 @@ class ModelDispatcher:
                 except ProcessLookupError:
                     pass
 
-            return 124, "", f"Process timeout: execution timed out after {self.timeout_seconds}s"
+            return (
+                124,
+                "",
+                f"Process timeout: execution timed out after {self.timeout_seconds}s",
+            )
         except Exception as exc:
             return 1, "", f"Process execution error: {exc}"
 
@@ -464,11 +486,15 @@ class LifecycleRunner:
                     return 1
             elif reject_fixes:
                 self.state.active_stage = StageName.HALTED.value
-                self.state.halt_reason = "Human Architect rejected Principal Review fixes"
+                self.state.halt_reason = (
+                    "Human Architect rejected Principal Review fixes"
+                )
                 self.save_state()
                 return 1
             else:
-                print("Awaiting Human confirmation for Principal Review fixes. Pass --confirm-fixes or --reject-fixes.")
+                print(
+                    "Awaiting Human confirmation for Principal Review fixes. Pass --confirm-fixes or --reject-fixes."
+                )
                 return 0
 
         if self.state.active_stage == StageName.IMPLEMENTATION.value:
@@ -493,9 +519,15 @@ class LifecycleRunner:
             report = self.render_final_executive_report()
             print(report)
             print("\n" + "=" * 70)
-            print("🏁 Stage 3 completed. All tasks verified and Gate 4 PASS bound to candidate SHA.")
-            print("Candidate readiness for Gate 5 recorded in .devtool/state/<epic>.pipeline.json.")
-            print("Proceed to /finishing-a-development-branch to merge to local base branch.")
+            print(
+                "🏁 Stage 3 completed. All tasks verified and Gate 4 PASS bound to candidate SHA."
+            )
+            print(
+                "Candidate readiness for Gate 5 recorded in .devtool/state/<epic>.pipeline.json."
+            )
+            print(
+                "Proceed to /finishing-a-development-branch to merge to local base branch."
+            )
             print("=" * 70 + "\n")
             return 0
 
@@ -522,7 +554,9 @@ class LifecycleRunner:
 
     def _load_pool_module(self) -> Any:
         """Dynamically load manage_worker_pool.py module."""
-        pool_path = self._resolve_script("dev-implementation/resources/scripts/manage_worker_pool.py")
+        pool_path = self._resolve_script(
+            "dev-implementation/resources/scripts/manage_worker_pool.py"
+        )
         if pool_path is None:
             return None
         spec = importlib.util.spec_from_file_location("manage_worker_pool", pool_path)
@@ -548,7 +582,9 @@ class LifecycleRunner:
 
     def resolve_gate3_order(self) -> list[str]:
         """Auto-calculate Gate 3 task execution order via compute_execution_order.py."""
-        script = self._resolve_script("dev-implementation/resources/scripts/compute_execution_order.py")
+        script = self._resolve_script(
+            "dev-implementation/resources/scripts/compute_execution_order.py"
+        )
         if script is None:
             return []
         cmd = [sys.executable, str(script), self.epic_slug]
@@ -615,7 +651,8 @@ class LifecycleRunner:
             if stripped.startswith("## "):
                 heading = stripped[3:].strip().lower()
                 in_relevant = any(
-                    key in heading for key in ("files", "impact analysis", "blast radius")
+                    key in heading
+                    for key in ("files", "impact analysis", "blast radius")
                 )
                 in_allowed_yaml = False
                 continue
@@ -637,7 +674,10 @@ class LifecycleRunner:
                     not path_tok
                     or " " in path_tok
                     or path_tok.startswith("-")
-                    or not ("/" in path_tok or re.search(r"\.[A-Za-z][A-Za-z0-9]{0,7}$", path_tok))
+                    or not (
+                        "/" in path_tok
+                        or re.search(r"\.[A-Za-z][A-Za-z0-9]{0,7}$", path_tok)
+                    )
                 ):
                     continue
                 if range_tok and not range_tok.startswith("L"):
@@ -667,7 +707,9 @@ class LifecycleRunner:
                 except ValueError:
                     task_rel = str(task_file)
             try:
-                target_refs = self._extract_task_targets(task_file.read_text(encoding="utf-8"))
+                target_refs = self._extract_task_targets(
+                    task_file.read_text(encoding="utf-8")
+                )
             except OSError:
                 target_refs = []
 
@@ -678,7 +720,9 @@ class LifecycleRunner:
             f".devtool/epic/{self.epic_slug}/bdd_scenarios.en.md",
         ]
         existing_anchors = [
-            rel for rel in anchor_candidates if (exec_root / rel).is_file() or (self.root / rel).is_file()
+            rel
+            for rel in anchor_candidates
+            if (exec_root / rel).is_file() or (self.root / rel).is_file()
         ]
 
         lines = [
@@ -690,7 +734,9 @@ class LifecycleRunner:
             for anchor in existing_anchors:
                 lines.append(f"  - `{anchor}`")
         if target_refs:
-            lines.append("- Target files & line ranges (read bounded <=150 lines per call):")
+            lines.append(
+                "- Target files & line ranges (read bounded <=150 lines per call):"
+            )
             for ref in target_refs:
                 lines.append(f"  - `{ref}`")
         lines.extend(
@@ -709,9 +755,9 @@ class LifecycleRunner:
     ) -> bool:
         """Dispatch headless programmer subprocess for a single task inside `worktree_dir`."""
         exec_root = worktree_dir or self.root
-        task_file = self._find_task_file(task_slug, root=exec_root) or self._find_task_file(
-            task_slug, root=self.root
-        )
+        task_file = self._find_task_file(
+            task_slug, root=exec_root
+        ) or self._find_task_file(task_slug, root=self.root)
         prompt = self._build_task_prompt(task_slug, task_file, exec_root)
 
         prog_model = self.config.resolve_programmer_model(self.root)
@@ -727,7 +773,14 @@ class LifecycleRunner:
         )
         if worktree_dir is None and sync_script.is_file():
             subprocess.run(
-                [sys.executable, "-B", str(sync_script), "task", task_slug, "in-progress"],
+                [
+                    sys.executable,
+                    "-B",
+                    str(sync_script),
+                    "task",
+                    task_slug,
+                    "in-progress",
+                ],
                 cwd=exec_root,
                 capture_output=True,
                 check=False,
@@ -815,7 +868,14 @@ class LifecycleRunner:
         )
         self.dispatcher.dispatch(
             cli="agy",
-            args=["--model", self.config.resolve_assistant_model(self.root), "--effort", self.config.assistant_effort, "--mode", "accept-edits"],
+            args=[
+                "--model",
+                self.config.resolve_assistant_model(self.root),
+                "--effort",
+                self.config.assistant_effort,
+                "--mode",
+                "accept-edits",
+            ],
             prompt=prompt,
         )
         # 1. Commit technical revision edits first
@@ -898,7 +958,14 @@ class LifecycleRunner:
         )
         self.dispatcher.dispatch(
             cli="agy",
-            args=["--model", self.config.resolve_assistant_model(self.root), "--effort", self.config.assistant_effort, "--mode", "accept-edits"],
+            args=[
+                "--model",
+                self.config.resolve_assistant_model(self.root),
+                "--effort",
+                self.config.assistant_effort,
+                "--mode",
+                "accept-edits",
+            ],
             prompt=prompt,
         )
         # 1. Commit aligned revision edits first
@@ -984,7 +1051,9 @@ class LifecycleRunner:
             / "package_epic.py"
         )
         if pkg_script.is_file():
-            handoff_file = self.root / ".devtool" / "epic" / self.epic_slug / "handoff.md"
+            handoff_file = (
+                self.root / ".devtool" / "epic" / self.epic_slug / "handoff.md"
+            )
             cmd = [sys.executable, str(pkg_script), self.epic_slug]
             if handoff_file.is_file():
                 cmd.extend(["--revise", "--reason", "Revise after Principal Review"])
@@ -998,7 +1067,9 @@ class LifecycleRunner:
         )
         if status_res.returncode == 0 and status_res.stdout.strip():
             subprocess.run(["git", "add", "-A"], cwd=self.root, check=False)
-            commit_title = f"[{self.epic_slug.upper()}] Re-anchor epic packaging and revisions"
+            commit_title = (
+                f"[{self.epic_slug.upper()}] Re-anchor epic packaging and revisions"
+            )
             subprocess.run(
                 ["git", "commit", "-m", commit_title],
                 cwd=self.root,
@@ -1036,7 +1107,13 @@ class LifecycleRunner:
                     "--max-rounds",
                     str(self.config.max_review_rounds),
                 ]
-                res = subprocess.run(triage_cmd, cwd=self.root, capture_output=True, text=True, check=False)
+                res = subprocess.run(
+                    triage_cmd,
+                    cwd=self.root,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
                 content = res.stdout
 
         if "CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)" in content:
@@ -1052,12 +1129,18 @@ class LifecycleRunner:
     def prompt_human_principal_fixes(self, triage_summary: str) -> bool:
         """Prompt Human Architect for confirmation when critical/contract conflicts occur."""
         print("\n" + "=" * 70)
-        print("⚠️ [HUMAN CHECKPOINT] Principal Review requires confirmation for critical or domain conflicts:")
+        print(
+            "⚠️ [HUMAN CHECKPOINT] Principal Review requires confirmation for critical or domain conflicts:"
+        )
         print(triage_summary)
         print("=" * 70 + "\n")
         if sys.stdin.isatty():
             try:
-                ans = input("Confirm and proceed with proposed fixes? [y/N]: ").strip().lower()
+                ans = (
+                    input("Confirm and proceed with proposed fixes? [y/N]: ")
+                    .strip()
+                    .lower()
+                )
                 return ans in ("y", "yes")
             except (EOFError, KeyboardInterrupt):
                 return False
@@ -1091,8 +1174,12 @@ class LifecycleRunner:
                 "--auto-quota",
             ]
             if self.config.provider_priority:
-                cmd.extend(["--provider-priority", ",".join(self.config.provider_priority)])
-            subprocess.run(cmd, cwd=self.root, capture_output=True, text=True, check=False)
+                cmd.extend(
+                    ["--provider-priority", ",".join(self.config.provider_priority)]
+                )
+            subprocess.run(
+                cmd, cwd=self.root, capture_output=True, text=True, check=False
+            )
 
             triage_cmd = [
                 sys.executable,
@@ -1105,10 +1192,14 @@ class LifecycleRunner:
                 "--max-rounds",
                 str(self.config.max_review_rounds),
             ]
-            triage_res = subprocess.run(triage_cmd, cwd=self.root, capture_output=True, text=True, check=False)
+            triage_res = subprocess.run(
+                triage_cmd, cwd=self.root, capture_output=True, text=True, check=False
+            )
             triage_stdout = triage_res.stdout
 
-            cb = self.evaluate_circuit_breakers("principal", round_num, triage_stdout=triage_stdout)
+            cb = self.evaluate_circuit_breakers(
+                "principal", round_num, triage_stdout=triage_stdout
+            )
             if cb:
                 self.state.active_stage = StageName.HALTED.value
                 self.state.halt_reason = cb
@@ -1127,7 +1218,9 @@ class LifecycleRunner:
                 return True
 
             if action == "AUTO_PASS_FINAL_MINOR_SWEEP":
-                print("AUTO_PASS_FINAL_MINOR_SWEEP: 0 Critical and 0 Important findings")
+                print(
+                    "AUTO_PASS_FINAL_MINOR_SWEEP: 0 Critical and 0 Important findings"
+                )
                 self._apply_minor_fixes(round_num)
                 self._run_package_epic_revise()
                 self.state.active_stage = StageName.IMPLEMENTATION.value
@@ -1155,7 +1248,9 @@ class LifecycleRunner:
                     )
                     proposal_file.parent.mkdir(parents=True, exist_ok=True)
                     proposal_file.write_text(triage_stdout, encoding="utf-8")
-                    self.state.active_stage = StageName.AWAITING_PRINCIPAL_CONFIRMATION.value
+                    self.state.active_stage = (
+                        StageName.AWAITING_PRINCIPAL_CONFIRMATION.value
+                    )
                     self.save_state()
                     confirmed = self.prompt_human_principal_fixes(triage_stdout)
                     if not confirmed:
@@ -1174,7 +1269,9 @@ class LifecycleRunner:
 
     def _compute_parallel_batches(self) -> list[list[str]]:
         """Compute DAG wave batches via compute_execution_order.py --parallel --json."""
-        script = self._resolve_script("dev-implementation/resources/scripts/compute_execution_order.py")
+        script = self._resolve_script(
+            "dev-implementation/resources/scripts/compute_execution_order.py"
+        )
         if script is not None:
             cmd = [
                 sys.executable,
@@ -1185,7 +1282,9 @@ class LifecycleRunner:
                 "2",
                 "--json",
             ]
-            res = subprocess.run(cmd, cwd=self.root, capture_output=True, text=True, check=False)
+            res = subprocess.run(
+                cmd, cwd=self.root, capture_output=True, text=True, check=False
+            )
             if res.returncode == 0 and res.stdout.strip():
                 try:
                     payload = json.loads(res.stdout)
@@ -1239,7 +1338,10 @@ class LifecycleRunner:
 
     def _make_slot_dispatcher(self, slot_path: Path) -> ModelDispatcher:
         """Construct a slot-bound ModelDispatcher unless instance dispatcher was monkeypatched."""
-        if not isinstance(self.dispatcher, ModelDispatcher) or "dispatch" in self.dispatcher.__dict__:
+        if (
+            not isinstance(self.dispatcher, ModelDispatcher)
+            or "dispatch" in self.dispatcher.__dict__
+        ):
             return self.dispatcher
         return ModelDispatcher(
             worktree_dir=slot_path,
@@ -1267,7 +1369,9 @@ class LifecycleRunner:
                 active_wave=wave_num,
                 status="working",
             ):
-                self.state.last_error = f"Failed to sync pool slot {slot_idx} to {epic_branch}"
+                self.state.last_error = (
+                    f"Failed to sync pool slot {slot_idx} to {epic_branch}"
+                )
                 self.save_state()
                 return False
 
@@ -1328,7 +1432,9 @@ class LifecycleRunner:
                     base_ref=epic_branch,
                     status="idle",
                 )
-                self.state.last_error = f"Slot {slot_idx} merge failed for task {task_slug}"
+                self.state.last_error = (
+                    f"Slot {slot_idx} merge failed for task {task_slug}"
+                )
                 self.save_state()
                 return False
 
@@ -1342,8 +1448,7 @@ class LifecycleRunner:
         """Execute Stage 3 autonomous task execution loop with pool isolation in git repos."""
         self.state.active_stage = StageName.IMPLEMENTATION.value
         use_pool = (
-            self._is_git_repo(self.root)
-            and "_execute_single_task" not in self.__dict__
+            self._is_git_repo(self.root) and "_execute_single_task" not in self.__dict__
         )
         pool_mod = self._load_pool_module() if use_pool else None
 
@@ -1439,7 +1544,11 @@ class LifecycleRunner:
                 check=False,
             )
             if res.returncode != 0:
-                raw_err = res.stderr.strip() or res.stdout.strip() or f"exit code {res.returncode}"
+                raw_err = (
+                    res.stderr.strip()
+                    or res.stdout.strip()
+                    or f"exit code {res.returncode}"
+                )
                 err = self._tail_lines(raw_err, 25) or raw_err
                 return False, f"Smoke checklist generation failed: {err}"
 
@@ -1454,14 +1563,26 @@ class LifecycleRunner:
         )
         if review_script.is_file():
             chk_res = subprocess.run(
-                [sys.executable, str(review_script), "check", "--epic-dir", self.epic_slug, "--kind", "code"],
+                [
+                    sys.executable,
+                    str(review_script),
+                    "check",
+                    "--epic-dir",
+                    self.epic_slug,
+                    "--kind",
+                    "code",
+                ],
                 cwd=self.root,
                 capture_output=True,
                 text=True,
                 check=False,
             )
             if chk_res.returncode != 0:
-                raw_err = chk_res.stderr.strip() or chk_res.stdout.strip() or f"exit code {chk_res.returncode}"
+                raw_err = (
+                    chk_res.stderr.strip()
+                    or chk_res.stdout.strip()
+                    or f"exit code {chk_res.returncode}"
+                )
                 err = self._tail_lines(raw_err, 25) or raw_err
                 return False, f"Review decisions check failed: {err}"
 
@@ -1476,25 +1597,42 @@ class LifecycleRunner:
         )
         if audit_script.is_file():
             audit_res = subprocess.run(
-                [sys.executable, str(audit_script), "--epic-dir", self.epic_slug, "--base", self.config.base_branch],
+                [
+                    sys.executable,
+                    str(audit_script),
+                    "--epic-dir",
+                    self.epic_slug,
+                    "--base",
+                    self.config.base_branch,
+                ],
                 cwd=self.root,
                 capture_output=True,
                 text=True,
                 check=False,
             )
             if audit_res.returncode != 0:
-                raw_err = audit_res.stderr.strip() or audit_res.stdout.strip() or f"exit code {audit_res.returncode}"
+                raw_err = (
+                    audit_res.stderr.strip()
+                    or audit_res.stdout.strip()
+                    or f"exit code {audit_res.returncode}"
+                )
                 err = self._tail_lines(raw_err, 25) or raw_err
                 return False, f"Epic audit failed: {err}"
 
         # 4. HLD Integration results and result-based BDD traceability
-        hld_file = self.root / ".devtool" / "epic" / self.epic_slug / f"{self.epic_slug}.en.md"
+        hld_file = (
+            self.root / ".devtool" / "epic" / self.epic_slug / f"{self.epic_slug}.en.md"
+        )
         if hld_file.is_file():
             content = hld_file.read_text(encoding="utf-8")
             for line in content.splitlines():
                 if line.startswith("Integration results:"):
-                    cmd_part = line[len("Integration results:"):].strip()
-                    cmd_str = cmd_part.split("->")[0].strip() if "->" in cmd_part else cmd_part
+                    cmd_part = line[len("Integration results:") :].strip()
+                    cmd_str = (
+                        cmd_part.split("->")[0].strip()
+                        if "->" in cmd_part
+                        else cmd_part
+                    )
                     if cmd_str:
                         integ_res = subprocess.run(
                             cmd_str,
@@ -1505,7 +1643,11 @@ class LifecycleRunner:
                             check=False,
                         )
                         if integ_res.returncode != 0:
-                            raw_err = integ_res.stderr.strip() or integ_res.stdout.strip() or f"exit code {integ_res.returncode}"
+                            raw_err = (
+                                integ_res.stderr.strip()
+                                or integ_res.stdout.strip()
+                                or f"exit code {integ_res.returncode}"
+                            )
                             err = self._tail_lines(raw_err, 25) or raw_err
                             return False, f"Integration test execution failed: {err}"
 
@@ -1518,11 +1660,15 @@ class LifecycleRunner:
             / "check_bdd_traceability.py"
         )
         if bdd_script.is_file():
-            scenarios_file = self.root / ".devtool" / "epic" / self.epic_slug / "bdd_scenarios.en.md"
+            scenarios_file = (
+                self.root / ".devtool" / "epic" / self.epic_slug / "bdd_scenarios.en.md"
+            )
             bdd_cmd = [sys.executable, str(bdd_script), "tests", "--roots", "tests"]
             if scenarios_file.is_file():
                 bdd_cmd.extend(["--scenarios", str(scenarios_file)])
-            report_file = self.root / "build" / "test-results" / "autonomous-lifecycle-runner.xml"
+            report_file = (
+                self.root / "build" / "test-results" / "autonomous-lifecycle-runner.xml"
+            )
             if report_file.is_file():
                 bdd_cmd.extend(["--results", str(report_file)])
             bdd_res = subprocess.run(
@@ -1533,7 +1679,11 @@ class LifecycleRunner:
                 check=False,
             )
             if bdd_res.returncode != 0:
-                raw_err = bdd_res.stderr.strip() or bdd_res.stdout.strip() or f"exit code {bdd_res.returncode}"
+                raw_err = (
+                    bdd_res.stderr.strip()
+                    or bdd_res.stdout.strip()
+                    or f"exit code {bdd_res.returncode}"
+                )
                 err = self._tail_lines(raw_err, 25) or raw_err
                 return False, f"BDD traceability check failed: {err}"
 
@@ -1548,7 +1698,11 @@ class LifecycleRunner:
                 check=False,
             )
             if q_res.returncode != 0:
-                raw_err = q_res.stderr.strip() or q_res.stdout.strip() or f"exit code {q_res.returncode}"
+                raw_err = (
+                    q_res.stderr.strip()
+                    or q_res.stdout.strip()
+                    or f"exit code {q_res.returncode}"
+                )
                 err = self._tail_lines(raw_err, 25) or raw_err
                 return False, f"Quality check verification failed: {err}"
 
@@ -1561,7 +1715,9 @@ class LifecycleRunner:
         )
         candidate_sha = rev_res.stdout.strip() if rev_res.returncode == 0 else "HEAD"
         self.state.last_commit_sha = candidate_sha
-        self.sync_gate_ledger(4, f"Gate 4 verification passed for candidate SHA {candidate_sha}")
+        self.sync_gate_ledger(
+            4, f"Gate 4 verification passed for candidate SHA {candidate_sha}"
+        )
         self.save_state()
 
         return True, "Gate 4 PASS"
@@ -1584,21 +1740,39 @@ class LifecycleRunner:
         )
         if review_script.is_file():
             chk_res = subprocess.run(
-                [sys.executable, str(review_script), "check", "--epic-dir", self.epic_slug, "--kind", "code"],
+                [
+                    sys.executable,
+                    str(review_script),
+                    "check",
+                    "--epic-dir",
+                    self.epic_slug,
+                    "--kind",
+                    "code",
+                ],
                 cwd=self.root,
                 capture_output=True,
                 text=True,
                 check=False,
             )
             if chk_res.returncode != 0:
-                raw_err = chk_res.stderr.strip() or chk_res.stdout.strip() or f"exit code {chk_res.returncode}"
+                raw_err = (
+                    chk_res.stderr.strip()
+                    or chk_res.stdout.strip()
+                    or f"exit code {chk_res.returncode}"
+                )
                 err = self._tail_lines(raw_err, 25) or raw_err
                 return False, f"Review decisions check failed: {err}"
         return True, "Intermediate scoped check PASS"
 
     def _draft_fix_plan(self, round_num: int, triage_stdout: str) -> str:
         """Draft fix plan markdown file for the given review round via AI Programmer dispatch."""
-        file = self.root / ".devtool" / "epic" / self.epic_slug / f"fix_plan_round{round_num}.md"
+        file = (
+            self.root
+            / ".devtool"
+            / "epic"
+            / self.epic_slug
+            / f"fix_plan_round{round_num}.md"
+        )
         file.parent.mkdir(parents=True, exist_ok=True)
         prompt = (
             f"You are the AI Programmer (Role 2.3). Draft an actionable fix plan for Cross-Model Review Round {round_num}.\n"
@@ -1613,7 +1787,11 @@ class LifecycleRunner:
             args=cmd[1:],
             prompt=prompt,
         )
-        content = stdout.strip() if (code == 0 and stdout.strip()) else f"# Fix Plan Round {round_num}\n\n## Triaged Findings\n\n{triage_stdout}\n"
+        content = (
+            stdout.strip()
+            if (code == 0 and stdout.strip())
+            else f"# Fix Plan Round {round_num}\n\n## Triaged Findings\n\n{triage_stdout}\n"
+        )
         try:
             file.write_text(content, encoding="utf-8")
         except OSError:
@@ -1661,7 +1839,11 @@ class LifecycleRunner:
                 check=False,
             )
             if comp_res.returncode != 0:
-                raw_err = comp_res.stderr.strip() or comp_res.stdout.strip() or "py_compile failed"
+                raw_err = (
+                    comp_res.stderr.strip()
+                    or comp_res.stdout.strip()
+                    or "py_compile failed"
+                )
                 return False, _tail_lines(raw_err, 25) or raw_err
 
         matched_tests: list[Path] = []
@@ -1678,14 +1860,25 @@ class LifecycleRunner:
 
         if matched_tests:
             test_res = subprocess.run(
-                [sys.executable, "-m", "pytest", "-q", "--tb=short", *[str(t) for t in matched_tests]],
+                [
+                    sys.executable,
+                    "-m",
+                    "pytest",
+                    "-q",
+                    "--tb=short",
+                    *[str(t) for t in matched_tests],
+                ],
                 cwd=self.root,
                 capture_output=True,
                 text=True,
                 check=False,
             )
             if test_res.returncode != 0:
-                raw_err = test_res.stderr.strip() or test_res.stdout.strip() or "scoped pytest failed"
+                raw_err = (
+                    test_res.stderr.strip()
+                    or test_res.stdout.strip()
+                    or "scoped pytest failed"
+                )
                 return False, _tail_lines(raw_err, 25) or raw_err
 
         return True, "Scoped checks PASS"
@@ -1694,18 +1887,56 @@ class LifecycleRunner:
         """Emit mechanical review phase telemetry in-process without consuming subprocess mocks."""
         try:
             kind_norm = "principal" if kind == "principal" else "code"
-            kind_label = "Principal Review" if kind_norm == "principal" else "Cross-Model Review"
-            stage_label = "Stage 2 (Principal Review)" if kind_norm == "principal" else "Stage 3 Phase 4 (Review)"
-            hb_path = self.root / ".devtool" / "state" / f"{self.epic_slug}.heartbeat.json"
-            existing_hb = _state_envelope.read_json_safe(hb_path, {}) if hb_path.is_file() else {}
+            kind_label = (
+                "Principal Review" if kind_norm == "principal" else "Cross-Model Review"
+            )
+            stage_label = (
+                "Stage 2 (Principal Review)"
+                if kind_norm == "principal"
+                else "Stage 3 Phase 4 (Review)"
+            )
+            hb_path = (
+                self.root / ".devtool" / "state" / f"{self.epic_slug}.heartbeat.json"
+            )
+            existing_hb = (
+                _state_envelope.read_json_safe(hb_path, {}) if hb_path.is_file() else {}
+            )
             prev_rev = existing_hb.get("review_state")
-            rev_dict: dict[str, Any] = dict(prev_rev) if isinstance(prev_rev, dict) else {}
-            rev_dict["kind"] = kind_norm
-            rev_dict["round"] = int(round_num or rev_dict.get("round") or 1)
-            rev_dict["max_rounds"] = int(rev_dict.get("max_rounds") or 3)
-            rev_dict["phase"] = phase
-            eff_round = rev_dict["round"]
-            eff_max = rev_dict["max_rounds"]
+            prev_dict: dict[str, Any] = (
+                dict(prev_rev) if isinstance(prev_rev, dict) else {}
+            )
+            prev_kind = prev_dict.get("kind")
+            prev_round = (
+                int(prev_dict.get("round") or 0)
+                if str(prev_dict.get("round") or "").isdigit()
+                else 0
+            )
+            eff_round = int(
+                round_num
+                or (prev_round if prev_kind == kind_norm and prev_round > 0 else 1)
+            )
+            eff_max = int(prev_dict.get("max_rounds") or 3)
+            if (
+                prev_kind != kind_norm
+                or eff_round != prev_round
+                or phase == "reviewing"
+            ):
+                rev_dict: dict[str, Any] = {
+                    "kind": kind_norm,
+                    "round": eff_round,
+                    "max_rounds": eff_max,
+                    "phase": phase,
+                }
+                if prev_dict.get("cli"):
+                    rev_dict["cli"] = prev_dict["cli"]
+                if prev_dict.get("model"):
+                    rev_dict["model"] = prev_dict["model"]
+            else:
+                rev_dict = dict(prev_dict)
+                rev_dict["kind"] = kind_norm
+                rev_dict["round"] = eff_round
+                rev_dict["max_rounds"] = eff_max
+                rev_dict["phase"] = phase
             sub_detail = f"Round {eff_round}/{eff_max}: {phase}"
             rev_dict["label"] = sub_detail
             if (self.root / ".devtool" / "state").is_dir():
@@ -1753,7 +1984,9 @@ class LifecycleRunner:
             f"You are the AI Programmer (Role 2.3). Implement verified fixes for Cross-Model Review Round {round_num}.",
         ]
         if anchors:
-            prompt_parts.append("Design/BDD/Review anchor paths (read bounded as needed):")
+            prompt_parts.append(
+                "Design/BDD/Review anchor paths (read bounded as needed):"
+            )
             prompt_parts.extend(f"- `{a}`" for a in anchors)
         if findings:
             prompt_parts.append("Verified Findings:")
@@ -1765,8 +1998,12 @@ class LifecycleRunner:
                 prompt_parts.append(f"- [{fid}] ({sev}) `{tgt}`: {prob}")
         if plan_text.strip():
             prompt_parts.append(f"Approved Fix Plan:\n{plan_text.strip()}")
-        prompt_parts.append("Constraints: Strict TDD. Do not invoke d3nexus:task-observer.")
-        prompt_parts.append("Output cap (Zero-Fluff): Reply ONLY with modified file paths, pass/fail test counts, and blocking errors.")
+        prompt_parts.append(
+            "Constraints: Strict TDD. Do not invoke d3nexus:task-observer."
+        )
+        prompt_parts.append(
+            "Output cap (Zero-Fluff): Reply ONLY with modified file paths, pass/fail test counts, and blocking errors."
+        )
         prompt = "\n".join(prompt_parts) + "\n"
 
         prog_model = self.config.resolve_programmer_model(self.root)
@@ -1786,7 +2023,9 @@ class LifecycleRunner:
         self._emit_review_phase_status("code", "verifying", round_num)
         scoped_ok, scoped_msg = self._run_scoped_tests(findings=findings)
         if not scoped_ok:
-            self.state.last_error = f"Scoped tests failed after round {round_num} fixes: {scoped_msg}"
+            self.state.last_error = (
+                f"Scoped tests failed after round {round_num} fixes: {scoped_msg}"
+            )
             return False
 
         if self._is_git_repo(self.root):
@@ -1831,7 +2070,9 @@ class LifecycleRunner:
                 text=True,
                 check=False,
             )
-            sha_short = rev_res.stdout.strip()[:7] if rev_res.returncode == 0 else "unknown"
+            sha_short = (
+                rev_res.stdout.strip()[:7] if rev_res.returncode == 0 else "unknown"
+            )
             lines = content.splitlines()
             in_target_round = False
             in_raw_output = False
@@ -1898,7 +2139,9 @@ class LifecycleRunner:
         in_raw_output = False
 
         round_re = re.compile(r"^##\s+Round\s+(\d+)\b")
-        sha_re = re.compile(r"(?:Candidate\s+)?SHA\s*:\s*`?([0-9a-fA-F]{7,40})`?", re.IGNORECASE)
+        sha_re = re.compile(
+            r"(?:Candidate\s+)?SHA\s*:\s*`?([0-9a-fA-F]{7,40})`?", re.IGNORECASE
+        )
 
         for raw_line in markdown_text.splitlines():
             stripped = raw_line.strip()
@@ -1945,7 +2188,11 @@ class LifecycleRunner:
             problem = ""
             status = cells[-1]
 
-            if len(cells) >= 5 and cells[1].lower() in {"critical", "important", "minor"}:
+            if len(cells) >= 5 and cells[1].lower() in {
+                "critical",
+                "important",
+                "minor",
+            }:
                 sev = cells[1].capitalize()
                 target = cells[2].strip("`")
                 problem = cells[3]
@@ -1983,7 +2230,9 @@ class LifecycleRunner:
         findings: list[dict[str, str]] = []
         seen: set[tuple[str, str]] = set()
 
-        review_file = self.root / ".devtool" / "epic" / self.epic_slug / "review_results.md"
+        review_file = (
+            self.root / ".devtool" / "epic" / self.epic_slug / "review_results.md"
+        )
         if review_file.is_file():
             try:
                 parsed = self._parse_finding_rows(
@@ -2051,7 +2300,11 @@ class LifecycleRunner:
                 return False
 
             combined = " ".join(
-                [item.get("target", ""), item.get("problem", ""), item.get("status", "")]
+                [
+                    item.get("target", ""),
+                    item.get("problem", ""),
+                    item.get("status", ""),
+                ]
             ).lower()
             if any(marker in combined for marker in escalation_markers):
                 return False
@@ -2060,12 +2313,18 @@ class LifecycleRunner:
             if not raw_target:
                 return False
             path_part = re.split(r"[:#]", raw_target, maxsplit=1)[0].strip()
-            line_part = raw_target[len(path_part) + 1:].strip() if len(raw_target) > len(path_part) else ""
+            line_part = (
+                raw_target[len(path_part) + 1 :].strip()
+                if len(raw_target) > len(path_part)
+                else ""
+            )
 
             if (
                 not path_part
                 or path_part.endswith(".md")
-                or path_part.startswith((".devtool/", "shared-contracts/", "shared_contracts/"))
+                or path_part.startswith(
+                    (".devtool/", "shared-contracts/", "shared_contracts/")
+                )
             ):
                 return False
 
@@ -2077,7 +2336,9 @@ class LifecycleRunner:
             if line_num_match:
                 line_num = int(line_num_match.group(1))
                 try:
-                    total_lines = len(target_path.read_text(encoding="utf-8").splitlines())
+                    total_lines = len(
+                        target_path.read_text(encoding="utf-8").splitlines()
+                    )
                 except OSError:
                     return False
                 if line_num < 1 or line_num > total_lines:
@@ -2085,9 +2346,17 @@ class LifecycleRunner:
 
         return True
 
-    def evaluate_programmer_fix_plan(self, round_num: int) -> tuple[FixPlanVerdict, str]:
+    def evaluate_programmer_fix_plan(
+        self, round_num: int
+    ) -> tuple[FixPlanVerdict, str]:
         """Evaluate AI Programmer fix plan against approved HLD."""
-        file = self.root / ".devtool" / "epic" / self.epic_slug / f"fix_plan_round{round_num}.md"
+        file = (
+            self.root
+            / ".devtool"
+            / "epic"
+            / self.epic_slug
+            / f"fix_plan_round{round_num}.md"
+        )
         plan_text = file.read_text(encoding="utf-8") if file.is_file() else ""
         prompt = (
             f"Evaluate the following fix plan for round {round_num} against the approved HLD and BDD scenarios.\n"
@@ -2097,12 +2366,24 @@ class LifecycleRunner:
         assistant_model = self.config.resolve_assistant_model(self.root)
         code, stdout, stderr = self.dispatcher.dispatch(
             cli="agy",
-            args=["--model", assistant_model, "--effort", self.config.assistant_effort, "--mode", "auto"],
+            args=[
+                "--model",
+                assistant_model,
+                "--effort",
+                self.config.assistant_effort,
+                "--mode",
+                "auto",
+            ],
             prompt=prompt,
         )
         if code != 0 or not stdout.strip():
-            err_msg = stderr.strip() or f"Assistant dispatch failed with exit code {code}"
-            return FixPlanVerdict.CRITICAL_CONFLICT, f"Fix plan evaluation failed: {err_msg}"
+            err_msg = (
+                stderr.strip() or f"Assistant dispatch failed with exit code {code}"
+            )
+            return (
+                FixPlanVerdict.CRITICAL_CONFLICT,
+                f"Fix plan evaluation failed: {err_msg}",
+            )
 
         first_line = stdout.strip().splitlines()[0].strip().upper()
         rationale = (
@@ -2149,8 +2430,12 @@ class LifecycleRunner:
                 "--auto-quota",
             ]
             if self.config.provider_priority:
-                cmd.extend(["--provider-priority", ",".join(self.config.provider_priority)])
-            subprocess.run(cmd, cwd=self.root, capture_output=True, text=True, check=False)
+                cmd.extend(
+                    ["--provider-priority", ",".join(self.config.provider_priority)]
+                )
+            subprocess.run(
+                cmd, cwd=self.root, capture_output=True, text=True, check=False
+            )
 
             triage_cmd = [
                 sys.executable,
@@ -2163,10 +2448,14 @@ class LifecycleRunner:
                 "--max-rounds",
                 str(self.config.max_review_rounds),
             ]
-            triage_res = subprocess.run(triage_cmd, cwd=self.root, capture_output=True, text=True, check=False)
+            triage_res = subprocess.run(
+                triage_cmd, cwd=self.root, capture_output=True, text=True, check=False
+            )
             triage_stdout = triage_res.stdout
 
-            cb = self.evaluate_circuit_breakers("code", round_num, triage_stdout=triage_stdout)
+            cb = self.evaluate_circuit_breakers(
+                "code", round_num, triage_stdout=triage_stdout
+            )
             if cb:
                 self.state.active_stage = StageName.HALTED.value
                 self.state.halt_reason = cb
@@ -2186,15 +2475,21 @@ class LifecycleRunner:
                     return True
                 return False
 
-            review_artifact = self.root / ".devtool" / "epic" / self.epic_slug / "review_results.md"
+            review_artifact = (
+                self.root / ".devtool" / "epic" / self.epic_slug / "review_results.md"
+            )
             findings = self._extract_cross_model_findings(round_num, triage_stdout)
 
             if action == "AUTO_PASS_FINAL_MINOR_SWEEP":
-                print("AUTO_PASS_FINAL_MINOR_SWEEP: Sweeping minor findings in single pass...")
+                print(
+                    "AUTO_PASS_FINAL_MINOR_SWEEP: Sweeping minor findings in single pass..."
+                )
                 if not self._apply_code_fixes(
                     round_num,
                     findings=findings or None,
-                    review_artifact=review_artifact if review_artifact.is_file() else None,
+                    review_artifact=review_artifact
+                    if review_artifact.is_file()
+                    else None,
                 ):
                     self.save_state()
                     return False
@@ -2211,7 +2506,9 @@ class LifecycleRunner:
                 if not self._apply_code_fixes(
                     round_num,
                     findings=findings or None,
-                    review_artifact=review_artifact if review_artifact.is_file() else None,
+                    review_artifact=review_artifact
+                    if review_artifact.is_file()
+                    else None,
                 ):
                     self.save_state()
                     return False
@@ -2228,7 +2525,9 @@ class LifecycleRunner:
                     applied = self._apply_code_fixes(
                         round_num,
                         findings=findings,
-                        review_artifact=review_artifact if review_artifact.is_file() else None,
+                        review_artifact=review_artifact
+                        if review_artifact.is_file()
+                        else None,
                     )
                 else:
                     self._draft_fix_plan(round_num, triage_stdout)
@@ -2245,9 +2544,13 @@ class LifecycleRunner:
 
                     applied = self._apply_code_fixes(
                         round_num,
-                        plan_text=rationale if verdict == FixPlanVerdict.ADJUSTED else "",
+                        plan_text=rationale
+                        if verdict == FixPlanVerdict.ADJUSTED
+                        else "",
                         findings=findings or None,
-                        review_artifact=review_artifact if review_artifact.is_file() else None,
+                        review_artifact=review_artifact
+                        if review_artifact.is_file()
+                        else None,
                     )
 
                 if not applied:
@@ -2315,7 +2618,9 @@ class LifecycleRunner:
             s_rank = sev_rank.get(sev, 3)
             st = item.get("status", "").strip().lower()
             open_rank = 0 if st in {"", "open", "pending"} else 1
-            prob_lower = (item.get("problem", "") + " " + item.get("target", "")).lower()
+            prob_lower = (
+                item.get("problem", "") + " " + item.get("target", "")
+            ).lower()
             kw_rank = 0 if any(kw in prob_lower for kw in risk_keywords) else 1
             r_num = int(item.get("round_num", "1") or "1")
             return (s_rank, open_rank, kw_rank, -r_num)
@@ -2357,7 +2662,9 @@ class LifecycleRunner:
         top_findings = self._collect_report_findings()[:3]
         if top_findings:
             for idx, item in enumerate(top_findings, start=1):
-                r_label = f"{item.get('stage', 'Review')} {item.get('round', 'Round 1')}"
+                r_label = (
+                    f"{item.get('stage', 'Review')} {item.get('round', 'Round 1')}"
+                )
                 area = item.get("target") or item.get("id") or "Repository"
                 fid = item.get("id", "").strip()
                 if fid and fid not in area:
@@ -2371,7 +2678,9 @@ class LifecycleRunner:
                     status = f"{status} (Candidate `{sha}`)"
                 lines.append(f"| {idx} | {r_label} | {area} | {risk_col} | {status} |")
         else:
-            lines.append("| 1 | All Rounds | Reviewed Epic & Repository Artifacts | 0 Open High-Risk Findings | Gate 4 Verified |")
+            lines.append(
+                "| 1 | All Rounds | Reviewed Epic & Repository Artifacts | 0 Open High-Risk Findings | Gate 4 Verified |"
+            )
 
         lines.extend(
             [
@@ -2388,22 +2697,44 @@ def main() -> int:
     """CLI entrypoint for autonomous lifecycle runner."""
     parser = argparse.ArgumentParser(description="Autonomous Lifecycle Runner CLI")
     parser.add_argument("--epic", required=True, help="Epic slug identifier")
-    parser.add_argument("--resume", action="store_true", help="Resume from interrupted state")
+    parser.add_argument(
+        "--resume", action="store_true", help="Resume from interrupted state"
+    )
     parser.add_argument("--config", type=Path, default=None, help="Path to config JSON")
-    parser.add_argument("--root", type=Path, default=Path.cwd(), help="Workspace root directory")
+    parser.add_argument(
+        "--root", type=Path, default=Path.cwd(), help="Workspace root directory"
+    )
     parser.add_argument(
         "--reset-stage",
         choices=[s.value for s in StageName],
         default=None,
         help="Reset to specific stage",
     )
-    parser.add_argument("--confirm-fixes", action="store_true", help="Confirm Principal Review fixes")
-    parser.add_argument("--reject-fixes", action="store_true", help="Reject Principal Review fixes")
-    parser.add_argument("--base", default="main", help="Base branch name (default: main)")
-    parser.add_argument("--programmer-model", default=None, help="CLI override model for Programmer")
-    parser.add_argument("--programmer-effort", default=None, help="CLI override reasoning effort for Programmer")
-    parser.add_argument("--assistant-model", default=None, help="Model override for Assistant")
-    parser.add_argument("--dry-run", action="store_true", help="Simulate execution without running subprocesses")
+    parser.add_argument(
+        "--confirm-fixes", action="store_true", help="Confirm Principal Review fixes"
+    )
+    parser.add_argument(
+        "--reject-fixes", action="store_true", help="Reject Principal Review fixes"
+    )
+    parser.add_argument(
+        "--base", default="main", help="Base branch name (default: main)"
+    )
+    parser.add_argument(
+        "--programmer-model", default=None, help="CLI override model for Programmer"
+    )
+    parser.add_argument(
+        "--programmer-effort",
+        default=None,
+        help="CLI override reasoning effort for Programmer",
+    )
+    parser.add_argument(
+        "--assistant-model", default=None, help="Model override for Assistant"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Simulate execution without running subprocesses",
+    )
     args = parser.parse_args()
 
     cfg = RunnerConfig(
@@ -2415,15 +2746,21 @@ def main() -> int:
     if args.config and args.config.is_file():
         try:
             cdata = json.loads(args.config.read_text(encoding="utf-8"))
-            if "programmer_model" in cdata and isinstance(cdata["programmer_model"], str):
+            if "programmer_model" in cdata and isinstance(
+                cdata["programmer_model"], str
+            ):
                 cfg.config_programmer_model = cdata["programmer_model"]
-            if "programmer_effort" in cdata and isinstance(cdata["programmer_effort"], str):
+            if "programmer_effort" in cdata and isinstance(
+                cdata["programmer_effort"], str
+            ):
                 cfg.config_programmer_effort = cdata["programmer_effort"]
             elif "thinking_level" in cdata and isinstance(cdata["thinking_level"], str):
                 cfg.config_programmer_effort = cdata["thinking_level"]
             if "assistant_model" in cdata and cfg.assistant_model is None:
                 cfg.assistant_model = cdata["assistant_model"]
-            if "assistant_effort" in cdata and isinstance(cdata["assistant_effort"], str):
+            if "assistant_effort" in cdata and isinstance(
+                cdata["assistant_effort"], str
+            ):
                 cfg.assistant_effort = cdata["assistant_effort"]
             if "timeout_seconds" in cdata:
                 cfg.timeout_seconds = int(cdata["timeout_seconds"])

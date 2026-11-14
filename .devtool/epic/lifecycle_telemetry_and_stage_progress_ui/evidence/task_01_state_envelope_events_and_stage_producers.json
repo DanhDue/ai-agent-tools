@@ -37,11 +37,11 @@
       "passed": true
     },
     "verify": {
-      "head": "ec7c9c0d67879229d14280687eba559a5d99fc41",
-      "tree": "b519782b10ea2c1c533f3484123f663e81a3170a",
-      "patch_id": "5403297e18e5015035b3cd1c6626b7f6f9bad5e3",
-      "started": "2026-11-14T03:50:48Z",
-      "finished": "2026-11-14T03:51:53Z",
+      "head": "9579121a320312e67470c28df3f80b4f8c8391a5",
+      "tree": "7f5b6cbb1451969834f98c97869780cc8df3ddfb",
+      "patch_id": "355a9ce96d32e224cfcba357d9984d83decae5ac",
+      "started": "2026-11-14T04:47:17Z",
+      "finished": "2026-11-14T04:48:25Z",
       "rows": [
         {
           "id": "V2",
@@ -52,13 +52,13 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-14T03:50:48Z",
-          "finished": "2026-11-14T03:50:50Z",
+          "started": "2026-11-14T04:47:17Z",
+          "finished": "2026-11-14T04:47:19Z",
           "output_tail": [
-            "...............                                                          [100%]",
-            "15 passed in 1.75s"
+            "..................                                                       [100%]",
+            "18 passed in 1.85s"
           ],
-          "output_sha256": "f8805b83b428717e82c8d4db9549b12c883851b2193b0df3aa64b294b6c33e47"
+          "output_sha256": "2da4969db94de9e263969d9d2640fb910769d02a06d2019bafa801ba49e373a6"
         },
         {
           "id": "V3",
@@ -69,14 +69,14 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-14T03:50:50Z",
-          "finished": "2026-11-14T03:51:51Z",
+          "started": "2026-11-14T04:47:19Z",
+          "finished": "2026-11-14T04:48:22Z",
           "output_tail": [
             "..................................................................... [ 66%]",
             "..................................                             [100%]",
-            "103 passed, 13 subtests passed in 60.04s (0:01:00)"
+            "103 passed, 13 subtests passed in 62.60s (0:01:02)"
           ],
-          "output_sha256": "e28e5949b83bf4beb1c492c75f5c78026adeded1a8cfa4c11ab2654b8a81c40f"
+          "output_sha256": "65298a98a7d3c28997fae318fbad7cbccb5c5a2c3b74345106e31e0a431eaf7b"
         },
         {
           "id": "V4",
@@ -87,8 +87,8 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-14T03:51:51Z",
-          "finished": "2026-11-14T03:51:51Z",
+          "started": "2026-11-14T04:48:22Z",
+          "finished": "2026-11-14T04:48:22Z",
           "output_tail": [
             "All checks passed!"
           ],
@@ -103,8 +103,8 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-14T03:51:51Z",
-          "finished": "2026-11-14T03:51:51Z",
+          "started": "2026-11-14T04:48:22Z",
+          "finished": "2026-11-14T04:48:22Z",
           "output_tail": [
             "Success: no issues found in 8 source files"
           ],
@@ -119,19 +119,19 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-14T03:51:51Z",
-          "finished": "2026-11-14T03:51:53Z",
+          "started": "2026-11-14T04:48:22Z",
+          "finished": "2026-11-14T04:48:24Z",
           "output_tail": [
-            "...............                                                          [100%]",
-            "15 passed in 1.70s"
+            "..................                                                       [100%]",
+            "18 passed in 1.87s"
           ],
-          "output_sha256": "da9136c1ea1473805a083fc09925edee378d966cedecc1c16ad8cf1493a1dae8",
+          "output_sha256": "2c6d0eb233c05f616b9dee8cad8a0424b7e5e4f457c72a46c9fdb3ffbb9e910f",
           "results": {
             "path": "build/test-results/ltsp_task_01.xml",
             "fresh": true,
             "digest": {
               "totals": {
-                "passed": 15,
+                "passed": 18,
                 "failed": 0,
                 "skipped": 0
               },
@@ -172,6 +172,11 @@
                   "status": "passed"
                 },
                 {
+                  "name": "test_ltsp_hp_02_format_capability_labels[pytest_unit-PyCore / Unit Test]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
                   "name": "test_ltsp_hp_02_format_capability_labels[integration-Integration Test]",
                   "classname": "tests.test_ltsp_state_and_producers",
                   "status": "passed"
@@ -188,6 +193,16 @@
                 },
                 {
                   "name": "test_ltsp_hp_02_format_capability_labels[architecture-Architecture Gate]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[import_linter-Architecture Gate]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[build-Build]",
                   "classname": "tests.test_ltsp_state_and_producers",
                   "status": "passed"
                 },
@@ -221,10 +236,10 @@
           "outcome": "PASS",
           "changed": [
             "scripts/_state_envelope.py",
-            "skills/dev-implementation/resources/scripts/audit_epic.py",
-            "skills/dev-implementation/resources/scripts/check_bdd_traceability.py",
+            "skills/dev-implementation/resources/scripts/run_external_review.py",
             "skills/dev-implementation/resources/scripts/run_task_checks.py",
             "skills/dev-lifecycle/resources/scripts/lifecycle_runner.py",
+            "skills/quality_check/resources/scripts/verify_polyglot_registry.py",
             "tests/test_ltsp_state_and_producers.py"
           ],
           "violations": []

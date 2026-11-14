@@ -427,6 +427,7 @@ def update_epic_heartbeat(
     review_state: Mapping[str, Any] | None = None,
     active_wave: int | None = None,
     active_tasks: Sequence[str] | None = None,
+    active_task: str | None = None,
     slots: Mapping[str, Any] | None = None,
     slot_updates: Mapping[str, Any] | None = None,
     remove_slots: Sequence[str] | None = None,
@@ -467,15 +468,27 @@ def update_epic_heartbeat(
             state["sub_step_detail"] = sub_step_detail
         if review_state is not None:
             existing_rev = state.get("review_state")
-            merged_rev = dict(existing_rev) if isinstance(existing_rev, dict) else {}
-            merged_rev.update(copy.deepcopy(dict(review_state)))
-            state["review_state"] = merged_rev
+            new_rev = copy.deepcopy(dict(review_state))
+            if isinstance(existing_rev, dict):
+                same_kind = existing_rev.get("kind") == new_rev.get("kind")
+                same_round = existing_rev.get("round") == new_rev.get("round")
+                if same_kind and same_round and new_rev.get("phase") != "reviewing":
+                    merged_rev = dict(existing_rev)
+                    merged_rev.update(new_rev)
+                    state["review_state"] = merged_rev
+                else:
+                    state["review_state"] = new_rev
+            else:
+                state["review_state"] = new_rev
         if active_wave is not None:
             state["active_wave"] = active_wave
-        if active_tasks is not None:
-            state["active_tasks"] = list(
-                dict.fromkeys(str(t) for t in active_tasks if str(t))
-            )
+        if active_tasks is not None or active_task is not None:
+            combined_tasks: list[str] = []
+            if active_tasks is not None:
+                combined_tasks.extend(str(t) for t in active_tasks if str(t))
+            if active_task is not None and str(active_task):
+                combined_tasks.append(str(active_task))
+            state["active_tasks"] = list(dict.fromkeys(combined_tasks))
         if pic is not None:
             state["pic"] = pic
         if tally is not None:

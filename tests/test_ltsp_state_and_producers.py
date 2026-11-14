@@ -98,10 +98,13 @@ def test_ltsp_hp_01_events_ring_buffer_and_review_state(tmp_path: Path) -> None:
         ("pycore", "PyCore / Unit Test"),
         ("unit_test", "PyCore / Unit Test"),
         ("pytest", "Unit & Integration Test"),
+        ("pytest_unit", "PyCore / Unit Test"),
         ("integration", "Integration Test"),
         ("e2e", "UI / E2E Test"),
         ("playwright", "UI / E2E Test"),
         ("architecture", "Architecture Gate"),
+        ("import_linter", "Architecture Gate"),
+        ("build", "Build"),
     ],
 )
 def test_ltsp_hp_02_format_capability_labels(
@@ -155,6 +158,7 @@ def test_ltsp_hp_02_coordinator_steps_and_distinct_events(tmp_path: Path) -> Non
     assert by_cap["pycore"]["status"] == "running"
     assert by_cap["pycore"]["label"] == "PyCore / Unit Test"
     assert run_entry.get("capability_label") == "PyCore / Unit Test"
+    assert isinstance(run_entry.get("head_sha"), str)
 
     hb_path = repo / ".devtool" / "state" / "demo_epic.heartbeat.json"
     assert hb_path.is_file()
@@ -239,6 +243,24 @@ def test_ltsp_st_01_external_review_runner_transitions_review_state(
         assert len(events) >= 3
         phases_logged = [e.get("sub_step") for e in events[-3:]]
         assert phases_logged == ["triage", "fixing", "verifying"]
+
+        # Transitioning to a new round or new review kind must clear stale verdicts/actions/counts
+        rer._emit_review_heartbeat(
+            repo,
+            "rev_epic",
+            kind="code",
+            phase="reviewing",
+            round_num=2,
+            cli="codex",
+            model="gpt-6.1-sol",
+        )
+        hb4 = json.loads(hb_path.read_text(encoding="utf-8"))
+        rev4 = hb4.get("review_state", {})
+        assert rev4.get("round") == 2
+        assert rev4.get("phase") == "reviewing"
+        assert "verdict" not in rev4
+        assert "action" not in rev4
+        assert "important" not in rev4
     finally:
         os.chdir(old_cwd)
 

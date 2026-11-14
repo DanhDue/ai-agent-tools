@@ -18,6 +18,7 @@ import inspect
 import json
 import os
 from pathlib import Path
+import re
 import signal
 import socket
 import subprocess
@@ -321,20 +322,47 @@ def format_capability_label(provider: str, capability: str) -> str:
     """Map provider and capability identifiers to human-readable quality check labels."""
     cap_norm = str(capability or "").strip().lower()
     prov_norm = str(provider or "").strip().lower()
-    if any(k in cap_norm for k in ("e2e", "playwright", "ui", "web_e2e")):
+    cap_tokens = {tok for tok in re.split(r"[^a-z0-9]+", cap_norm) if tok}
+    if (
+        any(
+            k in cap_norm
+            for k in ("e2e", "playwright", "web_e2e", "ui_test", "ui-test")
+        )
+        or "ui" in cap_tokens
+    ):
         return "UI / E2E Test"
-    if any(k in cap_norm for k in ("integration", "integration_test")):
+    if (
+        any(k in cap_norm for k in ("integration", "integration_test"))
+        or "integration" in cap_tokens
+    ):
         return "Integration Test"
-    if any(k in cap_norm for k in ("pycore", "unit_test")) or cap_norm == "unit":
+    if (
+        any(k in cap_norm for k in ("pycore", "unit_test", "unit-test"))
+        or "unit" in cap_tokens
+    ):
         return "PyCore / Unit Test"
-    if any(k in cap_norm for k in ("pytest", "flutter_test", "cargo_test")) or cap_norm == "test":
+    if (
+        any(k in cap_norm for k in ("pytest", "flutter_test", "cargo_test"))
+        or cap_norm == "test"
+    ):
         return "Unit & Integration Test"
-    if any(k in cap_norm for k in ("lint", "ruff", "spotless", "swiftlint", "clippy", "format")):
-        return "Static Lint"
-    if any(k in cap_norm for k in ("typecheck", "type_check", "mypy", "analyze", "tsc")):
-        return "Typecheck"
-    if any(k in cap_norm for k in ("architecture", "import_linter", "konsist", "arch")):
+    if (
+        any(
+            k in cap_norm
+            for k in ("architecture", "import_linter", "import-linter", "konsist")
+        )
+        or "arch" in cap_tokens
+    ):
         return "Architecture Gate"
+    if any(
+        k in cap_norm
+        for k in ("lint", "ruff", "spotless", "swiftlint", "clippy", "format")
+    ):
+        return "Static Lint"
+    if any(
+        k in cap_norm for k in ("typecheck", "type_check", "mypy", "analyze", "tsc")
+    ):
+        return "Typecheck"
     if cap_norm == "web" or "web" in prov_norm:
         return "UI / E2E Test"
     if cap_norm:
@@ -356,6 +384,7 @@ class _QualityRunCoordinator:
         step_total: int,
         ttl_sec: int,
         planned_steps: list[tuple[str, str]] | None = None,
+        head_sha: str | None = None,
     ) -> None:
         self.run_id = run_id
         self.repo_root = repo_root
@@ -364,6 +393,11 @@ class _QualityRunCoordinator:
         self.heartbeat_interval = max(0.01, float(heartbeat_interval))
         self.step_total = max(1, int(step_total), len(planned_steps or []))
         self.ttl_sec = ttl_sec
+        self.head_sha = (
+            head_sha
+            if head_sha is not None
+            else (_get_git_head(repo_root)[:7] if repo_root is not None else "")
+        )
         self.pid = os.getpid()
         self.host = socket.gethostname()
         self.started_at = _utc_now_iso()
@@ -461,7 +495,10 @@ class _QualityRunCoordinator:
                     break
             if not matched:
                 for item in self._steps:
-                    if item.get("capability") == capability and item.get("status") == "pending":
+                    if (
+                        item.get("capability") == capability
+                        and item.get("status") == "pending"
+                    ):
                         item["status"] = "running"
                         matched = True
                         break
@@ -500,11 +537,16 @@ class _QualityRunCoordinator:
         status: str = "passed",
         elapsed_sec: float = 0.0,
     ) -> None:
-        norm_status = "passed" if str(status).lower() in ("pass", "passed") else "failed"
+        norm_status = (
+            "passed" if str(status).lower() in ("pass", "passed") else "failed"
+        )
         with self._lock:
             step_index = self._last_step_index or 1
             for item in self._steps:
-                if item.get("provider") == provider and item.get("capability") == capability:
+                if (
+                    item.get("provider") == provider
+                    and item.get("capability") == capability
+                ):
                     item["status"] = norm_status
                     item["elapsed_sec"] = round(float(elapsed_sec), 3)
                     step_index = int(item.get("index", step_index))
@@ -592,10 +634,13 @@ class _QualityRunCoordinator:
             "status": status,
             "provider": provider,
             "capability": capability,
-            "capability_label": format_capability_label(provider, capability) if (provider or capability) else "",
+            "capability_label": format_capability_label(provider, capability)
+            if (provider or capability)
+            else "",
             "step_index": step_index,
             "step_total": self.step_total,
             "steps": steps_copy,
+            "head_sha": self.head_sha,
             "pid": self.pid,
             "host": self.host,
             "ttl_sec": self.ttl_sec,
@@ -1495,7 +1540,9 @@ def verify_polyglot_execution(
             step_total=step_total,
             has_e2e=has_e2e,
             run_id=None,
-            planned_steps=_collect_planned_steps(plan_providers, requested_profile, repo_root),
+            planned_steps=_collect_planned_steps(
+                plan_providers, requested_profile, repo_root
+            ),
             fn=_execute_all,
         )
     else:
