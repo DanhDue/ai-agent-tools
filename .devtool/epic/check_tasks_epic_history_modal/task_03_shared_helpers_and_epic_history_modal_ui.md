@@ -1,12 +1,12 @@
 ---
 id: "task_03_shared_helpers_and_epic_history_modal_ui"
-status: "todo"
+status: "in-progress"
 priority: "high"
 assignee: null
 epic: "check_tasks_epic_history_modal"
 dueDate: null
 created: "2026-11-15T01:00:00Z"
-modified: "2026-11-15T01:00:00Z"
+modified: "2026-11-14T18:56:44Z"
 completedAt: null
 labels: ["dashboard-ui", "vanilla-js", "modal", "shared-helpers"]
 order: "a3"
@@ -101,7 +101,7 @@ And when the delayed `"epic_a"` promise resolves later, `"epic_a"` content does 
 | V2 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_cehm_dashboard_modal_ui.py` | exit 0; contains "passed" | — |
 | V3 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_ltsp_dashboard_ui.py tests/test_rsdh_tasks_dashboard_ui.py` | exit 0 | — |
 | V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_cehm_dashboard_modal_ui.py tests/test_ltsp_dashboard_ui.py tests/test_rsdh_tasks_dashboard_ui.py` | exit 0 | — |
-| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_cehm_dashboard_modal_ui.py tests/test_ltsp_dashboard_ui.py` | exit 0 | — |
+| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py && mypy tests/test_cehm_dashboard_modal_ui.py tests/test_ltsp_dashboard_ui.py` | exit 0 | — |
 | V6 | TIER-C | `python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/cehm_task_03.xml tests/test_cehm_dashboard_modal_ui.py tests/test_ltsp_dashboard_ui.py tests/test_rsdh_tasks_dashboard_ui.py` | exit 0; results build/test-results/cehm_task_03.xml | — |
 
 ## Stop and Report If
