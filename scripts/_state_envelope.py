@@ -206,9 +206,17 @@ def resolve_shared_devtool_dirs(start_path: Path | None = None) -> list[Path]:
     if worktree_root is not None and worktree_root.name == "replay_worktree":
         return [(worktree_root / ".devtool").resolve()]
 
+    is_pool_slot = (
+        worktree_root is not None
+        and primary_root is not None
+        and worktree_root != primary_root
+        and _is_slot_worktree(worktree_root)
+    )
+    candidate_roots = (primary_root,) if is_pool_slot else (primary_root, worktree_root)
+
     ordered: list[Path] = []
     seen: set[Path] = set()
-    for root in (primary_root, worktree_root):
+    for root in candidate_roots:
         if root is None:
             continue
         devtool_dir = (root / ".devtool").resolve()

@@ -222,7 +222,9 @@ _SLOT_WORKTREE_RE = re.compile(r"-slot-\d+$")
 
 def _is_slot_worktree(path: Path) -> bool:
     """Return True if path is an ephemeral parallel worker pool slot worktree."""
-    return path.parent.name == ".worktrees" and bool(_SLOT_WORKTREE_RE.search(path.name))
+    return path.parent.name == ".worktrees" and bool(
+        _SLOT_WORKTREE_RE.search(path.name)
+    )
 
 
 def _current_checkout_root() -> Path | None:
@@ -470,7 +472,7 @@ def _sync_runtime_envelope_and_memory(
                 ):
                     _add_dt(mirror_dt)
     for root in active_roots:
-        if (root / ".devtool").is_dir():
+        if (root / ".devtool").is_dir() and not _is_slot_worktree(root):
             _add_dt(root / ".devtool")
     if not target_devtool_dirs:
         _add_dt(anchor / ".devtool")
@@ -478,7 +480,9 @@ def _sync_runtime_envelope_and_memory(
     summary_roots = _order_summary_roots(
         active_roots, target_devtool_dirs, primary_root
     )
-    tally, active_tasks, next_todo = _collect_epic_task_summary(summary_roots, epic_slug)
+    tally, active_tasks, next_todo = _collect_epic_task_summary(
+        summary_roots, epic_slug
+    )
 
     _state_envelope.update_epic_heartbeat(
         anchor,
@@ -528,7 +532,11 @@ def _sync_runtime_envelope_and_memory(
         decisions_text = f"- {last_event}"
 
     if epic_slug != envelope_slug:
-        lock_dt = (primary_root / ".devtool").resolve() if primary_root is not None else target_devtool_dirs[0]
+        lock_dt = (
+            (primary_root / ".devtool").resolve()
+            if primary_root is not None
+            else target_devtool_dirs[0]
+        )
         with _state_envelope._state_lock(lock_dt):
             for dt_dir in target_devtool_dirs:
                 for stale_name in {
@@ -902,7 +910,13 @@ def sync_epic(
                 stage=new_status,
                 last_event=f"sync_epic {epic_dir} -> {new_status}",
                 clear_decision=norm_status
-                in ("in progress", "in-progress", "đang thực hiện", "done", "hoàn thành"),
+                in (
+                    "in progress",
+                    "in-progress",
+                    "đang thực hiện",
+                    "done",
+                    "hoàn thành",
+                ),
             )
 
     return matched, written
@@ -1255,9 +1269,9 @@ def check_epic_file_conflicts(root: Path, epic_dir: str) -> dict[str, list[str]]
                         if tc.path_matches(t_pat, o_pat) or tc.path_matches(
                             o_pat, t_pat
                         ):
-                            conflicts.setdefault(
-                                other_epic or "unknown", set()
-                            ).add(t_pat)
+                            conflicts.setdefault(other_epic or "unknown", set()).add(
+                                t_pat
+                            )
 
     return {ep: sorted(pats) for ep, pats in sorted(conflicts.items())}
 
@@ -1575,9 +1589,7 @@ def main() -> None:
 
     elif args.command == "promote":
         roots = checkout_roots()
-        promoted, blockers = promote_epic_tasks(
-            roots, args.epic_dir, force=args.force
-        )
+        promoted, blockers = promote_epic_tasks(roots, args.epic_dir, force=args.force)
         if blockers:
             for b in blockers:
                 sys.stderr.write(f"error: {b}\n")

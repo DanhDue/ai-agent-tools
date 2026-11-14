@@ -299,3 +299,48 @@ def test_ltsp_fr_01_readonly_state_dir_never_aborts_cli(tmp_path: Path) -> None:
     finally:
         state_dir.chmod(0o755)
         os.chdir(old_cwd)
+
+
+def test_ltsp_ec_slot_worktree_excluded_from_state_mirrors(tmp_path: Path) -> None:
+    """Ephemeral worker pool slot worktrees never receive .devtool/state heartbeat mirrors."""
+    import _state_envelope
+
+    repo = _init_git_repo(tmp_path)
+    epic_wt = repo / ".worktrees" / "demo_epic"
+    slot_wt = repo / ".worktrees" / "demo_epic-slot-1"
+    subprocess.run(
+        ["git", "worktree", "add", "-q", "-b", "epic/demo_epic", str(epic_wt)],
+        cwd=repo,
+        check=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "worktree",
+            "add",
+            "-q",
+            "-b",
+            "epic/demo_epic-slot-1",
+            str(slot_wt),
+            "epic/demo_epic",
+        ],
+        cwd=repo,
+        check=True,
+    )
+    (epic_wt / ".devtool" / "state").mkdir(parents=True, exist_ok=True)
+    (slot_wt / ".devtool" / "state").mkdir(parents=True, exist_ok=True)
+
+    assert _state_envelope.resolve_shared_devtool_dirs(slot_wt) == [
+        (repo / ".devtool").resolve()
+    ]
+    _state_envelope.update_epic_heartbeat(
+        slot_wt,
+        "demo_epic",
+        sub_step="task_verify",
+        sub_step_detail="task_01 (verify: PASS)",
+        last_event="run_task_checks verify task_01 -> PASS",
+    )
+
+    assert (repo / ".devtool" / "state" / "demo_epic.heartbeat.json").is_file()
+    assert (epic_wt / ".devtool" / "state" / "demo_epic.heartbeat.json").is_file()
+    assert not (slot_wt / ".devtool" / "state" / "demo_epic.heartbeat.json").exists()
