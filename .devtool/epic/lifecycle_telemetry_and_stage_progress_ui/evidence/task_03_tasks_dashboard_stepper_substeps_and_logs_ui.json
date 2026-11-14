@@ -1,0 +1,187 @@
+{
+  "schema": 1,
+  "task": "task_03_tasks_dashboard_stepper_substeps_and_logs_ui",
+  "runs": {
+    "red": {
+      "head": "84934328fb3f7b1e67569a985dd7eb18e2e4417f",
+      "tree": "1936c4abffa72085cb63a2fa6ec239c382b7f2a3",
+      "patch_id": "957b08a3eca28cf3c4f7f35bd1f3e5381e942549",
+      "started": "2026-11-14T04:54:03Z",
+      "finished": "2026-11-14T04:54:04Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ltsp_dashboard_ui.py::test_ltsp_hp_05_stepper_substeps_logs_and_kanban_overview",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T04:54:03Z",
+          "finished": "2026-11-14T04:54:04Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "__________ test_ltsp_hp_05_stepper_substeps_logs_and_kanban_overview ___________",
+            "tests/test_ltsp_dashboard_ui.py:175: in test_ltsp_hp_05_stepper_substeps_logs_and_kanban_overview",
+            "    assert 'data-telemetry=\"pipeline-stepper\"' in exec_html",
+            "E   assert 'data-telemetry=\"pipeline-stepper\"' in '\\n          <div class=\"epic-execution-item\" style=\"background: #141724; border: 1px solid #283347; border-left: 4px ... Cross-Model Review\\n                </button>\\n              </div>\\n            </div>\\n\\n          </div>\\n        '",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_ltsp_dashboard_ui.py::test_ltsp_hp_05_stepper_substeps_logs_and_kanban_overview",
+            "1 failed in 0.11s"
+          ],
+          "output_sha256": "3a954c90e54e03cb314929b8dd60bf0cae0004b2e6c319bcdcdf70caf3897079"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "84934328fb3f7b1e67569a985dd7eb18e2e4417f",
+      "tree": "a4147ae2993528b3a370e616727509418972f2d3",
+      "patch_id": "8bab1280d626f7c06acb750561605d7bfcc0a5d6",
+      "started": "2026-11-14T04:54:16Z",
+      "finished": "2026-11-14T04:54:30Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ltsp_dashboard_ui.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T04:54:16Z",
+          "finished": "2026-11-14T04:54:18Z",
+          "output_tail": [
+            "......                                                                   [100%]",
+            "6 passed in 1.85s"
+          ],
+          "output_sha256": "91f7c111aaa7d5514214bcde1b9bc1f41967272bb27a702708f0b9162e579f8c"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_rsdh_tasks_dashboard_ui.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T04:54:18Z",
+          "finished": "2026-11-14T04:54:23Z",
+          "output_tail": [
+            ".....                                                                    [100%]",
+            "5 passed in 4.43s"
+          ],
+          "output_sha256": "b53c6ac2f8af1100622315726bdac768e8ec3bacb9c5f56aa359ef1646ff5f48"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_ltsp_dashboard_ui.py tests/test_rsdh_tasks_dashboard_ui.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T04:54:23Z",
+          "finished": "2026-11-14T04:54:23Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T04:54:23Z",
+          "finished": "2026-11-14T04:54:23Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files"
+          ],
+          "output_sha256": "050c52a2b0c61e8b681ef5c485e0bc03340b8d55148e0acef27d744c8be42033"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/ltsp_task_03.xml tests/test_ltsp_dashboard_ui.py tests/test_rsdh_tasks_dashboard_ui.py",
+          "expect": "exit 0; results build/test-results/ltsp_task_03.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T04:54:23Z",
+          "finished": "2026-11-14T04:54:29Z",
+          "output_tail": [
+            "...........                                                              [100%]",
+            "11 passed in 6.03s"
+          ],
+          "output_sha256": "29f35c32e82a289795dbaab6c78454e22634fb9159e9013f6018d5bdee1946bf",
+          "results": {
+            "path": "build/test-results/ltsp_task_03.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 6,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_ltsp_hp_05_stepper_substeps_logs_and_kanban_overview",
+                  "classname": "tests.test_ltsp_dashboard_ui",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_05_integration",
+                  "classname": "tests.test_ltsp_dashboard_ui.TestLtspDashboardUi_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_ec_03_legacy_payload_graceful_fallback",
+                  "classname": "tests.test_ltsp_dashboard_ui.TestLtspDashboardUi_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_st_03_quality_check_substeps_visual_transition",
+                  "classname": "tests.test_ltsp_dashboard_ui.TestLtspDashboardUi_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_ar_02_tier2_sig_updates_without_clobbering_roadmap_focus",
+                  "classname": "tests.test_ltsp_dashboard_ui.TestLtspDashboardUi_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_fr_02_failed_quality_and_circuit_breaker_halt_badges",
+                  "classname": "tests.test_ltsp_dashboard_ui.TestLtspDashboardUi_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/check-tasks/resources/dashboard/tasks_dashboard.html",
+            "tests/test_ltsp_dashboard_ui.py",
+            "tests/test_rsdh_tasks_dashboard_ui.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

@@ -10,9 +10,11 @@ Exit codes: 0 every row passed (status: the done gate passes); 1 a row failed (e
 the done gate fails; 2 usage error or a task
 file the parser rejects (no evidence written).
 """
+
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import importlib
 import os
@@ -61,6 +63,8 @@ def kit_env() -> dict[str, str]:
     current_path = os.environ.get("PATH", "")
     env["PATH"] = f"{bin_dir}{os.pathsep}{current_path}" if current_path else bin_dir
     return env
+
+
 section: Any = _tc.section
 strip_wrappers: Any = _tc.strip_wrappers
 
@@ -88,9 +92,13 @@ FORBIDDEN_MARKERS = (
     re.compile(r"collected\s+0\s+items", re.IGNORECASE),
     re.compile(r"/\s*0\s+selected\b", re.IGNORECASE),
 )
-POSITIVE_FAILURE_SUMMARY = re.compile(r"\b([1-9]\d*)\s+(?:failed|error|errors)\b", re.IGNORECASE)
+POSITIVE_FAILURE_SUMMARY = re.compile(
+    r"\b([1-9]\d*)\s+(?:failed|error|errors)\b", re.IGNORECASE
+)
 COVERS_LINE_RE = re.compile(r"^\s*(?:[-*]\s+)?\**Covers\**\s*:\**\s*(.*)$")
-ID_TOKEN_RE = re.compile(r"(?<![A-Za-z0-9-])[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]+(?![A-Za-z0-9])")
+ID_TOKEN_RE = re.compile(
+    r"(?<![A-Za-z0-9-])[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]+(?![A-Za-z0-9])"
+)
 
 
 def is_pytest_command(command: str) -> bool:
@@ -129,7 +137,9 @@ def is_pytest_command(command: str) -> bool:
     return False
 
 
-def validate_pytest_red(command: str, exit_code: int | None, output_text: str) -> str | None:
+def validate_pytest_red(
+    command: str, exit_code: int | None, output_text: str
+) -> str | None:
     """Evaluate whether a pytest RED execution is genuine.
 
     Returns None if valid or not a pytest command.
@@ -229,7 +239,7 @@ def ensure_output_dirs(command: str, root: Path) -> None:
                     i += 1
                 break
             elif token.startswith(f"{flag}="):
-                target_path_str = token[len(flag) + 1:]
+                target_path_str = token[len(flag) + 1 :]
                 break
         if target_path_str:
             target_path = Path(target_path_str)
@@ -241,8 +251,14 @@ def ensure_output_dirs(command: str, root: Path) -> None:
 
 def run_command(command: str, root: Path, timeout: int) -> tuple[int | None, bytes]:
     """Run one row; the exit code is None when the process group had to be killed."""
-    process = subprocess.Popen(["bash", "-o", "pipefail", "-c", command], cwd=root, start_new_session=True,
-                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=kit_env())
+    process = subprocess.Popen(
+        ["bash", "-o", "pipefail", "-c", command],
+        cwd=root,
+        start_new_session=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        env=kit_env(),
+    )
     effective_timeout = timeout if timeout > 0 else None
     try:
         output, _ = process.communicate(timeout=effective_timeout)
@@ -265,12 +281,16 @@ def mismatch(row: Row, code: int, text: str) -> str | None:
 
 def epic_scenario_ids(layout: EpicLayout) -> list[str]:
     try:
-        return cast(list[str], load_scenarios(layout.epic_dir / "bdd_scenarios.en.md")[0])
+        return cast(
+            list[str], load_scenarios(layout.epic_dir / "bdd_scenarios.en.md")[0]
+        )
     except UsageError:
         return []
 
 
-def attach_digest(results: dict[str, Any], files: list[Path], scenario_ids: list[str]) -> str | None:
+def attach_digest(
+    results: dict[str, Any], files: list[Path], scenario_ids: list[str]
+) -> str | None:
     """Store the digest of the fresh reports; None on success, else the row's failure reason."""
     try:
         results["digest"] = digest(load_files(files), scenario_ids)
@@ -279,7 +299,9 @@ def attach_digest(results: dict[str, Any], files: list[Path], scenario_ids: list
     return None
 
 
-def run_row(row: Row, root: Path, timeout: int, scenario_ids: list[str]) -> dict[str, Any]:
+def run_row(
+    row: Row, root: Path, timeout: int, scenario_ids: list[str]
+) -> dict[str, Any]:
     record: dict[str, Any] = {
         "id": row.id,
         "phase": row.phase,
@@ -303,9 +325,14 @@ def run_row(row: Row, root: Path, timeout: int, scenario_ids: list[str]) -> dict
         code, output = run_command(row.command, root, timeout)
         text = output.decode("utf-8", "replace")
         non_empty = [ln for ln in text.splitlines() if ln.strip()]
-        record.update(exit=code, output_tail=non_empty[-TAIL_LINES:],
-                      output_sha256=hashlib.sha256(output).hexdigest())
-        reason = f"timeout after {timeout} s" if code is None else mismatch(row, code, text)
+        record.update(
+            exit=code,
+            output_tail=non_empty[-TAIL_LINES:],
+            output_sha256=hashlib.sha256(output).hexdigest(),
+        )
+        reason = (
+            f"timeout after {timeout} s" if code is None else mismatch(row, code, text)
+        )
         if row.phase == "RED":
             pytest_err = validate_pytest_red(row.command, code, text)
             if pytest_err:
@@ -337,12 +364,20 @@ def protected_patterns(layout: EpicLayout, root: Path) -> tuple[list[str], set[s
     hld = committed_text(root, layout.hld)
     explicit = parse_protected_paths(hld) if hld else []
     folder = layout.epic_dir.relative_to(root).as_posix()
-    committed = git_run(root, "ls-tree", "-z", "--name-only", "HEAD", "--", f"{folder}/").decode().split("\0")
-    names = {Path(p).name for p in committed if p} | {p.name for p in layout.epic_dir.glob("task_*.md")}
+    committed = (
+        git_run(root, "ls-tree", "-z", "--name-only", "HEAD", "--", f"{folder}/")
+        .decode()
+        .split("\0")
+    )
+    names = {Path(p).name for p in committed if p} | {
+        p.name for p in layout.epic_dir.glob("task_*.md")
+    }
     programs: set[str] = set()
     for name in sorted(n for n in names if re.fullmatch(r"task_.*\.md", n)):
         try:
-            rows, _ = parse_verification(committed_text(root, layout.epic_dir / name) or "")
+            rows, _ = parse_verification(
+                committed_text(root, layout.epic_dir / name) or ""
+            )
         except ContractError:
             continue
         programs.update(p for p in (program_of(row.command, root) for row in rows) if p)
@@ -355,22 +390,34 @@ def scope_row(layout: EpicLayout, allowed_patterns: list[str]) -> dict[str, Any]
     violations: list[str] = []
     exact = {p for p in allowed_patterns if not any(c in p for c in "*?")}
     for path in sorted(set(changed_paths(layout.root))):
-        protected = path in programs or any(path_matches(pattern, path) for pattern in explicit)
+        protected = path in programs or any(
+            path_matches(pattern, path) for pattern in explicit
+        )
         if path.startswith(".devtool/") and not protected:
             continue
         changed.append(path)
         if protected:
             if path not in exact:
-                violations.append(f"protected path not named exactly in Allowed files: {path}")
+                violations.append(
+                    f"protected path not named exactly in Allowed files: {path}"
+                )
         elif not any(path_matches(pattern, path) for pattern in allowed_patterns):
             violations.append(f"outside Allowed files: {path}")
-    return {"id": "SCOPE", "phase": "SCOPE", "outcome": "FAIL" if violations else "PASS",
-            "changed": changed, "violations": violations}
+    return {
+        "id": "SCOPE",
+        "phase": "SCOPE",
+        "outcome": "FAIL" if violations else "PASS",
+        "changed": changed,
+        "violations": violations,
+    }
 
 
 def detail_of(record: dict[str, Any]) -> str:
     if record["id"] == "SCOPE":
-        return "; ".join(record["violations"]) or f"{len(record['changed'])} changed path(s) in scope"
+        return (
+            "; ".join(record["violations"])
+            or f"{len(record['changed'])} changed path(s) in scope"
+        )
     return record["reason"] or f"exit {record['exit']}"
 
 
@@ -413,12 +460,18 @@ def run(args: argparse.Namespace) -> int:
         selected = [row for row in rows if row.phase in VERIFY_PHASES]
     started = utc_now()
     scenario_ids = epic_scenario_ids(layout)
-    records = [run_row(row, layout.root, args.timeout, scenario_ids) for row in selected]
+    records = [
+        run_row(row, layout.root, args.timeout, scenario_ids) for row in selected
+    ]
     if args.mode == "verify":
         records.append(scope_row(layout, [entry.pattern for entry in allowed]))
     tree, patch_id = fingerprint(layout.root)
     head = git_run(layout.root, "rev-parse", "HEAD").decode().strip()
-    evidence = load_evidence(layout.evidence) or {"schema": 1, "task": Path(args.task).stem, "runs": {}}
+    evidence = load_evidence(layout.evidence) or {
+        "schema": 1,
+        "task": Path(args.task).stem,
+        "runs": {},
+    }
     passed = all(record["outcome"] == "PASS" for record in records)
     run_entry: dict[str, Any] = {
         "head": head,
@@ -434,14 +487,35 @@ def run(args: argparse.Namespace) -> int:
         for entry in parse_evidence_files(task_text):
             ev_path = layout.root / entry.pattern
             if ev_path.is_file() and ev_path.stat().st_size > 0:
-                digests[entry.pattern] = hashlib.sha256(ev_path.read_bytes()).hexdigest()
+                digests[entry.pattern] = hashlib.sha256(
+                    ev_path.read_bytes()
+                ).hexdigest()
         run_entry["evidence_digests"] = digests
     evidence["runs"][args.mode] = run_entry
     save_evidence(layout.evidence, evidence)
     for record in records:
-        print(f"{record['id']} {record['phase']} {record['outcome']} {detail_of(record)}")
+        print(
+            f"{record['id']} {record['phase']} {record['outcome']} {detail_of(record)}"
+        )
     print(f"Result: {'PASS' if passed else 'FAIL'}")
     print(f"Evidence: {layout.evidence}")
+    with contextlib.suppress(Exception):
+        if (layout.root / ".devtool" / "state").is_dir():
+            kit_scripts = Path(__file__).resolve().parents[4] / "scripts"
+            if str(kit_scripts) not in sys.path:
+                sys.path.insert(0, str(kit_scripts))
+            import _state_envelope
+
+            verdict = "PASS" if passed else "FAIL"
+            task_stem = Path(args.task).stem
+            _state_envelope.update_epic_heartbeat(
+                layout.root,
+                layout.epic_dir.name,
+                active_tasks=[task_stem],
+                sub_step=f"task_{args.mode}",
+                sub_step_detail=f"{task_stem} ({args.mode}: {verdict})",
+                last_event=f"run_task_checks {args.mode} {task_stem} -> {verdict}",
+            )
     return 0 if passed else 1
 
 

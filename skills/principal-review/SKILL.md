@@ -84,11 +84,14 @@ Invoked on-demand to review standalone design documents, architecture proposals,
 
 4. **Revision Loop, Convergence & Post-Review Packaging (`package_epic.py` + `/save-context`)**:
    - **Intermediate rounds (when advancing to Round `n+1`)**: apply document edits and record decisions without running `package_epic.py` mid-loop:
+     - Emit fixing sub-step status:
+       `python3 skills/dev-implementation/resources/scripts/run_external_review.py status --kind principal --epic-dir <epic_dir> --phase fixing --round <n>`
      - Apply document edits first and commit:
        `git commit -m "[<EPIC_NAME>] Revise epic after Principal Review round <n>"`
      - Record decisions with revision commit SHA in `principal_review.md`, then commit:
        `git commit -m "[<EPIC_NAME>] Record Principal Review decisions for round <n>"`
-     - Verify `python3 skills/dev-implementation/resources/scripts/check_epic_readiness.py <epic_dir>` exits 0 and automatically advance to Round `n+1`.
+     - Emit verifying sub-step status and verify `python3 skills/dev-implementation/resources/scripts/check_epic_readiness.py <epic_dir>` exits 0, then automatically advance to Round `n+1`:
+       `python3 skills/dev-implementation/resources/scripts/run_external_review.py status --kind principal --epic-dir <epic_dir> --phase verifying --round <n>`
    - **At completion of `/principal-review` (after convergence `AUTO_PASS_CLEAN`, `AUTO_PASS_FINAL_MINOR_SWEEP`, or `AUTO_PASS_FINAL_SWEEP` and any final sweep commits)**:
      - Execute packaging now: `python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir>` (pass `--revise --reason "Revise after Principal Review round <n>"` only if `handoff.md` already exists — packaging stamps creator PIC cleanly and clears any pending decision for this epic) and commit `[<EPIC_NAME>] Package epic for handoff` if `auto_commit: true`.
      - Record Gate 2 approval (if revised) via `python3 scripts/resume_context.py --gate 2 --epic <epic_slug> --approved "Passed Principal Review round <n> and packaged"`.

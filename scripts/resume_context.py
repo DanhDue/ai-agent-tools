@@ -1117,6 +1117,15 @@ def record_gate_approval(
             epic_slug,
             extra_devtool_dirs=shared_dt,
         )
+        with contextlib.suppress(Exception):
+            _state_envelope.update_epic_heartbeat(
+                root,
+                epic_slug,
+                sub_step=f"gate_{gate}",
+                sub_step_detail=f"Gate {gate} Approved ({commit_sha})",
+                last_event=f"Gate {gate} approved: {approved}",
+                extra_devtool_dirs=shared_dt,
+            )
         return entry
 
 

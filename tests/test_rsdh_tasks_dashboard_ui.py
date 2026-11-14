@@ -853,13 +853,13 @@ const kanbanEl = doc.getElementById('kanban-dashboard-wrapper-ai-agent-tools');
 assert.ok(tier2El, 'Tier 2 wrapper rendered');
 assert.ok(kanbanEl, 'Kanban wrapper rendered');
 
-assert.match(kanbanEl.innerHTML, /96%/, 'Section I must display 96% pre-finish');
-assert.match(kanbanEl.innerHTML, /96% Review/, 'Section I must display 96% Review');
-assert.doesNotMatch(stripStyles(kanbanEl.innerHTML), /99%|100%/, 'Section I must not display 99% or 100% pre-convergence');
+assert.match(kanbanEl.innerHTML, /92%/, 'Section I must display 92% weighted review progress pre-finish');
+assert.match(kanbanEl.innerHTML, /92% Review/, 'Section I must display 92% Review');
+assert.doesNotMatch(kanbanEl.innerHTML, /width:\s*(?:99|100)%/, 'Section I lifecycle bar must not display 99% or 100% pre-convergence');
 
-assert.match(tier2El.innerHTML, /96%/, 'Section II must display 96% pre-finish');
-assert.match(tier2El.innerHTML, /96% Review/, 'Section II must display 96% Review');
-assert.doesNotMatch(stripStyles(tier2El.innerHTML), /99%|100%/, 'Section II must not display 99% or 100% pre-convergence');
+assert.match(tier2El.innerHTML, /92%/, 'Section II must display 92% weighted review progress pre-finish');
+assert.match(tier2El.innerHTML, /92% Review/, 'Section II must display 92% Review');
+assert.doesNotMatch(tier2El.innerHTML, /width:\s*(?:99|100)%/, 'Section II lifecycle bar must not display 99% or 100% pre-convergence');
 const initialSig = tier2El.dataset.sig;
 
 // Poll 1 -> 1 (account_id change)
@@ -971,10 +971,10 @@ try {{
 
   const sec1Before = await cdp.evaluate(`document.getElementById('kanban-dashboard-wrapper-ai-agent-tools').innerText`);
   const sec2Before = await cdp.evaluate(`document.getElementById('tier2-execution-epics-wrapper-ai-agent-tools').innerText`);
-  assert.match(sec1Before, /96% Review/);
-  assert.doesNotMatch(sec1Before, /99%|100%/);
-  assert.match(sec2Before, /96% Review/);
-  assert.doesNotMatch(sec2Before, /99%|100%/);
+  assert.match(sec1Before, /92% Review/);
+  assert.doesNotMatch(sec1Before, /99%|100% ✓ Done|100% ⚠️/);
+  assert.match(sec2Before, /92% Review/);
+  assert.doesNotMatch(sec2Before, /99%|100% ✓ Done|100% ⚠️/);
 
   const mutRes = await fetch({json.dumps(f"http://127.0.0.1:{ctrl_port}/mutate")}, {{ method: 'POST' }});
   assert.equal(mutRes.status, 200);
@@ -988,7 +988,8 @@ try {{
   assert.match(sec2After, /Wave 2/);
   assert.match(sec2After, /python-qa/);
   assert.match(sec2After, /3\/4/);
-  assert.match(sec2After, /96% Review/);
+  assert.match(sec2After, /85%/);
+  assert.match(sec2After, /100%/);
   assert.deepEqual(cdp.consoleErrors, [], `Unexpected console errors: ${{cdp.consoleErrors}}`);
   assert.deepEqual(cdp.runtimeExceptions, [], `Unexpected runtime exceptions: ${{cdp.runtimeExceptions}}`);
   console.log(JSON.stringify({{ status: 'ok', marker, sec2After }}));
@@ -1338,35 +1339,38 @@ const stripStyles = (s) => String(s).replace(/style="[^"]*"/g, '');
 const scenarios = {json.dumps(scenarios)};
 const {{ sandbox }} = createFakeDomHarness(async () => ({{ async json() {{ return {{}}; }} }}));
 
-// 1. 3/4 done -> 75%
+// 1. 3/4 done -> 66% weighted lifecycle progress + 75% task completion
 const s1 = sandbox.renderKanbanDashboard(scenarios.mid_75, 'all');
 const e1 = sandbox.renderExecutionEpics(scenarios.mid_75);
+assert.match(s1, /66%/);
 assert.match(s1, /75%/);
+assert.match(e1, /66%/);
 assert.match(e1, /75%/);
 
-// 2. 39/40 done (97.5% -> 98% raw) -> capped at 95%
+// 2. 39/40 done -> capped at 79% weighted lifecycle progress (never 98/99/100)
 const s2 = sandbox.renderKanbanDashboard(scenarios.high_cap_95, 'all');
 const e2 = sandbox.renderExecutionEpics(scenarios.high_cap_95);
-assert.match(s2, /width:\s*95%/);
-assert.doesNotMatch(stripStyles(s2), /98%|99%|100%/);
-assert.match(e2, /95%/);
-assert.doesNotMatch(stripStyles(e2), /98%|99%|100%/);
+assert.match(s2, /width:\s*79%/);
+assert.doesNotMatch(s2, /width:\s*(?:98|99|100)%/);
+assert.match(e2, /79%/);
+assert.doesNotMatch(e2, /width:\s*(?:98|99|100)%/);
 
-// 3. 4/4 done pre-convergence -> 96% ("96% Review")
+// 3. 4/4 done pre-convergence -> 92% ("92% Review") + 100% task completion
 const s3 = sandbox.renderKanbanDashboard(scenarios.pre_finish_96, 'all');
 const e3 = sandbox.renderExecutionEpics(scenarios.pre_finish_96);
-assert.match(s3, /width:\s*96%/);
-assert.match(s3, /96% Review/);
-assert.doesNotMatch(stripStyles(s3), /99%|100%/);
-assert.match(e3, /96%/);
-assert.match(e3, /96% Review/);
-assert.doesNotMatch(stripStyles(e3), /99%|100%/);
+assert.match(s3, /width:\s*92%/);
+assert.match(s3, /92% Review/);
+assert.doesNotMatch(s3, /width:\s*(?:98|99|100)%/);
+assert.match(e3, /92%/);
+assert.match(e3, /92% Review/);
+assert.match(e3, /100%/);
+assert.doesNotMatch(e3, /width:\s*(?:98|99|100)%/);
 
-// 4. 4/4 done with Gate 4 Review Converged (Waiting Finish) -> 100%
+// 4. 4/4 done with Gate 4 Review Converged (Waiting Finish) -> 98%
 const s4 = sandbox.renderKanbanDashboard(scenarios.waiting_finish_100, 'all');
 const e4 = sandbox.renderExecutionEpics(scenarios.waiting_finish_100);
-assert.match(s4, /100%/);
-assert.match(e4, /100%/);
+assert.match(s4, /98%/);
+assert.match(e4, /98%/);
 
 // 5. Gate 5 Done -> 100%
 const s5 = sandbox.renderKanbanDashboard(scenarios.done_100, 'all');
@@ -1478,7 +1482,8 @@ try {{
   assert.equal(duringFocus.sameNode, true, 'Focused select must not be replaced during polling');
   assert.equal(duringFocus.stillFocused, true);
   assert.match(duringFocus.sec2, /Wave 2/, 'Section II must still update live during Roadmap focus');
-  assert.match(duringFocus.sec2, /96% Review/, 'Section II must reflect 4/4 pre-convergence 96% Review');
+  assert.match(duringFocus.sec2, /84%/, 'Section II must reflect running 2/3 Gate 4 QA weighted lifecycle progress (84%)');
+  assert.match(duringFocus.sec2, /100%/, 'Section II must reflect 4/4 100% task completion');
   assert.match(duringFocus.sec2, /2\/3/, 'Section II must reflect updated quality step 2/3');
 
   // Change selection on focused select & blur -> must retain selection and apply queued Roadmap update

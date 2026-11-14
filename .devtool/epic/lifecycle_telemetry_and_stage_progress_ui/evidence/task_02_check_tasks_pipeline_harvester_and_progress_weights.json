@@ -1,0 +1,182 @@
+{
+  "schema": 1,
+  "task": "task_02_check_tasks_pipeline_harvester_and_progress_weights",
+  "runs": {
+    "red": {
+      "head": "889d452ec418e9d64db52ae6fd5ab25c258e572d",
+      "tree": "7b043502b9508230b1a3cb7aa02d2929aeab6a9c",
+      "patch_id": "b7e4472900ac596fb0e327b0d38ffb0d5cd6d609",
+      "started": "2026-11-14T02:49:23Z",
+      "finished": "2026-11-14T02:49:24Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ltsp_harvester_pipeline.py::test_ltsp_hp_03_early_epic_activation_from_gate1",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T02:49:23Z",
+          "finished": "2026-11-14T02:49:24Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "_______________ test_ltsp_hp_03_early_epic_activation_from_gate1 _______________",
+            "tests/test_ltsp_harvester_pipeline.py:82: in test_ltsp_hp_03_early_epic_activation_from_gate1",
+            "    assert meta.active_epic == \"early_epic\"",
+            "E   AssertionError: assert None == 'early_epic'",
+            "E    +  where None = RepoMetadata(name='repo_hp03', path='/private/tmp/ag_phungthuy8901/pytest-of-danhdueexoictif/pytest-112/test_ltsp_hp_0...n_action_required=False, is_blocked=False, pending_decision=None, heartbeat=None, quality_active=None, quality_runs=[]).active_epic",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_ltsp_harvester_pipeline.py::test_ltsp_hp_03_early_epic_activation_from_gate1",
+            "1 failed in 0.45s"
+          ],
+          "output_sha256": "090e42b4d05c0976971576e422163fabdfbc85a617ccfb28087f22b778ed5d25"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "32affe0ff9f49080783f7cd1d2706b24d786c2a5",
+      "tree": "7eb207e1578038bb95c57d9628a816323c491422",
+      "patch_id": "fa6f1825e0862b4b6549ec31caa3170da305e2ac",
+      "started": "2026-11-14T04:50:06Z",
+      "finished": "2026-11-14T04:50:20Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ltsp_harvester_pipeline.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T04:50:06Z",
+          "finished": "2026-11-14T04:50:10Z",
+          "output_tail": [
+            "......                                                                   [100%]",
+            "6 passed in 4.65s"
+          ],
+          "output_sha256": "75b2ed68643afd4c1d2bcca8bc7b516d8db4f9ac31a0520e6d5b03f0fea01593"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_check_tasks_fsm.py tests/test_check_tasks_harvester.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T04:50:10Z",
+          "finished": "2026-11-14T04:50:15Z",
+          "output_tail": [
+            ".....................                                      [100%]",
+            "21 passed, 14 subtests passed in 3.95s"
+          ],
+          "output_sha256": "c2da5805c4b12aae49c183669aa0a4b7cf7e3b8a2338406f439af9b4a5c30e72"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/check-tasks/resources/scripts/check_tasks.py tests/test_ltsp_harvester_pipeline.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T04:50:15Z",
+          "finished": "2026-11-14T04:50:15Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/check-tasks/resources/scripts/check_tasks.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T04:50:15Z",
+          "finished": "2026-11-14T04:50:15Z",
+          "output_tail": [
+            "Success: no issues found in 8 source files"
+          ],
+          "output_sha256": "157a09cfcdfdfb5977479c5a1c08345149263a3e990a2ec976ef28aaeec9cae6"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/ltsp_task_02.xml tests/test_ltsp_harvester_pipeline.py",
+          "expect": "exit 0; results build/test-results/ltsp_task_02.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T04:50:15Z",
+          "finished": "2026-11-14T04:50:19Z",
+          "output_tail": [
+            "......                                                                   [100%]",
+            "6 passed in 4.37s"
+          ],
+          "output_sha256": "1960810901bf45984bc7b5d10dcdd4d761f1224d64a91215ec988036f51d3638",
+          "results": {
+            "path": "build/test-results/ltsp_task_02.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 5,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_ltsp_hp_03_early_epic_activation_from_gate1",
+                  "classname": "tests.test_ltsp_harvester_pipeline",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_04_decoupled_100_task_progress_vs_weighted_lifecycle",
+                  "classname": "tests.test_ltsp_harvester_pipeline",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_ec_02_dormant_and_abandoned_epics_not_activated",
+                  "classname": "tests.test_ltsp_harvester_pipeline",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_st_02_monotonic_6_stage_progress_and_gate4_sha_requirement",
+                  "classname": "tests.test_ltsp_harvester_pipeline",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_ar_01_multiprocess_concurrent_heartbeat_events",
+                  "classname": "tests.test_ltsp_harvester_pipeline",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/check-tasks/resources/scripts/check_tasks.py",
+            "tests/test_ltsp_harvester_pipeline.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

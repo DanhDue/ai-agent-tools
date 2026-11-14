@@ -1,0 +1,251 @@
+{
+  "schema": 1,
+  "task": "task_01_state_envelope_events_and_stage_producers",
+  "runs": {
+    "red": {
+      "head": "c2a1a2d8a007ee9fd40e6fe0d323c6af23d72830",
+      "tree": "29ca292f6ce9e36cf55fec47b924de32c95c12b6",
+      "patch_id": "99bc65c257acd4bb5c762e0b155d991b293659b7",
+      "started": "2026-11-14T02:32:33Z",
+      "finished": "2026-11-14T02:32:34Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ltsp_state_and_producers.py::test_ltsp_hp_01_events_ring_buffer_and_review_state",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T02:32:33Z",
+          "finished": "2026-11-14T02:32:33Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "_____________ test_ltsp_hp_01_events_ring_buffer_and_review_state ______________",
+            "tests/test_ltsp_state_and_producers.py:58: in test_ltsp_hp_01_events_ring_buffer_and_review_state",
+            "    state = _state_envelope.update_epic_heartbeat(",
+            "E   TypeError: update_epic_heartbeat() got an unexpected keyword argument 'sub_step'",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_ltsp_state_and_producers.py::test_ltsp_hp_01_events_ring_buffer_and_review_state",
+            "1 failed in 0.29s"
+          ],
+          "output_sha256": "074117ba2a9b6e3756373708794674d834ecffb4f4b6aabe570d1513f163ee87"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "9579121a320312e67470c28df3f80b4f8c8391a5",
+      "tree": "7f5b6cbb1451969834f98c97869780cc8df3ddfb",
+      "patch_id": "355a9ce96d32e224cfcba357d9984d83decae5ac",
+      "started": "2026-11-14T04:47:17Z",
+      "finished": "2026-11-14T04:48:25Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ltsp_state_and_producers.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T04:47:17Z",
+          "finished": "2026-11-14T04:47:19Z",
+          "output_tail": [
+            "..................                                                       [100%]",
+            "18 passed in 1.85s"
+          ],
+          "output_sha256": "2da4969db94de9e263969d9d2640fb910769d02a06d2019bafa801ba49e373a6"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_rsdh_state_envelope.py skills/dev-implementation/resources/scripts/test_run_external_review.py skills/dev-implementation/resources/scripts/test_audit_epic.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T04:47:19Z",
+          "finished": "2026-11-14T04:48:22Z",
+          "output_tail": [
+            "..................................................................... [ 66%]",
+            "..................................                             [100%]",
+            "103 passed, 13 subtests passed in 62.60s (0:01:02)"
+          ],
+          "output_sha256": "65298a98a7d3c28997fae318fbad7cbccb5c5a2c3b74345106e31e0a431eaf7b"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py scripts/resume_context.py skills/quality_check/resources/scripts/verify_polyglot_registry.py tests/test_ltsp_state_and_producers.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T04:48:22Z",
+          "finished": "2026-11-14T04:48:22Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py scripts/resume_context.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T04:48:22Z",
+          "finished": "2026-11-14T04:48:22Z",
+          "output_tail": [
+            "Success: no issues found in 8 source files"
+          ],
+          "output_sha256": "157a09cfcdfdfb5977479c5a1c08345149263a3e990a2ec976ef28aaeec9cae6"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/ltsp_task_01.xml tests/test_ltsp_state_and_producers.py",
+          "expect": "exit 0; results build/test-results/ltsp_task_01.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T04:48:22Z",
+          "finished": "2026-11-14T04:48:24Z",
+          "output_tail": [
+            "..................                                                       [100%]",
+            "18 passed in 1.87s"
+          ],
+          "output_sha256": "2c6d0eb233c05f616b9dee8cad8a0424b7e5e4f457c72a46c9fdb3ffbb9e910f",
+          "results": {
+            "path": "build/test-results/ltsp_task_01.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 18,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_ltsp_hp_01_events_ring_buffer_and_review_state",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[lint-Static Lint]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[typecheck-Typecheck]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[type_check-Typecheck]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[pycore-PyCore / Unit Test]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[unit_test-PyCore / Unit Test]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[pytest-Unit & Integration Test]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[pytest_unit-PyCore / Unit Test]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[integration-Integration Test]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[e2e-UI / E2E Test]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[playwright-UI / E2E Test]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[architecture-Architecture Gate]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[import_linter-Architecture Gate]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[build-Build]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_coordinator_steps_and_distinct_events",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_ec_01_consecutive_identical_events_deduplicated",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_st_01_external_review_runner_transitions_review_state",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_fr_01_readonly_state_dir_never_aborts_cli",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/_state_envelope.py",
+            "skills/dev-implementation/resources/scripts/run_external_review.py",
+            "skills/dev-implementation/resources/scripts/run_task_checks.py",
+            "skills/dev-lifecycle/resources/scripts/lifecycle_runner.py",
+            "skills/quality_check/resources/scripts/verify_polyglot_registry.py",
+            "tests/test_ltsp_state_and_producers.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

@@ -9,7 +9,6 @@ from __future__ import annotations
 import concurrent.futures
 import contextlib
 from dataclasses import dataclass, field
-import datetime
 from datetime import datetime, timezone
 from enum import Enum
 import hashlib
@@ -21,10 +20,12 @@ import re
 import socket
 import subprocess
 import sys
+import threading
 from typing import Any
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 _STATE_ENVELOPE_MOD: Any | None = None
+_SCAN_CTX = threading.local()
 _SLOT_SUFFIX_RE = re.compile(r"-slot-\d+$")
 _PIC_PLACEHOLDERS = frozenset(
     {
@@ -82,8 +83,8 @@ def discover_antigravity_profiles(real_home: str | Path | None = None) -> list[s
                 if str(cand_scripts) not in sys.path:
                     sys.path.insert(0, str(cand_scripts))
                 break
-        try:
-            import agy_quota  # type: ignore
+        with contextlib.suppress(Exception):
+            agy_quota: Any = importlib.import_module("agy_quota")
 
             if hasattr(agy_quota, "get_all_profiles"):
                 q_profiles = agy_quota.get_all_profiles()
@@ -94,9 +95,7 @@ def discover_antigravity_profiles(real_home: str | Path | None = None) -> list[s
                         if p not in ("claude", "codex", "kiro", "anthropic", "openai")
                     ]
                     if allowed:
-                        return sorted(list(set(allowed)))
-        except Exception:
-            pass
+                        return sorted(set(allowed))
 
     # 2. Direct discovery matching check-quota's exact rules (supports custom real_home for tests/profiles)
     r_home = Path(real_home) if real_home is not None else _real_home()
@@ -148,7 +147,7 @@ def discover_antigravity_profiles(real_home: str | Path | None = None) -> list[s
 
     zshrc_path = r_home / ".zshrc"
     if zshrc_path.is_file():
-        try:
+        with contextlib.suppress(Exception):
             content = zshrc_path.read_text(encoding="utf-8", errors="ignore")
             for m in re.finditer(r"antigravity_homes/([a-zA-Z0-9_\-]+)", content):
                 p = m.group(1)
@@ -170,10 +169,8 @@ def discover_antigravity_profiles(real_home: str | Path | None = None) -> list[s
                     and p2 not in profiles
                 ):
                     profiles.append(p2)
-        except Exception:
-            pass
 
-    return sorted(list(set(profiles)))
+    return sorted(set(profiles))
 
 
 def _build_clean_host_env() -> dict[str, str]:
@@ -234,6 +231,7 @@ class TaskProgress:
     backlog_tasks: int = 0
     review_tasks: int = 0
     percentage: float = 0.0
+    task_completion_pct: float = 0.0
     active_task_name: str | None = None
     tasks: list[dict[str, Any]] = field(default_factory=list)
 
@@ -285,6 +283,7 @@ class RepoMetadata:
     heartbeat: dict[str, Any] | None = None
     quality_active: dict[str, Any] | None = None
     quality_runs: list[dict[str, Any]] = field(default_factory=list)
+    pipeline_telemetry: dict[str, Any] | None = None
 
 
 @dataclass
@@ -382,6 +381,11 @@ def extract_vscode_styling(repo_path: Path) -> tuple[str, str]:
 
 def scan_worktrees(repo_path: Path) -> list[WorktreeMetadata]:
     """Discover all git worktrees and detect uncommitted modifications."""
+    cache = getattr(_SCAN_CTX, "cache", None)
+    cache_key = ("worktrees", str(repo_path))
+    if isinstance(cache, dict) and cache_key in cache:
+        return list(cache[cache_key])
+
     worktrees: list[WorktreeMetadata] = []
     try:
         proc = subprocess.run(
@@ -391,6 +395,8 @@ def scan_worktrees(repo_path: Path) -> list[WorktreeMetadata]:
             check=True,
         )
     except Exception:
+        if isinstance(cache, dict):
+            cache[cache_key] = worktrees
         return worktrees
 
     raw_blocks = proc.stdout.strip().split("\n\n")
@@ -444,6 +450,8 @@ def scan_worktrees(repo_path: Path) -> list[WorktreeMetadata]:
                 )
             )
 
+    if isinstance(cache, dict):
+        cache[cache_key] = list(worktrees)
     return worktrees
 
 
@@ -583,6 +591,36 @@ def get_completed_epic_slugs(repo_path: Path) -> set[str]:
     return completed
 
 
+def get_abandoned_epic_slugs(repo_path: Path) -> set[str]:
+    """Harvest abandoned epic slugs from .devtool/epic/<slug>/ HLD design documents."""
+    abandoned: set[str] = set()
+    epic_dir = repo_path / ".devtool" / "epic"
+    if epic_dir.is_dir():
+        with contextlib.suppress(OSError):
+            for d in epic_dir.iterdir():
+                if not d.is_dir() or d.name.startswith("."):
+                    continue
+                if extract_epic_hld_status(d, d.name) in ("abandon", "abandoned"):
+                    abandoned.add(d.name)
+    return abandoned
+
+
+def _is_epic_eligible_for_active(
+    slug: str,
+    completed_slugs: set[str],
+    abandoned_slugs: set[str] | None = None,
+    hld_status: str | None = None,
+) -> bool:
+    """Return True if epic is eligible to be active or in_progress (not completed, archived, or abandoned)."""
+    if not slug or slug == "general":
+        return False
+    if _is_completed_epic(slug, completed_slugs):
+        return False
+    if abandoned_slugs and _is_completed_epic(slug, abandoned_slugs):
+        return False
+    return hld_status not in ("done", "abandon", "abandoned")
+
+
 def _normalize_slug(slug: str) -> str:
     """Normalize epic slugs for robust comparison across dash/underscore conventions."""
     return slug.strip().lower().replace("_", "-")
@@ -673,6 +711,11 @@ def _collect_devtool_dirs(
     repo_path: Path, active_epic: str | None = None
 ) -> list[Path]:
     """Collect unique `.devtool` directories across root, worktrees, and git common dir."""
+    cache = getattr(_SCAN_CTX, "cache", None)
+    cache_key = ("devtool_dirs", str(repo_path), active_epic)
+    if isinstance(cache, dict) and cache_key in cache:
+        return list(cache[cache_key])
+
     dirs: list[Path] = []
     seen: set[Path] = set()
 
@@ -691,11 +734,36 @@ def _collect_devtool_dirs(
 
     state_env = _load_state_envelope()
     if state_env is not None:
-        with contextlib.suppress(Exception):
-            for shared_dir in state_env.resolve_shared_devtool_dirs(repo_path):
-                _add_dir(shared_dir)
+        shared_key = ("shared_devtool_dirs", str(repo_path))
+        if isinstance(cache, dict) and shared_key in cache:
+            shared_dirs = cache[shared_key]
+        else:
+            shared_dirs = []
+            with contextlib.suppress(Exception):
+                shared_dirs = list(state_env.resolve_shared_devtool_dirs(repo_path))
+            if isinstance(cache, dict):
+                cache[shared_key] = shared_dirs
+        for shared_dir in shared_dirs:
+            _add_dir(shared_dir)
 
+    if isinstance(cache, dict):
+        cache[cache_key] = list(dirs)
     return dirs
+
+
+def _get_cached_target_devtool_dirs(
+    state_env: Any, repo_path: Path, filename: str
+) -> list[Path]:
+    cache = getattr(_SCAN_CTX, "cache", None)
+    key = ("target_devtool_dirs", str(repo_path))
+    if isinstance(cache, dict) and key in cache:
+        return list(cache[key])
+    extras: list[Path] = []
+    with contextlib.suppress(Exception):
+        extras = list(state_env._collect_target_devtool_dirs(repo_path, filename))
+    if isinstance(cache, dict):
+        cache[key] = list(extras)
+    return extras
 
 
 def _read_state_snapshot(
@@ -709,11 +777,10 @@ def _read_state_snapshot(
     collected_dirs = _collect_devtool_dirs(repo_path, active_epic)
     if state_env is not None:
         seen = {d.resolve() for d in collected_dirs if d.is_dir()}
-        with contextlib.suppress(Exception):
-            for extra in state_env._collect_target_devtool_dirs(repo_path, filename):
-                if extra.is_dir() and extra.resolve() not in seen:
-                    seen.add(extra.resolve())
-                    collected_dirs.append(extra)
+        for extra in _get_cached_target_devtool_dirs(state_env, repo_path, filename):
+            if extra.is_dir() and extra.resolve() not in seen:
+                seen.add(extra.resolve())
+                collected_dirs.append(extra)
         if not collected_dirs:
             return dict(default)
         snapshot, _ = state_env._read_highest_snapshot(
@@ -774,12 +841,13 @@ def _match_pending_decision_for_epic(
 
 
 def _resolve_active_epic_from_pending_decision(
-    repo_path: Path, completed_slugs: set[str]
+    repo_path: Path, completed_slugs: set[str], abandoned_slugs: set[str] | None = None
 ) -> str | None:
     """Resolve an active non-completed epic recorded in `pending_decision.json`."""
     snapshot = _read_state_snapshot(repo_path, "pending_decision.json", {})
     if not snapshot:
         return None
+    abandoned = abandoned_slugs or set()
 
     decisions = snapshot.get("decisions")
     if isinstance(decisions, dict) and decisions:
@@ -788,7 +856,9 @@ def _resolve_active_epic_from_pending_decision(
             if not isinstance(entry, dict) or entry.get("active", True) is not True:
                 continue
             ep = str(entry.get("epic") or key).strip()
-            if not ep or _is_completed_epic(ep, completed_slugs):
+            if not ep or not _is_epic_eligible_for_active(
+                ep, completed_slugs, abandoned
+            ):
                 continue
             stamp = str(entry.get("updated_at") or entry.get("created_at") or "")
             candidates.append((stamp, ep))
@@ -799,7 +869,7 @@ def _resolve_active_epic_from_pending_decision(
 
     if snapshot.get("active") is True and snapshot.get("epic"):
         ep = str(snapshot["epic"]).strip()
-        if ep and not _is_completed_epic(ep, completed_slugs):
+        if ep and _is_epic_eligible_for_active(ep, completed_slugs, abandoned):
             return _resolve_canonical_epic_slug(repo_path, ep)
     return None
 
@@ -808,6 +878,7 @@ def resolve_active_epic(repo_path: Path) -> str | None:
     """Derive active epic from worktrees, branches, active snapshots, pending decisions, or features."""
     # 0. Get completed slugs from PROJECT_LEDGER.md, archive, and HLD Status: Done
     completed_slugs = get_completed_epic_slugs(repo_path)
+    abandoned_slugs = get_abandoned_epic_slugs(repo_path)
 
     # 1. Check current branch or worktree branches for epic/<slug> or feat/<slug>
     for wt in scan_worktrees(repo_path):
@@ -815,7 +886,9 @@ def resolve_active_epic(repo_path: Path) -> str | None:
             m_br = re.match(r"(?:epic|feat)/([a-zA-Z0-9_\-]+)", wt.branch)
             if m_br:
                 raw_slug = _strip_slot_suffix(m_br.group(1))
-                if raw_slug and not _is_completed_epic(raw_slug, completed_slugs):
+                if raw_slug and _is_epic_eligible_for_active(
+                    raw_slug, completed_slugs, abandoned_slugs
+                ):
                     return _resolve_canonical_epic_slug(repo_path, raw_slug)
 
     # 2. Check active worktrees under .worktrees/ (prioritize worktrees with git changes or tasks)
@@ -838,7 +911,9 @@ def resolve_active_epic(repo_path: Path) -> str | None:
                     m_epic = re.search(r"\.devtool/epic/([a-zA-Z0-9_\-]+)/", line)
                     if m_epic:
                         slug = m_epic.group(1).strip()
-                        if not _is_completed_epic(slug, completed_slugs):
+                        if _is_epic_eligible_for_active(
+                            slug, completed_slugs, abandoned_slugs
+                        ):
                             return _resolve_canonical_epic_slug(repo_path, slug)
 
             # Check tasks inside worktree features
@@ -848,10 +923,8 @@ def resolve_active_epic(repo_path: Path) -> str | None:
                     with contextlib.suppress(OSError):
                         fm = parse_frontmatter(tf.read_text(encoding="utf-8"))
                         ep = fm.get("epic")
-                        if (
-                            ep
-                            and ep != "general"
-                            and not _is_completed_epic(ep, completed_slugs)
+                        if ep and _is_epic_eligible_for_active(
+                            ep, completed_slugs, abandoned_slugs
                         ):
                             return _resolve_canonical_epic_slug(repo_path, ep)
 
@@ -859,7 +932,9 @@ def resolve_active_epic(repo_path: Path) -> str | None:
             base_name = _strip_slot_suffix(d.name)
             canonical = _resolve_canonical_epic_slug(repo_path, base_name)
             if (repo_path / ".devtool" / "epic" / canonical).is_dir():
-                if not _is_completed_epic(canonical, completed_slugs):
+                if _is_epic_eligible_for_active(
+                    canonical, completed_slugs, abandoned_slugs
+                ):
                     return canonical
 
     # 3. Check assistant_state.md, skipping placeholder "general" and completed epics
@@ -869,10 +944,8 @@ def resolve_active_epic(repo_path: Path) -> str | None:
             content = state_file.read_text(encoding="utf-8")
             for m in re.finditer(r"#\s*Active Epic:\s*([a-zA-Z0-9_\-]+)", content):
                 slug = m.group(1).strip()
-                if (
-                    slug
-                    and slug != "general"
-                    and not _is_completed_epic(slug, completed_slugs)
+                if slug and _is_epic_eligible_for_active(
+                    slug, completed_slugs, abandoned_slugs
                 ):
                     return _resolve_canonical_epic_slug(repo_path, slug)
 
@@ -880,9 +953,7 @@ def resolve_active_epic(repo_path: Path) -> str | None:
     state_dir = repo_path / ".devtool" / "state"
     if state_dir.is_dir():
         for sf in sorted(state_dir.glob("*.md")):
-            if sf.stem != "general" and not _is_completed_epic(
-                sf.stem, completed_slugs
-            ):
+            if _is_epic_eligible_for_active(sf.stem, completed_slugs, abandoned_slugs):
                 return _resolve_canonical_epic_slug(repo_path, sf.stem)
 
     # 5. Check .worktrees directory in deterministic order (any worktree not completed)
@@ -890,12 +961,14 @@ def resolve_active_epic(repo_path: Path) -> str | None:
         for d in sorted(wt_dir.iterdir()):
             if d.is_dir() and not d.name.startswith("."):
                 base_name = _strip_slot_suffix(d.name)
-                if base_name and not _is_completed_epic(base_name, completed_slugs):
+                if base_name and _is_epic_eligible_for_active(
+                    base_name, completed_slugs, abandoned_slugs
+                ):
                     return _resolve_canonical_epic_slug(repo_path, base_name)
 
     # 5.5 Check explicit active pending_decision.json entries
     pending_epic = _resolve_active_epic_from_pending_decision(
-        repo_path, completed_slugs
+        repo_path, completed_slugs, abandoned_slugs
     )
     if pending_epic:
         return pending_epic
@@ -907,12 +980,58 @@ def resolve_active_epic(repo_path: Path) -> str | None:
             with contextlib.suppress(OSError):
                 fm = parse_frontmatter(tf.read_text(encoding="utf-8"))
                 ep = fm.get("epic")
-                if (
-                    ep
-                    and ep != "general"
-                    and not _is_completed_epic(ep, completed_slugs)
+                if ep and _is_epic_eligible_for_active(
+                    ep, completed_slugs, abandoned_slugs
                 ):
                     return _resolve_canonical_epic_slug(repo_path, ep)
+
+    # 7. Check Gate 1+ ledger entries and active .heartbeat.json files for Stage 1-2 epics
+    stage12_candidates: list[tuple[str, str]] = []
+    for row in parse_gate_ledger_entries(repo_path):
+        ep = str(row.get("epic", "")).strip()
+        if not ep or int(row.get("gate", 0)) < 1:
+            continue
+        canonical = _resolve_canonical_epic_slug(repo_path, ep)
+        ep_dir = repo_path / ".devtool" / "epic" / canonical
+        hld_st = extract_epic_hld_status(ep_dir, canonical) if ep_dir.is_dir() else None
+        if _is_epic_eligible_for_active(
+            canonical, completed_slugs, abandoned_slugs, hld_st
+        ):
+            stage12_candidates.append((str(row.get("timestamp", "")), canonical))
+
+    for dt in _collect_devtool_dirs(repo_path):
+        st_dir = dt / "state"
+        if not st_dir.is_dir():
+            continue
+        with contextlib.suppress(OSError):
+            for hb_file in sorted(st_dir.glob("*.heartbeat.json")):
+                with contextlib.suppress(
+                    OSError, json.JSONDecodeError, UnicodeDecodeError
+                ):
+                    parsed = json.loads(hb_file.read_text(encoding="utf-8"))
+                    if not isinstance(parsed, dict):
+                        continue
+                    raw_ep = str(
+                        parsed.get("epic_slug")
+                        or hb_file.name[: -len(".heartbeat.json")]
+                    ).strip()
+                    canonical = _resolve_canonical_epic_slug(repo_path, raw_ep)
+                    ep_dir = repo_path / ".devtool" / "epic" / canonical
+                    hld_st = (
+                        extract_epic_hld_status(ep_dir, canonical)
+                        if ep_dir.is_dir()
+                        else None
+                    )
+                    if _is_epic_eligible_for_active(
+                        canonical, completed_slugs, abandoned_slugs, hld_st
+                    ):
+                        stage12_candidates.append(
+                            (str(parsed.get("updated_at", "")), canonical)
+                        )
+
+    if stage12_candidates:
+        stage12_candidates.sort(key=lambda item: (item[0], item[1]), reverse=True)
+        return stage12_candidates[0][1]
 
     return None
 
@@ -965,6 +1084,8 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
     """Harvest high-level project epics summary and status breakdown from the root repository."""
     epic_dir = repo_path / ".devtool" / "epic"
     completed_slugs = get_completed_epic_slugs(repo_path)
+    abandoned_slugs = get_abandoned_epic_slugs(repo_path)
+    all_gates = parse_gate_ledger_entries(repo_path)
 
     epics: list[dict[str, Any]] = []
     if epic_dir.is_dir():
@@ -978,16 +1099,41 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
                 or (repo_path / ".worktrees" / slug.replace("-", "_")).is_dir()
                 or (repo_path / ".worktrees" / slug.replace("_", "-")).is_dir()
             )
+            norm_slug = _normalize_slug(slug)
+            has_gate1_or_more = any(
+                _normalize_slug(str(g.get("epic", ""))) == norm_slug
+                and int(g.get("gate", 0)) >= 1
+                for g in all_gates
+            )
+            has_active_hb = (
+                _read_epic_heartbeat(repo_path, slug) is not None
+                or (repo_path / ".devtool" / "state" / f"{slug}.md").is_file()
+            )
 
             # Status determination (HLD status is SSOT for Done/Abandon)
-            if hld_status == "done" or slug in completed_slugs:
+            if hld_status == "done" or _is_completed_epic(slug, completed_slugs):
                 status = "done"
-            elif hld_status in ("abandon", "packaged"):
-                status = hld_status
-            elif has_wt:
+            elif hld_status in ("abandon", "abandoned") or _is_completed_epic(
+                slug, abandoned_slugs
+            ):
+                status = (
+                    hld_status
+                    if hld_status in ("abandon", "abandoned")
+                    else "abandoned"
+                )
+            elif (
+                has_wt
+                or hld_status == "in_progress"
+                or (
+                    _is_epic_eligible_for_active(
+                        slug, completed_slugs, abandoned_slugs, hld_status
+                    )
+                    and (has_gate1_or_more or has_active_hb)
+                )
+            ):
                 status = "in_progress"
-            elif hld_status == "in_progress":
-                status = "in_progress"
+            elif hld_status == "packaged":
+                status = "packaged"
             else:
                 status = "unstarted"
 
@@ -1083,12 +1229,10 @@ def format_relative_time(iso_str: str | None) -> str:
     if not iso_str:
         return ""
     try:
-        dt = datetime.fromisoformat(str(iso_str).replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(str(iso_str))
         now = datetime.now(timezone.utc)
         diff = now - dt
-        secs = int(diff.total_seconds())
-        if secs < 0:
-            secs = 0
+        secs = max(int(diff.total_seconds()), 0)
         if secs < 60:
             return "just now"
         if secs < 3600:
@@ -1169,9 +1313,7 @@ def _apply_heartbeat_slot_statuses(
         if not isinstance(slots, dict):
             continue
         ep_tasks = [
-            t
-            for t in all_tasks
-            if _normalize_slug(str(t.get("epic") or "")) == norm_ep
+            t for t in all_tasks if _normalize_slug(str(t.get("epic") or "")) == norm_ep
         ]
         if not ep_tasks:
             continue
@@ -1299,13 +1441,15 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
                         content = tf.read_text(encoding="utf-8")
                         fm = parse_frontmatter(content)
                         task_epic = fm.get("epic")
-                        if task_epic and task_epic not in (
-                            ep,
-                            ep.replace("_", "-"),
-                            ep.replace("-", "_"),
-                        ):
-                            continue
-                        elif not task_epic and d.name != ep and ep not in str(d):
+                        if (
+                            task_epic
+                            and task_epic
+                            not in (
+                                ep,
+                                ep.replace("_", "-"),
+                                ep.replace("-", "_"),
+                            )
+                        ) or (not task_epic and d.name != ep and ep not in str(d)):
                             continue
 
                         seen_tasks.add(task_id)
@@ -1429,10 +1573,13 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
     review = tally["review"]
     if total <= 0:
         pct = 0.0
+        task_completion_pct = 0.0
     elif done >= total:
         pct = 100.0 if _is_epic_converged_or_done(repo_path, active_epic) else 96.0
+        task_completion_pct = 100.0
     else:
         pct = min(95.0, round((done / total * 100), 1))
+        task_completion_pct = round((done / total * 100.0), 1)
 
     return TaskProgress(
         total_tasks=total,
@@ -1442,6 +1589,7 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
         backlog_tasks=backlog,
         review_tasks=review,
         percentage=pct,
+        task_completion_pct=task_completion_pct,
         active_task_name=active_task,
         tasks=all_tasks,
     )
@@ -1757,13 +1905,12 @@ def _read_quality_state(
     devtool_dirs = _collect_devtool_dirs(repo_path, active_epic=None)
     if state_env is not None:
         seen = {d.resolve() for d in devtool_dirs if d.is_dir()}
-        with contextlib.suppress(Exception):
-            for extra in state_env._collect_target_devtool_dirs(
-                repo_path, "quality_active.json"
-            ):
-                if extra.is_dir() and extra.resolve() not in seen:
-                    seen.add(extra.resolve())
-                    devtool_dirs.append(extra)
+        for extra in _get_cached_target_devtool_dirs(
+            state_env, repo_path, "quality_active.json"
+        ):
+            if extra.is_dir() and extra.resolve() not in seen:
+                seen.add(extra.resolve())
+                devtool_dirs.append(extra)
         snapshot, _ = state_env._read_highest_snapshot(
             devtool_dirs, "quality_active.json", {}
         )
@@ -2119,8 +2266,918 @@ def extract_epic_pic(repo_path: Path, active_epic: str | None) -> str | None:
     return None
 
 
+def _get_short_head_sha(checkout_path: Path) -> str:
+    """Return short HEAD SHA for a git checkout, or empty string on error."""
+    cache = getattr(_SCAN_CTX, "cache", None)
+    cache_key = ("head_sha", str(checkout_path))
+    if isinstance(cache, dict) and cache_key in cache:
+        return str(cache[cache_key])
+    sha = ""
+    with contextlib.suppress(Exception):
+        res = subprocess.run(
+            ["git", "-C", str(checkout_path), "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=False,
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            sha = res.stdout.strip()
+    if isinstance(cache, dict):
+        cache[cache_key] = sha
+    return sha
+
+
+def _safe_int_val(val: Any, default: int = 0) -> int:
+    """Safely convert val to int, returning default on failure."""
+    if isinstance(val, bool):
+        return default
+    if isinstance(val, int):
+        return val
+    try:
+        return int(str(val).strip())
+    except (ValueError, TypeError):
+        return default
+
+
+def _shas_match(sha_a: str, sha_b: str) -> bool:
+    """Return True if two non-empty git SHA prefixes match."""
+    a = str(sha_a or "").strip().lower()
+    b = str(sha_b or "").strip().lower()
+    if not a or not b:
+        return False
+    return a.startswith(b) or b.startswith(a)
+
+
+def _parse_review_rounds_summary(
+    review_path: Path | None,
+    head_sha: str,
+    heartbeat: dict[str, Any] | None,
+    quality_active: dict[str, Any] | None,
+    kind: str,
+) -> dict[str, Any]:
+    """Parse principal_review.md or review_results.md and heartbeat into a review micro-step summary."""
+    summary: dict[str, Any] = {
+        "active": False,
+        "round": 0,
+        "max_rounds": 3,
+        "cli": "",
+        "model": "",
+        "phase": "pending",
+        "verdict": "",
+        "action": "",
+        "latest_sha": "",
+        "converged": False,
+        "has_fix_commit": False,
+        "sub_steps": [],
+    }
+    rounds_data: list[dict[str, Any]] = []
+    if review_path is not None and review_path.is_file():
+        with contextlib.suppress(OSError, UnicodeDecodeError):
+            text = review_path.read_text(encoding="utf-8")
+            parts = re.split(r"(?m)^##\s+Round\s+(\d+)\b", text)
+            for idx in range(1, len(parts), 2):
+                r_num = _safe_int_val(parts[idx], 1)
+                body = parts[idx + 1] if idx + 1 < len(parts) else ""
+                meta: dict[str, str] = {}
+                for m in re.finditer(
+                    r"^-\s+\*\*([^*]+)\*\*:\s*(.+)$", body, re.MULTILINE
+                ):
+                    meta[m.group(1).strip()] = m.group(2).strip()
+                if meta.get("Status") and meta["Status"] != "completed":
+                    continue
+                crit = 0
+                imp = 0
+                minor = 0
+                undecided_blocking = 0
+                has_fixed = False
+                for line in body.splitlines():
+                    stripped = line.strip()
+                    if (
+                        not stripped.startswith("|")
+                        or stripped.startswith("|---")
+                        or "Severity" in stripped
+                    ):
+                        continue
+                    cells = [c.strip() for c in stripped.strip("|").split("|")]
+                    if len(cells) >= 2:
+                        sev = cells[1]
+                        dec = cells[4].lower() if len(cells) >= 5 else ""
+                        if sev == "Critical":
+                            crit += 1
+                        elif sev == "Important":
+                            imp += 1
+                        elif sev == "Minor":
+                            minor += 1
+                        if dec.startswith("fixed in"):
+                            has_fixed = True
+                        if sev in ("Critical", "Important") and not dec.startswith(
+                            ("fixed in", "dismissed:")
+                        ):
+                            undecided_blocking += 1
+                rounds_data.append(
+                    {
+                        "round": r_num,
+                        "date": meta.get("Date", ""),
+                        "sha": meta.get("SHA", ""),
+                        "cli": meta.get("CLI", ""),
+                        "model": meta.get("Model", ""),
+                        "verdict": meta.get("Verdict", ""),
+                        "crit": crit,
+                        "imp": imp,
+                        "minor": minor,
+                        "undecided_blocking": undecided_blocking,
+                        "has_fixed": has_fixed,
+                    }
+                )
+
+    rs = (heartbeat or {}).get("review_state")
+    hb_matches_kind = isinstance(rs, dict) and str(rs.get("kind") or "code") == kind
+
+    if rounds_data:
+        last = rounds_data[-1]
+        summary["active"] = True
+        summary["round"] = _safe_int_val(last["round"], 1)
+        summary["cli"] = str(last["cli"])
+        summary["model"] = str(last["model"])
+        summary["verdict"] = str(last["verdict"])
+        summary["latest_sha"] = str(last["sha"])
+        r_sha = str(last["sha"])
+        has_fix_commit = bool(
+            last["has_fixed"]
+            or (r_sha and head_sha and not _shas_match(head_sha, r_sha))
+        )
+        summary["has_fix_commit"] = has_fix_commit
+        verdict_upper = str(last["verdict"] or "").strip().upper()
+        verdict_requires_changes = any(
+            k in verdict_upper for k in ("CHANGES REQUIRED", "BLOCKED", "FAIL")
+        )
+        if (
+            verdict_upper == "PASS"
+            or (
+                not verdict_requires_changes
+                and last["crit"] == 0
+                and last["imp"] == 0
+                and last["undecided_blocking"] == 0
+            )
+            or (
+                _safe_int_val(last["round"], 1) >= 3
+                and last["crit"] == 0
+                and last["undecided_blocking"] == 0
+                and (last["imp"] + last["minor"] > 0 or not verdict_requires_changes)
+            )
+        ):
+            summary["converged"] = True
+            summary["phase"] = "converged"
+        elif has_fix_commit:
+            hb_sub = str((heartbeat or {}).get("sub_step") or "")
+            hb_phase = (
+                str(rs.get("phase") or "")
+                if hb_matches_kind and isinstance(rs, dict)
+                else ""
+            )
+            hb_rev_sha = (
+                str(rs.get("sha") or "")
+                if hb_matches_kind and isinstance(rs, dict)
+                else ""
+            )
+            hb_head_sha = (
+                str(rs.get("head_sha") or "")
+                if hb_matches_kind and isinstance(rs, dict)
+                else ""
+            )
+            hb_updated_at = str((heartbeat or {}).get("updated_at") or "")
+            round_date = str(last.get("date") or "")
+            hb_is_fresh = (
+                not round_date or not hb_updated_at or hb_updated_at >= round_date
+            )
+            qa_sha = str((quality_active or {}).get("head_sha") or "")
+            qa_status_cur = str((quality_active or {}).get("status") or "")
+            qa_is_post_fix = bool(
+                quality_active
+                and (
+                    (
+                        qa_status_cur == "running"
+                        and (not qa_sha or not r_sha or not _shas_match(qa_sha, r_sha))
+                    )
+                    or (
+                        head_sha
+                        and qa_sha
+                        and _shas_match(qa_sha, head_sha)
+                        and (not r_sha or not _shas_match(qa_sha, r_sha))
+                    )
+                )
+            )
+            hb_sub_is_post_fix = bool(
+                hb_phase != "reviewing"
+                and hb_is_fresh
+                and (
+                    not hb_head_sha or not r_sha or not _shas_match(hb_head_sha, r_sha)
+                )
+                and (
+                    hb_sub.startswith("task_")
+                    or hb_sub in ("quality_check", "audit_epic", "bdd_tests")
+                )
+            )
+            hb_explicit_verifying = bool(
+                hb_phase == "verifying"
+                and (not round_date or not hb_updated_at or hb_is_fresh)
+                and (
+                    not hb_head_sha or not r_sha or not _shas_match(hb_head_sha, r_sha)
+                )
+                and (
+                    not hb_rev_sha
+                    or bool(hb_head_sha)
+                    or not r_sha
+                    or not _shas_match(hb_rev_sha, r_sha)
+                )
+            )
+            if hb_explicit_verifying or hb_sub_is_post_fix or qa_is_post_fix:
+                summary["phase"] = "verifying"
+            else:
+                summary["phase"] = "fixing"
+        else:
+            summary["phase"] = "triage"
+
+    if hb_matches_kind and isinstance(rs, dict):
+        summary["active"] = True
+        hb_round = _safe_int_val(
+            rs.get("round"), _safe_int_val(summary["round"], 1) or 1
+        )
+        summary["max_rounds"] = _safe_int_val(rs.get("max_rounds"), 3) or 3
+        if rs.get("cli"):
+            summary["cli"] = str(rs["cli"])
+        if rs.get("model"):
+            summary["model"] = str(rs["model"])
+        if rs.get("action"):
+            summary["action"] = str(rs["action"])
+        if rs.get("verdict"):
+            summary["verdict"] = str(rs["verdict"])
+        hb_phase = str(rs.get("phase") or "")
+        if hb_round > _safe_int_val(summary["round"], 0) or not rounds_data:
+            summary["round"] = hb_round
+            if hb_phase:
+                summary["phase"] = hb_phase
+                summary["converged"] = hb_phase == "converged"
+        elif hb_phase in ("fixing", "verifying", "converged"):
+            if not (
+                hb_phase == "fixing" and summary["phase"] in ("verifying", "converged")
+            ):
+                summary["phase"] = hb_phase
+            if hb_phase == "converged":
+                summary["converged"] = True
+        elif (
+            hb_phase == "triage"
+            and not summary["has_fix_commit"]
+            and not summary["converged"]
+        ):
+            summary["phase"] = "triage"
+
+    phase_order = ["reviewing", "triage", "fixing", "verifying"]
+    cur_phase = str(summary["phase"])
+    cli_label = summary["cli"] or "reviewer"
+    if summary["model"]:
+        cli_label = f"{cli_label} ({summary['model']})"
+    for p_id, p_label in (
+        ("reviewing", "Reviewing"),
+        ("triage", "Lập bảng triage"),
+        ("fixing", "Fix findings"),
+        ("verifying", "Verifying"),
+    ):
+        if cur_phase == "converged":
+            st = "done"
+        elif cur_phase in phase_order:
+            c_idx = phase_order.index(cur_phase)
+            p_idx = phase_order.index(p_id)
+            if p_idx < c_idx:
+                st = "done"
+            elif p_idx == c_idx:
+                st = (
+                    "failed"
+                    if summary.get("action") == "CIRCUIT_BREAKER_HALT"
+                    else "running"
+                )
+            else:
+                st = "pending"
+        else:
+            st = "pending"
+        detail = ""
+        if p_id == "reviewing":
+            detail = cli_label if summary["active"] else ""
+        elif p_id == "triage" and summary["verdict"]:
+            detail = summary["verdict"]
+            if summary["action"]:
+                detail = f"{detail} ({summary['action']})"
+        summary["sub_steps"].append(
+            {
+                "id": p_id,
+                "label": p_label,
+                "status": st,
+                "detail": detail,
+            }
+        )
+    return summary
+
+
+def build_epic_pipeline_telemetry(
+    repo_path: Path,
+    epic_slug: str,
+    *,
+    done_tasks: int = 0,
+    total_tasks: int = 0,
+    task_progress: TaskProgress | None = None,
+    decision: LifecycleDecision | None = None,
+    heartbeat: dict[str, Any] | None = None,
+    quality_active: dict[str, Any] | None = None,
+    quality_runs: list[dict[str, Any]] | None = None,
+    pending_decision: dict[str, Any] | None = None,
+    active_stage: str | None = None,
+    is_completed: bool = False,
+) -> dict[str, Any]:
+    """Synthesize deterministic 6-stage /dev-lifecycle progress, sub-steps, and rolling events."""
+    if task_progress is not None:
+        if done_tasks == 0 and task_progress.done_tasks > 0:
+            done_tasks = int(task_progress.done_tasks)
+        if total_tasks == 0 and task_progress.total_tasks > 0:
+            total_tasks = int(task_progress.total_tasks)
+    if decision is not None and active_stage is None:
+        active_stage = decision.stage_name
+    if heartbeat is None:
+        heartbeat = _read_epic_heartbeat(repo_path, epic_slug)
+    if quality_active is None:
+        quality_active, _ = _read_quality_state(repo_path, epic_slug)
+
+    wt_path = find_epic_worktree_path(repo_path, epic_slug)
+    head_sha = _get_short_head_sha(wt_path)
+    epic_dirs = [
+        *_find_epic_dirs_for_checkout(wt_path, epic_slug),
+        *_find_epic_dirs_for_checkout(repo_path, epic_slug),
+    ]
+    has_spec = False
+    has_hld = False
+    has_bdd = False
+    has_handoff = False
+    principal_file: Path | None = None
+    code_review_file: Path | None = None
+    dir_task_count = 0
+
+    for ed in epic_dirs:
+        if not ed.is_dir():
+            continue
+        with contextlib.suppress(OSError):
+            for f in ed.iterdir():
+                if not f.is_file():
+                    continue
+                low = f.name.lower()
+                if "design" in low or "spec" in low:
+                    has_spec = True
+                if f.name in (
+                    f"{epic_slug}.en.md",
+                    f"{epic_slug}.vi.md",
+                    f"{ed.name}.en.md",
+                    "hld.en.md",
+                ):
+                    has_hld = True
+                if low.startswith("bdd_scenarios"):
+                    has_bdd = True
+                if f.name == "handoff.md":
+                    has_handoff = True
+                if f.name == "principal_review.md" and principal_file is None:
+                    principal_file = f
+                if f.name == "review_results.md" and code_review_file is None:
+                    code_review_file = f
+            dir_task_count = max(dir_task_count, len(list(ed.glob("task_*.md"))))
+
+    if total_tasks == 0 and dir_task_count > 0:
+        total_tasks = dir_task_count
+
+    has_wt = (repo_path / ".worktrees" / epic_slug).is_dir() or bool(
+        _collect_matching_worktrees(repo_path, epic_slug)
+    )
+    gate_entries = parse_gate_ledger_entries(repo_path, epic_slug)
+    approved_gates = {int(g["gate"]) for g in gate_entries if "gate" in g}
+    gate4_commits = [
+        str(g.get("commit", "")).strip()
+        for g in gate_entries
+        if int(g.get("gate", 0)) == 4 and str(g.get("commit", "")).strip()
+    ]
+    latest_gate4_sha = gate4_commits[-1] if gate4_commits else ""
+
+    principal_rev = _parse_review_rounds_summary(
+        principal_file, head_sha, heartbeat, quality_active, "principal"
+    )
+    code_rev = _parse_review_rounds_summary(
+        code_review_file, head_sha, heartbeat, quality_active, "code"
+    )
+
+    events_raw = (heartbeat or {}).get("events")
+    events: list[dict[str, str]] = (
+        [dict(e) for e in events_raw if isinstance(e, dict)]
+        if isinstance(events_raw, list)
+        else []
+    )
+    hb_sub_step = str((heartbeat or {}).get("sub_step") or "")
+    hb_sub_detail_upper = str((heartbeat or {}).get("sub_step_detail") or "").upper()
+    hb_last_event_upper = str((heartbeat or {}).get("last_event") or "").upper()
+    has_completed_code_round = _safe_int_val(code_rev.get("round"), 0) >= 1
+    hb_audit_passed = (
+        hb_sub_step == "audit_epic"
+        and "FAIL" not in hb_sub_detail_upper
+        and "FAIL" not in hb_last_event_upper
+        and ("PASS" in hb_sub_detail_upper or "PASS" in hb_last_event_upper)
+    )
+    hb_bdd_passed = (
+        hb_sub_step == "bdd_tests"
+        and "FAIL" not in hb_sub_detail_upper
+        and "FAIL" not in hb_last_event_upper
+        and ("PASS" in hb_sub_detail_upper or "PASS" in hb_last_event_upper)
+    )
+
+    audit_done = (
+        4 in approved_gates
+        or 5 in approved_gates
+        or is_completed
+        or has_completed_code_round
+        or hb_audit_passed
+        or any(
+            "audit_epic" in str(ev.get("message", ""))
+            and "PASS" in str(ev.get("message", ""))
+            for ev in events
+        )
+    )
+    bdd_done = (
+        4 in approved_gates
+        or 5 in approved_gates
+        or is_completed
+        or has_completed_code_round
+        or hb_bdd_passed
+        or any(
+            "check_bdd_traceability tests" in str(ev.get("message", ""))
+            and "PASS" in str(ev.get("message", ""))
+            for ev in events
+        )
+    )
+    qa_status = str((quality_active or {}).get("status") or "")
+    qa_sha = str((quality_active or {}).get("head_sha") or "")
+    qa_failed_or_running = qa_status in ("running", "failed", "aborted")
+    qa_passed = bool(
+        is_completed
+        or 5 in approved_gates
+        or (not qa_failed_or_running and (qa_status == "passed" or 4 in approved_gates))
+    )
+    gate4_full_pass = bool(
+        is_completed
+        or 5 in approved_gates
+        or (
+            not qa_failed_or_running
+            and (4 in approved_gates or (audit_done and bdd_done and qa_passed))
+        )
+    )
+
+    gate4_pass_on_current_sha = False
+    if is_completed or 5 in approved_gates:
+        gate4_pass_on_current_sha = True
+    elif gate4_full_pass and not qa_failed_or_running and head_sha:
+        gate4_sha_bound = bool(
+            latest_gate4_sha and _shas_match(head_sha, latest_gate4_sha)
+        )
+        qa_sha_bound = bool(
+            qa_status == "passed" and qa_sha and _shas_match(head_sha, qa_sha)
+        )
+        gate4_pass_on_current_sha = gate4_sha_bound or qa_sha_bound
+
+    if is_completed and total_tasks == 0:
+        task_completion_pct = 100.0
+    elif total_tasks <= 0:
+        task_completion_pct = 0.0
+    else:
+        task_completion_pct = min(100.0, round((done_tasks / total_tasks) * 100.0, 1))
+
+    all_tasks_done = total_tasks > 0 and done_tasks >= total_tasks
+
+    # Monotonic weighted lifecycle_progress_pct & current_stage_index (1..6)
+    if is_completed or 5 in approved_gates:
+        lifecycle_progress_pct = 100.0
+        current_stage_index = 6
+    elif (
+        all_tasks_done
+        and (
+            code_rev["converged"]
+            or _has_review_converged_hint(repo_path, epic_slug, pending_decision)
+        )
+        and gate4_pass_on_current_sha
+    ):
+        lifecycle_progress_pct = 98.0
+        current_stage_index = 6
+    elif all_tasks_done and (
+        code_rev["active"] or code_rev["round"] >= 1 or gate4_full_pass
+    ):
+        if not code_rev["active"] and code_rev["round"] == 0:
+            lifecycle_progress_pct = 88.0
+            current_stage_index = 4
+        elif code_rev["converged"]:
+            lifecycle_progress_pct = 96.0
+            current_stage_index = 4 if qa_status == "running" else 5
+        else:
+            r_num = max(1, _safe_int_val(code_rev["round"], 1))
+            phase = str(code_rev["phase"])
+            if r_num == 1:
+                band = {
+                    "reviewing": 89.0,
+                    "triage": 90.0,
+                    "fixing": 91.0,
+                    "verifying": 92.0,
+                }
+                lifecycle_progress_pct = band.get(phase, 90.0)
+            elif r_num == 2:
+                band = {
+                    "reviewing": 93.0,
+                    "triage": 93.8,
+                    "fixing": 94.5,
+                    "verifying": 95.2,
+                }
+                lifecycle_progress_pct = band.get(phase, 93.8)
+            else:
+                band = {
+                    "reviewing": 95.5,
+                    "triage": 95.7,
+                    "fixing": 95.9,
+                    "verifying": 96.0,
+                }
+                lifecycle_progress_pct = min(96.0, band.get(phase, 95.7))
+            current_stage_index = 5
+    elif all_tasks_done:
+        if qa_status == "passed":
+            lifecycle_progress_pct = 87.0
+            current_stage_index = 4
+        elif qa_status in ("running", "failed", "aborted"):
+            s_idx = _safe_int_val((quality_active or {}).get("step_index"), 1) or 1
+            s_tot = max(
+                1, _safe_int_val((quality_active or {}).get("step_total"), 1) or 1
+            )
+            lifecycle_progress_pct = round(81.0 + min(1.0, s_idx / s_tot) * 5.0, 1)
+            current_stage_index = 4
+        else:
+            lifecycle_progress_pct = 80.0
+            current_stage_index = (
+                4 if hb_sub_step in ("audit_epic", "bdd_tests", "quality_check") else 3
+            )
+    elif 3 in approved_gates or has_wt or done_tasks > 0:
+        ratio = (done_tasks / total_tasks) if total_tasks > 0 else 0.0
+        lifecycle_progress_pct = min(79.0, round(25.0 + ratio * 55.0, 1))
+        current_stage_index = 3
+    elif has_handoff:
+        lifecycle_progress_pct = 25.0
+        current_stage_index = 2
+    elif principal_rev["active"] or principal_rev["round"] >= 1:
+        r_num = max(1, _safe_int_val(principal_rev["round"], 1))
+        lifecycle_progress_pct = float(min(23, 20 + min(3, r_num)))
+        current_stage_index = 2
+    elif 2 in approved_gates or total_tasks > 0:
+        lifecycle_progress_pct = 18.0
+        current_stage_index = 2
+    elif has_hld or has_bdd:
+        lifecycle_progress_pct = 14.0
+        current_stage_index = 2
+    elif 1 in approved_gates:
+        lifecycle_progress_pct = 10.0
+        current_stage_index = 2
+    else:
+        lifecycle_progress_pct = 5.0 if has_spec else 0.0
+        current_stage_index = 1
+
+    # Build 6 stages with sub_steps
+    s1_done = 1 in approved_gates or lifecycle_progress_pct >= 10.0
+    s1_status = "done" if s1_done else ("running" if has_spec else "pending")
+    s1_sub = [
+        {
+            "id": "spec_doc",
+            "label": "Design Spec",
+            "status": "done" if (has_spec or s1_done) else "running",
+            "detail": "",
+        },
+        {
+            "id": "gate_1",
+            "label": "Gate 1 Sign-Off",
+            "status": "done" if s1_done else "pending",
+            "detail": "",
+        },
+    ]
+
+    s2_done = has_handoff or 3 in approved_gates or lifecycle_progress_pct > 25.0
+    s2_status = (
+        "done"
+        if s2_done
+        else (
+            "failed"
+            if principal_rev.get("action") == "CIRCUIT_BREAKER_HALT"
+            else ("running" if s1_done or has_hld else "pending")
+        )
+    )
+    s2_sub: list[dict[str, str]] = [
+        {
+            "id": "hld_bdd",
+            "label": "HLD & BDD",
+            "status": "done"
+            if (has_hld and has_bdd) or s2_done
+            else ("running" if s1_done else "pending"),
+            "detail": "",
+        },
+        {
+            "id": "gate_2",
+            "label": "Gate 2 & Tasks",
+            "status": "done"
+            if (2 in approved_gates or s2_done)
+            else ("running" if has_hld else "pending"),
+            "detail": f"{total_tasks} tasks" if total_tasks else "",
+        },
+    ]
+    if principal_rev["active"] or s2_done:
+        for sub in principal_rev["sub_steps"]:
+            s2_sub.append(
+                {
+                    "id": f"principal_{sub['id']}",
+                    "label": f"Principal: {sub['label']}",
+                    "status": "done" if s2_done else sub["status"],
+                    "detail": sub["detail"],
+                }
+            )
+    s2_sub.append(
+        {
+            "id": "package",
+            "label": "Package handoff.md",
+            "status": "done" if (has_handoff or s2_done) else "pending",
+            "detail": "",
+        }
+    )
+
+    s3_done = all_tasks_done or is_completed or lifecycle_progress_pct >= 80.0
+    s3_status = (
+        "done"
+        if s3_done
+        else (
+            "running"
+            if (3 in approved_gates or has_wt or done_tasks > 0)
+            else "pending"
+        )
+    )
+    s3_sub: list[dict[str, str]] = []
+    active_wave = (heartbeat or {}).get("active_wave")
+    if active_wave is not None and str(active_wave) != "":
+        s3_sub.append(
+            {
+                "id": "wave",
+                "label": f"Wave {active_wave}",
+                "status": "done" if s3_done else "running",
+                "detail": f"{done_tasks}/{total_tasks} ({int(task_completion_pct)}%)",
+            }
+        )
+    slots_map = (heartbeat or {}).get("slots")
+    if isinstance(slots_map, dict):
+        for slot_k, slot_v in sorted(slots_map.items()):
+            if isinstance(slot_v, dict):
+                t_id = str(slot_v.get("task_id") or "idle")
+                sl_st = str(slot_v.get("status") or "idle")
+                s3_sub.append(
+                    {
+                        "id": f"slot_{slot_k}",
+                        "label": f"Slot {slot_k}: {t_id}",
+                        "status": "done"
+                        if s3_done
+                        else (
+                            "running" if sl_st in ("working", "review") else "pending"
+                        ),
+                        "detail": sl_st,
+                    }
+                )
+    s3_sub.append(
+        {
+            "id": "tasks_tally",
+            "label": f"Tasks {done_tasks}/{total_tasks}",
+            "status": "done"
+            if s3_done
+            else ("running" if done_tasks > 0 else "pending"),
+            "detail": f"{int(task_completion_pct)}%",
+        }
+    )
+
+    s4_done = gate4_full_pass and qa_status != "running"
+    s4_status = (
+        "failed"
+        if qa_status in ("failed", "aborted")
+        else (
+            "running"
+            if (qa_status == "running" or current_stage_index == 4)
+            else ("done" if s4_done else "pending")
+        )
+    )
+    s4_sub: list[dict[str, str]] = [
+        {
+            "id": "audit_epic",
+            "label": "Epic Audit",
+            "status": "done"
+            if audit_done
+            else ("running" if s3_done and current_stage_index == 4 else "pending"),
+            "detail": "",
+        },
+        {
+            "id": "bdd_traceability",
+            "label": "BDD Traceability",
+            "status": "done" if bdd_done else "pending",
+            "detail": "",
+        },
+    ]
+    qa_steps = (quality_active or {}).get("steps")
+    if isinstance(qa_steps, list) and qa_steps:
+        for st_item in qa_steps:
+            if not isinstance(st_item, dict):
+                continue
+            raw_st = str(st_item.get("status") or "pending")
+            mapped_st = "done" if raw_st == "passed" else raw_st
+            el = st_item.get("elapsed_sec")
+            el_detail = f"{float(el):.1f}s" if isinstance(el, (int, float)) else ""
+            s4_sub.append(
+                {
+                    "id": f"qa_{st_item.get('capability', '')}",
+                    "label": str(
+                        st_item.get("label")
+                        or st_item.get("capability")
+                        or "Quality Step"
+                    ),
+                    "status": mapped_st,
+                    "detail": el_detail,
+                }
+            )
+    elif quality_active:
+        cap_lbl = str(
+            quality_active.get("capability_label")
+            or quality_active.get("capability")
+            or "Quality Check"
+        )
+        s_idx = _safe_int_val(quality_active.get("step_index"), 0)
+        s_tot = _safe_int_val(quality_active.get("step_total"), 0)
+        s4_sub.append(
+            {
+                "id": "qa_active",
+                "label": cap_lbl,
+                "status": "done" if qa_status == "passed" else (qa_status or "pending"),
+                "detail": f"{s_idx}/{s_tot}" if s_tot else "",
+            }
+        )
+
+    s5_done = bool(
+        is_completed
+        or 5 in approved_gates
+        or (code_rev["converged"] and gate4_pass_on_current_sha)
+    )
+    s5_status = (
+        "done"
+        if s5_done
+        else (
+            "failed"
+            if code_rev.get("action") == "CIRCUIT_BREAKER_HALT"
+            else (
+                "running"
+                if (code_rev["active"] or current_stage_index == 5)
+                else "pending"
+            )
+        )
+    )
+    s5_sub = list(code_rev["sub_steps"])
+
+    s6_done = bool(is_completed or 5 in approved_gates)
+    s6_status = (
+        "done"
+        if s6_done
+        else ("action_required" if lifecycle_progress_pct >= 98.0 else "pending")
+    )
+    s6_sub = [
+        {
+            "id": "gate_5",
+            "label": "Gate 5 Sign-Off & Merge",
+            "status": "done"
+            if s6_done
+            else ("running" if lifecycle_progress_pct >= 98.0 else "pending"),
+            "detail": "",
+        },
+    ]
+
+    stages = [
+        {
+            "id": "spec",
+            "index": 1,
+            "label": "1. Spec",
+            "status": s1_status,
+            "summary": "Gate 1 PASS" if s1_done else "Brainstorming Spec",
+            "sub_steps": s1_sub,
+        },
+        {
+            "id": "hld_principal",
+            "index": 2,
+            "label": "2. HLD & Principal",
+            "status": s2_status,
+            "summary": (
+                "Packaged & Ready"
+                if s2_done
+                else (
+                    f"Principal R{principal_rev['round']}/{principal_rev['max_rounds']} · {principal_rev['phase']}"
+                    if principal_rev["active"]
+                    else "HLD, BDD & Tasks"
+                )
+            ),
+            "sub_steps": s2_sub,
+        },
+        {
+            "id": "tasks",
+            "index": 3,
+            "label": "3. Tasks",
+            "status": s3_status,
+            "summary": f"{done_tasks}/{total_tasks} ({int(task_completion_pct)}%)",
+            "sub_steps": s3_sub,
+        },
+        {
+            "id": "gate4_quality",
+            "index": 4,
+            "label": "4. Gate 4 QA",
+            "status": s4_status,
+            "summary": (
+                "Audit + BDD + QA PASS"
+                if s4_done
+                else (
+                    str(
+                        (quality_active or {}).get("capability_label")
+                        or (quality_active or {}).get("capability")
+                        or "Running QA"
+                    )
+                    if qa_status == "running"
+                    else (
+                        "QA Passed (87%)" if qa_status == "passed" else "Pending Gate 4"
+                    )
+                )
+            ),
+            "sub_steps": s4_sub,
+        },
+        {
+            "id": "cross_review",
+            "index": 5,
+            "label": "5. Cross-Review",
+            "status": s5_status,
+            "summary": (
+                f"Converged (R{max(1, int(code_rev['round']))} PASS)"
+                if s5_done
+                else (
+                    f"Round {code_rev['round']}/{code_rev['max_rounds']} · {code_rev['cli'] or 'reviewer'} · {code_rev['phase']}"
+                    if code_rev["active"]
+                    else "Pending Review"
+                )
+            ),
+            "sub_steps": s5_sub,
+        },
+        {
+            "id": "finish",
+            "index": 6,
+            "label": "6. Finish",
+            "status": s6_status,
+            "summary": "Merged & Archived"
+            if s6_done
+            else (
+                "Waiting /finish (Gate 5)"
+                if lifecycle_progress_pct >= 98.0
+                else "Pending Gate 5"
+            ),
+            "sub_steps": s6_sub,
+        },
+    ]
+
+    cur_stage_obj = stages[max(0, min(5, current_stage_index - 1))]
+    active_sub_summary = f"{cur_stage_obj['label']} · {cur_stage_obj['summary']}"
+
+    return {
+        "epic_slug": epic_slug,
+        "task_completion_pct": task_completion_pct,
+        "lifecycle_progress_pct": lifecycle_progress_pct,
+        "current_stage_index": current_stage_index,
+        "active_sub_step_summary": active_sub_summary,
+        "stages": stages,
+        "events": events,
+    }
+
+
 def scan_repo(repo_path: Path) -> RepoMetadata:
     """Harvest complete metadata and telemetry for a single repository."""
+    depth = getattr(_SCAN_CTX, "depth", 0)
+    if depth == 0:
+        _SCAN_CTX.cache = {}
+    _SCAN_CTX.depth = depth + 1
+    try:
+        return _scan_repo_impl(repo_path)
+    finally:
+        _SCAN_CTX.depth = max(0, getattr(_SCAN_CTX, "depth", 1) - 1)
+        if _SCAN_CTX.depth == 0:
+            _SCAN_CTX.cache = None
+
+
+def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
     # 1. Project-level: styling, memory, notes, and epics overview from root repo
     theme_color, window_title = extract_vscode_styling(repo_path)
     worktrees = scan_worktrees(repo_path)
@@ -2151,8 +3208,25 @@ def scan_repo(repo_path: Path) -> RepoMetadata:
     )
     active_stage = decision.stage_name
 
-    # Propagate deterministic action requirements to each epic in epics_summary
+    # Propagate deterministic action requirements and pipeline_telemetry to each epic in epics_summary
     completed_slugs = get_completed_epic_slugs(repo_path)
+    pipeline_telemetry = (
+        build_epic_pipeline_telemetry(
+            repo_path,
+            active_epic,
+            done_tasks=task_progress.done_tasks,
+            total_tasks=task_progress.total_tasks,
+            heartbeat=heartbeat,
+            quality_active=quality_active,
+            pending_decision=matched_pending,
+            active_stage=active_stage,
+            is_completed=bool(
+                active_epic and _is_completed_epic(active_epic, completed_slugs)
+            ),
+        )
+        if active_epic
+        else None
+    )
     if epics_summary and epics_summary.epics:
         for ep in epics_summary.epics:
             slug = ep.get("slug", "")
@@ -2169,7 +3243,13 @@ def scan_repo(repo_path: Path) -> RepoMetadata:
                 ep["is_review_converged"] = (
                     decision.stage_name
                     == LifecycleStage.STAGE_3_PHASE_4_1_SIGNOFF.value
+                    or bool(
+                        pipeline_telemetry
+                        and float(pipeline_telemetry.get("lifecycle_progress_pct", 0.0))
+                        >= 98.0
+                    )
                 )
+                ep["pipeline_telemetry"] = pipeline_telemetry
             else:
                 ep_pd = _match_pending_decision_for_epic(pd_snapshot, slug)
                 ep_act = bool(ep_pd and ep_pd.get("active", True) is True)
@@ -2202,6 +3282,22 @@ def scan_repo(repo_path: Path) -> RepoMetadata:
                 if ep_prompt and not ep.get("action_prompt"):
                     ep["action_prompt"] = ep_prompt
                 ep["is_review_converged"] = ep_conv
+                if ep.get("status") == "in_progress":
+                    ep_tasks = [
+                        t
+                        for t in task_progress.tasks
+                        if _normalize_slug(str(t.get("epic") or ""))
+                        == _normalize_slug(slug)
+                    ]
+                    ep_done = sum(1 for t in ep_tasks if t.get("status") == "done")
+                    ep_tot = len(ep_tasks) or int(ep.get("task_count") or 0)
+                    ep["pipeline_telemetry"] = build_epic_pipeline_telemetry(
+                        repo_path,
+                        slug,
+                        done_tasks=ep_done,
+                        total_tasks=ep_tot,
+                        pending_decision=ep_pd,
+                    )
 
     return RepoMetadata(
         name=repo_path.name,
@@ -2223,6 +3319,7 @@ def scan_repo(repo_path: Path) -> RepoMetadata:
         heartbeat=heartbeat,
         quality_active=quality_active,
         quality_runs=quality_runs,
+        pipeline_telemetry=pipeline_telemetry,
     )
 
 
