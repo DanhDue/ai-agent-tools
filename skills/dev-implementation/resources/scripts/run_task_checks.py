@@ -444,20 +444,21 @@ def run(args: argparse.Namespace) -> int:
     print(f"Result: {'PASS' if passed else 'FAIL'}")
     print(f"Evidence: {layout.evidence}")
     with contextlib.suppress(Exception):
-        kit_scripts = Path(__file__).resolve().parents[4] / "scripts"
-        if str(kit_scripts) not in sys.path:
-            sys.path.insert(0, str(kit_scripts))
-        import _state_envelope
-        verdict = "PASS" if passed else "FAIL"
-        task_stem = Path(args.task).stem
-        _state_envelope.update_epic_heartbeat(
-            layout.root,
-            layout.epic_dir.name,
-            active_task=task_stem,
-            sub_step=f"task_{args.mode}",
-            sub_step_detail=f"{task_stem} ({args.mode}: {verdict})",
-            last_event=f"run_task_checks {args.mode} {task_stem} -> {verdict}",
-        )
+        if (layout.root / ".devtool" / "state").is_dir():
+            kit_scripts = Path(__file__).resolve().parents[4] / "scripts"
+            if str(kit_scripts) not in sys.path:
+                sys.path.insert(0, str(kit_scripts))
+            import _state_envelope
+            verdict = "PASS" if passed else "FAIL"
+            task_stem = Path(args.task).stem
+            _state_envelope.update_epic_heartbeat(
+                layout.root,
+                layout.epic_dir.name,
+                active_task=task_stem,
+                sub_step=f"task_{args.mode}",
+                sub_step_detail=f"{task_stem} ({args.mode}: {verdict})",
+                last_event=f"run_task_checks {args.mode} {task_stem} -> {verdict}",
+            )
     return 0 if passed else 1
 
 

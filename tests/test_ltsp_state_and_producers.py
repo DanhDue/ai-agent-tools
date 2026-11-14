@@ -17,11 +17,17 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT / "scripts") not in sys.path:
     sys.path.insert(0, str(REPO_ROOT / "scripts"))
-if str(REPO_ROOT / "skills" / "quality_check" / "resources" / "scripts") not in sys.path:
+if (
+    str(REPO_ROOT / "skills" / "quality_check" / "resources" / "scripts")
+    not in sys.path
+):
     sys.path.insert(
         0, str(REPO_ROOT / "skills" / "quality_check" / "resources" / "scripts")
     )
-if str(REPO_ROOT / "skills" / "dev-implementation" / "resources" / "scripts") not in sys.path:
+if (
+    str(REPO_ROOT / "skills" / "dev-implementation" / "resources" / "scripts")
+    not in sys.path
+):
     sys.path.insert(
         0, str(REPO_ROOT / "skills" / "dev-implementation" / "resources" / "scripts")
     )
@@ -31,7 +37,9 @@ def _init_git_repo(tmp_path: Path) -> Path:
     repo = tmp_path / "repo"
     repo.mkdir(parents=True, exist_ok=True)
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
-    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=repo, check=True
+    )
     subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True)
     (repo / ".devtool" / "state").mkdir(parents=True, exist_ok=True)
     (repo / "README.md").write_text("# test\n", encoding="utf-8")
@@ -96,7 +104,9 @@ def test_ltsp_hp_01_events_ring_buffer_and_review_state(tmp_path: Path) -> None:
         ("architecture", "Architecture Gate"),
     ],
 )
-def test_ltsp_hp_02_format_capability_labels(capability: str, expected_label: str) -> None:
+def test_ltsp_hp_02_format_capability_labels(
+    capability: str, expected_label: str
+) -> None:
     """[LTSP-HP-02] format_capability_label maps capability names to canonical human labels."""
     import verify_polyglot_registry as vpr
 
@@ -159,9 +169,7 @@ def test_ltsp_ec_01_consecutive_identical_events_deduplicated(tmp_path: Path) ->
     import _state_envelope
 
     repo = _init_git_repo(tmp_path)
-    timestamps = [
-        f"2026-11-14T09:00:0{i}+00:00" for i in range(1, 6)
-    ]
+    timestamps = [f"2026-11-14T09:00:0{i}+00:00" for i in range(1, 6)]
     for ts in timestamps:
         _state_envelope.update_epic_heartbeat(
             repo,
@@ -180,7 +188,9 @@ def test_ltsp_ec_01_consecutive_identical_events_deduplicated(tmp_path: Path) ->
     assert events[0]["ts"] == timestamps[-1]
 
 
-def test_ltsp_st_01_external_review_runner_transitions_review_state(tmp_path: Path) -> None:
+def test_ltsp_st_01_external_review_runner_transitions_review_state(
+    tmp_path: Path,
+) -> None:
     """[LTSP-ST-01] External review runner transitions review_state through reviewing, triage, fixing, and verifying phases."""
     import run_external_review as rer
 
@@ -265,4 +275,3 @@ def test_ltsp_fr_01_readonly_state_dir_never_aborts_cli(tmp_path: Path) -> None:
     finally:
         state_dir.chmod(0o755)
         os.chdir(old_cwd)
-

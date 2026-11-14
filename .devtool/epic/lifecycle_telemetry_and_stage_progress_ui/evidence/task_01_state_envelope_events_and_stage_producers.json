@@ -37,11 +37,11 @@
       "passed": true
     },
     "verify": {
-      "head": "c2a1a2d8a007ee9fd40e6fe0d323c6af23d72830",
-      "tree": "02553d3a6bc8d0a6f1406b895d81416814a79244",
-      "patch_id": "72781a352cbe79b351865e3b6b445d0e4f7766b8",
-      "started": "2026-11-14T02:46:01Z",
-      "finished": "2026-11-14T02:47:08Z",
+      "head": "ec7c9c0d67879229d14280687eba559a5d99fc41",
+      "tree": "b519782b10ea2c1c533f3484123f663e81a3170a",
+      "patch_id": "5403297e18e5015035b3cd1c6626b7f6f9bad5e3",
+      "started": "2026-11-14T03:50:48Z",
+      "finished": "2026-11-14T03:51:53Z",
       "rows": [
         {
           "id": "V2",
@@ -52,13 +52,13 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-14T02:46:01Z",
-          "finished": "2026-11-14T02:46:03Z",
+          "started": "2026-11-14T03:50:48Z",
+          "finished": "2026-11-14T03:50:50Z",
           "output_tail": [
             "...............                                                          [100%]",
-            "15 passed in 1.64s"
+            "15 passed in 1.75s"
           ],
-          "output_sha256": "c14a58c874335cdf5a2c5b3673f456c1ad4d0b7da65f61be9706a2b668cb7d34"
+          "output_sha256": "f8805b83b428717e82c8d4db9549b12c883851b2193b0df3aa64b294b6c33e47"
         },
         {
           "id": "V3",
@@ -69,14 +69,14 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-14T02:46:03Z",
-          "finished": "2026-11-14T02:47:05Z",
+          "started": "2026-11-14T03:50:50Z",
+          "finished": "2026-11-14T03:51:51Z",
           "output_tail": [
             "..................................................................... [ 66%]",
             "..................................                             [100%]",
-            "103 passed, 13 subtests passed in 62.34s (0:01:02)"
+            "103 passed, 13 subtests passed in 60.04s (0:01:00)"
           ],
-          "output_sha256": "5a19e48ac4ade8143f6df17db09a28a68f8e6ddd117c2cb70082fdb8f582301a"
+          "output_sha256": "e28e5949b83bf4beb1c492c75f5c78026adeded1a8cfa4c11ab2654b8a81c40f"
         },
         {
           "id": "V4",
@@ -87,8 +87,8 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-14T02:47:05Z",
-          "finished": "2026-11-14T02:47:05Z",
+          "started": "2026-11-14T03:51:51Z",
+          "finished": "2026-11-14T03:51:51Z",
           "output_tail": [
             "All checks passed!"
           ],
@@ -103,8 +103,8 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-14T02:47:05Z",
-          "finished": "2026-11-14T02:47:05Z",
+          "started": "2026-11-14T03:51:51Z",
+          "finished": "2026-11-14T03:51:51Z",
           "output_tail": [
             "Success: no issues found in 8 source files"
           ],
@@ -119,13 +119,13 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-14T02:47:05Z",
-          "finished": "2026-11-14T02:47:07Z",
+          "started": "2026-11-14T03:51:51Z",
+          "finished": "2026-11-14T03:51:53Z",
           "output_tail": [
             "...............                                                          [100%]",
-            "15 passed in 1.68s"
+            "15 passed in 1.70s"
           ],
-          "output_sha256": "4e8c242db3bb0fcee4eae318ee85c7714a4ff0f67bd4a4344e28a1572a29544a",
+          "output_sha256": "da9136c1ea1473805a083fc09925edee378d966cedecc1c16ad8cf1493a1dae8",
           "results": {
             "path": "build/test-results/ltsp_task_01.xml",
             "fresh": true,
@@ -221,16 +221,10 @@
           "outcome": "PASS",
           "changed": [
             "scripts/_state_envelope.py",
-            "scripts/resume_context.py",
-            "skills/cross-model-review/SKILL.md",
             "skills/dev-implementation/resources/scripts/audit_epic.py",
             "skills/dev-implementation/resources/scripts/check_bdd_traceability.py",
-            "skills/dev-implementation/resources/scripts/package_epic.py",
-            "skills/dev-implementation/resources/scripts/run_external_review.py",
             "skills/dev-implementation/resources/scripts/run_task_checks.py",
             "skills/dev-lifecycle/resources/scripts/lifecycle_runner.py",
-            "skills/principal-review/SKILL.md",
-            "skills/quality_check/resources/scripts/verify_polyglot_registry.py",
             "tests/test_ltsp_state_and_producers.py"
           ],
           "violations": []

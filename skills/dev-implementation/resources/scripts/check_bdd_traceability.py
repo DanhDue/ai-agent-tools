@@ -276,18 +276,19 @@ def main(argv: list[str] | None = None) -> int:
             if scen_path.parent.parent.name == "epic":
                 epic_slug = scen_path.parent.name
                 repo_root = scen_path.parent.parent.parent.parent
-                kit_scripts = Path(__file__).resolve().parents[4] / "scripts"
-                if str(kit_scripts) not in sys.path:
-                    sys.path.insert(0, str(kit_scripts))
-                import _state_envelope
-                verdict = "PASS" if rc == 0 else "FAIL"
-                _state_envelope.update_epic_heartbeat(
-                    repo_root,
-                    epic_slug,
-                    sub_step=f"bdd_{args.mode}",
-                    sub_step_detail=f"BDD Traceability ({args.mode}): {verdict}",
-                    last_event=f"check_bdd_traceability {args.mode} -> {verdict}",
-                )
+                if (repo_root / ".devtool" / "state").is_dir():
+                    kit_scripts = Path(__file__).resolve().parents[4] / "scripts"
+                    if str(kit_scripts) not in sys.path:
+                        sys.path.insert(0, str(kit_scripts))
+                    import _state_envelope
+                    verdict = "PASS" if rc == 0 else "FAIL"
+                    _state_envelope.update_epic_heartbeat(
+                        repo_root,
+                        epic_slug,
+                        sub_step=f"bdd_{args.mode}",
+                        sub_step_detail=f"BDD Traceability ({args.mode}): {verdict}",
+                        last_event=f"check_bdd_traceability {args.mode} -> {verdict}",
+                    )
         return rc
     except (UsageError, ReportError) as error:
         print(f"error: {error}", file=sys.stderr)

@@ -1691,30 +1691,33 @@ class LifecycleRunner:
         return True, "Scoped checks PASS"
 
     def _emit_review_phase_status(self, kind: str, phase: str, round_num: int) -> None:
-        """Emit mechanical review phase telemetry via run_external_review.py status."""
-        script = self._resolve_script("dev-implementation/resources/scripts/run_external_review.py")
-        if script is None:
-            return
+        """Emit mechanical review phase telemetry in-process without consuming subprocess mocks."""
         try:
-            subprocess.run(
-                [
-                    sys.executable,
-                    str(script),
-                    "status",
-                    "--kind",
-                    kind,
-                    "--epic-dir",
+            kind_norm = "principal" if kind == "principal" else "code"
+            kind_label = "Principal Review" if kind_norm == "principal" else "Cross-Model Review"
+            stage_label = "Stage 2 (Principal Review)" if kind_norm == "principal" else "Stage 3 Phase 4 (Review)"
+            hb_path = self.root / ".devtool" / "state" / f"{self.epic_slug}.heartbeat.json"
+            existing_hb = _state_envelope.read_json_safe(hb_path, {}) if hb_path.is_file() else {}
+            prev_rev = existing_hb.get("review_state")
+            rev_dict: dict[str, Any] = dict(prev_rev) if isinstance(prev_rev, dict) else {}
+            rev_dict["kind"] = kind_norm
+            rev_dict["round"] = int(round_num or rev_dict.get("round") or 1)
+            rev_dict["max_rounds"] = int(rev_dict.get("max_rounds") or 3)
+            rev_dict["phase"] = phase
+            eff_round = rev_dict["round"]
+            eff_max = rev_dict["max_rounds"]
+            sub_detail = f"Round {eff_round}/{eff_max}: {phase}"
+            rev_dict["label"] = sub_detail
+            if (self.root / ".devtool" / "state").is_dir():
+                _state_envelope.update_epic_heartbeat(
+                    self.root,
                     self.epic_slug,
-                    "--phase",
-                    phase,
-                    "--round",
-                    str(round_num),
-                ],
-                cwd=self.root,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
+                    stage=stage_label,
+                    sub_step=f"{kind_norm}_{phase}",
+                    sub_step_detail=sub_detail,
+                    review_state=rev_dict,
+                    last_event=f"{kind_label} {sub_detail}",
+                )
         except Exception:
             pass
 

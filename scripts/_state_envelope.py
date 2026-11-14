@@ -161,7 +161,9 @@ def _existing_anchor(path: Path) -> Path | None:
 
 
 def _is_slot_worktree(path: Path) -> bool:
-    """Return True when path is an ephemeral worker-pool slot worktree."""
+    """Return True when path is an ephemeral worker-pool slot or replay worktree."""
+    if path.name == "replay_worktree":
+        return True
     return path.parent.name == ".worktrees" and bool(
         _SLOT_WORKTREE_RE.search(path.name)
     )
@@ -199,6 +201,8 @@ def resolve_shared_devtool_dirs(start_path: Path | None = None) -> list[Path]:
     common_dir = _resolve_git_path(anchor, "--git-common-dir")
     worktree_root = _resolve_git_path(anchor, "--show-toplevel")
     primary_root = common_dir.parent if common_dir is not None else None
+    if worktree_root is not None and worktree_root.name == "replay_worktree":
+        return [(worktree_root / ".devtool").resolve()]
 
     ordered: list[Path] = []
     seen: set[Path] = set()

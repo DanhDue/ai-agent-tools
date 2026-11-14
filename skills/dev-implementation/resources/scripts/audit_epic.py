@@ -314,18 +314,19 @@ def main(argv: list[str] | None = None) -> int:
         print()
     print(f"Result: {'FAIL' if failed else 'PASS'}")
     with contextlib.suppress(Exception):
-        repo_root = Path(__file__).resolve().parents[4]
-        if str(repo_root / "scripts") not in sys.path:
-            sys.path.insert(0, str(repo_root / "scripts"))
-        import _state_envelope
-        verdict = "FAIL" if failed else "PASS"
-        _state_envelope.update_epic_heartbeat(
-            root,
-            args.epic_dir,
-            sub_step="audit_epic",
-            sub_step_detail=f"Audit Epic: {verdict}",
-            last_event=f"audit_epic --epic-dir {args.epic_dir} -> {verdict}",
-        )
+        if (root / ".devtool" / "state").is_dir():
+            repo_root = Path(__file__).resolve().parents[4]
+            if str(repo_root / "scripts") not in sys.path:
+                sys.path.insert(0, str(repo_root / "scripts"))
+            import _state_envelope
+            verdict = "FAIL" if failed else "PASS"
+            _state_envelope.update_epic_heartbeat(
+                root,
+                args.epic_dir,
+                sub_step="audit_epic",
+                sub_step_detail=f"Audit Epic: {verdict}",
+                last_event=f"audit_epic --epic-dir {args.epic_dir} -> {verdict}",
+            )
     return 1 if failed else 0
 
 
