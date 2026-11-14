@@ -173,19 +173,23 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
    python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py init --epic-dir <epic_dir> --epic-slug <epic_slug>
    ```
 
-### Phase 2 — Parallel Task Execution (Role 2.2 `Argon` Orchestrator + Role 2.3 `Hydrogen xhigh` Subagents)
+### Phase 2 — Parallel Task Execution (Orchestrator + Programmer Subagents)
 
 <HARD-GATE>
-- **Global Hard Ban on Main Session (`Argon`)**: Role 2.2 (`Argon`) is STRICTLY FORBIDDEN from calling `read_file`, `edit_file`, or `write_file` on `src/`, `tests/`, or `.devtool/epic/<epic>/task_*.md` during execution/fix loops, and forbidden from running `pytest`, `ruff`, `mypy`, or `run_task_checks.py` directly in the main context.
-- **Mandatory `invoke_subagent` Delegation (`Hydrogen xhigh`)**: Delegate every task implementation, task review, Gate 4 sweep, and review fix to an isolated Role 2.3 subagent (`Hydrogen xhigh`: `invoke_subagent` with `Model="flash"`, never `"inherit"`, or `agy --model gemini-4-hydrogen-xhigh --effort xhigh --mode auto` from `.devtool/review_config.json["providers"]["programmer"]`). `Argon` reads only compact subagent summaries and runs pool/state transitions.
+- **Orchestrator (Role 2.2)**: never reads/edits `src/`/`tests/` or runs tests, linters, `run_task_checks.py` or `verify-tier`; reads only subagent JSON summaries, epic docs and git metadata ([orchestration-roles.md](../dev-lifecycle/references/orchestration-roles.md)).
+- **Programmer (Role 2.3)**: implementation, review, Gate 4 and fixes run via `agy --model <model> --effort <effort> --mode auto` with `.devtool/review_config.json["providers"]["programmer"]` (default `gemini-4-hydrogen-xhigh`, `xhigh`). Never substitute a lighter model (e.g. `Model="flash"`); if unavailable, halt via `--pending-decision`.
+- **Pool state is Orchestrator-only**: subagents never call `manage_worker_pool.py`.
 </HARD-GATE>
 
+Autonomous Mode: `lifecycle_runner.py` dispatches itself (`build_agy_command`, `start_new_session=True`, SIGTERM/SIGKILL supervision, per-task logs).
+
 #### 2-Slot Ephemeral Worker Pool & Layer Workflow
-- **Pool CLI** (`python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py <cmd> --epic-dir <epic_dir> --epic-slug <epic_slug>`): `init [--wave <k>]` | `sync --slot <1|2> --task <task_id> [--wave <k>] [--status working|review|idle] [--no-reset]` | `merge --slot <1|2> --task <task_id>` | `cleanup`
-1. **Wave Setup (`Argon`)**: Run `compute_execution_order.py <epic_slug> --parallel`, monitor `estimate_heartbeat.py`, and log wave (`resume_context.py --epic <epic_slug> --wave <k> --state --status "In progress: Wave <k>"`). Dispatch up to 2 parallel slot subagents per wave (`slot-1`, `slot-2`; English code/commits).
-2. **Subagent 1 — `task-implementer` (`Hydrogen xhigh`, `Model="flash"`)**: Inside the slot, sync status to `working` (`manage_worker_pool.py sync ... --status working` or `sync_task_status.py task <task_id> in-progress`), run `check_code_impact.py` (halt on `🔴 DIVERGENCE DETECTED`; add characterization tests on `⚠️ UNPROTECTED CODE`), write `RED` tests -> `GREEN` code, pass `run_task_checks.py verify`, and **automatically sync slot status to `review` (`--status review`) before returning** a compact summary to `Argon`.
-3. **Subagent 2 — `task-reviewer` (`Hydrogen xhigh`, `Model="flash"`)**: Dispatched by `Argon` when Selective Gating triggers. Audits diff + AST + Zero Fakery, verifies `run_task_checks.py status` (`done gate: PASS`) + `check_bdd_traceability.py`, runs `sync_task_status.py task <task_id> done`, commits inside slot, and returns verdict to `Argon`.
-4. **Merge & Cleanup (`Argon`)**: Once Reviewer returns `PASS`, `Argon` runs `manage_worker_pool.py merge` (and `cleanup` before Phase 4; revisions use `package_epic.py --revise --reason "<text>" <epic_dir>`).
+- **Slots**: `.worktrees/<epic_dir>-slot-1` / `-slot-2` share caches with the main worktree `.worktrees/<epic_dir>`.
+- **Pool CLI** (`python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py <cmd> --epic-dir <epic_dir> --epic-slug <epic_slug>`): `init [--wave <k>]` | `sync --slot <1|2> --task <task_id> [--wave <k>] [--status working|review|idle] [--no-reset]` | `merge --slot <1|2> --task <task_id>` | `cleanup` (keeps dirty/unmerged work)
+1. **Wave Setup (Orchestrator)**: Run `compute_execution_order.py <epic_slug> --parallel`, monitor `estimate_heartbeat.py`, and log wave (`resume_context.py --epic <epic_slug> --wave <k> --state --status "In progress: Wave <k>"`). For each task (max 2 per wave), run `manage_worker_pool.py sync ... --slot <1|2> --task <task_id> --wave <k> --status working` (single-worktree mode: `sync_task_status.py task <task_id> in-progress`), then dispatch the slot's `task-implementer`.
+2. **`task-implementer` (Role 2.3)**: Inside the slot, run `check_code_impact.py` (halt on `🔴 DIVERGENCE DETECTED`; add characterization tests on `⚠️ UNPROTECTED CODE`), write `RED` tests -> `GREEN` code, pass `run_task_checks.py verify`. If `needs_review` (step 2 below) is false and `done gate: PASS`, finalize: `sync_task_status.py task <task_id> done`, `git status`, `git add -A`, commit `[EPIC_NAME] <task_title>` (no trailers). Return the JSON summary.
+3. **`task-reviewer` (Role 2.3, fresh subagent)**: Dispatched by the Orchestrator only when Selective Gating triggers, after it runs `sync ... --status review`. Audits diff + AST + Zero Fakery, verifies `done gate: PASS` + `check_bdd_traceability.py`, marks `done`, commits in the slot, returns the JSON summary.
+4. **Merge & Cleanup (Orchestrator)**: see steps 4–5 below; `cleanup` before Phase 4; revisions use `package_epic.py --revise --reason "<text>" <epic_dir>`.
 
    **Test Assertion Health, Anti-Bloat & Tiered Execution**: Never assert only inside `if path.exists()`; always assert `found > 0`. Enforce:
    - **Mandatory Parametrization**: Never copy-paste `def test_*` functions across input variations; consolidate into `@pytest.mark.parametrize` (or table tests).
@@ -252,12 +256,12 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
    >    ```
    > 5. **Stop and Report**: A `Stop and Report If` condition in task is reported as `BLOCKED`. Never edit Verification table, Definition of Done, Allowed files or Covers line, or protected path, to force a pass. In Satellite Mode, report `BLOCKED` if an unmerged upstream contract change prevents local tests from passing.
 
-2. **Selective `task-reviewer` Gating (after `task-implementer` syncs `review` and returns)**:
-   - Dispatch `task-reviewer` subagent (`Hydrogen xhigh`, `Model="flash"`) **only** when `review_tier: "full"` in frontmatter, labels include `security`, `architecture`, `concurrency`, or `contract`, or `> 2` non-test modules change (routine single-file tasks finalize inside `task-implementer` after self-review + `run_task_checks.py verify`).
-3. **Fix Loop**: If `task-reviewer` finds defects, `task-implementer` cycles `--status working --no-reset` -> fix -> `run_task_checks.py verify` -> `--status review`.
-4. **Finalize in Subagent & Merge in `Argon`**: Once `run_task_checks.py status <task mirror>` prints `done gate: PASS` and `check_bdd_traceability.py tests --ids` exits 0, the subagent marks `done` (`python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> done`), commits `[EPIC_NAME] <task_title>` (no trailers), and returns to `Argon`. `Argon` runs `manage_worker_pool.py merge` and logs state (`resume_context.py --log` & `--state`).
+2. **Selective `task-reviewer` Gating**: `needs_review` is true when `review_tier: "full"` is in frontmatter, labels include `security`, `architecture`, `concurrency`, or `contract`, or `> 2` non-test modules change. The Orchestrator recomputes the module count with `git -C <slot> diff --name-only <base>..<head_sha>` and dispatches `task-reviewer` on mismatch.
+3. **Fix Loop**: If `task-reviewer` returns `FAIL`, the Orchestrator runs `sync ... --status working --no-reset` and dispatches a fresh `task-implementer` with the reviewer's `findings` -> fix -> `run_task_checks.py verify` -> return; then `--status review` and a fresh `task-reviewer`.
+4. **Merge**: Once finalized (implementer `finalized: true` or reviewer `PASS`), the Orchestrator runs `manage_worker_pool.py merge` (auto-idles the slot).
+5. **Log**: After `merge`, the Orchestrator logs state (`resume_context.py --log --epic <epic_slug> --task <task_id> --request "<summary>" --action "<verify status>"` and `resume_context.py --state --epic <epic_slug>`, which syncs `window.title`).
 6. If implementation diverged from HLD, perform Phase 3 Doc Sync before next task.
-7. **Integrate with develop (only when base branch moved).** First check locally whether `<base_ref>` (`develop`) has any commits not in `HEAD` (`git rev-parse develop != $(git merge-base HEAD develop)`). If `develop` has not moved since the worktree branched, skip per-task rebase/verify-tier and proceed immediately to the next task (full integration runs at Stage 4). When `develop` has moved, run in orchestrator from epic worktree after step 5 commit:
+7. **Integrate with develop (only when base branch moved).** First check locally whether `<base_ref>` (`develop`) has any commits not in `HEAD` (`git rev-parse develop != $(git merge-base HEAD develop)`). If `develop` has not moved since the worktree branched, skip per-task rebase/verify-tier and proceed immediately to the next task (full integration runs at Stage 4). When `develop` has moved and no slot is `working`, the Orchestrator runs `preflight` from the epic worktree after `merge`, then dispatches a Role 2.3 subagent for `rebase`, conflict resolution and `verify-tier`:
    ```bash
    python3 "$INTEGRATE" preflight --base develop
    ```
@@ -286,9 +290,9 @@ Only when Phase 2 flags divergence:
 
 Once every task is `done`, a fix is never made by reopening a task. Make it as its own commit on the epic branch, titled `[EPIC_NAME] Fix <what>`. Do not move a done task back, and do not re-record its evidence. `audit_epic.py` lists these commits under "Commits outside tasks". After fixes, run Phase 4 again in full on the new SHA.
 
-### Phase 4 — End of Epic Verification (Single `Hydrogen xhigh` Subagent Dispatch)
+### Phase 4 — End of Epic Verification (Fresh `gate4-verifier` Subagent)
 
-Once every task is `done` and worker slots are cleaned up (`manage_worker_pool.py cleanup`), `Argon` dispatches a **SINGLE Role 2.3 (`Hydrogen xhigh`, `Model="flash"`) subagent** to execute steps 0–5 below end-to-end, self-healing minor lint/type issues inside the subagent and returning only the final verdict (`PASS` / `FAIL` + concise summary) to `Argon`:
+Once every task is `done` and slots are cleaned up, the Orchestrator dispatches a **fresh Role 2.3 `gate4-verifier`** (never the round's implementer, reviewer or fixer) to run steps 0–5. It edits no code; on failure it returns `FAIL`, and the Orchestrator dispatches a fixer, then a new verifier. `PASS` counts only when `candidate_sha == git rev-parse HEAD`, the tree is clean, and the `@quality_check` report is bound to that SHA ([orchestration-roles.md](../dev-lifecycle/references/orchestration-roles.md#4-independent-verification)):
 
 0. **Manual Smoke Checklist**:
    ```bash
@@ -351,7 +355,7 @@ python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run \
   --epic-dir <epic_dir> --base <base_ref> --auto-quota
 ```
 3. Commit `review_results.md` (`[EPIC_NAME] Record cross-model review round N`), run `python3 "$SKILL_DIR"/resources/scripts/run_external_review.py triage --epic-dir <epic_dir>`, and inspect `## Auto-Triage Gate`:
-   - **`AUTO_PASS_CLEAN` / `AUTO_PASS_FINAL_MINOR_SWEEP` / `AUTO_FIX_ELIGIBLE` (One-Shot `Hydrogen xhigh` Subagent Fix)**: `Argon` dispatches a single Role 2.3 (`Hydrogen xhigh`, `Model="flash"`) subagent per round. Because findings already include `PROPOSED ACTION`, the subagent inspects code and directly applies code/test fixes, runs **Tier 1 scoped tests only** (`uv run pytest <changed_test_files> -n auto --timeout=30 -q --tb=short`), commits `[<EPIC_NAME>] Fix <what>`, records `fixed in <sha>` in `review_results.md` (and runs full Gate 4 on the final convergence round), and returns only the commit SHA + status to `Argon`. Writing `fix_plan_round<N>.md` for `Argon` approval is required **only** when a finding alters public contracts or HLD scope.
+   - **`AUTO_PASS_CLEAN` / `AUTO_PASS_FINAL_MINOR_SWEEP` / `AUTO_FIX_ELIGIBLE`**: The Orchestrator picks the fixer mode from the triage (`fast-track` only when every open finding is `Valid` and no escalation marker appears; otherwise `plan-first`, where the fixer writes `fix_plan_round<N>.md` and the Orchestrator rules `APPROVED` / `ADJUSTED` / `CRITICAL_CONFLICT` before a fresh fixer applies it). The Role 2.3 fixer applies code/test fixes, runs **Tier 1 scoped tests only** (`uv run pytest <changed_test_files> -n auto --timeout=30 -q --tb=short`), commits `[<EPIC_NAME>] Fix <what>`, records `fixed in <sha>` in `review_results.md`, and returns the `review-fixer` summary. The Orchestrator then checks `git diff --name-only <pre_sha>..HEAD` for out-of-scope paths. On convergence, a fresh `gate4-verifier` runs full Gate 4. Details: [orchestration-roles.md](../dev-lifecycle/references/orchestration-roles.md#4-independent-verification).
    - **`CIRCUIT_BREAKER_HALT`**: Halts cleanly via `--pending-decision` on `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or Critical findings surviving Round 3.
 4. Once `/cross-model-review` completes (converged with 0 Critical findings) and Gate 4 passes on the latest candidate SHA:
    - Present the synthesized `## Top 3 Highest-Risk Findings (Executive Report)`.
