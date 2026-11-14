@@ -29,6 +29,32 @@ export interface QuotaGroup {
   buckets: QuotaBucket[];
 }
 
+export interface DynamicQuotaShareInfo {
+  limitIndex?: number | null;
+  usedPercentOfWeekly?: number | null;
+  allowancePercentOfWeekly?: number | null;
+  label: string;
+}
+
+export interface DynamicQuotaBucket {
+  id: string;
+  name: string;
+  group: 'session' | 'weekly' | string;
+  kind: string;
+  scopeLabel: string;
+  fraction: number;         // 0.0 to 1.0 remaining
+  utilization: number;      // 0.0 to 100.0 used
+  countdown: string;
+  resetTime: string;        // ISO 8601 UTC timestamp
+  resetTimeLocal: string;
+  resetTimeTs?: number;
+  severity: string;
+  isActive: boolean;
+  isLive: boolean;
+  shareInfo?: DynamicQuotaShareInfo | null;
+  unavailable: boolean;
+}
+
 export interface ProfileQuotaState {
   profile: string;
   tier: 'PRO' | 'DEV' | string;
@@ -41,6 +67,7 @@ export interface ProfileQuotaState {
   claudeWeekly: QuotaBucket;
   argon5h?: QuotaBucket;
   argonWeekly: QuotaBucket;
+  quotaBuckets?: DynamicQuotaBucket[];
 }
 
 /**
