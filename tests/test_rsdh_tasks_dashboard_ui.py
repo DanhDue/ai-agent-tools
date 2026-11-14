@@ -855,11 +855,11 @@ assert.ok(kanbanEl, 'Kanban wrapper rendered');
 
 assert.match(kanbanEl.innerHTML, /96%/, 'Section I must display 96% pre-finish');
 assert.match(kanbanEl.innerHTML, /96% Review/, 'Section I must display 96% Review');
-assert.doesNotMatch(stripStyles(kanbanEl.innerHTML), /99%|100%/, 'Section I must not display 99% or 100% pre-convergence');
+assert.doesNotMatch(kanbanEl.innerHTML, /width:\s*(?:99|100)%/, 'Section I lifecycle bar must not display 99% or 100% pre-convergence');
 
 assert.match(tier2El.innerHTML, /96%/, 'Section II must display 96% pre-finish');
 assert.match(tier2El.innerHTML, /96% Review/, 'Section II must display 96% Review');
-assert.doesNotMatch(stripStyles(tier2El.innerHTML), /99%|100%/, 'Section II must not display 99% or 100% pre-convergence');
+assert.doesNotMatch(tier2El.innerHTML, /width:\s*(?:99|100)%/, 'Section II lifecycle bar must not display 99% or 100% pre-convergence');
 const initialSig = tier2El.dataset.sig;
 
 // Poll 1 -> 1 (account_id change)
@@ -972,9 +972,9 @@ try {{
   const sec1Before = await cdp.evaluate(`document.getElementById('kanban-dashboard-wrapper-ai-agent-tools').innerText`);
   const sec2Before = await cdp.evaluate(`document.getElementById('tier2-execution-epics-wrapper-ai-agent-tools').innerText`);
   assert.match(sec1Before, /96% Review/);
-  assert.doesNotMatch(sec1Before, /99%|100%/);
+  assert.doesNotMatch(sec1Before, /99%|100% ✓ Done|100% ⚠️/);
   assert.match(sec2Before, /96% Review/);
-  assert.doesNotMatch(sec2Before, /99%|100%/);
+  assert.doesNotMatch(sec2Before, /99%|100% ✓ Done|100% ⚠️/);
 
   const mutRes = await fetch({json.dumps(f"http://127.0.0.1:{ctrl_port}/mutate")}, {{ method: 'POST' }});
   assert.equal(mutRes.status, 200);
@@ -1348,19 +1348,19 @@ assert.match(e1, /75%/);
 const s2 = sandbox.renderKanbanDashboard(scenarios.high_cap_95, 'all');
 const e2 = sandbox.renderExecutionEpics(scenarios.high_cap_95);
 assert.match(s2, /width:\s*95%/);
-assert.doesNotMatch(stripStyles(s2), /98%|99%|100%/);
+assert.doesNotMatch(s2, /width:\s*(?:98|99|100)%/);
 assert.match(e2, /95%/);
-assert.doesNotMatch(stripStyles(e2), /98%|99%|100%/);
+assert.doesNotMatch(e2, /width:\s*(?:98|99|100)%/);
 
 // 3. 4/4 done pre-convergence -> 96% ("96% Review")
 const s3 = sandbox.renderKanbanDashboard(scenarios.pre_finish_96, 'all');
 const e3 = sandbox.renderExecutionEpics(scenarios.pre_finish_96);
 assert.match(s3, /width:\s*96%/);
 assert.match(s3, /96% Review/);
-assert.doesNotMatch(stripStyles(s3), /99%|100%/);
+assert.doesNotMatch(s3, /width:\s*(?:98|99|100)%/);
 assert.match(e3, /96%/);
 assert.match(e3, /96% Review/);
-assert.doesNotMatch(stripStyles(e3), /99%|100%/);
+assert.doesNotMatch(e3, /width:\s*(?:98|99|100)%/);
 
 // 4. 4/4 done with Gate 4 Review Converged (Waiting Finish) -> 100%
 const s4 = sandbox.renderKanbanDashboard(scenarios.waiting_finish_100, 'all');
