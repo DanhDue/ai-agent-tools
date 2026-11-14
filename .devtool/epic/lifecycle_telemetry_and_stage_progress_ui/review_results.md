@@ -35,3 +35,32 @@ Raw output:
 ```text
 Verdict: CHANGES REQUIRED
 ```
+
+## Round 2
+
+- **Date**: 2026-11-14T05:07:22Z
+- **SHA**: af47643d56950046443be71e17cc55c65a6e0914
+- **Base**: main
+- **CLI**: kiro
+- **Model**: claude-opus-5.5
+- **Thinking**: high
+- **Status**: completed
+- **Verdict**: PASS
+- **Raw log**: `build/reviews/lifecycle_telemetry_and_stage_progress_ui_code_round2_af47643.raw.log`
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Minor | skills/check-tasks/resources/scripts/check_tasks.py:2987 | `int(quality_active.get("step_index") or 0)` and `step_total` are not wrapped like `_safe_int_val`. A `quality_active.json` with a non-numeric `step_index` (probe: `'x'` or `'2/5'`) raises `ValueError` out of `scan_repo`, and `harvest_dashboard_graph` then silently drops the whole repo. This falls short of the FR-03 recovery guarantee. | fixed in 0aa205e |
+| 2 | Minor | skills/check-tasks/resources/scripts/check_tasks.py:_parse_review_rounds_summary | the heartbeat-based "verifying" inference never fires in the normal flow. `hb_sub_is_post_fix` requires `review_state.phase` to be outside reviewing/triage/fixing, and `review_state.sha` to differ from the round SHA. `audit_epic` and `run_task_checks` change neither field. Probe: `sub_step="audit_epic"` with phase triage or fixing still yields `"fixing"`. Only a `quality_active` run or an explicit `status --phase verifying` advances to verifying, which is narrower than HLD micro-step 4. | fixed in 0aa205e |
+| 3 | Minor | skills/dev-implementation/resources/scripts/run_external_review.py:status_cmd | passes `sha=head_of(root)`, which overwrites `review_state["sha"]`. `triage` and `record_round` store the reviewed round SHA in that field, so it means different things depending on which command wrote last. | fixed in 0aa205e |
+| 4 | Minor | skills/check-tasks/resources/scripts/check_tasks.py:build_epic_pipeline_telemetry | the progress bands drift from the HLD. Principal rounds give `19 + 1.5·r` (20.5/22/23.5) where the HLD says `20 + min(3, r)`. Cross-Model Round 2 gives 91.5–93.9 where the HLD says 93–95. The fallback `elif qa_status == "passed"` and the `not head_sha` case count Gate 4 as passed on HEAD without a SHA binding. | fixed in 0aa205e |
+| 5 | Minor | .devtool/epic/lifecycle_telemetry_and_stage_progress_ui/bdd_scenarios.en.md:LTSP-ST-02 | state 5 is meant to be "Cross-Model Review Round 2 + post-review re-verification". tests/test_ltsp_harvester_pipeline.py instead uses a Round 1 PASS with QA running, so the Round 2 path is never exercised. | fixed in 0aa205e |
+| 6 | Minor | skills/dev-lifecycle/resources/scripts/lifecycle_runner.py:_emit_review_phase_status | duplicates the review_state merge logic of `run_external_review._emit_review_heartbeat`, and writes `sub_step=f"{kind}_{phase}"` where the other emitter writes the bare `phase`. The two producers are inconsistent. | fixed in 0aa205e |
+| 7 | Minor | scripts/_state_envelope.py:_is_slot_worktree / resolve_shared_devtool_dirs | the special-casing of `replay_worktree` isolation is not specified in the HLD. | dismissed: required test isolation boundary for replay_task_text.py replay_worktree worktrees |
+| 8 | Minor | skills/dev-implementation/resources/scripts/run_external_review.py, skills/dev-lifecycle/resources/scripts/lifecycle_runner.py | large ruff-format churn on unchanged code (about 1,500 of the changed lines) hides the functional diff. | dismissed: pre-existing files formatted to pass Gate 4 ruff format check |
+
+Raw output:
+
+```text
+Verdict: PASS
+```
