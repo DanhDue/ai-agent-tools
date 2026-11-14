@@ -2078,9 +2078,25 @@
         ))
       );
 
+      const pipelineTelemetry = summaryEp?.pipeline_telemetry || (isPrimaryActive ? repo.pipeline_telemetry : null) || null;
+      const rawTaskPct = pipelineTelemetry && typeof pipelineTelemetry.task_completion_pct === 'number'
+        ? Number(pipelineTelemetry.task_completion_pct)
+        : (isPrimaryActive && typeof repo.task_progress?.task_completion_pct === 'number'
+          ? Number(repo.task_progress.task_completion_pct)
+          : null);
+      const taskPct = rawTaskPct !== null
+        ? Math.min(100, Math.round(rawTaskPct))
+        : (totalCount > 0
+          ? Math.min(100, Math.round((doneCount / totalCount) * 100))
+          : (isFullyDone ? 100 : 0));
+
       let pct = 0;
-      if (totalCount > 0) {
-        if (isFullyDone || isWaitingFinish) {
+      if (isFullyDone) {
+        pct = 100;
+      } else if (pipelineTelemetry && typeof pipelineTelemetry.lifecycle_progress_pct === 'number') {
+        pct = Math.min(100, Math.round(Number(pipelineTelemetry.lifecycle_progress_pct)));
+      } else if (totalCount > 0) {
+        if (isWaitingFinish) {
           pct = 100;
         } else if (doneCount >= totalCount) {
           pct = 96;
@@ -2089,7 +2105,7 @@
         }
       } else if (isPrimaryActive) {
         const rawPct = Number(repo.task_progress?.percentage || 0);
-        if (isFullyDone || (isWaitingFinish && rawPct >= 96)) {
+        if (isWaitingFinish && rawPct >= 96) {
           pct = 100;
         } else {
           pct = Math.min(96, rawPct);
@@ -2103,7 +2119,27 @@
         hasPendingDecision,
         isWaitingFinish,
         pct,
+        taskPct,
+        pipelineTelemetry,
       };
+    }
+
+    const expandedEventLogsByEpic = new Set();
+
+    function toggleEpicEventLogs(epicKey) {
+      const key = String(epicKey || '');
+      if (!key) return;
+      if (expandedEventLogsByEpic.has(key)) {
+        expandedEventLogsByEpic.delete(key);
+      } else {
+        expandedEventLogsByEpic.add(key);
+      }
+      if (typeof lastDashboardData !== 'undefined' && lastDashboardData && Array.isArray(lastDashboardData.repos)) {
+        lastDashboardData.repos.forEach(r => {
+          const w = document.getElementById('tier2-execution-epics-wrapper-' + r.name);
+          if (w) w.innerHTML = renderExecutionEpics(r);
+        });
+      }
     }
 
     function collectEpicQualityRuns(repo, slug, isPrimaryActive) {
@@ -2168,31 +2204,294 @@
         const stepTotal = Number(run.step_total || 0);
         const stepPct = stepTotal > 0 ? Math.min(100, Math.round((stepIndex / stepTotal) * 100)) : 0;
         const provider = String(run.provider || 'quality_check');
-        const capability = String(run.capability || run.profile || '');
+        const capability = String(run.capability_label || run.capability || run.profile || '');
         const elapsed = run.elapsed_sec != null ? `${Math.round(Number(run.elapsed_sec))}s` : '';
+        const stepsArr = Array.isArray(run.steps) ? run.steps : [];
+        const stepChipsHtml = stepsArr.map(st => {
+          const stStatus = String(st.status || 'pending');
+          const stLabel = String(st.label || st.capability || 'Step');
+          const icon = (stStatus === 'passed' || stStatus === 'done') ? '✓' : (stStatus === 'running' ? '⚡' : (stStatus === 'failed' ? '✗' : '•'));
+          const chipColor = (stStatus === 'passed' || stStatus === 'done')
+            ? 'background: rgba(16, 185, 129, 0.14); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.35);'
+            : (stStatus === 'running'
+              ? 'background: rgba(168, 85, 247, 0.22); color: #f3e8ff; border: 1px solid #a855f7; font-weight: 700;'
+              : (stStatus === 'failed'
+                ? 'background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid #ef4444; font-weight: 700;'
+                : 'background: rgba(30, 41, 59, 0.6); color: #64748b; border: 1px solid #334155;'));
+          return `<span data-step-status="${escapeHtml(stStatus)}" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; font-family: monospace; ${chipColor}">${icon} ${escapeHtml(stLabel)}</span>`;
+        }).join(' ');
         blocks.push(`
           <div class="quality-live-banner" data-telemetry="quality" style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 4px; padding: 7px 10px; margin-bottom: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #e9d5ff; margin-bottom: 4px; gap: 8px;">
               <span>🔬 <strong>Quality Running:</strong> ${escapeHtml(provider)}${capability ? ' · ' + escapeHtml(capability) : ''}${stepTotal > 0 ? ` (${stepIndex}/${stepTotal})` : ''}</span>
               ${elapsed ? `<span style="font-family: monospace; color: #c084fc; font-weight: 700;">${escapeHtml(elapsed)}</span>` : ''}
             </div>
-            <div style="background: #1e1b2e; border-radius: 3px; height: 4px; overflow: hidden;">
+            <div style="background: #1e1b2e; border-radius: 3px; height: 4px; overflow: hidden; margin-bottom: ${stepChipsHtml ? '6px' : '0'};">
               <div style="background: linear-gradient(90deg, #a855f7 0%, #38bdf8 100%); width: ${stepPct}%; height: 100%; transition: width 0.3s ease;"></div>
             </div>
+            ${stepChipsHtml ? `<div style="display: flex; gap: 5px; flex-wrap: wrap;">${stepChipsHtml}</div>` : ''}
           </div>
         `);
       });
 
       alertRuns.slice(0, 1).forEach(run => {
         const provider = String(run.provider || 'quality_check');
+        const capLabel = String(run.capability_label || run.capability || '');
+        const stepsArr = Array.isArray(run.steps) ? run.steps : [];
+        const stepChipsHtml = stepsArr.map(st => {
+          const stStatus = String(st.status || 'pending');
+          const stLabel = String(st.label || st.capability || 'Step');
+          const icon = (stStatus === 'passed' || stStatus === 'done') ? '✓' : (stStatus === 'failed' ? '✗' : '•');
+          return `<span data-step-status="${escapeHtml(stStatus)}" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; font-family: monospace; border: 1px solid rgba(239, 68, 68, 0.35);">${icon} ${escapeHtml(stLabel)} (${escapeHtml(stStatus)})</span>`;
+        }).join(' ');
         blocks.push(`
-          <div data-telemetry="quality-status" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 4px; padding: 5px 10px; margin-bottom: 8px; font-size: 11px; color: #fca5a5;">
-            ⚠️ Quality ${escapeHtml(String(run.status))}: <strong>${escapeHtml(provider)}</strong>
+          <div data-telemetry="quality" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 4px; padding: 6px 10px; margin-bottom: 8px; font-size: 11px; color: #fca5a5;">
+            <div data-telemetry="quality-status">⚠️ Quality ${escapeHtml(String(run.status))}: <strong>${escapeHtml(provider)}</strong>${capLabel ? ` · ${escapeHtml(capLabel)}` : ''}</div>
+            ${stepChipsHtml ? `<div style="display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px;">${stepChipsHtml}</div>` : ''}
           </div>
         `);
       });
 
       return blocks.join('');
+    }
+
+    function synthesizePipelineTelemetry(repo, slug, isPrimaryActive, progState, doneCount, totalCount) {
+      if (progState.pipelineTelemetry && Array.isArray(progState.pipelineTelemetry.stages)) {
+        return progState.pipelineTelemetry;
+      }
+      const hb = (repo.heartbeat && (!repo.heartbeat.epic_slug || slugsMatch(repo.heartbeat.epic_slug, slug) || isPrimaryActive)) ? repo.heartbeat : null;
+      const rs = (hb && hb.review_state && typeof hb.review_state === 'object') ? hb.review_state : null;
+      const runs = collectEpicQualityRuns(repo, slug, isPrimaryActive);
+      const activeRun = runs[0] || null;
+      const allTasksDone = totalCount > 0 && doneCount >= totalCount;
+      const isDone = progState.isFullyDone;
+      const isWaitFinish = progState.isWaitingFinish;
+
+      const s1Status = 'done';
+      const s2Status = (rs && rs.kind === 'principal')
+        ? (rs.action === 'CIRCUIT_BREAKER_HALT' ? 'failed' : 'running')
+        : (totalCount > 0 || allTasksDone || isDone ? 'done' : 'running');
+      const s3Status = (allTasksDone || isDone) ? 'done' : (doneCount > 0 ? 'running' : 'pending');
+      const qaStatus = activeRun ? String(activeRun.status || '') : '';
+      const s4Status = (qaStatus === 'failed' || qaStatus === 'aborted')
+        ? 'failed'
+        : (qaStatus === 'running' ? 'running' : ((allTasksDone || isDone) ? 'done' : 'pending'));
+      const s5Status = (rs && rs.kind !== 'principal')
+        ? (rs.action === 'CIRCUIT_BREAKER_HALT' ? 'failed' : (rs.phase === 'converged' ? 'done' : 'running'))
+        : ((isDone || isWaitFinish) ? 'done' : (allTasksDone ? 'running' : 'pending'));
+      const s6Status = isDone ? 'done' : (isWaitFinish ? 'action_required' : 'pending');
+
+      const reviewSubSteps = [];
+      if (rs) {
+        const phaseOrder = ['reviewing', 'triage', 'fixing', 'verifying'];
+        const curPhase = String(rs.phase || 'reviewing');
+        const cIdx = phaseOrder.indexOf(curPhase);
+        [
+          ['reviewing', 'Reviewing'],
+          ['triage', 'Lập bảng triage'],
+          ['fixing', 'Fix findings'],
+          ['verifying', 'Verifying'],
+        ].forEach(([pId, pLbl], idx) => {
+          let st = 'pending';
+          if (curPhase === 'converged') st = 'done';
+          else if (cIdx >= 0 && idx < cIdx) st = 'done';
+          else if (cIdx >= 0 && idx === cIdx) st = rs.action === 'CIRCUIT_BREAKER_HALT' ? 'failed' : 'running';
+          let detail = '';
+          if (pId === 'reviewing' && rs.cli) detail = `${rs.cli}${rs.model ? ' (' + rs.model + ')' : ''}`;
+          if (pId === 'triage' && (rs.verdict || rs.action)) detail = `${rs.verdict || ''}${rs.action ? ' (' + rs.action + ')' : ''}`.trim();
+          reviewSubSteps.push({ id: pId, label: pLbl, status: st, detail });
+        });
+      }
+
+      const qaSubSteps = [];
+      if (activeRun && Array.isArray(activeRun.steps)) {
+        activeRun.steps.forEach(st => {
+          qaSubSteps.push({
+            id: `qa_${st.capability || ''}`,
+            label: String(st.label || st.capability || 'Step'),
+            status: st.status === 'passed' ? 'done' : String(st.status || 'pending'),
+            detail: st.elapsed_sec != null ? `${Number(st.elapsed_sec).toFixed(1)}s` : '',
+          });
+        });
+      }
+
+      const stages = [
+        { id: 'spec', index: 1, label: '1. Spec', status: s1Status, summary: 'Gate 1 PASS', sub_steps: [] },
+        {
+          id: 'hld_principal',
+          index: 2,
+          label: '2. HLD & Principal',
+          status: s2Status,
+          summary: (rs && rs.kind === 'principal') ? `Round ${rs.round || 1}/${rs.max_rounds || 3} · ${rs.cli || 'reviewer'}` : 'HLD & Tasks',
+          sub_steps: (rs && rs.kind === 'principal') ? reviewSubSteps : [],
+        },
+        {
+          id: 'tasks',
+          index: 3,
+          label: '3. Tasks',
+          status: s3Status,
+          summary: `${doneCount}/${totalCount} (${progState.taskPct}%)`,
+          sub_steps: [{ id: 'tasks_tally', label: `Tasks ${doneCount}/${totalCount}`, status: s3Status, detail: `${progState.taskPct}%` }],
+        },
+        {
+          id: 'gate4_quality',
+          index: 4,
+          label: '4. Gate 4 QA',
+          status: s4Status,
+          summary: activeRun ? String(activeRun.capability_label || activeRun.capability || qaStatus) : (allTasksDone ? 'Gate 4 QA' : 'Pending'),
+          sub_steps: qaSubSteps,
+        },
+        {
+          id: 'cross_review',
+          index: 5,
+          label: '5. Cross-Review',
+          status: s5Status,
+          summary: (rs && rs.kind !== 'principal') ? `Round ${rs.round || 1}/${rs.max_rounds || 3} · ${rs.cli || 'reviewer'}${rs.action ? ' · ' + rs.action : ''}` : (isWaitFinish || isDone ? 'Converged' : 'Pending'),
+          sub_steps: (rs && rs.kind !== 'principal') ? reviewSubSteps : [],
+        },
+        {
+          id: 'finish',
+          index: 6,
+          label: '6. Finish',
+          status: s6Status,
+          summary: isDone ? 'Merged' : (isWaitFinish ? 'Chờ /finish' : 'Pending Gate 5'),
+          sub_steps: [],
+        },
+      ];
+
+      let currentStageIndex = 3;
+      if (isDone || isWaitFinish) currentStageIndex = 6;
+      else if (s5Status === 'running' || s5Status === 'failed') currentStageIndex = 5;
+      else if (s4Status === 'running' || s4Status === 'failed') currentStageIndex = 4;
+      else if (s3Status === 'running' || s3Status === 'done') currentStageIndex = 3;
+      else if (s2Status === 'running' || s2Status === 'failed') currentStageIndex = 2;
+      else currentStageIndex = 1;
+
+      const curSt = stages[currentStageIndex - 1] || stages[2];
+      return {
+        epic_slug: slug,
+        task_completion_pct: progState.taskPct,
+        lifecycle_progress_pct: progState.pct,
+        current_stage_index: currentStageIndex,
+        active_sub_step_summary: `${curSt.label} · ${curSt.summary}`,
+        stages,
+        events: Array.isArray(hb?.events) ? hb.events : [],
+      };
+    }
+
+    function renderPipelineStepperAndLogs(repo, slug, isPrimaryActive, progState, doneCount, totalCount) {
+      const pt = synthesizePipelineTelemetry(repo, slug, isPrimaryActive, progState, doneCount, totalCount);
+      const stages = Array.isArray(pt.stages) ? pt.stages : [];
+      const curIdx = Number(pt.current_stage_index || 3);
+      const hb = (repo.heartbeat && (!repo.heartbeat.epic_slug || slugsMatch(repo.heartbeat.epic_slug, slug) || isPrimaryActive)) ? repo.heartbeat : null;
+      const rs = (hb && hb.review_state && typeof hb.review_state === 'object') ? hb.review_state : null;
+
+      const stagePillsHtml = stages.map(st => {
+        const stStatus = String(st.status || 'pending');
+        const isCurrent = Number(st.index) === curIdx;
+        const icon = stStatus === 'done' ? '✓' : (stStatus === 'running' ? '⚡' : (stStatus === 'failed' ? '✗' : (stStatus === 'action_required' ? '⚠️' : '•')));
+        const pillStyle = stStatus === 'done'
+          ? 'background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35);'
+          : (stStatus === 'failed'
+            ? 'background: rgba(239, 68, 68, 0.18); color: #fca5a5; border: 1px solid #ef4444; font-weight: 700;'
+            : (stStatus === 'running' || isCurrent
+              ? 'background: rgba(56, 189, 248, 0.16); color: #38bdf8; border: 1px solid #0284c7; font-weight: 700;'
+              : (stStatus === 'action_required'
+                ? 'background: rgba(245, 158, 11, 0.16); color: #fbbf24; border: 1px solid #f59e0b; font-weight: 700;'
+                : 'background: rgba(15, 23, 42, 0.5); color: #64748b; border: 1px solid #1e293b;')));
+        return `
+          <div data-stage-id="${escapeHtml(String(st.id || ''))}" data-stage-status="${escapeHtml(stStatus)}" style="flex: 1 1 110px; min-width: 105px; padding: 5px 8px; border-radius: 4px; ${pillStyle}">
+            <div style="font-size: 10px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; gap: 4px;">
+              <span>${icon} ${escapeHtml(String(st.label || ''))}</span>
+            </div>
+            <div style="font-size: 9px; opacity: 0.88; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;" title="${escapeHtml(String(st.summary || ''))}">
+              ${escapeHtml(String(st.summary || ''))}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const activeStageObj = stages.find(s => Number(s.index) === curIdx) || stages.find(s => s.status === 'running' || s.status === 'failed') || stages[2] || null;
+      const subSteps = (activeStageObj && Array.isArray(activeStageObj.sub_steps) && activeStageObj.sub_steps.length > 0)
+        ? activeStageObj.sub_steps
+        : [];
+
+      let reviewHeaderHtml = '';
+      if (rs && (rs.round || rs.cli || rs.action)) {
+        const roundBadge = `Round ${escapeHtml(String(rs.round || 1))}/${escapeHtml(String(rs.max_rounds || 3))}`;
+        const cliBadge = rs.cli ? `${escapeHtml(String(rs.cli))}${rs.model ? ' (' + escapeHtml(String(rs.model)) + ')' : ''}` : '';
+        const cbBadge = rs.action === 'CIRCUIT_BREAKER_HALT'
+          ? `<span style="background: rgba(239, 68, 68, 0.22); color: #fca5a5; border: 1px solid #ef4444; padding: 1px 6px; border-radius: 4px; font-weight: 700;">🛑 CIRCUIT_BREAKER_HALT</span>`
+          : (rs.action ? `<span style="color: #93c5fd;">${escapeHtml(String(rs.action))}</span>` : '');
+        reviewHeaderHtml = `
+          <div style="font-size: 10px; font-family: monospace; color: #cbd5e1; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <strong style="color: #38bdf8;">🔎 ${roundBadge}</strong>
+            ${cliBadge ? `<span>· ${cliBadge}</span>` : ''}
+            ${cbBadge}
+          </div>
+        `;
+      } else if (activeStageObj && activeStageObj.summary) {
+        reviewHeaderHtml = `
+          <div style="font-size: 10px; font-family: monospace; color: #94a3b8; margin-bottom: 4px;">
+            <strong style="color: #cbd5e1;">${escapeHtml(String(activeStageObj.label || ''))}:</strong> ${escapeHtml(String(activeStageObj.summary || ''))}
+          </div>
+        `;
+      }
+
+      const subStepsChipsHtml = subSteps.map((sub, idx) => {
+        const subSt = String(sub.status || 'pending');
+        const icon = (subSt === 'done' || subSt === 'passed') ? '✓' : (subSt === 'running' ? '⚡' : (subSt === 'failed' ? '✗' : '•'));
+        const chipStyle = (subSt === 'done' || subSt === 'passed')
+          ? 'background: rgba(16, 185, 129, 0.12); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.35);'
+          : (subSt === 'running'
+            ? 'background: rgba(56, 189, 248, 0.18); color: #bae6fd; border: 1px solid #38bdf8; font-weight: 700;'
+            : (subSt === 'failed'
+              ? 'background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid #ef4444; font-weight: 700;'
+              : 'background: rgba(15, 23, 42, 0.5); color: #64748b; border: 1px solid #1e293b;'));
+        const arrow = idx < subSteps.length - 1 ? `<span style="color: #475569; font-size: 10px;">→</span>` : '';
+        return `
+          <span data-substep-id="${escapeHtml(String(sub.id || ''))}" data-substep-status="${escapeHtml(subSt)}" style="font-size: 10px; padding: 2px 7px; border-radius: 4px; font-family: monospace; ${chipStyle}">
+            ${icon} ${escapeHtml(String(sub.label || ''))}${sub.detail ? ` <span style="opacity: 0.85;">(${escapeHtml(String(sub.detail))})</span>` : ''}
+          </span>
+          ${arrow}
+        `;
+      }).join(' ');
+
+      const events = (Array.isArray(pt.events) && pt.events.length > 0)
+        ? pt.events
+        : (Array.isArray(hb?.events) ? hb.events : []);
+      const epicKey = `${repo.name || ''}:${slug}`;
+      const isExpanded = expandedEventLogsByEpic.has(epicKey);
+      const visibleEvents = isExpanded ? events.slice().reverse() : events.slice(-4).reverse();
+
+      const eventLogsHtml = events.length > 0 ? `
+        <div data-telemetry="event-logs" style="background: rgba(15, 23, 42, 0.55); border: 1px solid #1e293b; border-radius: 4px; padding: 6px 10px; margin-bottom: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #94a3b8; margin-bottom: 4px;">
+            <span style="font-weight: 700; color: #cbd5e1;">📋 Nhật ký thực thi (${events.length})</span>
+            ${events.length > 4 ? `<button onclick="toggleEpicEventLogs('${escapeHtml(epicKey)}')" style="background: transparent; border: none; color: #38bdf8; font-size: 10px; cursor: pointer; font-family: monospace; padding: 0;">${isExpanded ? 'Thu gọn ▴' : `Xem tất cả ${events.length} logs ▾`}</button>` : ''}
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 3px; max-height: ${isExpanded ? '180px' : '90px'}; overflow-y: auto; font-family: monospace; font-size: 10px;">
+            ${visibleEvents.map(ev => {
+              const tsRaw = String(ev.ts || '');
+              const tsShort = tsRaw.includes('T') ? tsRaw.split('T')[1].slice(0, 8) : tsRaw;
+              return `<div style="color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><span style="color: #64748b;">[${escapeHtml(tsShort)}]</span> ${ev.sub_step ? `<span style="color: #38bdf8;">[${escapeHtml(String(ev.sub_step))}]</span> ` : ''}${escapeHtml(String(ev.message || ''))}</div>`;
+            }).join('')}
+          </div>
+        </div>
+      ` : '';
+
+      return `
+        <div data-telemetry="pipeline-stepper" style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px;">
+          ${stagePillsHtml}
+        </div>
+        ${(reviewHeaderHtml || subStepsChipsHtml) ? `
+          <div data-telemetry="sub-steps" style="background: rgba(15, 23, 42, 0.65); border: 1px solid #1e293b; border-radius: 4px; padding: 6px 10px; margin-bottom: 8px;">
+            ${reviewHeaderHtml}
+            ${subStepsChipsHtml ? `<div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">${subStepsChipsHtml}</div>` : ''}
+          </div>
+        ` : ''}
+        ${eventLogsHtml}
+      `;
     }
 
     function renderExecutionEpics(repo) {
@@ -2288,10 +2587,11 @@
           isPrimaryActive && repo.is_human_action_required !== false && hasPromptActionWords
         );
         const telemetryHtml = renderLiveTelemetryBanner(repo, slug, isPrimaryActive);
+        const pipelineHtml = renderPipelineStepperAndLogs(repo, slug, isPrimaryActive, progState, doneCount, totalCount);
         const pctLabelHtml = progState.isFullyDone
           ? '<span style="color: #10b981; font-weight: 700;">100% ✓ Done</span>'
           : (progState.isWaitingFinish
-            ? '<span style="color: #fbbf24; font-weight: 700;">100% ⚠️ Chờ /finish</span>'
+            ? `<span style="color: #fbbf24; font-weight: 700;">${progressPct}% ⚠️ Chờ /finish</span>`
             : (progressPct === 96
               ? '<span style="color: #38bdf8; font-weight: 700;">⚡ 96% Review</span>'
               : `<span style="color: #10b981; font-weight: 700;">${progressPct}%</span>`));
@@ -2337,6 +2637,7 @@
             ` : ''}
 
             ${telemetryHtml}
+            ${pipelineHtml}
 
             <!-- Row 2: Tasks hiện tại là gì & Bước tiếp theo -->
             <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid #1e293b; border-radius: 4px; padding: 8px 12px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
@@ -2352,7 +2653,7 @@
             <!-- Row 3: Tiến độ là bao nhiêu % -->
             <div style="margin-bottom: 12px;">
               <div style="display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; margin-bottom: 4px; font-weight: 600;">
-                <span>Tiến độ Tasks: <strong style="color: #f1f5f9;">${doneCount} / ${totalCount} Hoàn thành</strong></span>
+                <span>Tiến độ Tasks: <strong style="color: #f1f5f9;">${doneCount} / ${totalCount} Hoàn thành (${progState.taskPct}%${progState.taskPct === 100 ? ' ✓' : ''})</strong></span>
                 ${pctLabelHtml}
               </div>
               <div style="background: #1e293b; border-radius: 4px; height: 6px; overflow: hidden;">
@@ -2454,7 +2755,7 @@
         else if (st === 'review') epItem.review++;
       });
 
-      // Enrich epic titles from repo.epics_summary if present
+      // Enrich epic titles and seed active/in-progress Stage 1-2 epics from repo.epics_summary if present
       if (repo.epics_summary && Array.isArray(repo.epics_summary.epics)) {
         repo.epics_summary.epics.forEach(summaryEp => {
           if (epicsProgressMap.has(summaryEp.slug)) {
@@ -2462,6 +2763,16 @@
             if (summaryEp.title && summaryEp.title !== summaryEp.slug) {
               item.title = summaryEp.title;
             }
+          } else if (summaryEp.status === 'in_progress' || slugsMatch(repo.active_epic, summaryEp.slug)) {
+            epicsSet.add(summaryEp.slug);
+            epicsProgressMap.set(summaryEp.slug, {
+              slug: summaryEp.slug,
+              title: summaryEp.title || summaryEp.slug,
+              total: Number(summaryEp.task_count || 0),
+              done: 0,
+              in_progress: 0,
+              review: 0,
+            });
           }
         });
       }
@@ -2518,6 +2829,9 @@
           statusText = `<span style="color: #c084fc; font-weight: 700;">🔍 ${ep.review} Review</span>`;
         }
 
+        const synthPt = synthesizePipelineTelemetry(repo, ep.slug, progState.isPrimaryActive, progState, ep.done, ep.total);
+        const kanbanStageSummary = String(synthPt.active_sub_step_summary || repo.active_stage || '');
+
         return `
           <div class="epic-progress-item" 
                onclick="onFilterKanbanBoard('${escapeHtml(repo.name)}', '${isSelected ? 'all' : escapeHtml(ep.slug)}')"
@@ -2542,9 +2856,10 @@
             </div>
 
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; font-size: 9px; color: #64748b; font-family: monospace;">
-              <span>${ep.done}/${ep.total} Tasks</span>
+              <span>${ep.done}/${ep.total} Tasks${ep.total > 0 ? ` (${progState.taskPct}%)` : ''}</span>
               <span>${statusText}</span>
             </div>
+            ${kanbanStageSummary ? `<div data-telemetry="kanban-epic-stage" style="margin-top: 3px; font-size: 9px; color: #94a3b8; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(kanbanStageSummary)}">${escapeHtml(kanbanStageSummary)}</div>` : ''}
 
           </div>
         `;
@@ -2732,11 +3047,15 @@
         stg: repo.active_stage || null,
         req: Boolean(repo.is_human_action_required),
         prompt: repo.prompt || null,
+        hb: repo.heartbeat || null,
+        qa: repo.quality_active || null,
+        pt: repo.pipeline_telemetry || null,
         ep: (repo.epics_summary?.epics || []).map(e => [
           e.slug,
           e.status,
           Boolean(e.is_review_converged),
           Boolean(e.is_action_required),
+          e.pipeline_telemetry || null,
         ]),
         t: (repo.task_progress?.tasks || []).map(t => [t.id, t.status, t.priority, t.epic, t.title]),
       });
@@ -2784,6 +3103,7 @@
         hb: repo.heartbeat || null,
         qa: repo.quality_active || null,
         qr: repo.quality_runs || null,
+        pt: repo.pipeline_telemetry || null,
         wt: (repo.worktrees || []).map(w => [w.path, w.branch, w.is_dirty, w.dirty_file_count]),
         ep: (repo.epics_summary?.epics || []).map(e => [
           e.slug,
@@ -2791,6 +3111,7 @@
           e.pic || '',
           Boolean(e.is_action_required),
           Boolean(e.is_review_converged),
+          e.pipeline_telemetry || null,
         ]),
       });
     }

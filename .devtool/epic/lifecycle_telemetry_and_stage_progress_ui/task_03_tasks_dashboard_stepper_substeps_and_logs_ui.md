@@ -1,13 +1,13 @@
 ---
 id: "task_03_tasks_dashboard_stepper_substeps_and_logs_ui"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "lifecycle_telemetry_and_stage_progress_ui"
 dueDate: null
 created: "2026-11-14T09:05:00Z"
-modified: "2026-11-14T09:05:00Z"
-completedAt: null
+modified: "2026-11-14T03:14:45Z"
+completedAt: "2026-11-14T03:14:45Z"
 labels: ["dashboard-ui", "stepper", "sub-steps", "kanban-overview", "event-logs"]
 order: "a3"
 review_tier: "full"
