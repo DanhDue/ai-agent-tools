@@ -1,13 +1,13 @@
 ---
 id: "task_04_integration_and_cdp_acceptance_verification"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "lifecycle_telemetry_and_stage_progress_ui"
 dueDate: null
 created: "2026-11-14T09:06:00Z"
-modified: "2026-11-14T09:06:00Z"
-completedAt: null
+modified: "2026-11-14T03:26:02Z"
+completedAt: "2026-11-14T03:26:02Z"
 labels: ["integration", "cdp", "e2e", "verify"]
 order: "a4"
 review_tier: "full"

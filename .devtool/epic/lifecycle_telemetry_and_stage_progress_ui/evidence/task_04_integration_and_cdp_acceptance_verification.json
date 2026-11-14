@@ -1,0 +1,300 @@
+{
+  "schema": 1,
+  "task": "task_04_integration_and_cdp_acceptance_verification",
+  "runs": {
+    "red": {
+      "head": "81d6b0c8ff3b4fcab235518ad392147770217166",
+      "tree": "6dd4a3643a961b0f697ebf0960e2d78052615428",
+      "patch_id": "5a6bdd8d491a273284555414e4e698e7112d4ce1",
+      "started": "2026-11-14T03:15:25Z",
+      "finished": "2026-11-14T03:15:26Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_lifecycle_telemetry_and_stage_progress.py::test_ltsp_hp_06_chrome_cdp_live_stage_and_microstep_transitions",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T03:15:25Z",
+          "finished": "2026-11-14T03:15:25Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "_______ test_ltsp_hp_06_chrome_cdp_live_stage_and_microstep_transitions ________",
+            "tests/test_lifecycle_telemetry_and_stage_progress.py:95: in test_ltsp_hp_06_chrome_cdp_live_stage_and_microstep_transitions",
+            "    assert False, \"RED phase: LTSP-HP-06 not yet wired\"",
+            "E   AssertionError: RED phase: LTSP-HP-06 not yet wired",
+            "E   assert False",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_lifecycle_telemetry_and_stage_progress.py::test_ltsp_hp_06_chrome_cdp_live_stage_and_microstep_transitions",
+            "1 failed in 0.04s"
+          ],
+          "output_sha256": "a6c3b54ef95c21f6c910bddce28e7178b5850f3825e8b3274c7251f48c0095ba"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "81d6b0c8ff3b4fcab235518ad392147770217166",
+      "tree": "f33a62572fff758c8f9e8f08a4b3ceec87f5f86e",
+      "patch_id": "b585567cc77f60c8c18a98ec171b340b041dbd53",
+      "started": "2026-11-14T03:24:24Z",
+      "finished": "2026-11-14T03:25:38Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_lifecycle_telemetry_and_stage_progress.py tests/test_rsdh_harvester_and_pic.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T03:24:24Z",
+          "finished": "2026-11-14T03:24:46Z",
+          "output_tail": [
+            "..................                                                       [100%]",
+            "18 passed in 22.62s"
+          ],
+          "output_sha256": "5d49c0bfa494ea23c86c140ddb43d8ff3f0bb0bd3c12fb48364a80eff0de2750"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_lifecycle_telemetry_and_stage_progress.py tests/test_rsdh_harvester_and_pic.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T03:24:46Z",
+          "finished": "2026-11-14T03:24:46Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T03:24:46Z",
+          "finished": "2026-11-14T03:24:46Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files"
+          ],
+          "output_sha256": "050c52a2b0c61e8b681ef5c485e0bc03340b8d55148e0acef27d744c8be42033"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/lifecycle-telemetry-and-stage-progress-ui.xml tests/test_ltsp_state_and_producers.py tests/test_ltsp_harvester_pipeline.py tests/test_ltsp_dashboard_ui.py tests/test_lifecycle_telemetry_and_stage_progress.py tests/test_check_tasks_fsm.py tests/test_rsdh_state_envelope.py tests/test_rsdh_harvester_and_pic.py tests/test_rsdh_tasks_dashboard_ui.py",
+          "expect": "exit 0; results build/test-results/lifecycle-telemetry-and-stage-progress-ui.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T03:24:46Z",
+          "finished": "2026-11-14T03:25:38Z",
+          "output_tail": [
+            "........................................................................ [100%]",
+            "72 passed in 50.97s"
+          ],
+          "output_sha256": "584c87f09ebe5b2c097d8dc1dedbebfc11692260dbc3c9a95767809f244a9934",
+          "results": {
+            "path": "build/test-results/lifecycle-telemetry-and-stage-progress-ui.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 32,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_ltsp_hp_01_events_ring_buffer_and_review_state",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[lint-Static Lint]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[typecheck-Typecheck]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[type_check-Typecheck]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[pycore-PyCore / Unit Test]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[unit_test-PyCore / Unit Test]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[pytest-Unit & Integration Test]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[integration-Integration Test]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[e2e-UI / E2E Test]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[playwright-UI / E2E Test]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_format_capability_labels[architecture-Architecture Gate]",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_02_coordinator_steps_and_distinct_events",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_ec_01_consecutive_identical_events_deduplicated",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_st_01_external_review_runner_transitions_review_state",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_fr_01_readonly_state_dir_never_aborts_cli",
+                  "classname": "tests.test_ltsp_state_and_producers",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_03_early_epic_activation_from_gate1",
+                  "classname": "tests.test_ltsp_harvester_pipeline",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_04_decoupled_100_task_progress_vs_weighted_lifecycle",
+                  "classname": "tests.test_ltsp_harvester_pipeline",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_ec_02_dormant_and_abandoned_epics_not_activated",
+                  "classname": "tests.test_ltsp_harvester_pipeline",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_st_02_monotonic_6_stage_progress_and_gate4_sha_requirement",
+                  "classname": "tests.test_ltsp_harvester_pipeline",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_ar_01_multiprocess_concurrent_heartbeat_events",
+                  "classname": "tests.test_ltsp_harvester_pipeline",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_05_stepper_substeps_logs_and_kanban_overview",
+                  "classname": "tests.test_ltsp_dashboard_ui",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_05_integration",
+                  "classname": "tests.test_ltsp_dashboard_ui.TestLtspDashboardUi_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_ec_03_legacy_payload_graceful_fallback",
+                  "classname": "tests.test_ltsp_dashboard_ui.TestLtspDashboardUi_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_st_03_quality_check_substeps_visual_transition",
+                  "classname": "tests.test_ltsp_dashboard_ui.TestLtspDashboardUi_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_ar_02_tier2_sig_updates_without_clobbering_roadmap_focus",
+                  "classname": "tests.test_ltsp_dashboard_ui.TestLtspDashboardUi_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_fr_02_failed_quality_and_circuit_breaker_halt_badges",
+                  "classname": "tests.test_ltsp_dashboard_ui.TestLtspDashboardUi_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_06_chrome_cdp_live_stage_and_microstep_transitions",
+                  "classname": "tests.test_lifecycle_telemetry_and_stage_progress",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_hp_06_integration",
+                  "classname": "tests.test_lifecycle_telemetry_and_stage_progress.TestLifecycleTelemetryAndStageProgress_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_ec_04_expandable_event_log_preserves_state_across_polls",
+                  "classname": "tests.test_lifecycle_telemetry_and_stage_progress.TestLifecycleTelemetryAndStageProgress_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_st_04_commit_based_fix_and_verifying_inference",
+                  "classname": "tests.test_lifecycle_telemetry_and_stage_progress.TestLifecycleTelemetryAndStageProgress_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_ar_03_multi_epic_pipeline_telemetry_isolation",
+                  "classname": "tests.test_lifecycle_telemetry_and_stage_progress.TestLifecycleTelemetryAndStageProgress_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ltsp_fr_03_corrupted_review_and_heartbeat_recovery",
+                  "classname": "tests.test_lifecycle_telemetry_and_stage_progress.TestLifecycleTelemetryAndStageProgress_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/verify.sh",
+            "tests/test_lifecycle_telemetry_and_stage_progress.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

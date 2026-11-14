@@ -425,6 +425,11 @@ SUITES = [
     ("18", "pytest",   "tests/test_rsdh_tasks_dashboard_ui.py", 25, False),
     ("18", "pytest",   "tests/test_rsdh_quota_modal_stack.py", 25, False),
     ("18", "pytest",   "tests/test_runtime_sync_and_dashboard_hardening.py", 30, False),
+    # 19. Lifecycle Telemetry & Stage Progress UI suites
+    ("19", "pytest",   "tests/test_ltsp_state_and_producers.py", 10, False),
+    ("19", "pytest",   "tests/test_ltsp_harvester_pipeline.py", 15, False),
+    ("19", "pytest",   "tests/test_ltsp_dashboard_ui.py", 15, False),
+    ("19", "pytest",   "tests/test_lifecycle_telemetry_and_stage_progress.py", 25, False),
 ]
 
 active_suites = [
