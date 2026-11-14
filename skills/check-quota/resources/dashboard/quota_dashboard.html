@@ -402,14 +402,14 @@
               class="px-2 py-1 rounded-md bg-[var(--background)] border border-[var(--border)] hover:border-purple-500 font-mono text-[11px] text-[var(--foreground)] transition-colors">08:00</button>
           </div>
 
-          <!-- Nhập Giờ & Phút (Giờ: 0-24, nhập quá 24 set về 24; Phút: 0-60, nhập quá 60 set về 60) -->
+          <!-- Nhập Giờ & Phút (Giờ: 0-23, Phút: 0-59) -->
           <div
             class="flex items-center bg-[var(--background)] border border-purple-500/50 rounded-lg px-2 py-0.5 text-xs font-mono font-bold"
-            title="Nhập giờ (0-24, quá 24 set về 24) và phút (0-60, quá 60 set về 60)">
-            <input type="number" id="bottomHour" min="0" max="24" placeholder="07" oninput="clampHour(this)"
+            title="Nhập giờ (0-23) và phút (0-59)">
+            <input type="number" id="bottomHour" min="0" max="23" placeholder="07" oninput="clampHour(this)"
               class="w-7 bg-transparent text-[var(--foreground)] text-center outline-none focus:text-purple-300" />
             <span class="text-purple-400 font-bold px-0.5">:</span>
-            <input type="number" id="bottomMin" min="0" max="60" placeholder="00" oninput="clampMinSec(this)"
+            <input type="number" id="bottomMin" min="0" max="59" placeholder="00" oninput="clampMinute(this)"
               class="w-7 bg-transparent text-[var(--foreground)] text-center outline-none focus:text-purple-300" />
           </div>
 
@@ -469,34 +469,37 @@
             class="text-purple-300 font-mono">/refresh-session</code>.
         </p>
 
-        <!-- Active Schedule Banner: Hiển thị chi tiết khi tài khoản đã được lên lịch -->
+        <!-- Active Schedule Banner: Hiển thị danh sách khung giờ đã lên lịch cho tài khoản -->
         <div id="modalActiveScheduleBanner"
-          class="hidden p-3 bg-purple-950/60 border border-purple-500/80 rounded-xl flex items-center justify-between gap-3 text-xs shadow-inner">
-          <div class="flex items-center gap-2.5 min-w-0">
-            <span class="text-purple-300 text-xl shrink-0 animate-pulse">⏰</span>
-            <div class="min-w-0">
-              <div class="font-bold text-purple-200 flex items-center gap-1.5">
-                <span>Đang có lịch kích hoạt tự động</span>
-                <span
-                  class="px-1.5 py-0.5 rounded-full bg-purple-500/30 text-purple-200 font-mono text-[9px] font-bold">ACTIVE</span>
-              </div>
-              <div class="text-purple-300/80 text-[11px] truncate mt-0.5">
-                Kích hoạt hàng ngày lúc <b id="activeSchedTimeDisplay"
-                  class="text-purple-100 font-mono text-xs font-bold">07:00</b> (delay: <b id="activeSchedDelayDisplay"
-                  class="text-purple-100 font-mono text-xs font-bold">+30s</b>)
+          class="hidden p-3 bg-purple-950/60 border border-purple-500/80 rounded-xl flex flex-col gap-2 text-xs shadow-inner">
+          <div class="flex items-center justify-between gap-3 w-full">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="text-purple-300 text-xl shrink-0 animate-pulse">⏰</span>
+              <div class="min-w-0">
+                <div class="font-bold text-purple-200 flex items-center gap-1.5">
+                  <span>Đang có lịch kích hoạt tự động</span>
+                  <span id="activeSchedCountBadge"
+                    class="px-1.5 py-0.5 rounded-full bg-purple-500/30 text-purple-200 font-mono text-[9px] font-bold">ACTIVE</span>
+                </div>
+                <div class="text-purple-300/80 text-[11px] truncate mt-0.5">
+                  Khung giờ chính <b id="activeSchedTimeDisplay"
+                    class="text-purple-100 font-mono text-xs font-bold">07:00</b> (delay: <b id="activeSchedDelayDisplay"
+                    class="text-purple-100 font-mono text-xs font-bold">+30s</b>)
+                </div>
               </div>
             </div>
+            <button type="button" onclick="cancelCurrentSchedule()"
+              class="px-2.5 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/50 text-xs font-semibold flex items-center gap-1 transition-all shrink-0 shadow-sm"
+              title="Hủy toàn bộ lịch hiện tại của tài khoản này">
+              <span>✕</span> <span>Hủy tất cả</span>
+            </button>
           </div>
-          <button type="button" onclick="cancelCurrentSchedule()"
-            class="px-2.5 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/50 text-xs font-semibold flex items-center gap-1 transition-all shrink-0 shadow-sm"
-            title="Hủy lịch hiện tại và cho phép đặt lịch mới">
-            <span>✕</span> <span>Hủy lịch</span>
-          </button>
+          <div id="activeSchedListContainer" class="flex flex-wrap gap-1.5 pt-1 border-t border-purple-500/30"></div>
         </div>
 
         <div>
           <label class="block font-semibold mb-1 text-[var(--foreground)] flex items-center gap-1.5">
-            <span class="text-amber-400">☀️</span> <span>Giờ kích hoạt đầu ngày (Morning Pre-warm):</span>
+            <span class="text-amber-400">☀️</span> <span>Thêm khung giờ kích hoạt (Hỗ trợ đa lịch / profile):</span>
           </label>
           <div class="grid grid-cols-4 gap-2 mb-2" id="modalPresetGroup">
             <button type="button" onclick="setScheduleTime('05:00')"
@@ -513,16 +516,16 @@
             <div>
               <label class="block text-[11px] text-[var(--muted-foreground)] mb-1 flex items-center justify-between">
                 <span>Giờ &amp; Phút:</span>
-                <span class="text-purple-400 font-mono text-[10px]">(0-24h : 0-60m)</span>
+                <span class="text-purple-400 font-mono text-[10px]">(0-23h : 0-59m)</span>
               </label>
               <div
                 class="flex items-center justify-center bg-[var(--background)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 font-mono text-xs font-bold focus-within:border-purple-500">
-                <input type="number" id="customHour" min="0" max="24" placeholder="07"
+                <input type="number" id="customHour" min="0" max="23" placeholder="07"
                   oninput="clampHour(this); updateModalCmdPreview();"
                   class="w-8 bg-transparent text-[var(--foreground)] text-center outline-none" />
                 <span class="text-purple-400 font-bold px-1">:</span>
-                <input type="number" id="customMin" min="0" max="60" placeholder="00"
-                  oninput="clampMinSec(this); updateModalCmdPreview();"
+                <input type="number" id="customMin" min="0" max="59" placeholder="00"
+                  oninput="clampMinute(this); updateModalCmdPreview();"
                   class="w-8 bg-transparent text-[var(--foreground)] text-center outline-none" />
               </div>
             </div>
@@ -562,7 +565,8 @@
             quota cho phiên chiều!
           </p>
           <div class="text-[11px] font-mono text-slate-300 break-all bg-black/40 p-2 rounded">
-            python3 skills/refresh-session/resources/scripts/refresh_session.py schedule --time <span
+            python3 skills/refresh-session/resources/scripts/refresh_session.py schedule --target <span
+              id="cmdPreviewTarget" class="text-sky-300 font-bold">all</span> --time <span
               id="cmdPreviewTime" class="text-purple-300 font-bold">07:00</span> --delay <span id="cmdPreviewDelay"
               class="text-purple-300 font-bold">30</span>
           </div>
@@ -821,52 +825,47 @@
   <script>
     const PROFILES_DATA = {
   "brother": {
-    "email": "dvtung0868377966@gmail.com",
+    "displayName": "brother",
     "tier": "PRO",
-    "priority": 50,
     "status": "ACTIVE",
-    "isAppeal": false,
-    "isSessionActive": false,
-    "resetTime": "2026-11-14T05:59:01Z",
-    "resetTimeLocal": "12:59:01",
+    "priority": 10,
     "hasArgon": true,
+    "isProvider": false,
     "gemini5h": {
-      "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 1,
-      "countdown": "⏱ 4h 59m (12:59:01)",
-      "resetTime": "2026-11-14T05:59:01Z",
-      "resetTimeLocal": "12:59:01",
-      "unavailable": false
+      "name": "Gemini 3.8 / Pro",
+      "pct": 100,
+      "countdown": "4h 59m",
+      "fraction": 1.0,
+      "color": "green"
     },
     "claude5h": {
-      "name": "Claude 5.5 / GPT 5H",
-      "fraction": 1,
-      "countdown": "⏱ 4h 59m (12:59:01)",
-      "resetTime": "2026-11-14T05:59:01Z",
-      "unavailable": false
+      "name": "Claude Sonnet 5.5",
+      "pct": 100,
+      "countdown": "4h 59m",
+      "fraction": 1.0,
+      "color": "green"
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 1,
-      "countdown": "⏱ 6d 23h (21/11 07:59)",
-      "resetTime": "2026-11-21T00:59:01Z",
-      "resetTimeLocal": "21/11 07:59",
-      "unavailable": false
+      "pct": 100,
+      "countdown": "6d 23h",
+      "fraction": 1.0,
+      "color": "green"
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
-      "fraction": 0.9484416246414185,
-      "countdown": "⏱ 3d 21h",
-      "resetTime": "2026-11-17T22:30:44Z",
-      "unavailable": false
+      "pct": 100,
+      "countdown": "6d 23h",
+      "fraction": 1.0,
+      "color": "green"
     },
     "argonWeekly": {
-      "name": "Gemini 4 Argon Weekly",
-      "fraction": 1,
-      "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-21T00:59:01Z",
-      "unavailable": false,
-      "tags": true
+      "name": "Argon 7D",
+      "pct": 100,
+      "countdown": "6d 23h",
+      "fraction": 1.0,
+      "color": "green",
+      "unavailable": false
     }
   },
   "buivantrong8901": {
@@ -924,39 +923,39 @@
     "priority": 50,
     "status": "ACTIVE",
     "isAppeal": false,
-    "isSessionActive": false,
-    "resetTime": "2026-11-14T05:59:00Z",
-    "resetTimeLocal": "12:59:00",
+    "isSessionActive": true,
+    "resetTime": "2026-11-14T16:24:05Z",
+    "resetTimeLocal": "23:24:05",
     "hasArgon": false,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 1,
-      "countdown": "⏱ 4h 59m (12:59:00)",
-      "resetTime": "2026-11-14T05:59:00Z",
-      "resetTimeLocal": "12:59:00",
+      "fraction": 0.85,
+      "countdown": "⏱ 2h 59m (23:24:05)",
+      "resetTime": "2026-11-14T16:24:05Z",
+      "resetTimeLocal": "23:24:05",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
-      "fraction": 1,
-      "countdown": "⏱ 4h 59m (12:59:00)",
-      "resetTime": "2026-11-14T05:59:00Z",
+      "fraction": 1.0,
+      "countdown": "⏱ 4h 59m (01:24:05)",
+      "resetTime": "2026-11-14T18:24:05Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 1,
-      "countdown": "⏱ 6d 23h (21/11 07:59)",
-      "resetTime": "2026-11-21T00:59:00Z",
-      "resetTimeLocal": "21/11 07:59",
-      "unavailable": false
+      "fraction": 1.0,
+      "countdown": "⏱ 6d 20h",
+      "resetTime": "",
+      "resetTimeLocal": "",
+      "unavailable": true
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
-      "fraction": 1,
-      "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-21T00:59:00Z",
-      "unavailable": false
+      "fraction": 1.0,
+      "countdown": "⏱ 6d 20h",
+      "resetTime": "",
+      "unavailable": true
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
@@ -2325,8 +2324,10 @@
         ? 'border-purple-500/80 ring-2 ring-purple-500/30 bg-purple-950/[0.04]'
         : (profile === 'kiro' ? 'border-purple-500/40 hover:border-purple-400/80 shadow-[0_4px_20px_rgba(168,85,247,0.06)]' : 'border-[var(--border)]');
 
+      const isFreeTier = isProfileFreeTier(data);
       const canSchedule = canOperateQuota && profile !== 'kiro' && !data.isCreditOnly;
-      const checkboxHTML = isBatchSelecting ? (canSchedule ? `
+      const canScheduleQuota = canSchedule && !isFreeTier;
+      const checkboxHTML = isBatchSelecting ? (canScheduleQuota ? `
         <label class="flex items-center mr-1 cursor-pointer select-none">
           <input 
             type="checkbox" 
@@ -2337,7 +2338,7 @@
           />
         </label>
       ` : `
-        <label class="flex items-center mr-1 opacity-25 cursor-not-allowed select-none" title="${profile === 'kiro' || data.isCreditOnly ? 'Kiro CLI sử dụng credit tháng, không hỗ trợ lên lịch' : 'Tài khoản chưa đăng nhập hoặc bị khóa'}">
+        <label class="flex items-center mr-1 opacity-25 cursor-not-allowed select-none" title="${isFreeTier ? 'Tài khoản FREE không có quota 5H / Argon, không hỗ trợ lên lịch' : (profile === 'kiro' || data.isCreditOnly ? 'Kiro CLI sử dụng credit tháng, không hỗ trợ lên lịch' : 'Tài khoản chưa đăng nhập hoặc bị khóa')}">
           <input 
             type="checkbox" 
             disabled 
@@ -2468,28 +2469,53 @@
                 </button>
 
                 ${(profile !== 'kiro' && !data.isCreditOnly) ? `
+                ${isFreeTier ? `
+                <!-- FREE tier: disable Kích hoạt & Lên lịch -->
+                <button
+                  type="button"
+                  disabled="disabled"
+                  id="btnActivate-${profile}"
+                  title="Tài khoản FREE không có quota 5H / Argon"
+                  class="px-2.5 py-1.5 rounded-lg bg-slate-800/40 text-slate-500 border border-slate-700/50 font-medium text-xs opacity-50 cursor-not-allowed flex items-center gap-1.5"
+                >
+                  <span>🎯</span> <span>Kích hoạt</span>
+                </button>
+                <button
+                  type="button"
+                  disabled="disabled"
+                  id="btnSchedule-${profile}"
+                  title="Tài khoản FREE không hỗ trợ lên lịch kích hoạt"
+                  class="px-2.5 py-1.5 rounded-lg bg-slate-800/40 text-slate-500 border border-slate-700/50 font-medium text-xs opacity-50 cursor-not-allowed flex items-center gap-1.5"
+                >
+                  <span>⏰</span> <span>Lên lịch</span>
+                </button>
+                ` : `
                 <!-- Action: Kích hoạt (Ping Model kích hoạt countdown 5H & tuần) -->
                 <button 
                   onclick="triggerActivateQuota('${profile}')" 
                   id="btnActivate-${profile}"
-                  title="Gửi 1 token kích hoạt đếm ngược 5H & Weekly qua ${profile}-cli"
+                  title="Kiểm tra và kích hoạt Gemini 5H, Argon 7D & Claude 5H qua ${profile}-cli"
                   class="px-2.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-medium text-xs transition-colors flex items-center gap-1.5 shadow-sm"
                 >
                   <span>🎯</span> <span>Kích hoạt</span>
                 </button>
 
-                <!-- Action 2: Lên lịch -->
+                <!-- Action 2: Lên lịch (Hỗ trợ đa lịch macOS LaunchAgent / profile) -->
                 ${(() => {
-            const sched = getProfileSchedule(profile);
-            if (sched) {
+            const scheds = getProfileSchedules(profile);
+            if (scheds.length > 0) {
+              const summaryText = scheds.length === 1
+                ? `${scheds[0].time} (+${scheds[0].delay}s)`
+                : `${scheds.length} lịch (${scheds.slice(0, 2).map(s => s.time).join(', ')}${scheds.length > 2 ? ', …' : ''})`;
+              const fullTitle = scheds.map(s => `${s.time} (+${s.delay}s${s.loaded === false ? ' - chưa nạp LaunchAgent' : ''})`).join('; ');
               return `
                     <button 
                       onclick="openScheduleModal('${profile}')" 
                       id="btnSchedule-${profile}"
-                      title="Đã lên lịch lúc ${sched.time} (+${sched.delay}s). Bấm để xem chi tiết hoặc hủy lịch."
+                      title="Đã lên ${scheds.length} lịch: ${fullTitle}. Bấm để thêm hoặc hủy khung giờ."
                       class="px-2.5 py-1.5 rounded-lg bg-purple-600/35 hover:bg-purple-600/50 text-purple-100 border border-purple-400 font-bold text-xs transition-all flex items-center gap-1.5 shadow-[0_0_12px_rgba(168,85,247,0.4)] ring-1 ring-purple-400/60"
                     >
-                      <span class="animate-pulse">⏰</span> <span>${sched.time} (+${sched.delay}s)</span>
+                      <span class="animate-pulse">⏰</span> <span>${summaryText}</span>
                     </button>
                     `;
             }
@@ -2497,13 +2523,14 @@
                   <button 
                     onclick="openScheduleModal('${profile}')" 
                     id="btnSchedule-${profile}"
-                    title="Cấu hình lịch tự động qua refresh-session daemon"
+                    title="Cấu hình đa lịch tự động theo khung giờ trên macOS LaunchAgent"
                     class="px-2.5 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 font-medium text-xs transition-colors flex items-center gap-1.5 shadow-sm"
                   >
                     <span>⏰</span> <span>Lên lịch</span>
                   </button>
                   `;
           })()}
+                `}
                 ` : ''}
                 ` : ''}
 
@@ -3013,17 +3040,39 @@
       renderAllProfiles();
     }
 
+    function isProfileFreeTier(data) {
+      return Boolean(data && String(data.tier || '').toUpperCase() === 'FREE');
+    }
+
+    function isProfileSchedulable(profile, data) {
+      if (!data) return false;
+      const blocked = data.status === 'DISABLED' || data.isAppeal || data.status === 'AUTH NEEDED';
+      return !blocked && profile !== 'kiro' && !data.isCreditOnly && !isProfileFreeTier(data);
+    }
+
     /**
      * Requirement: Stepper & Clamping helpers for Giờ, Phút, Giây
-     * 1. Giờ 0-24: Nhập quá 24 set về 24, min 0
-     * 2. Phút, giây max 60: Nhập quá 60 set về 60, min 0
+     * 1. Giờ 0-23: Nhập quá 23 set về 23, min 0
+     * 2. Phút 0-59: Nhập quá 59 set về 59, min 0
+     * 3. Giây offset 0-60: Nhập quá 60 set về 60, min 0
      */
     function clampHour(input) {
       if (input.value === "") return;
       let val = parseInt(input.value, 10);
       if (isNaN(val)) return;
-      if (val > 24) {
-        input.value = 24;
+      if (val > 23) {
+        input.value = 23;
+      } else if (val < 0) {
+        input.value = 0;
+      }
+    }
+
+    function clampMinute(input) {
+      if (input.value === "") return;
+      let val = parseInt(input.value, 10);
+      if (isNaN(val)) return;
+      if (val > 59) {
+        input.value = 59;
       } else if (val < 0) {
         input.value = 0;
       }
@@ -3126,7 +3175,7 @@
         selectedBatchProfiles = new Set(
           Object.keys(PROFILES_DATA).filter(p => {
             const d = PROFILES_DATA[p];
-            return p !== 'kiro' && !d.isCreditOnly && d.status !== 'DISABLED' && d.status !== 'AUTH NEEDED';
+            return p !== 'kiro' && !d.isCreditOnly && isProfileSchedulable(p, d);
           })
         );
       } else {
@@ -3140,10 +3189,7 @@
       const badge = document.getElementById("selectedCountBadge");
       const setLabel = document.getElementById("confirmSetLabel");
       const count = selectedBatchProfiles.size;
-      const eligibleTotal = Object.keys(PROFILES_DATA).filter(p => {
-        const d = PROFILES_DATA[p];
-        return p !== 'kiro' && !d.isCreditOnly && d.status !== 'DISABLED' && d.status !== 'AUTH NEEDED';
-      }).length;
+      const eligibleTotal = Object.keys(PROFILES_DATA).filter(p => isProfileSchedulable(p, PROFILES_DATA[p])).length;
       if (badge) badge.textContent = `${count}/${eligibleTotal} profile`;
       if (setLabel) setLabel.textContent = count > 0 ? `Thiết lập (${count})` : "Thiết lập";
     }
@@ -3168,9 +3214,9 @@
       }
     }
 
-    function confirmBatchScheduleFromBottomBar() {
-      const count = selectedBatchProfiles.size;
-      if (count === 0) {
+    async function confirmBatchScheduleFromBottomBar() {
+      const profiles = Array.from(selectedBatchProfiles);
+      if (profiles.length === 0) {
         alert("Vui lòng tick chọn ít nhất 1 profile để lên lịch!");
         return;
       }
@@ -3181,7 +3227,7 @@
       const mVal = mInput ? mInput.value.trim() : "";
 
       if (!hVal) {
-        alert("Vui lòng nhập giờ kích hoạt (0 - 24)!");
+        alert("Vui lòng nhập giờ kích hoạt (0 - 23)!");
         hInput && hInput.focus();
         return;
       }
@@ -3190,24 +3236,28 @@
       let m = parseInt(mVal || "0", 10);
       if (isNaN(h)) h = 7;
       if (isNaN(m)) m = 0;
-      h = Math.max(0, Math.min(24, h));
-      m = Math.max(0, Math.min(60, m));
+      h = Math.max(0, Math.min(23, h));
+      m = Math.max(0, Math.min(59, m));
       const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 
       let offsetVal = parseInt(document.getElementById("bottomScheduleOffset").value || "30", 10);
       if (isNaN(offsetVal)) offsetVal = 30;
       offsetVal = Math.max(0, Math.min(60, offsetVal));
 
-      selectedBatchProfiles.forEach(profile => {
-        saveScheduledProfile(profile, timeStr, offsetVal);
-        const statusEl = document.getElementById(`actionStatus-${profile}`);
-        if (statusEl) {
-          statusEl.classList.remove("hidden");
-          statusEl.innerHTML = `<span class="text-purple-400 font-mono">⏰ Đã đặt ${timeStr} (+${offsetVal}s)</span>`;
-        }
-      });
+      if (isHttpServerMode() && OS_SCHEDULES_LOADED) {
+        const res = await submitScheduleMutation({
+          action: "set",
+          profiles,
+          time: timeStr,
+          delay: offsetVal,
+        });
+        if (!res.ok) return;
+        showToast(`⏰ ${res.json.message || `Đã cài lịch LaunchAgent cho ${profiles.length} tài khoản lúc ${timeStr} (+${offsetVal}s)`}`, "success");
+      } else {
+        profiles.forEach(profile => saveScheduledProfile(profile, timeStr, offsetVal));
+        showToast(`⏰ Đã lưu lịch cho ${profiles.length} tài khoản lúc ${timeStr} (+${offsetVal}s)!`, "success");
+      }
 
-      showToast(`⏰ Đã lưu lịch cho ${selectedBatchProfiles.size} tài khoản lúc ${timeStr} (+${offsetVal}s)!`, "success");
       exitBatchSelectMode();
     }
 
@@ -3454,8 +3504,9 @@
     // Tự động cập nhật nhãn thời gian đồng bộ mỗi 30 giây
     setInterval(() => updateLastSyncTimeDisplay(), 30000);
 
-    // Tự động kiểm tra và tắt highlight các lịch đã qua giờ mỗi 10 giây
+    // Tự động kiểm tra và tắt highlight các lịch offline đã qua giờ mỗi 10 giây (không xóa lịch OS LaunchAgent hàng ngày)
     setInterval(() => {
+      if (OS_SCHEDULES_LOADED) return;
       const rawBefore = localStorage.getItem("antigravity_scheduled_profiles");
       if (!rawBefore) return;
       const cleaned = cleanupExpiredSchedules();
@@ -3522,8 +3573,73 @@
     }
 
     /**
-     * Schedule State Persistence & Expiration Helpers (localStorage)
+     * Multi-Schedule State Persistence (macOS LaunchAgent API + localStorage fallback)
      */
+    let OS_SCHEDULES_BY_PROFILE = {};
+    let OS_SCHEDULES_LOADED = false;
+
+    function isHttpServerMode() {
+      return (
+        typeof window !== "undefined" &&
+        window.location &&
+        String(window.location.protocol || "").startsWith("http") &&
+        typeof fetch === "function"
+      );
+    }
+
+    function normalizeScheduleSlots(rawVal) {
+      const list = Array.isArray(rawVal) ? rawVal : (rawVal && rawVal.time ? [rawVal] : []);
+      const dedup = new Map();
+      list.forEach(item => {
+        if (!item || !item.time) return;
+        const delayVal = parseInt(item.delay !== undefined ? item.delay : 30, 10) || 0;
+        const key = `${item.time}|${delayVal}`;
+        dedup.set(key, { ...item, delay: delayVal });
+      });
+      return Array.from(dedup.values()).sort((a, b) => {
+        if (a.time !== b.time) return String(a.time).localeCompare(String(b.time));
+        return (a.delay || 0) - (b.delay || 0);
+      });
+    }
+
+    function syncSchedulesFromPayload(payload) {
+      if (!payload || typeof payload !== "object") return false;
+      const byProf = payload.schedules_by_profile || payload.by_profile;
+      if (byProf && typeof byProf === "object") {
+        const normalized = {};
+        Object.keys(byProf).forEach(p => {
+          const slots = normalizeScheduleSlots(byProf[p]);
+          if (slots.length > 0) normalized[p] = slots;
+        });
+        OS_SCHEDULES_BY_PROFILE = normalized;
+        OS_SCHEDULES_LOADED = true;
+        return true;
+      }
+      return false;
+    }
+
+    async function submitScheduleMutation(payload) {
+      if (!isHttpServerMode()) return { ok: false, json: { error: "Offline mode" } };
+      try {
+        const res = await fetch("/api/schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const json = await res.json();
+        syncSchedulesFromPayload(json);
+        if (!res.ok || !json.success) {
+          showToast(`❌ ${json.error || "Không thể cập nhật lịch LaunchAgent"}`, "error");
+          return { ok: false, json };
+        }
+        renderAllProfiles();
+        return { ok: true, json };
+      } catch (e) {
+        showToast(`❌ Lỗi kết nối /api/schedule: ${e.message}`, "error");
+        return { ok: false, json: { error: e.message } };
+      }
+    }
+
     function getScheduleTargetTime(sched) {
       if (!sched || !sched.time) return null;
       const parts = sched.time.split(":");
@@ -3536,14 +3652,12 @@
         const updatedTs = parseInt(sched.updatedAt, 10);
         const target = new Date(updatedTs);
         target.setHours(hours, minutes, delaySec, 0);
-        // Nếu giờ đặt nhỏ hơn thời điểm tạo lịch hơn 10s, nghĩa là đặt cho ngày tiếp theo
         if (target.getTime() < updatedTs - 10000) {
           target.setDate(target.getDate() + 1);
         }
         return target.getTime();
       }
 
-      // Fallback nếu không có updatedAt: so sánh với hôm nay
       const targetToday = new Date();
       targetToday.setHours(hours, minutes, delaySec, 0);
       return targetToday.getTime();
@@ -3556,16 +3670,18 @@
     }
 
     function cleanupExpiredSchedules() {
+      if (OS_SCHEDULES_LOADED) return OS_SCHEDULES_BY_PROFILE;
       try {
         const raw = localStorage.getItem("antigravity_scheduled_profiles");
         if (!raw) return {};
         const all = JSON.parse(raw);
         let changed = false;
         Object.keys(all).forEach(p => {
-          if (isScheduleExpired(all[p])) {
-            delete all[p];
-            changed = true;
-          }
+          const slots = normalizeScheduleSlots(all[p]);
+          const active = slots.filter(s => !isScheduleExpired(s));
+          if (active.length !== slots.length) changed = true;
+          if (active.length > 0) all[p] = active;
+          else delete all[p];
         });
         if (changed) {
           localStorage.setItem("antigravity_scheduled_profiles", JSON.stringify(all));
@@ -3577,50 +3693,68 @@
     }
 
     function getScheduledProfiles(filterExpired = true) {
+      if (OS_SCHEDULES_LOADED) return OS_SCHEDULES_BY_PROFILE;
       try {
         const raw = localStorage.getItem("antigravity_scheduled_profiles");
-        const all = raw ? JSON.parse(raw) : {};
-        if (!filterExpired) return all;
-
+        const parsed = raw ? JSON.parse(raw) : {};
+        const result = {};
         let changed = false;
-        Object.keys(all).forEach(p => {
-          if (isScheduleExpired(all[p])) {
-            delete all[p];
-            changed = true;
-          }
+        Object.keys(parsed).forEach(p => {
+          const slots = normalizeScheduleSlots(parsed[p]);
+          const kept = filterExpired ? slots.filter(s => !isScheduleExpired(s)) : slots;
+          if (kept.length !== slots.length || !Array.isArray(parsed[p])) changed = true;
+          if (kept.length > 0) result[p] = kept;
         });
-        if (changed) {
-          localStorage.setItem("antigravity_scheduled_profiles", JSON.stringify(all));
+        if (filterExpired && changed) {
+          localStorage.setItem("antigravity_scheduled_profiles", JSON.stringify(result));
         }
-        return all;
+        return result;
       } catch (e) {
         return {};
       }
     }
 
-    function getProfileSchedule(profile) {
+    function getProfileSchedules(profile) {
+      if (OS_SCHEDULES_LOADED) {
+        return normalizeScheduleSlots(OS_SCHEDULES_BY_PROFILE[profile] || []);
+      }
       const all = getScheduledProfiles(true);
-      return all[profile] || null;
+      return normalizeScheduleSlots(all[profile] || []);
+    }
+
+    function getProfileSchedule(profile) {
+      const list = getProfileSchedules(profile);
+      return list.length > 0 ? list[0] : null;
     }
 
     function saveScheduledProfile(profile, timeStr, delaySec) {
       const all = getScheduledProfiles(false);
-      all[profile] = {
-        time: timeStr,
-        delay: delaySec,
-        updatedAt: Date.now()
-      };
+      const existing = normalizeScheduleSlots(all[profile]);
+      const delayVal = parseInt(delaySec !== undefined ? delaySec : 30, 10) || 0;
+      const merged = normalizeScheduleSlots([
+        ...existing.filter(s => !(s.time === timeStr && (s.delay || 0) === delayVal)),
+        { time: timeStr, delay: delayVal, updatedAt: Date.now() },
+      ]);
+      all[profile] = merged;
       localStorage.setItem("antigravity_scheduled_profiles", JSON.stringify(all));
       renderAllProfiles();
     }
 
-    function removeScheduledProfile(profile) {
+    function removeScheduledProfile(profile, timeStr = null, delaySec = null) {
       const all = getScheduledProfiles(false);
-      if (all[profile]) {
+      if (!all[profile]) return;
+      if (timeStr) {
+        const remaining = normalizeScheduleSlots(all[profile]).filter(s => {
+          if (s.time !== timeStr) return true;
+          return delaySec !== null && (s.delay || 0) !== parseInt(delaySec, 10);
+        });
+        if (remaining.length > 0) all[profile] = remaining;
+        else delete all[profile];
+      } else {
         delete all[profile];
-        localStorage.setItem("antigravity_scheduled_profiles", JSON.stringify(all));
-        renderAllProfiles();
       }
+      localStorage.setItem("antigravity_scheduled_profiles", JSON.stringify(all));
+      renderAllProfiles();
     }
 
     /**
@@ -3713,37 +3847,62 @@
     /**
      * Single Profile Schedule Modal
      */
+    function renderActiveScheduleBannerList(profile) {
+      const scheds = getProfileSchedules(profile);
+      const banner = document.getElementById("modalActiveScheduleBanner");
+      const btnCancelFooter = document.getElementById("btnModalCancelSched");
+      const btnConfirmLabel = document.getElementById("btnModalConfirmLabel");
+      const listEl = document.getElementById("activeSchedListContainer");
+      const badgeEl = document.getElementById("activeSchedCountBadge");
+
+      if (scheds.length > 0) {
+        const primary = scheds[0];
+        if (banner) {
+          banner.classList.remove("hidden");
+          const timeDisp = document.getElementById("activeSchedTimeDisplay");
+          const delayDisp = document.getElementById("activeSchedDelayDisplay");
+          if (timeDisp) timeDisp.textContent = primary.time;
+          if (delayDisp) delayDisp.textContent = `+${primary.delay}s`;
+          if (badgeEl) badgeEl.textContent = `${scheds.length} LỊCH`;
+        }
+        if (listEl) {
+          listEl.innerHTML = scheds.map(s => `
+            <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-purple-900/60 border border-purple-400/50 text-purple-100 font-mono text-[11px]">
+              <span>⏰ ${s.time} (+${s.delay}s)</span>
+              ${s.loaded === false ? '<span class="text-amber-300 text-[9px]" title="Chưa nạp launchctl">⚠️</span>' : ''}
+              <button type="button" onclick="cancelScheduleSlot('${profile}', '${s.time}', ${s.delay})"
+                class="text-rose-300 hover:text-rose-200 font-bold pl-0.5 leading-none" title="Hủy khung giờ ${s.time}">✕</button>
+            </span>
+          `).join('');
+        }
+        if (btnCancelFooter) {
+          btnCancelFooter.classList.remove("hidden");
+          btnCancelFooter.innerHTML = scheds.length > 1
+            ? `<span>✕</span> <span>Hủy tất cả (${scheds.length})</span>`
+            : `<span>✕</span> <span>Hủy lịch này</span>`;
+        }
+        if (btnConfirmLabel) btnConfirmLabel.textContent = "Thêm khung giờ mới";
+      } else {
+        if (banner) banner.classList.add("hidden");
+        if (listEl) listEl.innerHTML = "";
+        if (btnCancelFooter) btnCancelFooter.classList.add("hidden");
+        if (btnConfirmLabel) btnConfirmLabel.textContent = "Thiết lập";
+      }
+      return scheds;
+    }
+
     function openScheduleModal(profile) {
       openInnerModal("scheduleModal", () => {
         activeModalProfile = profile;
         document.getElementById("modalProfileName").textContent = profile;
 
-        const sched = getProfileSchedule(profile);
-        const banner = document.getElementById("modalActiveScheduleBanner");
-        const btnCancelFooter = document.getElementById("btnModalCancelSched");
-        const btnConfirmLabel = document.getElementById("btnModalConfirmLabel");
-
-        if (sched) {
-          if (banner) {
-            banner.classList.remove("hidden");
-            const timeDisp = document.getElementById("activeSchedTimeDisplay");
-            const delayDisp = document.getElementById("activeSchedDelayDisplay");
-            if (timeDisp) timeDisp.textContent = sched.time;
-            if (delayDisp) delayDisp.textContent = `+${sched.delay}s`;
-          }
-          if (btnCancelFooter) btnCancelFooter.classList.remove("hidden");
-          if (btnConfirmLabel) btnConfirmLabel.textContent = "Cập nhật lịch mới";
-
-          // Pre-fill existing schedule inputs
-          const parts = sched.time.split(":");
+        const scheds = renderActiveScheduleBannerList(profile);
+        if (scheds.length > 0) {
+          const parts = scheds[0].time.split(":");
           document.getElementById("customHour").value = parts[0] || "07";
           document.getElementById("customMin").value = parts[1] || "00";
-          document.getElementById("customScheduleOffset").value = sched.delay !== undefined ? sched.delay : "30";
+          document.getElementById("customScheduleOffset").value = scheds[0].delay !== undefined ? scheds[0].delay : "30";
         } else {
-          if (banner) banner.classList.add("hidden");
-          if (btnCancelFooter) btnCancelFooter.classList.add("hidden");
-          if (btnConfirmLabel) btnConfirmLabel.textContent = "Thiết lập";
-
           document.getElementById("customHour").value = "";
           document.getElementById("customMin").value = "";
           document.getElementById("customScheduleOffset").value = "30";
@@ -3757,12 +3916,40 @@
       closeInnerModal("scheduleModal");
     }
 
-    function cancelCurrentSchedule() {
+    async function cancelScheduleSlot(profile, timeStr, delaySec) {
+      if (!profile) return;
+      if (isHttpServerMode() && OS_SCHEDULES_LOADED) {
+        const res = await submitScheduleMutation({
+          action: "remove",
+          profile,
+          time: timeStr,
+          delay: delaySec,
+        });
+        if (!res.ok) return;
+      } else {
+        removeScheduledProfile(profile, timeStr, delaySec);
+      }
+      const remaining = renderActiveScheduleBannerList(profile);
+      showToast(`✕ Đã hủy lịch ${timeStr} (+${delaySec}s) cho ${profile}.`, "info");
+      if (remaining.length === 0) {
+        closeScheduleModal();
+      }
+    }
+
+    async function cancelCurrentSchedule() {
       if (!activeModalProfile) return;
       const p = activeModalProfile;
-      removeScheduledProfile(p);
+      if (isHttpServerMode() && OS_SCHEDULES_LOADED) {
+        const res = await submitScheduleMutation({
+          action: "remove",
+          profile: p,
+        });
+        if (!res.ok) return;
+      } else {
+        removeScheduledProfile(p);
+      }
       closeScheduleModal();
-      showToast(`✕ Đã hủy lịch tự động cho ${p}. Bạn có thể đặt lại lịch mới bất cứ lúc nào.`, "info");
+      showToast(`✕ Đã hủy toàn bộ lịch tự động cho ${p}. Bạn có thể đặt lại lịch mới bất cứ lúc nào.`, "info");
     }
 
     function setScheduleTime(timeStr) {
@@ -3782,20 +3969,29 @@
       const mVal = mInput && mInput.value !== "" ? String(parseInt(mInput.value, 10)).padStart(2, '0') : "00";
       const offVal = offInput && offInput.value !== "" ? offInput.value : "30";
 
+      const targetEl = document.getElementById("cmdPreviewTarget");
+      if (targetEl) targetEl.textContent = activeModalProfile || "all";
       document.getElementById("cmdPreviewTime").textContent = `${hVal}:${mVal}`;
       document.getElementById("cmdPreviewDelay").textContent = offVal;
       const hint = document.getElementById("hintDelay");
       if (hint) hint.textContent = `${offVal}s`;
     }
 
-    function confirmSchedule() {
+    async function confirmSchedule() {
+      const targetProfile = activeModalProfile;
+      const pData = targetProfile ? PROFILES_DATA[targetProfile] : null;
+      if (isProfileFreeTier(pData)) {
+        showToast("🚫 Tài khoản FREE không hỗ trợ lên lịch kích hoạt!", "warning");
+        return;
+      }
+
       const hInput = document.getElementById("customHour");
       const mInput = document.getElementById("customMin");
       const hVal = hInput ? hInput.value.trim() : "";
       const mVal = mInput ? mInput.value.trim() : "";
 
       if (!hVal) {
-        alert("Vui lòng nhập giờ kích hoạt (0 - 24)!");
+        alert("Vui lòng nhập giờ kích hoạt (0 - 23)!");
         hInput && hInput.focus();
         return;
       }
@@ -3804,18 +4000,29 @@
       let m = parseInt(mVal || "0", 10);
       if (isNaN(h)) h = 7;
       if (isNaN(m)) m = 0;
-      h = Math.max(0, Math.min(24, h));
-      m = Math.max(0, Math.min(60, m));
+      h = Math.max(0, Math.min(23, h));
+      m = Math.max(0, Math.min(59, m));
       const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 
       let offsetVal = parseInt(document.getElementById("customScheduleOffset").value || "30", 10);
       if (isNaN(offsetVal)) offsetVal = 30;
       offsetVal = Math.max(0, Math.min(60, offsetVal));
 
-      saveScheduledProfile(activeModalProfile, timeStr, offsetVal);
-      closeScheduleModal();
-
-      showToast(`⏰ Đã lưu lịch tự động cho ${activeModalProfile} lúc ${timeStr} (+${offsetVal}s)!`, "success");
+      if (isHttpServerMode() && OS_SCHEDULES_LOADED) {
+        const res = await submitScheduleMutation({
+          action: "set",
+          profiles: [targetProfile],
+          time: timeStr,
+          delay: offsetVal,
+        });
+        if (!res.ok) return;
+        closeScheduleModal();
+        showToast(`⏰ ${res.json.message || `Đã cài đặt LaunchAgent cho ${targetProfile} lúc ${timeStr} (+${offsetVal}s)!`}`, "success");
+      } else {
+        saveScheduledProfile(targetProfile, timeStr, offsetVal);
+        closeScheduleModal();
+        showToast(`⏰ Đã lưu lịch tự động cho ${targetProfile} lúc ${timeStr} (+${offsetVal}s)!`, "success");
+      }
     }
 
     /**
@@ -3823,6 +4030,10 @@
      */
     async function triggerActivateQuota(profile) {
       const data = PROFILES_DATA[profile];
+      if (isProfileFreeTier(data)) {
+        showToast("🚫 Tài khoản FREE không có quota 5H / Argon để kích hoạt!", "warning");
+        return;
+      }
       const statusEl = document.getElementById(`actionStatus-${profile}`);
       const btn = document.getElementById(`btnActivate-${profile}`);
       const isForce = window.event?.altKey || window.event?.shiftKey || false;
@@ -3832,62 +4043,60 @@
       }
       if (statusEl) {
         statusEl.classList.remove("hidden");
-        statusEl.innerHTML = `<span class="text-emerald-400 animate-pulse">🎯 Đang ping kích hoạt${isForce ? ' (force)' : ''}...</span>`;
+        statusEl.innerHTML = `<span class="text-emerald-400 animate-pulse">🎯 Đang kiểm tra & kích hoạt${isForce ? ' (force)' : ''}...</span>`;
       }
 
-      if (window.location.protocol.startsWith('http')) {
+      if (isHttpServerMode()) {
         try {
           const res = await fetch(`/api/ping?profile=${encodeURIComponent(profile)}${isForce ? '&force=1' : ''}`);
           const json = await res.json();
+          if (json.data) {
+            PROFILES_DATA[profile] = json.data;
+            renderAllProfiles();
+          }
+          const latestStatusEl = document.getElementById(`actionStatus-${profile}`);
           if (json.isAppeal || json.status === "DISABLED") {
-            if (json.data) {
-              PROFILES_DATA[profile] = json.data;
-              renderAllProfiles();
-            }
-            if (statusEl) statusEl.innerHTML = `<span class="text-rose-400 font-bold">🚫 Bị khóa (Appeal)!</span>`;
+            if (latestStatusEl) latestStatusEl.innerHTML = `<span class="text-rose-400 font-bold">🚫 Bị khóa (Appeal)!</span>`;
             showToast(`🚫 Lỗi: Tài khoản ${profile} đã bị Google vô hiệu hóa (ToS)!`, "warning");
             openAppealModal(profile);
             return;
           }
           if (json.isAuthNeeded || json.status === "AUTH NEEDED") {
-            if (statusEl) statusEl.innerHTML = `<span class="text-amber-400 font-bold">⚠️ Chưa đăng nhập!</span>`;
+            if (latestStatusEl) latestStatusEl.innerHTML = `<span class="text-amber-400 font-bold">⚠️ Chưa đăng nhập!</span>`;
             showToast(`⚠️ Tài khoản ${profile} chưa đăng nhập CLI!`, "warning");
-            if (json.data) {
-              PROFILES_DATA[profile] = json.data;
-              renderAllProfiles();
-            }
+            return;
+          }
+          if (json.status === "FREE") {
+            if (latestStatusEl) latestStatusEl.innerHTML = `<span class="text-slate-400 font-bold">🚫 FREE tier</span>`;
+            showToast(`🚫 ${json.error || "Tài khoản FREE không hỗ trợ kích hoạt"}`, "warning");
             return;
           }
           if (json.skipped) {
-            if (json.data) {
-              PROFILES_DATA[profile] = json.data;
-              renderAllProfiles();
-            }
-            if (statusEl) {
-              statusEl.innerHTML = `<span class="text-amber-400 font-bold">⏭️ Đang trong phiên</span>`;
-              setTimeout(() => { if (statusEl.textContent.includes("Đang trong phiên")) statusEl.textContent = ""; }, 5000);
+            if (latestStatusEl) {
+              latestStatusEl.innerHTML = `<span class="text-amber-400 font-bold">⏭️ Đang trong phiên</span>`;
+              setTimeout(() => { if (latestStatusEl.textContent.includes("Đang trong phiên")) latestStatusEl.textContent = ""; }, 5000);
             }
             showToast(`⏭️ ${json.message || `Phiên làm việc của ${profile} đang hoạt động, bỏ qua ping!`}`, "info");
             return;
           }
-          if (json.success && json.data) {
-            PROFILES_DATA[profile] = json.data;
-            renderAllProfiles();
-            if (statusEl) {
-              statusEl.innerHTML = `<span class="text-emerald-400 font-bold">✅ Đã kích hoạt 5H & Tuần!</span>`;
-              setTimeout(() => { if (statusEl.textContent.includes("Đã kích hoạt")) statusEl.textContent = ""; }, 4000);
+          if (json.success) {
+            if (latestStatusEl) {
+              latestStatusEl.innerHTML = `<span class="text-emerald-400 font-bold">✅ ${json.message || "Đã kích hoạt!"}</span>`;
+              setTimeout(() => { if (latestStatusEl.textContent.includes("✅")) latestStatusEl.textContent = ""; }, 5000);
             }
-            showToast(`🎯 Đã kích hoạt 1-token thành công cho ${profile}! Countdown 5H & tuần đã bắt đầu đếm ngược.`, "success");
+            showToast(`🎯 ${json.message || `Đã kích hoạt 1-token thành công cho ${profile}!`}`, "success");
             return;
-          } else {
-            showToast(`❌ Kích hoạt thất bại: ${json.error || 'Failed'}`, "error");
           }
+          const errMsg = json.error || json.message || "Kích hoạt thất bại";
+          if (latestStatusEl) latestStatusEl.innerHTML = `<span class="text-rose-400 font-bold">❌ ${errMsg}</span>`;
+          showToast(`❌ Kích hoạt thất bại: ${errMsg}`, "error");
         } catch (e) {
           showToast(`❌ Lỗi kết nối: ${e.message}`, "error");
         } finally {
-          if (btn) {
-            btn.disabled = false;
-            btn.classList.remove("opacity-60");
+          const latestBtn = document.getElementById(`btnActivate-${profile}`);
+          if (latestBtn) {
+            latestBtn.disabled = false;
+            latestBtn.classList.remove("opacity-60");
           }
         }
       } else {
@@ -4123,18 +4332,21 @@
 
     async function syncServerProfilesData() {
       updateServerStatusBadge();
-      if (!window.location.protocol.startsWith("http")) return;
+      if (!isHttpServerMode()) return;
       let serverStatus = null;
       try {
         const res = await fetch("/api/status");
-        serverStatus = await res.json();
-        if (serverStatus.success) {
-          if (serverStatus.profiles && Object.keys(serverStatus.profiles).length > 0) {
-            Object.assign(PROFILES_DATA, serverStatus.profiles);
+        if (res.ok) {
+          serverStatus = await res.json();
+          if (serverStatus && serverStatus.success) {
+            syncSchedulesFromPayload(serverStatus);
+            if (serverStatus.profiles && Object.keys(serverStatus.profiles).length > 0) {
+              Object.assign(PROFILES_DATA, serverStatus.profiles);
+            }
             renderAllProfiles();
-          }
-          if (serverStatus.last_refresh_all) {
-            updateLastSyncTimeDisplay(serverStatus.last_refresh_all);
+            if (serverStatus.last_refresh_all) {
+              updateLastSyncTimeDisplay(serverStatus.last_refresh_all);
+            }
           }
         }
       } catch (e) {

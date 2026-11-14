@@ -174,8 +174,9 @@ class TestRefreshSession(unittest.TestCase):
         self.assertEqual(res["status"], "FAIL")
         self.assertIn("Authentication required", res.get("error", ""))
 
+    @patch("refresh_session.is_target_session_active", return_value=(False, ""))
     @patch("refresh_session.ping_cli")
-    def test_main_json_output(self, mock_ping: MagicMock) -> None:
+    def test_main_json_output(self, mock_ping: MagicMock, mock_active: MagicMock) -> None:
         """Formats output as structured JSON on --json flag."""
         mock_ping.return_value = {
             "cli": "claude",
@@ -392,8 +393,9 @@ class TestRefreshSession(unittest.TestCase):
         self.assertIn("<string>30</string>", plist)
 
     @patch("time.sleep")
+    @patch("refresh_session.is_target_session_active", return_value=(False, ""))
     @patch("refresh_session.ping_cli", return_value={"cli": "claude", "status": "PASS", "latency_ms": 10.0, "tokens": 1, "error": None})
-    def test_main_delay_sleep_invoked(self, mock_ping: MagicMock, mock_sleep: MagicMock) -> None:
+    def test_main_delay_sleep_invoked(self, mock_ping: MagicMock, mock_active: MagicMock, mock_sleep: MagicMock) -> None:
         """Invokes time.sleep when delay > 0 before pinging."""
         code = refresh_session.main(["claude", "--delay", "30"])
         self.assertEqual(code, 0)
@@ -486,6 +488,325 @@ class TestRefreshSession(unittest.TestCase):
         code = refresh_session.main(["claude"])
         self.assertEqual(code, 0)
         mock_check.assert_called_with("claude")
+
+
+class TestMultiScheduleAndAntigravityPing(unittest.TestCase):
+    """Tests REAL_HOME macOS LaunchAgents multi-schedule & Antigravity model discovery."""
+
+    def test_resolve_darwin_dirs_uses_real_home_not_sandboxed_home(self) -> None:
+        """DARWIN_PLIST_DIR and LOG_DIR must point under REAL_HOME, never antigravity_homes/<p>."""
+        plist_dir, log_dir = refresh_session._resolve_darwin_dirs("/Users/realuser")
+        self.assertEqual(plist_dir, Path("/Users/realuser/Library/LaunchAgents"))
+        self.assertEqual(log_dir, Path("/Users/realuser/.devtool/logs"))
+        # Module constants must never resolve under antigravity_homes/
+        self.assertNotIn("antigravity_homes", str(refresh_session.DARWIN_PLIST_DIR))
+        self.assertNotIn("antigravity_homes", str(refresh_session.LOG_DIR))
+
+    def test_check_profile_has_argon_handles_trailing_semicolon_js(self) -> None:
+        """check_profile_has_argon parses const PROFILES_DATA = {...}; even with trailing semicolon."""
+        import tempfile
+
+        html = (
+            "<html><script>\n"
+            'const PROFILES_DATA = {\n  "brother": {"hasArgon": true},\n  "mau": {"hasArgon": false}\n};\n'
+            "</script></html>"
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            html_path = Path(tmpdir) / "quota_dashboard.html"
+            html_path.write_text(html, encoding="utf-8")
+            with patch.object(refresh_session, "_DASHBOARD_HTML_CANDIDATES", [html_path]):
+                self.assertTrue(refresh_session.check_profile_has_argon("brother"))
+                self.assertFalse(refresh_session.check_profile_has_argon("mau"))
+
+    def test_multi_schedule_darwin_preserves_independent_slots_and_profiles(self) -> None:
+        """Installing multiple time slots / targets keeps independent LaunchAgents and cleans broken symlinks."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plist_dir = Path(tmpdir) / "LaunchAgents"
+            log_dir = Path(tmpdir) / "logs"
+            plist_dir.mkdir(parents=True)
+            log_dir.mkdir(parents=True)
+
+            # Create a broken symlink (mimics stale /Users/danhdueexoictif/Library/LaunchAgents/com.d3nexus.refresh-session.plist)
+            broken = plist_dir / f"{refresh_session.DARWIN_LABEL}.plist"
+            broken.symlink_to("/nonexistent/antigravity_homes/huynhminhtien0510/Library/LaunchAgents/com.d3nexus.refresh-session.plist")
+            self.assertTrue(broken.is_symlink())
+
+            loaded_labels: set[str] = set()
+
+            def fake_run(cmd, **kwargs):
+                proc = MagicMock(returncode=0, stdout="", stderr="")
+                if cmd[:2] == ["launchctl", "bootstrap"]:
+                    plist_file = Path(cmd[3])
+                    for match in __import__("re").findall(
+                        r"<key>Label</key>\s*<string>([^<]+)</string>",
+                        plist_file.read_text(encoding="utf-8"),
+                    ):
+                        loaded_labels.add(match)
+                elif cmd[:2] == ["launchctl", "bootout"]:
+                    svc = cmd[2]
+                    if "/" in svc:
+                        loaded_labels.discard(svc.rsplit("/", 1)[-1])
+                elif cmd[:2] == ["launchctl", "list"]:
+                    proc.stdout = "\n".join(f"123\t0\t{lbl}" for lbl in sorted(loaded_labels))
+                return proc
+
+            with (
+                patch.object(refresh_session, "DARWIN_PLIST_DIR", plist_dir),
+                patch.object(refresh_session, "DARWIN_PLIST_PATH", broken),
+                patch.object(refresh_session, "LOG_DIR", log_dir),
+                patch.object(refresh_session, "REAL_HOME_DIR", Path(tmpdir)),
+                patch("subprocess.run", side_effect=fake_run),
+            ):
+                # Slot 1: brother at 05:00
+                r1 = refresh_session.install_schedule_darwin(5, 0, target="brother", delay=30)
+                self.assertTrue(r1["success"])
+                self.assertFalse(broken.is_symlink())
+
+                # Slot 2: hau & danhdue at 07:00
+                r2 = refresh_session.install_schedule_darwin(7, 0, target="hau,danhdue", delay=15)
+                self.assertTrue(r2["success"])
+
+                # Slot 3: same profile brother ALSO at 12:30 (multi-time-slot!)
+                r3 = refresh_session.install_schedule_darwin(12, 30, target="brother", delay=30)
+                self.assertTrue(r3["success"])
+
+                status = refresh_session.get_schedule_status_darwin()
+                self.assertTrue(status["installed"])
+                self.assertEqual(len(status["schedules"]), 3)
+                self.assertEqual(len(status["by_profile"]["brother"]), 2)
+                self.assertEqual(
+                    {s["time"] for s in status["by_profile"]["brother"]},
+                    {"05:00", "12:30"},
+                )
+                self.assertEqual(
+                    {s["time"] for s in status["by_profile"]["hau"]},
+                    {"07:00"},
+                )
+
+                # Verify clean HOME & no antigravity_homes in PATH inside generated plist
+                sample_plist = Path(status["schedules"][0]["plist_path"]).read_text(encoding="utf-8")
+                self.assertIn("<key>EnvironmentVariables</key>", sample_plist)
+                self.assertIn(f"<string>{tmpdir}</string>", sample_plist)
+                self.assertNotIn("antigravity_homes", sample_plist)
+
+                # Remove brother ONLY from 05:00 -> keeps 12:30 and 07:00
+                u1 = refresh_session.uninstall_schedule_darwin(target="brother", time_str="05:00")
+                self.assertTrue(u1["success"])
+                status_after = refresh_session.get_schedule_status_darwin()
+                self.assertEqual(len(status_after["schedules"]), 2)
+                self.assertEqual([s["time"] for s in status_after["by_profile"]["brother"]], ["12:30"])
+
+                # Remove hau from 07:00 -> 07:00 plist stays alive for danhdue only!
+                u2 = refresh_session.uninstall_schedule_darwin(target="hau")
+                self.assertTrue(u2["success"])
+                status_after2 = refresh_session.get_schedule_status_darwin()
+                self.assertEqual(len(status_after2["schedules"]), 2)
+                self.assertNotIn("hau", status_after2["by_profile"])
+                self.assertEqual([s["time"] for s in status_after2["by_profile"]["danhdue"]], ["07:00"])
+
+    def test_install_schedule_darwin_fails_when_launchctl_fails(self) -> None:
+        """If launchctl bootstrap and load both fail, install_schedule_darwin returns success=False."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plist_dir = Path(tmpdir) / "LaunchAgents"
+            log_dir = Path(tmpdir) / "logs"
+            plist_dir.mkdir(parents=True)
+            log_dir.mkdir(parents=True)
+
+            def fake_fail(cmd, **kwargs):
+                if cmd[:2] in (["launchctl", "bootstrap"], ["launchctl", "load"]):
+                    return MagicMock(returncode=5, stdout="", stderr="Bootstrap failed: Input/output error")
+                return MagicMock(returncode=0, stdout="", stderr="")
+
+            with (
+                patch.object(refresh_session, "DARWIN_PLIST_DIR", plist_dir),
+                patch.object(refresh_session, "DARWIN_PLIST_PATH", plist_dir / "com.d3nexus.refresh-session.plist"),
+                patch.object(refresh_session, "LOG_DIR", log_dir),
+                patch.object(refresh_session, "REAL_HOME_DIR", Path(tmpdir)),
+                patch("subprocess.run", side_effect=fake_fail),
+            ):
+                res = refresh_session.install_schedule_darwin(7, 0, target="brother", delay=30)
+                self.assertFalse(res["success"])
+                self.assertIn("error", res)
+
+    def test_ping_profile_uses_discovered_claude_4_6_and_reports_argon_failure(self) -> None:
+        """ping_profile uses explicit --model for Gemini, selects claude-sonnet-4-6 when 5.5 absent, and surfaces Argon error."""
+        now_utc = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
+        fresh_5h = (now_utc + __import__("datetime").timedelta(hours=5)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        fresh_7d = (now_utc + __import__("datetime").timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        usage_json = json.dumps({
+            "command": {
+                "data": {
+                    "plan_name": "PRO",
+                    "groups": [
+                        {"name": "Gemini Models", "buckets": [{"window": "5h", "remaining_fraction": 1.0, "reset_time": fresh_5h}]},
+                        {"name": "Claude and GPT models", "buckets": [{"window": "5h", "remaining_fraction": 1.0, "reset_time": fresh_5h}]},
+                        {"name": "Argon", "buckets": [{"window": "weekly", "remaining_fraction": 1.0, "reset_time": fresh_7d}]},
+                    ],
+                }
+            }
+        })
+
+        def fake_run(cmd, **kwargs):
+            if cmd[1:2] == ["models"]:
+                return MagicMock(
+                    returncode=0,
+                    stdout="gemini-3.8-flash-low\tGemini\nclaude-sonnet-4-6\tClaude 4.6\ngemini-4-argon-low\tArgon\n",
+                    stderr="",
+                )
+            if "/usage" in cmd:
+                return MagicMock(returncode=0, stdout=usage_json, stderr="")
+            if "gemini-4-argon-low" in cmd:
+                return MagicMock(returncode=1, stdout="", stderr="Timeout error on argon")
+            return MagicMock(returncode=0, stdout="OK", stderr="")
+
+        import tempfile
+
+        with (
+            tempfile.TemporaryDirectory() as db_tmp,
+            patch.object(refresh_session, "REAL_HOME", db_tmp),
+            patch("shutil.which", return_value="/usr/local/bin/agy"),
+            patch("os.path.exists", side_effect=lambda p: str(p) == "/usr/local/bin/agy"),
+            patch("os.path.isdir", return_value=True),
+            patch("os.makedirs"),
+            patch.object(refresh_session, "SESSION_STORE_DB", Path(db_tmp) / ".session_store.db"),
+            patch("refresh_session.check_profile_auth_token", return_value=True),
+            patch("subprocess.run", side_effect=fake_run) as mock_run,
+            patch("time.sleep"),
+        ):
+            res = refresh_session.ping_profile("d3molt")
+            self.assertEqual(res["status"], "FAIL")
+            self.assertIn("Argon", res["error"])
+            ping_cmds = [c.args[0] for c in mock_run.call_args_list if "-p" in c.args[0] and "/usage" not in c.args[0]]
+            self.assertEqual(len(ping_cmds), 3)
+            self.assertIn("gemini-3.8-flash-low", ping_cmds[0])
+            self.assertIn("claude-sonnet-4-6", ping_cmds[1])
+            self.assertIn("gemini-4-argon-low", ping_cmds[2])
+            for c in mock_run.call_args_list:
+                if "-p" in c.args[0] and "/usage" not in c.args[0]:
+                    self.assertGreaterEqual(c.kwargs.get("timeout", 0), 45)
+                    self.assertIsNotNone(c.kwargs.get("cwd"))
+
+    def test_is_target_session_active_claude_uses_live_api_and_zero_util(self) -> None:
+        """is_target_session_active('claude') queries live API first and catches 0% active 5H sessions."""
+        import os
+        import tempfile
+        import urllib.request
+
+        now_utc = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
+        active_4h = (now_utc + __import__("datetime").timedelta(hours=4)).isoformat()
+        idle_payload = {
+            "five_hour": {"utilization": 0.0, "resets_at": None},
+            "seven_day": {"utilization": 66.0, "resets_at": active_4h},
+            "limits": [{"kind": "session", "is_active": False, "resets_at": None}],
+        }
+        active_payload = {
+            "five_hour": {"utilization": 0.0, "resets_at": active_4h},
+            "seven_day": {"utilization": 66.0, "resets_at": active_4h},
+            "limits": [{"kind": "session", "is_active": True, "resets_at": active_4h}],
+        }
+
+        def make_resp(payload: dict) -> MagicMock:
+            m = MagicMock()
+            m.status = 200
+            m.read.return_value = json.dumps(payload).encode("utf-8")
+            m.__enter__.return_value = m
+            return m
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with (
+                patch.object(refresh_session, "REAL_HOME", tmpdir),
+                patch.object(refresh_session, "REAL_HOME_DIR", Path(tmpdir)),
+                patch.dict(os.environ, {"CLAUDE_CODE_OAUTH_TOKEN": "tok-test"}, clear=False),
+                patch.object(
+                    urllib.request,
+                    "urlopen",
+                    side_effect=[make_resp(idle_payload), make_resp(active_payload)],
+                ),
+            ):
+                is_act_idle, _ = refresh_session.is_target_session_active("claude")
+                self.assertFalse(is_act_idle)
+
+                is_act_running, msg = refresh_session.is_target_session_active("claude")
+                self.assertTrue(is_act_running)
+                self.assertIn("Session active", msg)
+
+    def test_is_target_session_active_codex_uses_live_api_and_falls_back_to_sqlite(self) -> None:
+        """is_target_session_active('codex') prefers live wham/usage over SQLite and skips ticking 0% 5H."""
+        import sqlite3
+        import tempfile
+        import time
+        import urllib.request
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            codex_dir = Path(tmpdir) / ".codex"
+            codex_dir.mkdir(parents=True)
+            (codex_dir / "auth.json").write_text(
+                json.dumps({"tokens": {"access_token": "codex-tok", "account_id": "acc"}}),
+                encoding="utf-8",
+            )
+            db_path = codex_dir / "logs_2.sqlite"
+            con = sqlite3.connect(str(db_path))
+            con.execute("CREATE TABLE logs (ts INTEGER);")
+            con.execute("INSERT INTO logs (ts) VALUES (?);", (int(time.time()) - 1000,))
+            con.commit()
+            con.close()
+
+            idle_rl = {
+                "rate_limit": {
+                    "primary_window": {
+                        "used_percent": 0,
+                        "limit_window_seconds": 18000,
+                        "reset_after_seconds": 18000,
+                    }
+                }
+            }
+            ticking_rl = {
+                "rate_limit": {
+                    "primary_window": {
+                        "used_percent": 0,
+                        "limit_window_seconds": 18000,
+                        "reset_after_seconds": 17500,
+                    }
+                }
+            }
+
+            def make_resp(payload: dict) -> MagicMock:
+                m = MagicMock()
+                m.status = 200
+                m.read.return_value = json.dumps(payload).encode("utf-8")
+                m.__enter__.return_value = m
+                return m
+
+            with (
+                patch.object(refresh_session, "REAL_HOME", tmpdir),
+                patch.object(refresh_session, "REAL_HOME_DIR", Path(tmpdir)),
+                patch.object(
+                    urllib.request,
+                    "urlopen",
+                    side_effect=[
+                        make_resp(idle_rl),
+                        make_resp(ticking_rl),
+                        OSError("network down"),
+                    ],
+                ),
+            ):
+                # 1. Live API explicitly IDLE must win even if SQLite has recent ts
+                act1, _ = refresh_session.is_target_session_active("codex")
+                self.assertFalse(act1)
+
+                # 2. Live API ticking (< 18000 - 30) skips even when used_percent == 0
+                act2, msg2 = refresh_session.is_target_session_active("codex")
+                self.assertTrue(act2)
+                self.assertIn("Session active", msg2)
+
+                # 3. Offline Live API -> SQLite fallback detects < 5h log
+                act3, msg3 = refresh_session.is_target_session_active("codex")
+                self.assertTrue(act3)
+                self.assertIn("Session active", msg3)
 
 
 if __name__ == "__main__":
