@@ -284,6 +284,7 @@ class RepoMetadata:
     quality_active: dict[str, Any] | None = None
     quality_runs: list[dict[str, Any]] = field(default_factory=list)
     pipeline_telemetry: dict[str, Any] | None = None
+    action_blockers: list[dict[str, str]] = field(default_factory=list)
 
 
 @dataclass
@@ -891,7 +892,9 @@ def resolve_active_epic(repo_path: Path) -> str | None:
                 ):
                     return _resolve_canonical_epic_slug(repo_path, raw_slug)
 
-    # 2. Check active worktrees under .worktrees/ (prioritize worktrees with git changes or tasks)
+    # 2. Check active worktrees under .worktrees/ (prioritize worktrees with git changes,
+    #    matching/in-progress tasks, or verified .devtool/epic/<slug> directories)
+    unrelated_wt_feature_fallback: str | None = None
     wt_dir = repo_path / ".worktrees"
     if wt_dir.is_dir():
         for d in sorted(wt_dir.iterdir()):
@@ -916,7 +919,9 @@ def resolve_active_epic(repo_path: Path) -> str | None:
                         ):
                             return _resolve_canonical_epic_slug(repo_path, slug)
 
-            # Check tasks inside worktree features
+            # Check tasks inside worktree features (immediate return only when task epic
+            # matches worktree directory name or task is actively in-progress)
+            wt_norm = _normalize_slug(_strip_slot_suffix(d.name))
             wt_feat = d / ".devtool" / "features"
             if wt_feat.is_dir():
                 for tf in sorted(wt_feat.glob("task_*.md")):
@@ -926,7 +931,15 @@ def resolve_active_epic(repo_path: Path) -> str | None:
                         if ep and _is_epic_eligible_for_active(
                             ep, completed_slugs, abandoned_slugs
                         ):
-                            return _resolve_canonical_epic_slug(repo_path, ep)
+                            canonical_ep = _resolve_canonical_epic_slug(repo_path, ep)
+                            if (
+                                _normalize_slug(ep) == wt_norm
+                                or normalize_task_status(fm.get("status"))
+                                == "in-progress"
+                            ):
+                                return canonical_ep
+                            if unrelated_wt_feature_fallback is None:
+                                unrelated_wt_feature_fallback = canonical_ep
 
             # Check if directory name (stripped of slot suffix) matches an epic
             base_name = _strip_slot_suffix(d.name)
@@ -956,16 +969,6 @@ def resolve_active_epic(repo_path: Path) -> str | None:
             if _is_epic_eligible_for_active(sf.stem, completed_slugs, abandoned_slugs):
                 return _resolve_canonical_epic_slug(repo_path, sf.stem)
 
-    # 5. Check .worktrees directory in deterministic order (any worktree not completed)
-    if wt_dir.is_dir():
-        for d in sorted(wt_dir.iterdir()):
-            if d.is_dir() and not d.name.startswith("."):
-                base_name = _strip_slot_suffix(d.name)
-                if base_name and _is_epic_eligible_for_active(
-                    base_name, completed_slugs, abandoned_slugs
-                ):
-                    return _resolve_canonical_epic_slug(repo_path, base_name)
-
     # 5.5 Check explicit active pending_decision.json entries
     pending_epic = _resolve_active_epic_from_pending_decision(
         repo_path, completed_slugs, abandoned_slugs
@@ -973,19 +976,7 @@ def resolve_active_epic(repo_path: Path) -> str | None:
     if pending_epic:
         return pending_epic
 
-    # 6. Check .devtool/features/*.md for epic frontmatter
-    features_dir = repo_path / ".devtool" / "features"
-    if features_dir.is_dir():
-        for tf in sorted(features_dir.glob("task_*.md")):
-            with contextlib.suppress(OSError):
-                fm = parse_frontmatter(tf.read_text(encoding="utf-8"))
-                ep = fm.get("epic")
-                if ep and _is_epic_eligible_for_active(
-                    ep, completed_slugs, abandoned_slugs
-                ):
-                    return _resolve_canonical_epic_slug(repo_path, ep)
-
-    # 7. Check Gate 1+ ledger entries and active .heartbeat.json files for Stage 1-2 epics
+    # 7. Check Gate 1+ ledger entries, active .heartbeat.json files, and active in_progress epics
     stage12_candidates: list[tuple[str, str]] = []
     for row in parse_gate_ledger_entries(repo_path):
         ep = str(row.get("epic", "")).strip()
@@ -1029,9 +1020,47 @@ def resolve_active_epic(repo_path: Path) -> str | None:
                             (str(parsed.get("updated_at", "")), canonical)
                         )
 
+    epic_root = repo_path / ".devtool" / "epic"
+    if epic_root.is_dir():
+        with contextlib.suppress(OSError):
+            for ep_dir in sorted(epic_root.iterdir()):
+                if not ep_dir.is_dir() or ep_dir.name.startswith("."):
+                    continue
+                canonical = ep_dir.name
+                hld_st = extract_epic_hld_status(ep_dir, canonical)
+                if hld_st == "in_progress" and _is_epic_eligible_for_active(
+                    canonical, completed_slugs, abandoned_slugs, hld_st
+                ):
+                    stage12_candidates.append(("", canonical))
+
     if stage12_candidates:
         stage12_candidates.sort(key=lambda item: (item[0], item[1]), reverse=True)
         return stage12_candidates[0][1]
+
+    # 5. Fallback: check unverified .worktrees directory names (where .devtool/epic/<name> does not exist)
+    if wt_dir.is_dir():
+        for d in sorted(wt_dir.iterdir()):
+            if d.is_dir() and not d.name.startswith("."):
+                base_name = _strip_slot_suffix(d.name)
+                if base_name and _is_epic_eligible_for_active(
+                    base_name, completed_slugs, abandoned_slugs
+                ):
+                    return _resolve_canonical_epic_slug(repo_path, base_name)
+
+    if unrelated_wt_feature_fallback:
+        return unrelated_wt_feature_fallback
+
+    # 6. Check .devtool/features/*.md for epic frontmatter
+    features_dir = repo_path / ".devtool" / "features"
+    if features_dir.is_dir():
+        for tf in sorted(features_dir.glob("task_*.md")):
+            with contextlib.suppress(OSError):
+                fm = parse_frontmatter(tf.read_text(encoding="utf-8"))
+                ep = fm.get("epic")
+                if ep and _is_epic_eligible_for_active(
+                    ep, completed_slugs, abandoned_slugs
+                ):
+                    return _resolve_canonical_epic_slug(repo_path, ep)
 
     return None
 
@@ -3210,6 +3239,7 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
 
     # Propagate deterministic action requirements and pipeline_telemetry to each epic in epics_summary
     completed_slugs = get_completed_epic_slugs(repo_path)
+    abandoned_slugs = get_abandoned_epic_slugs(repo_path)
     pipeline_telemetry = (
         build_epic_pipeline_telemetry(
             repo_path,
@@ -3227,15 +3257,49 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
         if active_epic
         else None
     )
+    action_blockers: list[dict[str, str]] = []
+    seen_blockers: set[str] = set()
+    if decision.is_human_action_required and active_epic:
+        primary_reason = (
+            str(matched_pending.get("reason"))
+            if (
+                matched_pending
+                and matched_pending.get("active", True) is True
+                and matched_pending.get("reason")
+            )
+            else decision.prompt
+        )
+        action_blockers.append(
+            {
+                "epic": active_epic,
+                "stage": decision.stage_name,
+                "reason": primary_reason,
+            }
+        )
+        seen_blockers.add(_normalize_slug(active_epic))
+
     if epics_summary and epics_summary.epics:
         for ep in epics_summary.epics:
-            slug = ep.get("slug", "")
+            slug = str(ep.get("slug") or "")
             if ep.get("status") == "done" or _is_completed_epic(slug, completed_slugs):
                 ep["is_action_required"] = False
                 ep["action_prompt"] = ""
                 ep["is_review_converged"] = True
+                ep["active_stage"] = ""
+                continue
+            if ep.get("status") in (
+                "abandon",
+                "abandoned",
+                "discarded",
+                "cancelled",
+            ) or _is_completed_epic(slug, abandoned_slugs):
+                ep["is_action_required"] = False
+                ep["action_prompt"] = ""
+                ep["is_review_converged"] = False
+                ep["active_stage"] = ""
                 continue
             if active_epic and _normalize_slug(slug) == _normalize_slug(active_epic):
+                ep["active_stage"] = decision.stage_name
                 ep["is_action_required"] = decision.is_human_action_required
                 ep["action_prompt"] = (
                     decision.prompt if decision.is_human_action_required else ""
@@ -3252,9 +3316,23 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
                 ep["pipeline_telemetry"] = pipeline_telemetry
             else:
                 ep_pd = _match_pending_decision_for_epic(pd_snapshot, slug)
-                ep_act = bool(ep_pd and ep_pd.get("active", True) is True)
-                ep_prompt = str(ep_pd.get("reason", "")) if ep_act and ep_pd else ""
-                ep_conv = False
+                ep_decision = derive_lifecycle_state(
+                    repo_path, slug, pending_decision=ep_pd
+                )
+                ep["active_stage"] = ep_decision.stage_name
+                ep_act = (
+                    bool(ep_pd and ep_pd.get("active", True) is True)
+                    or ep_decision.is_human_action_required
+                )
+                ep_prompt = (
+                    str(ep_pd.get("reason", ""))
+                    if (ep_pd and ep_pd.get("active", True) is True)
+                    else ""
+                )
+                ep_conv = (
+                    ep_decision.stage_name
+                    == LifecycleStage.STAGE_3_PHASE_4_1_SIGNOFF.value
+                )
                 state_f = repo_path / ".devtool" / "state" / f"{slug}.md"
                 if state_f.is_file():
                     with contextlib.suppress(Exception):
@@ -3279,8 +3357,16 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
                         ):
                             ep_conv = True
                 ep["is_action_required"] = ep_act
-                if ep_prompt and not ep.get("action_prompt"):
-                    ep["action_prompt"] = ep_prompt
+                if ep_act:
+                    resolved_ep_prompt = (
+                        ep_prompt
+                        or str(ep.get("action_prompt") or "")
+                        or ep_decision.prompt
+                    )
+                    if resolved_ep_prompt:
+                        ep["action_prompt"] = resolved_ep_prompt
+                else:
+                    ep["action_prompt"] = ""
                 ep["is_review_converged"] = ep_conv
                 if ep.get("status") == "in_progress":
                     ep_tasks = [
@@ -3298,6 +3384,23 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
                         total_tasks=ep_tot,
                         pending_decision=ep_pd,
                     )
+
+            norm_slug = _normalize_slug(slug)
+            if (
+                slug
+                and ep.get("is_action_required") is True
+                and norm_slug not in seen_blockers
+            ):
+                action_blockers.append(
+                    {
+                        "epic": slug,
+                        "stage": str(ep.get("active_stage") or "Stage 1 (Inception)"),
+                        "reason": str(
+                            ep.get("action_prompt") or "Confirmation required"
+                        ),
+                    }
+                )
+                seen_blockers.add(norm_slug)
 
     return RepoMetadata(
         name=repo_path.name,
@@ -3320,6 +3423,7 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
         quality_active=quality_active,
         quality_runs=quality_runs,
         pipeline_telemetry=pipeline_telemetry,
+        action_blockers=action_blockers,
     )
 
 

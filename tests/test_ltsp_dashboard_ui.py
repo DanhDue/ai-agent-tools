@@ -12,6 +12,7 @@ Covers BDD Scenarios:
 
 from __future__ import annotations
 
+import copy
 import http.server
 import json
 import os
@@ -170,7 +171,7 @@ def test_ltsp_hp_05_stepper_substeps_logs_and_kanban_overview() -> None:
     exec_html = res["execHtml"]
     kanban_html = res["kanbanHtml"]
 
-    assert "9 / 9 Hoàn thành" in exec_html
+    assert "9 / 9 Completed" in exec_html
     assert "100%" in exec_html
     assert 'data-telemetry="pipeline-stepper"' in exec_html
     for stage_lbl in (
@@ -249,7 +250,7 @@ class TestLtspDashboardUi_Integration:
         assert res["tddState"]["pct"] == 80
         assert res["tddState"]["taskPct"] == 100
         assert res["signoffState"]["pct"] == 98
-        assert "4 / 4 Hoàn thành" in res["execHtml"]
+        assert "4 / 4 Completed" in res["execHtml"]
         assert "100%" in res["execHtml"]
         assert "92% Review" in res["execHtml"]
 
@@ -687,3 +688,429 @@ try {{
         assert "Integration Test" in res["qaFailHtml"]
         assert "failed" in res["qaFailHtml"].lower()
         assert "CIRCUIT_BREAKER_HALT" in res["cbHtml"]
+
+
+def test_four_location_confirmation_alerts_and_english_ui(tmp_path: Path) -> None:
+    """Verify all 4 confirmation alert locations, accurate secondary stage/reason isolation, full English UI labels, and clean in-place clearing via Chrome CDP."""
+    chrome_bin = _resolve_chrome_binary()
+    reason_text = "Resolve Principal Review blocker (FIX_LOOP on task_07)"
+
+    blocked_payload: dict[str, Any] = {
+        "timestamp": 1730001000,
+        "available_profiles": ["brother", "tess"],
+        "repos": [
+            {
+                "name": "lyrics-sync",
+                "path": "/tmp/ws/lyrics-sync",
+                "theme_color": "#ef4444",
+                "account_id": "brother",
+                "active_epic": "primary_auto_epic",
+                "active_stage": "Stage 3 (Implementation)",
+                "prompt": "Running Wave 2 TDD tasks",
+                "is_human_action_required": False,
+                "pending_decision": {
+                    "decisions": {
+                        "alignment_flow_hardening": {
+                            "active": True,
+                            "epic": "alignment_flow_hardening",
+                            "stage": "Stage 2 (HLD & Tasks)",
+                            "reason": reason_text,
+                        }
+                    }
+                },
+                "action_blockers": [
+                    {
+                        "epic": "alignment_flow_hardening",
+                        "stage": "Stage 2 (HLD & Tasks)",
+                        "reason": reason_text,
+                    }
+                ],
+                "worktrees": [
+                    {
+                        "path": "/tmp/ws/lyrics-sync",
+                        "branch": "main",
+                        "is_dirty": False,
+                        "dirty_file_count": 0,
+                    },
+                    {
+                        "path": "/tmp/ws/lyrics-sync/.worktrees/primary_auto_epic",
+                        "branch": "epic/primary_auto_epic",
+                        "is_dirty": True,
+                        "dirty_file_count": 2,
+                    },
+                    {
+                        "path": "/tmp/ws/lyrics-sync/.worktrees/alignment_flow_hardening",
+                        "branch": "epic/alignment_flow_hardening",
+                        "is_dirty": False,
+                        "dirty_file_count": 0,
+                    },
+                ],
+                "task_progress": {
+                    "total_tasks": 2,
+                    "done_tasks": 1,
+                    "in_progress_tasks": 1,
+                    "todo_tasks": 0,
+                    "percentage": 50.0,
+                    "task_completion_pct": 50.0,
+                    "tasks": [
+                        {
+                            "id": "task_01",
+                            "title": "Scaffold primary worker",
+                            "status": "done",
+                            "priority": "high",
+                            "epic": "primary_auto_epic",
+                        },
+                        {
+                            "id": "task_02",
+                            "title": "Implement sync adapter",
+                            "status": "in-progress",
+                            "priority": "high",
+                            "epic": "primary_auto_epic",
+                        },
+                    ],
+                },
+                "heartbeat": {
+                    "epic_slug": "primary_auto_epic",
+                    "active_wave": 2,
+                    "last_event": "Wave 2 slot 1 executing",
+                    "events": [
+                        {
+                            "ts": "2026-11-14T08:10:00Z",
+                            "stage": "Stage 3 (Implementation)",
+                            "sub_step": "tdd",
+                            "message": "Wave 2 slot 1 executing",
+                        }
+                    ],
+                },
+                "epics_summary": {
+                    "total": 2,
+                    "completed": 0,
+                    "in_progress": 2,
+                    "unstarted": 0,
+                    "abandoned": 0,
+                    "epics": [
+                        {
+                            "slug": "primary_auto_epic",
+                            "title": "Primary Auto Epic",
+                            "status": "in_progress",
+                            "active_stage": "Stage 3 (Implementation)",
+                            "is_action_required": False,
+                            "action_prompt": "",
+                            "task_count": 2,
+                            "pic": "brother",
+                        },
+                        {
+                            "slug": "alignment_flow_hardening",
+                            "title": "Alignment Flow Hardening",
+                            "status": "in_progress",
+                            "active_stage": "Stage 2 (HLD & Tasks)",
+                            "is_action_required": True,
+                            "action_prompt": reason_text,
+                            "task_count": 0,
+                            "pic": "tess",
+                        },
+                    ],
+                },
+            }
+        ],
+    }
+
+    cleared_payload = copy.deepcopy(blocked_payload)
+    cleared_payload["timestamp"] = 1730001050
+    cleared_repo = cleared_payload["repos"][0]
+    cleared_repo["action_blockers"] = []
+    cleared_repo["pending_decision"] = None
+    cleared_repo["is_human_action_required"] = False
+    cleared_repo["epics_summary"]["epics"][1]["is_action_required"] = False
+    cleared_repo["epics_summary"]["epics"][1]["action_prompt"] = ""
+    cleared_repo["epics_summary"]["epics"][1]["active_stage"] = (
+        "Stage 3 (Implementation)"
+    )
+
+    server = _MutableTasksServer(blocked_payload)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{server.server_port}/"
+    (tmp_path / "cdp_alerts.mjs").write_text(_NODE_CDP_HELPER, encoding="utf-8")
+
+    class _CtrlHandler(http.server.BaseHTTPRequestHandler):
+        def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
+            return
+
+        def do_POST(self) -> None:
+            if self.path.endswith("/clear"):
+                server.payload = cleared_payload
+            self.send_response(200)
+            self.end_headers()
+
+    ctrl_port = find_available_port(19980)
+    ctrl_server = http.server.ThreadingHTTPServer(
+        ("127.0.0.1", ctrl_port), _CtrlHandler
+    )
+    threading.Thread(target=ctrl_server.serve_forever, daemon=True).start()
+
+    cdp_script = rf"""
+import assert from 'node:assert/strict';
+import {{ launchHeadlessChromeCdp }} from {json.dumps(str(tmp_path / "cdp_alerts.mjs"))};
+
+const cdp = await launchHeadlessChromeCdp({json.dumps(chrome_bin)});
+try {{
+  await cdp.send('Page.navigate', {{ url: {json.dumps(url)} }});
+  let ready = false;
+  for (let i = 0; i < 50; i++) {{
+    ready = await cdp.evaluate(`Boolean(
+      document.querySelectorAll('#tier2-execution-epics-wrapper-lyrics-sync .epic-execution-item').length === 2 &&
+      document.querySelector('#epics-overview-counts-lyrics-sync') &&
+      document.querySelector('#kanban-dashboard-wrapper-lyrics-sync .epic-progress-item') &&
+      document.querySelector('#repo-tab-bar .repo-tab-btn[data-tab="lyrics-sync"]')
+    )`);
+    if (ready) break;
+    await new Promise((r) => setTimeout(r, 100));
+  }}
+  assert.ok(ready, 'Dashboard must render all sections for lyrics-sync in Chrome CDP');
+  await cdp.evaluate(`window.__alertNoReloadCanary = 'alive'`);
+
+  const beforeState = await cdp.evaluate(`(() => {{
+    const cards = Array.from(document.querySelectorAll('#tier2-execution-epics-wrapper-lyrics-sync .epic-execution-item'));
+    const primaryCard = cards.find((c) => c.innerText.includes('primary_auto_epic'));
+    const secondaryCard = cards.find((c) => c.innerText.includes('alignment_flow_hardening'));
+
+    const kanbanItems = Array.from(document.querySelectorAll('#kanban-dashboard-wrapper-lyrics-sync .epic-progress-item'));
+    const kanbanSec = kanbanItems.find((k) => k.innerText.includes('alignment_flow_hardening'));
+    const kanbanPri = kanbanItems.find((k) => k.innerText.includes('primary_auto_epic'));
+    const kanbanSecBadge = kanbanSec ? kanbanSec.querySelector('.tab-notification-badge') : null;
+
+    const repoTab = document.querySelector('#repo-tab-bar .repo-tab-btn[data-tab="lyrics-sync"]');
+    const tabDot = repoTab ? repoTab.querySelector('.tab-notification-badge') : null;
+    const tabConfirm = repoTab ? repoTab.querySelector('.tab-badge-confirm') : null;
+
+    const overviewWrap = document.getElementById('epics-overview-counts-lyrics-sync');
+    const blockersCard = overviewWrap ? overviewWrap.children[1] : null;
+    const metricsSummary = document.getElementById('metrics-summary');
+    const modalText = Array.from(document.querySelectorAll('.modal-backdrop')).map((m) => m.textContent).join(' ');
+
+    return {{
+      primaryText: primaryCard ? primaryCard.innerText : '',
+      secondaryText: secondaryCard ? secondaryCard.innerText : '',
+      kanbanSecStyleAttr: kanbanSec ? (kanbanSec.getAttribute('style') || '') : '',
+      kanbanSecBorderColor: kanbanSec ? getComputedStyle(kanbanSec).borderColor : '',
+      kanbanSecBadgeTitle: kanbanSecBadge ? (kanbanSecBadge.getAttribute('title') || '') : '',
+      kanbanPriHasBadge: Boolean(kanbanPri && kanbanPri.querySelector('.tab-notification-badge')),
+      hasTabDot: Boolean(tabDot),
+      tabConfirmText: tabConfirm ? tabConfirm.textContent.trim() : '',
+      overviewTextContent: overviewWrap ? overviewWrap.textContent : '',
+      blockersTextContent: blockersCard ? blockersCard.textContent : '',
+      blockersInnerText: blockersCard ? blockersCard.innerText : '',
+      blockersStyleAttr: blockersCard ? (blockersCard.getAttribute('style') || '') : '',
+      blockersBg: blockersCard ? getComputedStyle(blockersCard).backgroundColor : '',
+      blockersBorder: blockersCard ? getComputedStyle(blockersCard).borderColor : '',
+      metricsText: metricsSummary ? metricsSummary.textContent : '',
+      bodyInnerText: document.body.innerText,
+      modalText,
+    }};
+  }})()`);
+
+  // Location 1: Execution card banner isolation & accurate stage/reason
+  assert.match(beforeState.secondaryText, /HUMAN DECISION REQUIRED:/);
+  assert.ok(beforeState.secondaryText.includes({json.dumps(reason_text)}));
+  assert.ok(beforeState.secondaryText.includes('Action Required'));
+  assert.ok(beforeState.secondaryText.includes('Stage 2 (HLD & Tasks)'));
+  assert.equal(beforeState.secondaryText.includes('Đang xử lý theo worktree...'), false);
+  assert.equal(beforeState.secondaryText.includes('Stage 3 (Implementation)'), false);
+
+  assert.equal(beforeState.primaryText.includes('HUMAN DECISION REQUIRED:'), false);
+  assert.equal(beforeState.primaryText.includes('Action Required'), false);
+  assert.equal(beforeState.primaryText.includes({json.dumps(reason_text)}), false);
+  assert.ok(beforeState.primaryText.includes('Stage 3 (Implementation)'));
+
+  // Location 2: Kanban sidebar EPICS PROGRESS alert border, pulsing badge, English tooltip
+  assert.ok(
+    beforeState.kanbanSecStyleAttr.includes('#ef4444') || beforeState.kanbanSecBorderColor === 'rgb(239, 68, 68)',
+    `Expected #ef4444 alert border on Kanban epic item, got style=${{beforeState.kanbanSecStyleAttr}} computed=${{beforeState.kanbanSecBorderColor}}`,
+  );
+  assert.equal(beforeState.kanbanSecBadgeTitle, 'Epic requires user confirmation / approval');
+  assert.equal(beforeState.kanbanPriHasBadge, false);
+
+  // Location 3: Top Repo Selector Tab badge + Confirm pill
+  assert.equal(beforeState.hasTabDot, true);
+  assert.ok(beforeState.tabConfirmText.includes('Confirm'), `Expected Confirm badge text, got ${{beforeState.tabConfirmText}}`);
+
+  // Location 4: Overview Approval Blockers card
+  assert.ok(beforeState.blockersTextContent.includes('Approval Blockers'));
+  assert.ok(beforeState.blockersTextContent.includes('Action Required'));
+  assert.ok(beforeState.blockersTextContent.includes('Confirmation Required'));
+  assert.ok(beforeState.blockersTextContent.includes('alignment_flow_hardening'));
+  assert.ok(beforeState.blockersTextContent.includes({json.dumps(reason_text)}));
+  assert.equal(beforeState.blockersTextContent.includes('✓ Clear'), false);
+  assert.equal(beforeState.blockersTextContent.includes('No blocking gates'), false);
+  assert.equal(beforeState.blockersTextContent.includes('Thông Suốt'), false);
+  assert.ok(
+    beforeState.blockersStyleAttr.includes('239, 68, 68') || beforeState.blockersStyleAttr.includes('#ef4444') || beforeState.blockersStyleAttr.includes('127, 29, 29'),
+    `Expected crimson alert styling on Approval Blockers card, got ${{beforeState.blockersStyleAttr}}`,
+  );
+
+  // English UI titles & zero leaked Vietnamese UI headings
+  assert.ok(beforeState.metricsText.includes('Detected Repositories'));
+  assert.ok(beforeState.overviewTextContent.includes('Epics Overview'));
+  assert.ok(beforeState.bodyInnerText.includes('EPICS PROGRESS'));
+  assert.ok(beforeState.bodyInnerText.includes('Execution Logs'));
+  assert.ok(beforeState.bodyInnerText.includes('Current Task:'));
+  assert.ok(beforeState.bodyInnerText.includes('Task Progress:'));
+  assert.ok(beforeState.bodyInnerText.includes('Open IDE'));
+  assert.ok(beforeState.bodyInnerText.includes('Refresh'));
+
+  const leakedViPattern = /Điểm Nghẽn|Thông Suốt|TIẾN ĐỘ EPICS|Đang xử lý theo worktree|Bước tiếp theo con người|Nhật ký thực thi|Mở IDE|Cập nhật|Hoàn thành|Đã Phát Hiện/i;
+  assert.doesNotMatch(beforeState.bodyInnerText, leakedViPattern, 'Visible dashboard text must not leak Vietnamese UI strings');
+  assert.doesNotMatch(beforeState.metricsText, leakedViPattern, 'Metrics summary must not leak Vietnamese UI strings');
+  assert.doesNotMatch(beforeState.modalText, leakedViPattern, 'Modal markup must not leak Vietnamese UI strings');
+
+  // Clear all blockers and verify smooth in-place transition via pollDashboard()
+  const clearRes = await fetch({json.dumps(f"http://127.0.0.1:{ctrl_port}/clear")}, {{ method: 'POST' }});
+  assert.equal(clearRes.status, 200);
+  await cdp.evaluate(`pollDashboard()`);
+
+  const afterState = await cdp.evaluate(`(() => {{
+    const cards = Array.from(document.querySelectorAll('#tier2-execution-epics-wrapper-lyrics-sync .epic-execution-item'));
+    const secondaryCard = cards.find((c) => c.innerText.includes('alignment_flow_hardening'));
+    const primaryCard = cards.find((c) => c.innerText.includes('primary_auto_epic'));
+
+    const kanbanItems = Array.from(document.querySelectorAll('#kanban-dashboard-wrapper-lyrics-sync .epic-progress-item'));
+    const kanbanSec = kanbanItems.find((k) => k.innerText.includes('alignment_flow_hardening'));
+
+    const repoTab = document.querySelector('#repo-tab-bar .repo-tab-btn[data-tab="lyrics-sync"]');
+    const overviewWrap = document.getElementById('epics-overview-counts-lyrics-sync');
+    const blockersCard = overviewWrap ? overviewWrap.children[1] : null;
+
+    return {{
+      canary: window.__alertNoReloadCanary,
+      secondaryText: secondaryCard ? secondaryCard.innerText : '',
+      primaryText: primaryCard ? primaryCard.innerText : '',
+      kanbanSecHasBadge: Boolean(kanbanSec && kanbanSec.querySelector('.tab-notification-badge')),
+      kanbanSecStyleAttr: kanbanSec ? (kanbanSec.getAttribute('style') || '') : '',
+      hasTabDot: Boolean(repoTab && repoTab.querySelector('.tab-notification-badge')),
+      hasTabConfirm: Boolean(repoTab && repoTab.querySelector('.tab-badge-confirm')),
+      blockersTextContent: blockersCard ? blockersCard.textContent : '',
+    }};
+  }})()`);
+
+  assert.equal(afterState.canary, 'alive', 'Clearing blockers must update DOM in-place without page reload');
+  assert.equal(afterState.secondaryText.includes('HUMAN DECISION REQUIRED:'), false);
+  assert.equal(afterState.secondaryText.includes('Action Required'), false);
+  assert.ok(afterState.secondaryText.includes('Stage 3 (Implementation)'));
+  assert.equal(afterState.primaryText.includes('HUMAN DECISION REQUIRED:'), false);
+  assert.equal(afterState.kanbanSecHasBadge, false);
+  assert.equal(afterState.kanbanSecStyleAttr.includes('#ef4444'), false);
+  assert.equal(afterState.hasTabDot, false);
+  assert.equal(afterState.hasTabConfirm, false);
+  assert.ok(afterState.blockersTextContent.includes('✓ Clear'));
+  assert.ok(afterState.blockersTextContent.includes('No blocking gates'));
+  assert.ok(afterState.blockersTextContent.includes('Passed'));
+  assert.equal(afterState.blockersTextContent.includes('Confirmation Required'), false);
+  assert.equal(afterState.blockersTextContent.includes('Action Required'), false);
+
+  assert.deepEqual(cdp.consoleErrors, [], `Unexpected console errors: ${{cdp.consoleErrors}}`);
+  assert.deepEqual(cdp.runtimeExceptions, [], `Unexpected runtime exceptions: ${{cdp.runtimeExceptions}}`);
+  console.log(JSON.stringify({{ status: 'ok', canary: afterState.canary }}));
+}} finally {{
+  await cdp.close();
+}}
+"""
+    try:
+        res = _run_node_script(cdp_script, timeout=45)
+        assert res["status"] == "ok"
+    finally:
+        ctrl_server.shutdown()
+        ctrl_server.server_close()
+        server.shutdown()
+        server.server_close()
+
+
+def test_legacy_pending_decision_no_sibling_leak_and_inactive_exclusion() -> None:
+    """Verify legacy pending_decision without .epic does not leak onto sibling epics and completed/abandoned epics stay clear."""
+    res = _eval_dashboard_js(
+        r"""
+        const ctx = createDashboardContext();
+        const repo = {
+          name: 'lyrics-sync',
+          path: '/tmp/lyrics-sync',
+          active_epic: 'primary_auto_epic',
+          active_stage: 'Stage 2 (HLD & Tasks)',
+          is_human_action_required: true,
+          prompt: '',
+          pending_decision: {
+            active: true,
+            reason: 'Legacy Gate 2 Reason',
+          },
+          action_blockers: [
+            { epic: 'done_stale_epic', stage: 'Stage 2', reason: 'Stale done blocker' },
+            { epic: 'abandoned_stale_epic', stage: 'Stage 2', reason: 'Stale abandoned blocker' },
+          ],
+          worktrees: [
+            { path: '/tmp/lyrics-sync/.worktrees/primary_auto_epic', branch: 'feat/primary', is_dirty: false, dirty_file_count: 0 },
+            { path: '/tmp/lyrics-sync/.worktrees/sibling_auto_epic', branch: 'feat/sibling', is_dirty: false, dirty_file_count: 0 },
+          ],
+          task_progress: {
+            total_tasks: 2,
+            done_tasks: 1,
+            in_progress_tasks: 1,
+            todo_tasks: 0,
+            percentage: 50,
+            tasks: [],
+          },
+          epics_summary: {
+            total: 4,
+            in_progress: 2,
+            completed: 1,
+            abandoned: 1,
+            unstarted: 0,
+            epics: [
+              { slug: 'primary_auto_epic', title: 'Primary', status: 'in_progress', task_count: 2 },
+              { slug: 'sibling_auto_epic', title: 'Sibling', status: 'in_progress', task_count: 0 },
+              { slug: 'done_stale_epic', title: 'Done Stale', status: 'completed', is_action_required: true, action_prompt: 'Stale done prompt', task_count: 1 },
+              { slug: 'abandoned_stale_epic', title: 'Abandoned Stale', status: 'abandoned', is_action_required: true, action_prompt: 'Stale abandon prompt', task_count: 1 },
+            ],
+          },
+        };
+
+        const primaryProg = ctx.computeEpicProgressState(repo, 'primary_auto_epic', 2, 1, repo.epics_summary.epics[0]);
+        const siblingProg = ctx.computeEpicProgressState(repo, 'sibling_auto_epic', 0, 0, repo.epics_summary.epics[1]);
+        const doneProg = ctx.computeEpicProgressState(repo, 'done_stale_epic', 1, 1, repo.epics_summary.epics[2]);
+        const abandonedProg = ctx.computeEpicProgressState(repo, 'abandoned_stale_epic', 1, 0, repo.epics_summary.epics[3]);
+        const blockers = ctx.collectRepoActionBlockers(repo);
+        const execHtml = ctx.renderExecutionEpics(repo);
+        const roadmapHtml = ctx.renderRoadmapTableRows(repo);
+        console.log(JSON.stringify({ primaryProg, siblingProg, doneProg, abandonedProg, blockers, execHtml, roadmapHtml }));
+        """
+    )
+
+    assert res["primaryProg"]["epNeedsConfirm"] is True
+    assert res["primaryProg"]["hasPendingDecision"] is True
+    assert res["primaryProg"]["matchingBlocker"]["reason"] == "Legacy Gate 2 Reason"
+
+    assert res["siblingProg"]["epNeedsConfirm"] is False
+    assert res["siblingProg"]["hasPendingDecision"] is False
+    assert res["siblingProg"]["matchingBlocker"] is None
+
+    assert res["doneProg"]["epNeedsConfirm"] is False
+    assert res["doneProg"]["isFullyDone"] is True
+    assert res["doneProg"]["matchingBlocker"] is None
+
+    assert res["abandonedProg"]["epNeedsConfirm"] is False
+    assert res["abandonedProg"]["isFullyDone"] is False
+    assert res["abandonedProg"]["matchingBlocker"] is None
+
+    assert [b["epic"] for b in res["blockers"]] == ["primary_auto_epic"]
+
+    exec_html = res["execHtml"]
+    sibling_idx = exec_html.index("sibling_auto_epic")
+    sibling_slice = exec_html[sibling_idx:]
+    assert "Active worktree execution" in sibling_slice
+    assert "Legacy Gate 2 Reason" not in sibling_slice
+    assert "Human Decision Required:" not in sibling_slice
+
+    roadmap_html = res["roadmapHtml"]
+    done_row = roadmap_html[roadmap_html.index("done_stale_epic") :].split("</tr>")[0]
+    abandoned_row = roadmap_html[roadmap_html.index("abandoned_stale_epic") :].split(
+        "</tr>"
+    )[0]
+    assert "tab-notification-badge" not in done_row
+    assert "tab-notification-badge" not in abandoned_row

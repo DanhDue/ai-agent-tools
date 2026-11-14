@@ -312,7 +312,7 @@ try {{
 
   // Phase 1: Wave 2 Task Implementation (8/9 tasks)
   const sec2Wave = await cdp.evaluate(`document.getElementById('tier2-execution-epics-wrapper-ai-agent-tools').innerText`);
-  assert.match(sec2Wave, /8\s*\/\s*9\s*Hoàn thành/);
+  assert.match(sec2Wave, /8\s*\/\s*9\s*Completed/);
   assert.match(sec2Wave, /Wave 2/);
 
   // Phase 2: All Tasks Done (9/9 · 100%) running Quality Check (PyCore / Unit Test 3/5)
@@ -322,7 +322,7 @@ try {{
 
   const sec2Qa = await cdp.evaluate(`document.getElementById('tier2-execution-epics-wrapper-ai-agent-tools').innerText`);
   const kanbanQa = await cdp.evaluate(`document.getElementById('kanban-dashboard-wrapper-ai-agent-tools').innerText`);
-  assert.match(sec2Qa, /9\s*\/\s*9\s*Hoàn thành/);
+  assert.match(sec2Qa, /9\s*\/\s*9\s*Completed/);
   assert.match(sec2Qa, /100%/);
   assert.match(sec2Qa, /PyCore \/ Unit Test/);
   assert.match(sec2Qa, /Static Lint/);
@@ -358,7 +358,7 @@ try {{
   const marker = await cdp.evaluate(`window.__ltspNoReloadMarker`);
 
   assert.equal(marker, 'alive', 'Must update Section II in-place without reloading page');
-  assert.match(sec2Rev, /9\s*\/\s*9\s*Hoàn thành/);
+  assert.match(sec2Rev, /9\s*\/\s*9\s*Completed/);
   assert.match(sec2Rev, /100%/);
   assert.match(sec2Rev, /Round 1\/3/);
   assert.match(sec2Rev, /Verifying/);
@@ -668,8 +668,8 @@ class TestLifecycleTelemetryAndStageProgress_Integration:
         )
         assert "epic_alpha" in res["execHtml"]
         assert "epic_beta" in res["execHtml"]
-        assert "4 / 4 Hoàn thành" in res["execHtml"]
-        assert "0 / 0 Hoàn thành" in res["execHtml"] or "0%" in res["execHtml"]
+        assert "4 / 4 Completed" in res["execHtml"]
+        assert "0 / 0 Completed" in res["execHtml"] or "0%" in res["execHtml"]
 
     def test_ltsp_fr_03_corrupted_review_and_heartbeat_recovery(
         self, tmp_path: Path

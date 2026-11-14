@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -401,6 +401,20 @@
       background: rgba(0, 0, 0, 0.45);
       border: 1px solid rgba(255, 255, 255, 0.2);
       color: #fbbf24;
+    }
+
+    .tab-badge-confirm {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      white-space: nowrap;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 9999px;
+      background: rgba(245, 158, 11, 0.22);
+      border: 1px solid rgba(251, 191, 36, 0.65);
+      color: #fde68a;
     }
 
     /* Mobile App Bottom Navigation Style Notification Badge */
@@ -860,20 +874,20 @@
   <!-- Human-Essential Aggregate Metrics Row (Hidden per user preference) -->
   <section class="metrics-summary-row" id="metrics-summary" style="display: none !important;">
     <div class="summary-card" style="border-left-color: #38bdf8;">
-      <div class="label">Repositories Đã Phát Hiện</div>
+      <div class="label">Detected Repositories</div>
       <div class="value" id="stat-repos-count">4 Repos</div>
     </div>
     <div class="summary-card" style="border-left-color: #10b981;">
-      <div class="label">Active Epics Đang Chạy</div>
+      <div class="label">Active Epics Running</div>
       <div class="value" id="stat-epics-count">4 Epics</div>
     </div>
     <div class="summary-card" style="border-left-color: #fbbf24;">
-      <div class="label">Kanban Tasks Hoàn Thành</div>
+      <div class="label">Kanban Tasks Completed</div>
       <div class="value" id="stat-tasks-progress">24 / 32 Done (75%)</div>
     </div>
     <div class="summary-card" style="border-left-color: #a855f7;">
-      <div class="label">Worktrees Hoạt Động</div>
-      <div class="value" id="stat-worktrees-count">5 Phân lập</div>
+      <div class="label">Active Worktrees</div>
+      <div class="value" id="stat-worktrees-count">5 Isolated</div>
     </div>
   </section>
 
@@ -882,11 +896,11 @@
   <div class="top-tabs-row">
     <nav class="repo-tab-bar" id="repo-tab-bar" aria-label="4 Repos Focus Tabs"></nav>
     <div class="top-actions">
-      <button onclick="openQuotaModal()" class="btn-action-neutral btn-quota-top" title="Mở Antigravity Quota Dashboard (Dialog)">
+      <button onclick="openQuotaModal()" class="btn-action-neutral btn-quota-top" title="Open Antigravity Quota Dashboard (Dialog)">
         <span>⚡</span> Check Quota
       </button>
       <button onclick="refreshDashboard()" class="btn-action-neutral">
-        <span>🔄</span> Cập nhật
+        <span>🔄</span> Refresh
       </button>
     </div>
   </div>
@@ -894,7 +908,7 @@
   <!-- Detailed Single-Repo Page View Container (Active Focused Repo) -->
   <main id="repo-detail-view" style="display: block; margin-bottom: 24px;">
     <div id="loading-state" class="repo-card" style="text-align: center; padding: 40px; color: #94a3b8; font-size: 13px; border: 1px dashed #334155; border-radius: 12px; background: #131722;">
-      <span>⏳ Đang tải dữ liệu repository và worktrees từ server...</span>
+      <span>⏳ Loading repository and worktree data from server...</span>
     </div>
   </main>
 
@@ -905,21 +919,21 @@
   <!-- MODAL DIALOGS                                                  -->
   <!-- ============================================================== -->
 
-  <!-- MODAL 0: EPICS LIST DIALOG (Đọc từ Repo Gốc) -->
+  <!-- MODAL 0: EPICS LIST DIALOG (Read from Root Repo) -->
   <div id="modal-epics" class="modal-backdrop">
     <div class="modal-box" style="border-color: #38bdf8; max-width: 1000px;">
       <div class="modal-header">
         <div style="display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 18px;">📦</span>
           <div>
-            <div id="epics-modal-title" style="font-size: 15px; font-weight: 700; color: #f8fafc;">Danh Sách Epics Dự Án (Đọc từ Repo Gốc)</div>
-            <div id="epics-modal-subtitle" style="font-size: 11px; color: #94a3b8; font-family: monospace;">Tổng quan trạng thái Epics: Đã hoàn thành • Đang thực hiện • Chưa thực hiện</div>
+            <div id="epics-modal-title" style="font-size: 15px; font-weight: 700; color: #f8fafc;">Project Epics List (Read from Root Repo)</div>
+            <div id="epics-modal-subtitle" style="font-size: 11px; color: #94a3b8; font-family: monospace;">Epics Status Overview: Completed • In Progress • Backlog</div>
           </div>
         </div>
         <button onclick="closeLiveModal('modal-epics')" class="modal-close-btn">✕</button>
       </div>
       <div class="modal-body" id="epics-modal-body" style="padding: 16px;">
-        <div style="text-align: center; color: #94a3b8; padding: 20px;">Đang tải danh sách epics...</div>
+        <div style="text-align: center; color: #94a3b8; padding: 20px;">Loading epics list...</div>
       </div>
     </div>
   </div>
@@ -931,14 +945,14 @@
         <div style="display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 18px;">📊</span>
           <div>
-            <div id="kanban-modal-title" style="font-size: 15px; font-weight: 700; color: #f8fafc;">Bảng Kanban Tasks (Pop-up Modal Dialog)</div>
-            <div id="kanban-modal-subtitle" style="font-size: 11px; color: #94a3b8; font-family: monospace;">Đồng bộ từ các tệp task_*.md • Mở bởi nút [ 📊 Xem Kanban ]</div>
+            <div id="kanban-modal-title" style="font-size: 15px; font-weight: 700; color: #f8fafc;">Kanban Tasks Board (Pop-up Modal Dialog)</div>
+            <div id="kanban-modal-subtitle" style="font-size: 11px; color: #94a3b8; font-family: monospace;">Synced from task_*.md files • Opened via [ 📊 View Kanban ]</div>
           </div>
         </div>
         <button onclick="closeLiveModal('modal-kanban')" class="modal-close-btn">✕</button>
       </div>
       <div class="modal-body" id="kanban-modal-body" style="padding: 16px;">
-        <div style="text-align: center; color: #94a3b8; padding: 30px;">Đang tải dữ liệu Kanban...</div>
+        <div style="text-align: center; color: #94a3b8; padding: 30px;">Loading Kanban data...</div>
       </div>
     </div>
   </div>
@@ -950,23 +964,23 @@
         <div style="display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 18px;">🧠</span>
           <div>
-            <div style="font-size: 15px; font-weight: 700; color: #f8fafc;">Bộ Nhớ Hai Tầng: PROJECT_LEDGER vs Assistant State</div>
-            <div style="font-size: 11px; color: #94a3b8; font-family: monospace;">Mở bởi nút [ 🧠 Xem Contexts ] • Zero Page Reload</div>
+            <div style="font-size: 15px; font-weight: 700; color: #f8fafc;">Two-Tier Memory: PROJECT_LEDGER vs Assistant State</div>
+            <div style="font-size: 11px; color: #94a3b8; font-family: monospace;">Opened via [ 🧠 View Contexts ] • Zero Page Reload</div>
           </div>
         </div>
         <button onclick="closeLiveModal('modal-context')" class="modal-close-btn">✕</button>
       </div>
       <div class="modal-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
         <div style="background: #141b2d; border-radius: 0 8px 8px 0; border-left: 3px solid #10b981; padding: 14px;">
-          <h4 style="color: #34d399; font-size: 13px; margin-bottom: 8px;">Tầng 1: PROJECT_LEDGER.md (Vĩnh viễn)</h4>
+          <h4 style="color: #34d399; font-size: 13px; margin-bottom: 8px;">Tier 1: PROJECT_LEDGER.md (Permanent)</h4>
           <pre id="context-ledger-content" style="font-size: 11px; color: #cbd5e1; background: #080a0f; padding: 10px; border-radius: 6px; overflow-x: auto; font-family: monospace;">
-- Bất biến: Tri-Role Governance Model
+- Invariant: Tri-Role Governance Model
 - Milestone 2026-11-10: check-quota CLI & Web UI
 - Milestone 2026-11-11: check-tasks Specification
           </pre>
         </div>
         <div style="background: #141b2d; border-radius: 0 8px 8px 0; border-left: 3px solid #38bdf8; padding: 14px;">
-          <h4 style="color: #38bdf8; font-size: 13px; margin-bottom: 8px;">Tầng 2: In-Flight State & Gate Ledger</h4>
+          <h4 style="color: #38bdf8; font-size: 13px; margin-bottom: 8px;">Tier 2: In-Flight State & Gate Ledger</h4>
           <pre id="context-state-content" style="font-size: 11px; color: #cbd5e1; background: #080a0f; padding: 10px; border-radius: 6px; overflow-x: auto; font-family: monospace;">
 - Gate 1: PASS (2026-11-11 07:12)
 - Gate 2: PASS (2026-11-11 07:25)
@@ -986,8 +1000,8 @@
         <div style="display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 18px;">🛡️</span>
           <div>
-            <div style="font-size: 15px; font-weight: 700; color: #fde047;">Kết Quả Principal Review (Stage 2 HLD/Tasks Triage)</div>
-            <div style="font-size: 11px; color: #94a3b8; font-family: monospace;">Mở bởi nút [ 🛡️ Principal Review ] • .devtool/epic/.../principal_review.md</div>
+            <div style="font-size: 15px; font-weight: 700; color: #fde047;">Principal Review Results (Stage 2 HLD/Tasks Triage)</div>
+            <div style="font-size: 11px; color: #94a3b8; font-family: monospace;">Opened via [ 🛡️ Principal Review ] • .devtool/epic/.../principal_review.md</div>
           </div>
         </div>
         <button onclick="closeLiveModal('modal-principal-review')" class="modal-close-btn">✕</button>
@@ -995,7 +1009,7 @@
       
       <div style="padding: 14px 20px; background: #161a23; border-bottom: 1px solid #282f40;">
         <ul style="list-style: none; padding: 0; margin: 0; font-size: 12px; line-height: 1.7; color: #cbd5e1;">
-          <li>• Scope: <strong style="color: #ffffff;">HLD, BDD Scenarios & Kanban Tasks</strong> đối chiếu mã nguồn</li>
+          <li>• Scope: <strong style="color: #ffffff;">HLD, BDD Scenarios & Kanban Tasks</strong> verified against source code</li>
           <li>• Reviewer: <strong style="color: #ffffff;">Claude CLI</strong> ( model <code style="background: #242b3b; color: #fde68a; padding: 1px 6px; border-radius: 4px; font-family: monospace;">sonnet</code> ) • Thinking: <strong style="color: #ffffff;">High</strong></li>
           <li>• Verdict: <strong style="color: #34d399;">CONVERGED (PASS)</strong> (0 Critical, 0 Important remaining)</li>
         </ul>
@@ -1003,7 +1017,7 @@
 
       <div class="modal-body">
         <div style="background: #1e2330; border-radius: 0 6px 6px 0; border-left: 3px solid #10b981; padding: 12px; color: #e2e8f0; font-size: 12px;">
-          <strong style="color: #34d399;">✓ Round 3 Hoàn tất:</strong> Tất cả các phát hiện đã được khắc phục và đóng dấu quyết định trong <code>principal_review.md</code>. Sẵn sàng cho Stage 3!
+          <strong style="color: #34d399;">✓ Round 3 Complete:</strong> All findings have been resolved and stamped in <code>principal_review.md</code>. Ready for Stage 3!
         </div>
       </div>
     </div>
@@ -1016,8 +1030,8 @@
         <div style="display: flex; align-items: center; gap: 10px;">
           <span id="review-header-icon" style="font-size: 18px;">🔬</span>
           <div>
-            <div id="cross-review-title" style="font-size: 15px; font-weight: 700; color: #f8fafc;">Kết Quả Review</div>
-            <div id="cross-review-subtitle" style="font-size: 11px; color: #94a3b8; font-family: monospace;">Bảng Triage 6 cột • Zero Page Reload</div>
+            <div id="cross-review-title" style="font-size: 15px; font-weight: 700; color: #f8fafc;">Review Results</div>
+            <div id="cross-review-subtitle" style="font-size: 11px; color: #94a3b8; font-family: monospace;">6-Column Triage Table • Zero Page Reload</div>
           </div>
         </div>
         <button onclick="closeLiveModal('modal-cross-review')" class="modal-close-btn">✕</button>
@@ -1056,7 +1070,7 @@
             <tbody id="review-findings-body">
               <tr>
                 <td colspan="6" style="padding: 50px; text-align: center; color: #94a3b8;">
-                  Đang tải dữ liệu review...
+                  Loading review data...
                 </td>
               </tr>
             </tbody>
@@ -1066,10 +1080,10 @@
         <!-- Expandable Raw Evidence Drawer -->
         <details style="background: #141720; border: 1px solid #282f40; border-radius: 8px; padding: 8px 12px; margin-top: auto;">
           <summary style="font-size: 11px; font-weight: 700; color: #fde68a; cursor: pointer; user-select: none;">
-            📄 Evidence / Raw Output (Bằng chứng nguyên văn)
+            📄 Evidence / Raw Output (Verbatim Evidence)
           </summary>
           <pre id="review-raw-evidence" style="margin-top: 8px; font-size: 11px; color: #94a3b8; background: #0c0f17; padding: 10px; border-radius: 6px; overflow-x: auto; font-family: monospace; white-space: pre-wrap; max-height: 180px;">
-Đang tải dữ liệu bằng chứng...
+Loading evidence data...
           </pre>
         </details>
       </div>
@@ -1086,7 +1100,7 @@
   <!-- Toast Notification -->
   <div id="toast">
     <span id="toast-icon">ℹ️</span>
-    <span id="toast-text">Thông báo</span>
+    <span id="toast-text">Notification</span>
   </div>
 
   <script>
@@ -1097,10 +1111,10 @@
     let currentReposData = [];
 
     const defaultNotes = {
-      'ai-agent-tools': '1. Kiểm tra kĩ Rule 9 subshell isolation.\n2. Tối ưu hóa auto-indexing notes input box.',
-      'lyrics-sync': '1. Hoàn thành Task 7 (Benchmark Video Evaluators).\n2. Chạy full unit tests 152/152 PASS.',
-      'D3Nexus': '1. Phê duyệt Handoff sang Stage 3 hoặc Principal Review.',
-      'nexus': '1. Chờ Human Architect phê duyệt Gate 3.'
+      'ai-agent-tools': '1. Verify Rule 9 subshell isolation.\n2. Optimize auto-indexing notes input box.',
+      'lyrics-sync': '1. Complete Task 7 (Benchmark Video Evaluators).\n2. Run full unit tests 152/152 PASS.',
+      'D3Nexus': '1. Approve handoff to Stage 3 or Principal Review.',
+      'nexus': '1. Await Human Architect Gate 3 approval.'
     };
 
     /* ============================================================== */
@@ -1265,7 +1279,7 @@
         localStorage.setItem('check_tasks_antigravity_note_' + repo, text);
         const indicator = document.getElementById('note-saved-' + repo);
         if (indicator) {
-          indicator.textContent = 'Đã lưu ✓';
+          indicator.textContent = 'Saved ✓';
           indicator.style.color = '#10b981';
         }
         const countEl = document.getElementById('tab-note-count-' + repo);
@@ -1279,20 +1293,20 @@
       if (!textarea) return;
       const textToCopy = textarea.value.trim();
       if (!textToCopy) {
-        showToast('⚠️ Không có ghi chú để copy', 'warning');
+        showToast('⚠️ No notes to copy', 'warning');
         return;
       }
       navigator.clipboard.writeText(textToCopy).then(() => {
         const originalText = btn.innerHTML;
-        btn.innerHTML = '<span>✓</span> Đã copy';
+        btn.innerHTML = '<span>✓</span> Copied';
         btn.style.color = '#34d399';
         setTimeout(() => {
           btn.innerHTML = originalText;
           btn.style.color = '';
         }, 1500);
-        showToast('📋 Đã copy ghi chú vào clipboard', 'success');
+        showToast('📋 Notes copied to clipboard', 'success');
       }).catch(() => {
-        showToast('❌ Lỗi copy clipboard', 'danger');
+        showToast('❌ Failed to copy to clipboard', 'danger');
       });
     }
 
@@ -1302,7 +1316,7 @@
         textarea.value = '';
         autoResizeTextarea(textarea);
         saveRepoNoteText(repo, '');
-        showToast('🗑️ Đã xoá ghi chú ' + repo, 'info');
+        showToast('🗑️ Cleared notes for ' + repo, 'info');
       }
     }
 
@@ -1404,7 +1418,7 @@
           card.style.boxShadow = '';
         }, 400);
         saveReposOrder();
-        showToast('📌 Đã đưa ' + repoId + ' lên đầu', 'success');
+        showToast('📌 Pinned ' + repoId + ' to top', 'success');
       }
     }
 
@@ -1467,13 +1481,13 @@
       .then(data => {
         if (data.status === 'ok') {
           const cmd = data.command || ((action === 'ide' ? profile + ' ' : profile + '-cli ') + toTildePath(worktree));
-          showToast((action === 'ide' ? '🚀 Đã mở IDE: ' : '💻 Đã mở CLI: ') + (Array.isArray(cmd) ? cmd.join(' ') : cmd), 'success');
+          showToast((action === 'ide' ? '🚀 Opened IDE: ' : '💻 Opened CLI: ') + (Array.isArray(cmd) ? cmd.join(' ') : cmd), 'success');
         } else {
-          showToast('❌ Lỗi khởi chạy: ' + (data.error || 'Unknown error'), 'danger');
+          showToast('❌ Launch error: ' + (data.error || 'Unknown error'), 'danger');
         }
       })
       .catch(err => {
-        showToast((action === 'ide' ? '🚀 Đang kích hoạt IDE...' : '💻 Đang kích hoạt CLI...'), 'info');
+        showToast((action === 'ide' ? '🚀 Launching IDE...' : '💻 Launching CLI...'), 'info');
       });
     }
 
@@ -1543,7 +1557,7 @@
         setTimeout(() => {
           iframe.src = nextSrc;
         }, 100);
-        showToast('🔄 Đang làm mới Quota Dashboard...', 'info');
+        showToast('🔄 Refreshing Quota Dashboard...', 'info');
       }
     }
 
@@ -1654,7 +1668,7 @@
       
       const hasPic = Boolean(currentPic && currentPic !== 'None' && currentPic !== 'null' && currentPic !== '—');
 
-      let options = `<option value="" style="color: #64748b;" ${!hasPic ? 'selected' : ''}>+ Gán PIC...</option>`;
+      let options = `<option value="" style="color: #64748b;" ${!hasPic ? 'selected' : ''}>+ Assign PIC...</option>`;
       profileSet.forEach(p => {
         if (p === 'default') return;
         const isSel = (p === currentPic) ? 'selected' : '';
@@ -1670,7 +1684,7 @@
                 data-repo="${escapeHtml(repoName)}"
                 data-epic="${escapeHtml(epicSlug)}"
                 data-current-pic="${escapeHtml(currentPic || '')}"
-                title="${hasPic ? 'Người phụ trách (PIC): @' + escapeHtml(currentPic) + ' • Click để đổi' : 'Chưa có PIC • Click để gán người phụ trách'}">
+                title="${hasPic ? 'Person In Charge (PIC): @' + escapeHtml(currentPic) + ' • Click to change' : 'Unassigned PIC • Click to assign owner'}">
           ${options}
         </select>
       `;
@@ -1687,7 +1701,7 @@
       pendingPicSelections[rowKey] = newPic;
       applyPicToRepoModel(repo, epicSlug, newPic);
       applyPicToRepoModel(pendingRoadmapRenderRepos[repoName], epicSlug, newPic);
-      showToast(`⏳ Đang gán PIC @${newPic} cho Epic ${epicSlug}...`, 'info');
+      showToast(`⏳ Assigning PIC @${newPic} to Epic ${epicSlug}...`, 'info');
 
       return fetch(getApiUrl('/api/epic/pic'), {
         method: 'POST',
@@ -1702,7 +1716,7 @@
       .then(data => {
         delete pendingPicSelections[rowKey];
         if (data.status === 'ok') {
-          showToast(`✅ Đã gán PIC @${newPic} cho Epic ${epicSlug}! (Cập nhật ${data.updated_files ? data.updated_files.length : 0} vị trí)`, 'success');
+          showToast(`✅ Assigned PIC @${newPic} to Epic ${epicSlug}! (Updated ${data.updated_files ? data.updated_files.length : 0} locations)`, 'success');
           const latestRepo = (currentReposData || []).find(r => r.name === repoName);
           applyPicToRepoModel(latestRepo, epicSlug, newPic);
           applyPicToRepoModel(pendingRoadmapRenderRepos[repoName], epicSlug, newPic);
@@ -1722,14 +1736,14 @@
         } else {
           if (prevEp) prevEp.pic = prevPic;
           if (repo && repo.active_epic === epicSlug) repo.account_id = prevAcc;
-          showToast(`❌ Lỗi gán PIC: ${data.error || 'Unknown error'}`, 'danger');
+          showToast(`❌ Failed to assign PIC: ${data.error || 'Unknown error'}`, 'danger');
         }
       })
       .catch(err => {
         delete pendingPicSelections[rowKey];
         if (prevEp) prevEp.pic = prevPic;
         if (repo && repo.active_epic === epicSlug) repo.account_id = prevAcc;
-        showToast(`❌ Không thể kết nối server để gán PIC`, 'danger');
+        showToast(`❌ Could not connect to server to assign PIC`, 'danger');
       });
     }
 
@@ -1754,7 +1768,7 @@
       if (!text) return;
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(() => {
-          showToast('📋 Đã copy: ' + text, 'success');
+          showToast('📋 Copied: ' + text, 'success');
           if (btn) {
             const orig = btn.innerHTML;
             btn.innerHTML = '<span style="color: #34d399; font-weight: 700; font-size: 11px;">✓</span>';
@@ -1775,14 +1789,14 @@
       ta.select();
       try {
         document.execCommand('copy');
-        showToast('📋 Đã copy: ' + text, 'success');
+        showToast('📋 Copied: ' + text, 'success');
         if (btn) {
           const orig = btn.innerHTML;
           btn.innerHTML = '<span style="color: #34d399; font-weight: 700; font-size: 11px;">✓</span>';
           setTimeout(() => { btn.innerHTML = orig; }, 1500);
         }
       } catch (e) {
-        showToast('❌ Không thể copy tự động', 'warning');
+        showToast('❌ Could not copy automatically', 'warning');
       }
       document.body.removeChild(ta);
     }
@@ -2006,14 +2020,100 @@
       }
     }
 
+    function slugsMatch(a, b) {
+      if (!a || !b) return false;
+      if (a === b) return true;
+      return String(a).replace(/[-_]/g, '') === String(b).replace(/[-_]/g, '');
+    }
+
+    function collectRepoActionBlockers(repo) {
+      if (!repo || typeof repo !== 'object') return [];
+      const blockers = [];
+      const epSummaryList = Array.isArray(repo.epics_summary?.epics) ? repo.epics_summary.epics : [];
+      const isEpicInactiveCategory = (slug) => {
+        if (!slug) return false;
+        const matchedEp = epSummaryList.find(ep => slugsMatch(ep.slug, slug));
+        if (!matchedEp) return false;
+        const cat = getEpicStatusCategory(matchedEp.status);
+        return cat === 'done' || cat === 'abandon';
+      };
+
+      const addBlocker = (epic, stage, reason) => {
+        const epName = String(epic || '').trim();
+        const stg = String(stage || '').trim();
+        const rsn = String(reason || '').trim();
+        const existing = blockers.find(b => (
+          (epName && b.epic && slugsMatch(b.epic, epName)) ||
+          (!epName && !b.epic)
+        ));
+        if (existing) {
+          if (!existing.stage && stg) existing.stage = stg;
+          if (!existing.reason && rsn) existing.reason = rsn;
+          return;
+        }
+        blockers.push({ epic: epName, stage: stg, reason: rsn });
+      };
+
+      if (Array.isArray(repo.action_blockers)) {
+        repo.action_blockers.forEach(b => {
+          if (!b || typeof b !== 'object') return;
+          const bEpic = String(b.epic || repo.active_epic || repo.name || '').trim();
+          if (isEpicInactiveCategory(bEpic)) return;
+          addBlocker(bEpic, b.stage || '', b.reason || '');
+        });
+      }
+
+      const pd = repo.pending_decision;
+      if (pd && typeof pd === 'object') {
+        if (pd.decisions && typeof pd.decisions === 'object' && Object.keys(pd.decisions).length > 0) {
+          Object.entries(pd.decisions).forEach(([key, val]) => {
+            if (!val || typeof val !== 'object' || val.active !== true) return;
+            const ep = String(val.epic || key || '').trim();
+            if (isEpicInactiveCategory(ep)) return;
+            addBlocker(ep, val.stage || '', val.reason || val.prompt || '');
+          });
+        } else if (pd.active === true) {
+          const ep = String(pd.epic || repo.active_epic || repo.name || '').trim();
+          if (!isEpicInactiveCategory(ep)) {
+            addBlocker(ep, pd.stage || repo.active_stage || '', pd.reason || pd.prompt || repo.prompt || '');
+          }
+        }
+      }
+
+      epSummaryList.forEach(ep => {
+        if (!ep || typeof ep !== 'object') return;
+        const cat = getEpicStatusCategory(ep.status);
+        if (cat === 'done' || cat === 'abandon') return;
+        if (ep.is_action_required === true) {
+          addBlocker(ep.slug || '', ep.active_stage || '', ep.action_prompt || '');
+        }
+      });
+
+      if (repo.is_human_action_required === true) {
+        const primaryEpic = String(repo.active_epic || repo.name || '').trim();
+        const alreadyPresent = blockers.some(b => slugsMatch(b.epic, primaryEpic));
+        if (!alreadyPresent && !isEpicInactiveCategory(primaryEpic)) {
+          addBlocker(primaryEpic, repo.active_stage || '', repo.prompt || '');
+        }
+      }
+
+      return blockers;
+    }
+
     function renderRepoTabs(repos) {
       const bar = document.getElementById('repo-tab-bar');
       if (!bar) return;
 
-      const tabsSig = FOCUSED_REPOS.map(name => {
+      const tabEntries = FOCUSED_REPOS.map(name => {
         const r = (repos || []).find(x => x.name === name);
-        return [name, r?.epics_summary?.in_progress, r?.active_epic, r?.prompt, r?.is_human_action_required, activeFocusTab === name, getRepoNoteCount(getRepoNoteText(name))];
-      }).flat().join('|');
+        const blockers = r ? collectRepoActionBlockers(r) : [];
+        return { name, repo: r, blockers };
+      });
+
+      const tabsSig = tabEntries.map(({ name, repo: r, blockers }) => {
+        const blockerSig = blockers.map(b => `${b.epic}:${b.reason}`).join(',');
+        return [name, r?.epics_summary?.in_progress, r?.active_epic, r?.prompt, r?.is_human_action_required, blockerSig, activeFocusTab === name, getRepoNoteCount(getRepoNoteText(name))].join('~');
+      }).join('|');
 
       if (bar.dataset.sig === tabsSig) {
         return; // Zero DOM mutation when tabs data has not changed!
@@ -2021,12 +2121,10 @@
       bar.dataset.sig = tabsSig;
 
       let html = '';
-      FOCUSED_REPOS.forEach(name => {
-        const r = (repos || []).find(x => x.name === name);
+      tabEntries.forEach(({ name, repo: r, blockers }) => {
         const theme = REPO_THEMES[name];
         const inProgressEpics = r?.epics_summary?.in_progress || (r?.active_epic ? 1 : 0);
-        const prompt = r?.prompt || '';
-        const needsConfirm = (r?.is_human_action_required === true);
+        const needsConfirm = blockers.length > 0;
 
         const isActive = activeFocusTab === name;
         const activeClass = isActive ? `active active-${name}` : '';
@@ -2040,8 +2138,9 @@
             <span class="tab-badges">
               <span class="tab-badge-doing">⚡ ${inProgressEpics} Doing</span>
               <span class="tab-badge-notes" id="tab-note-count-${name}">📝 ${getRepoNoteCount(getRepoNoteText(name))} Notes</span>
+              ${needsConfirm ? `<span class="tab-badge-confirm" title="Confirmation / approval required">⚠️ ${blockers.length} Confirm</span>` : ''}
             </span>
-            ${needsConfirm ? `<span class="tab-notification-badge" title="Có thông tin cần bạn xác nhận / phê duyệt"></span>` : ''}
+            ${needsConfirm ? `<span class="tab-notification-badge" title="Confirmation / approval required"></span>` : ''}
           </button>
         `;
       });
@@ -2049,33 +2148,36 @@
       bar.innerHTML = html;
     }
 
-    function slugsMatch(a, b) {
-      if (!a || !b) return false;
-      if (a === b) return true;
-      return String(a).replace(/[-_]/g, '') === String(b).replace(/[-_]/g, '');
-    }
-
     function computeEpicProgressState(repo, slug, totalCount, doneCount, summaryEp, fallbackDone = false) {
       const isPrimaryActive = slugsMatch(repo.active_epic, slug);
-      const isFullyDone = Boolean(fallbackDone || summaryEp?.status === 'done');
-      const hasPendingDecision = Boolean(
-        repo.pending_decision &&
-        repo.pending_decision.active === true &&
-        (!repo.pending_decision.epic || slugsMatch(repo.pending_decision.epic, slug))
-      );
+      const summaryCat = getEpicStatusCategory(summaryEp?.status);
+      const isEpicInactive = Boolean(fallbackDone || summaryCat === 'done' || summaryCat === 'abandon');
+      const isFullyDone = Boolean(fallbackDone || summaryCat === 'done');
+      const blockers = collectRepoActionBlockers(repo);
+      const matchingBlocker = isEpicInactive ? null : (blockers.find(b => slugsMatch(b.epic, slug)) || null);
+      const hasPendingDecision = Boolean(matchingBlocker);
       const epNeedsConfirm = Boolean(
-        summaryEp?.is_action_required === true ||
-        (isPrimaryActive && (repo.is_human_action_required === true || hasPendingDecision))
+        !isEpicInactive && (
+          matchingBlocker ||
+          summaryEp?.is_action_required === true
+        )
       );
-      const stageStr = String(repo.active_stage || '');
-      const promptStr = String(repo.prompt || '');
+      const stageStr = String(summaryEp?.active_stage || (matchingBlocker && matchingBlocker.stage) || (isPrimaryActive ? repo.active_stage : '') || '');
+      const promptStr = String(summaryEp?.action_prompt || (matchingBlocker && matchingBlocker.reason) || (isPrimaryActive ? repo.prompt : '') || '');
       const isWaitingFinish = Boolean(
-        summaryEp?.is_review_converged === true ||
-        (isPrimaryActive && (
+        !isEpicInactive && (
+          summaryEp?.is_review_converged === true ||
           stageStr.includes('Waiting Finish') ||
+          stageStr.includes('Waiting /finish') ||
+          stageStr.includes('Chờ /finish') ||
           stageStr.includes('Sign-off') ||
-          (epNeedsConfirm && (promptStr.includes('Gate 5') || promptStr.includes('/finish')))
-        ))
+          (epNeedsConfirm && (
+            promptStr.includes('Gate 5') ||
+            promptStr.includes('/finish') ||
+            promptStr.includes('Waiting /finish') ||
+            promptStr.includes('Chờ /finish')
+          ))
+        )
       );
 
       const pipelineTelemetry = summaryEp?.pipeline_telemetry || (isPrimaryActive ? repo.pipeline_telemetry : null) || null;
@@ -2139,9 +2241,11 @@
 
       return {
         isPrimaryActive,
+        isEpicInactive,
         isFullyDone,
         epNeedsConfirm,
         hasPendingDecision,
+        matchingBlocker,
         isWaitingFinish,
         pct,
         taskPct,
@@ -2313,7 +2417,7 @@
         const cIdx = phaseOrder.indexOf(curPhase);
         [
           ['reviewing', 'Reviewing'],
-          ['triage', 'Lập bảng triage'],
+          ['triage', 'Create Triage Table'],
           ['fixing', 'Fix findings'],
           ['verifying', 'Verifying'],
         ].forEach(([pId, pLbl], idx) => {
@@ -2379,7 +2483,7 @@
           index: 6,
           label: '6. Finish',
           status: s6Status,
-          summary: isDone ? 'Merged' : (isWaitFinish ? 'Chờ /finish' : 'Pending Gate 5'),
+          summary: isDone ? 'Merged' : (isWaitFinish ? 'Waiting /finish' : 'Pending Gate 5'),
           sub_steps: [],
         },
       ];
@@ -2492,8 +2596,8 @@
       const eventLogsHtml = events.length > 0 ? `
         <div data-telemetry="event-logs" style="background: rgba(15, 23, 42, 0.55); border: 1px solid #1e293b; border-radius: 4px; padding: 6px 10px; margin-bottom: 10px;">
           <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #94a3b8; margin-bottom: 4px;">
-            <span style="font-weight: 700; color: #cbd5e1;">📋 Nhật ký thực thi (${events.length})</span>
-            ${events.length > 4 ? `<button onclick="toggleEpicEventLogs('${escapeHtml(epicKey)}')" style="background: transparent; border: none; color: #38bdf8; font-size: 10px; cursor: pointer; font-family: monospace; padding: 0;">${isExpanded ? 'Thu gọn ▴' : `Xem tất cả ${events.length} logs ▾`}</button>` : ''}
+            <span style="font-weight: 700; color: #cbd5e1;">📋 Execution Logs (${events.length})</span>
+            ${events.length > 4 ? `<button onclick="toggleEpicEventLogs('${escapeHtml(epicKey)}')" style="background: transparent; border: none; color: #38bdf8; font-size: 10px; cursor: pointer; font-family: monospace; padding: 0;">${isExpanded ? 'Collapse ▴' : `View all ${events.length} logs ▾`}</button>` : ''}
           </div>
           <div style="display: flex; flex-direction: column; gap: 3px; max-height: ${isExpanded ? '180px' : '90px'}; overflow-y: auto; font-family: monospace; font-size: 10px;">
             ${visibleEvents.map(ev => {
@@ -2565,8 +2669,8 @@
         return `
           <div style="background: #141724; border: 1px dashed #374151; border-radius: 6px; padding: 28px; text-align: center; color: #94a3b8;">
             <span style="font-size: 20px; display: block; margin-bottom: 6px;">☕</span>
-            <strong style="color: #cbd5e1; font-size: 13px;">Hiện tại không có Epic nào đang triển khai worktree</strong>
-            <p style="font-size: 11px; color: #64748b; margin-top: 4px;">Human Architect có thể lên ý tưởng và tạo Epic mới tại Tầng 1 bên trên để bắt đầu phân lập worktree thực thi.</p>
+            <strong style="color: #cbd5e1; font-size: 13px;">No Epics are currently executing in a worktree</strong>
+            <p style="font-size: 11px; color: #64748b; margin-top: 4px;">Human Architect can brainstorm and create a new Epic in Tier 1 above to start isolated worktree execution.</p>
           </div>
         `;
       }
@@ -2580,6 +2684,7 @@
         const doneCount = epicTasks.length > 0 ? epicTasks.filter(t => t.status === 'done').length : (slugsMatch(repo.active_epic, slug) ? (repo.task_progress?.done_tasks || 0) : 0);
 
         const progState = computeEpicProgressState(repo, slug, totalCount, doneCount, epicMeta);
+        const matchingBlocker = progState.matchingBlocker;
         const isPrimaryActive = progState.isPrimaryActive;
         const progressPct = progState.pct;
 
@@ -2594,29 +2699,29 @@
         // Active task name
         const inProgTask = epicTasks.find(t => t.status === 'in-progress' || t.status === 'review');
         const nextTodoTask = epicTasks.find(t => t.status === 'todo' || t.status === 'backlog');
-        let activeTaskName = inProgTask ? inProgTask.title : (nextTodoTask ? nextTodoTask.title : (totalCount > 0 && doneCount === totalCount ? 'Tất cả tasks đã hoàn thành ✓' : 'Đang thiết lập tasks...'));
+        let activeTaskName = inProgTask ? inProgTask.title : (nextTodoTask ? nextTodoTask.title : (totalCount > 0 && doneCount === totalCount ? 'All tasks completed ✓' : 'Setting up tasks...'));
         if (isPrimaryActive && repo.task_progress?.active_task_name) {
           activeTaskName = repo.task_progress.active_task_name;
         }
 
-        const stageName = isPrimaryActive ? (repo.active_stage || 'Stage 1 (Inception)') : (epicMeta?.status === 'in_progress' ? 'Stage 3 (Implementation)' : 'Stage 1 (Inception)');
-        const decisionReason = progState.hasPendingDecision && repo.pending_decision?.reason ? String(repo.pending_decision.reason) : '';
-        const promptText = isPrimaryActive ? (decisionReason || repo.prompt || 'Đang thực thi...') : 'Đang xử lý theo worktree...';
+        const stageName = epicMeta?.active_stage || (matchingBlocker && matchingBlocker.stage) || (isPrimaryActive ? repo.active_stage : '') || (epicMeta?.status === 'in_progress' ? 'Stage 3 (Implementation)' : 'Stage 1 (Inception)');
+        const promptText = (matchingBlocker && matchingBlocker.reason) || (epicMeta && epicMeta.action_prompt) || (isPrimaryActive ? (repo.prompt || 'Executing...') : 'Active worktree execution');
         const hasPromptActionWords = (
           promptText.includes('Approve') || promptText.includes('Phê duyệt') ||
           promptText.includes('Review Choice') || promptText.includes('Lựa chọn') ||
           promptText.includes('Chờ Bạn Chọn') || promptText.includes('Confirm') ||
           promptText.includes('Action Required')
         );
-        const isActionReq = progState.epNeedsConfirm || (
-          isPrimaryActive && repo.is_human_action_required !== false && hasPromptActionWords
+        const isActionReq = !progState.isEpicInactive && Boolean(
+          progState.epNeedsConfirm ||
+          (isPrimaryActive && repo.is_human_action_required !== false && hasPromptActionWords)
         );
         const telemetryHtml = renderLiveTelemetryBanner(repo, slug, isPrimaryActive);
         const pipelineHtml = renderPipelineStepperAndLogs(repo, slug, isPrimaryActive, progState, doneCount, totalCount);
         const pctLabelHtml = progState.isFullyDone
           ? '<span style="color: #10b981; font-weight: 700;">100% ✓ Done</span>'
           : (progState.isWaitingFinish
-            ? `<span style="color: #fbbf24; font-weight: 700;">${progressPct}% ⚠️ Chờ /finish</span>`
+            ? `<span style="color: #fbbf24; font-weight: 700;">${progressPct}% ⚠️ Waiting /finish</span>`
             : (progressPct >= 88 && progressPct <= 96
               ? `<span style="color: #38bdf8; font-weight: 700;">⚡ ${progressPct}% Review</span>`
               : `<span style="color: #10b981; font-weight: 700;">${progressPct}%</span>`));
@@ -2632,11 +2737,11 @@
               <div>
                 <div style="font-size: 15px; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
                   <span>⚡ Epic: <strong style="color: ${color};">${escapeHtml(slug)}</strong></span>
-                  <span style="font-size: 11px; font-weight: 400; font-family: monospace; color: #94a3b8;">👤 PIC: <strong style="color: #c084fc; background: rgba(192, 132, 252, 0.12); border: 1px solid #c084fc; padding: 1px 6px; border-radius: 4px;">${pic ? '@' + escapeHtml(pic) : 'Chưa gán'}</strong></span>
+                  <span style="font-size: 11px; font-weight: 400; font-family: monospace; color: #94a3b8;">👤 PIC: <strong style="color: #c084fc; background: rgba(192, 132, 252, 0.12); border: 1px solid #c084fc; padding: 1px 6px; border-radius: 4px;">${pic ? '@' + escapeHtml(pic) : 'Unassigned'}</strong></span>
                 </div>
                 <div style="font-size: 11px; color: #94a3b8; font-family: monospace; margin-top: 4px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
                   <span>🌲 Worktree: <strong style="color: #cbd5e1;">${escapeHtml(toTildePath(wtPath))}</strong>${epicWt ? ` (${escapeHtml(wtDirty)})` : ''}</span>
-                  <button onclick="copyFolderToClipboard('${escapeHtml(toTildePath(wtPath))}', this)" title="Copy đường dẫn worktree" style="background: transparent; border: none; cursor: pointer; color: #94a3b8; padding: 0; display: inline-flex; align-items: center; line-height: 1;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#94a3b8'">
+                  <button onclick="copyFolderToClipboard('${escapeHtml(toTildePath(wtPath))}', this)" title="Copy worktree path" style="background: transparent; border: none; cursor: pointer; color: #94a3b8; padding: 0; display: inline-flex; align-items: center; line-height: 1;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#94a3b8'">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                   </button>
                 </div>
@@ -2649,12 +2754,12 @@
               </div>
             </div>
 
-            <!-- Action Required Alert Banner (nếu có điểm nghẽn phê duyệt) -->
+            <!-- Action Required Alert Banner (when approval blocker exists) -->
             ${isActionReq ? `
               <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 4px; padding: 8px 12px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <span style="font-size: 14px;">🚨</span>
-                  <span style="font-size: 11px; font-weight: 700; color: #fca5a5; text-transform: uppercase; letter-spacing: 0.05em;">Bước tiếp theo con người cần quyết định:</span>
+                  <span style="font-size: 11px; font-weight: 700; color: #fca5a5; text-transform: uppercase; letter-spacing: 0.05em;">Human Decision Required:</span>
                   <strong style="font-size: 12px; color: #fef2f2; font-weight: 700;">${escapeHtml(promptText)}</strong>
                 </div>
                 <span style="font-size: 10px; background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid #ef4444; padding: 2px 6px; border-radius: 4px; font-weight: 700;">Action Required</span>
@@ -2664,21 +2769,21 @@
             ${telemetryHtml}
             ${pipelineHtml}
 
-            <!-- Row 2: Tasks hiện tại là gì & Bước tiếp theo -->
+            <!-- Row 2: Current task & Next step -->
             <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid #1e293b; border-radius: 4px; padding: 8px 12px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
               <div style="font-size: 12px; color: #cbd5e1; display: flex; align-items: center; gap: 6px;">
-                <span style="color: ${color}; font-weight: 700;">📌 Task hiện tại:</span>
+                <span style="color: ${color}; font-weight: 700;">📌 Current Task:</span>
                 <span style="font-weight: 600; color: #f1f5f9;">${escapeHtml(activeTaskName)}</span>
               </div>
               <div style="font-size: 11px; color: #94a3b8;">
-                ${!isActionReq ? `✓ Bước tiếp theo: <strong style="color: #cbd5e1;">${escapeHtml(promptText)}</strong>` : `Trạng thái: <strong style="color: #f87171;">Tạm dừng chờ quyết định</strong>`}
+                ${!isActionReq ? `✓ Next Step: <strong style="color: #cbd5e1;">${escapeHtml(promptText)}</strong>` : `Status: <strong style="color: #f87171;">Paused awaiting decision</strong>`}
               </div>
             </div>
 
-            <!-- Row 3: Tiến độ là bao nhiêu % -->
+            <!-- Row 3: Task & Lifecycle Progress -->
             <div style="margin-bottom: 12px;">
               <div style="display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; margin-bottom: 4px; font-weight: 600;">
-                <span>Tiến độ Tasks: <strong style="color: #f1f5f9;">${doneCount} / ${totalCount} Hoàn thành (${progState.taskPct}%${progState.taskPct === 100 ? ' ✓' : ''})</strong></span>
+                <span>Task Progress: <strong style="color: #f1f5f9;">${doneCount} / ${totalCount} Completed (${progState.taskPct}%${progState.taskPct === 100 ? ' ✓' : ''})</strong></span>
                 ${pctLabelHtml}
               </div>
               <div style="background: #1e293b; border-radius: 4px; height: 6px; overflow: hidden;">
@@ -2686,19 +2791,19 @@
               </div>
             </div>
 
-            <!-- Row 4: Actions button để mở IDE, xem principal review, cross model review -->
+            <!-- Row 4: Action buttons to open IDE, Principal Review, and Cross-Model Review -->
             <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1e293b; padding-top: 10px; flex-wrap: wrap; gap: 8px;">
               <div style="display: flex; gap: 6px; align-items: center;">
                 <button onclick="triggerLaunch('ide', '${escapeHtml(wtPath)}', '${escapeHtml(picLaunch)}')" 
                         class="btn-action-primary" 
                         style="background: ${color}; border-color: ${theme.border}; font-size: 11px; padding: 5px 12px; border-radius: 4px;" 
-                        title="Mở Antigravity IDE trong worktree với Profile: @${escapeHtml(picLaunch)}">
-                  <span>🚀</span> Mở IDE (@${escapeHtml(picLaunch)})
+                        title="Open Antigravity IDE in worktree with Profile: @${escapeHtml(picLaunch)}">
+                  <span>🚀</span> Open IDE (@${escapeHtml(picLaunch)})
                 </button>
                 <button onclick="triggerLaunch('cli', '${escapeHtml(wtPath)}', '${escapeHtml(picLaunch)}')" 
                         class="btn-action-neutral" 
                         style="font-size: 11px; padding: 5px 10px; border-radius: 4px;" 
-                        title="Mở Terminal CLI">
+                        title="Open Terminal CLI">
                   <span>💻</span> CLI
                 </button>
               </div>
@@ -2707,13 +2812,13 @@
                 <button onclick="openReviewModal('${escapeHtml(repo.name)}', '${escapeHtml(slug)}', 1, 'principal')" 
                         class="btn-action-neutral" 
                         style="font-size: 11px; padding: 5px 12px; border-radius: 4px;"
-                        title="Xem kết quả Principal Review">
+                        title="View Principal Review results">
                   <span>🛡️</span> Principal Review
                 </button>
                 <button onclick="openReviewModal('${escapeHtml(repo.name)}', '${escapeHtml(slug)}', 1, 'cross-model')" 
                         class="btn-action-neutral" 
                         style="font-size: 11px; padding: 5px 12px; border-radius: 4px;"
-                        title="Xem kết quả Cross-Model Review">
+                        title="View Cross-Model Review results">
                   <span>🔬</span> Cross-Model Review
                 </button>
               </div>
@@ -2843,7 +2948,7 @@
         if (isFullyDone) {
           statusText = '<span style="color: #10b981; font-weight: 700;">✓ Done</span>';
         } else if (isWaitingFinish) {
-          statusText = '<span style="color: #f87171; font-weight: 700;">⚠️ Chờ /finish</span>';
+          statusText = '<span style="color: #f87171; font-weight: 700;">⚠️ Waiting /finish</span>';
         } else if (pct >= 88 && pct <= 96) {
           statusText = `<span style="color: #38bdf8; font-weight: 700;">⚡ ${pct}% Review</span>`;
         } else if (ep.in_progress > 0 && ep.review > 0) {
@@ -2855,12 +2960,12 @@
         }
 
         const synthPt = synthesizePipelineTelemetry(repo, ep.slug, progState.isPrimaryActive, progState, ep.done, ep.total);
-        const kanbanStageSummary = String(synthPt.active_sub_step_summary || repo.active_stage || '');
+        const kanbanStageSummary = String(synthPt.active_sub_step_summary || summaryEp?.active_stage || (progState.isPrimaryActive ? repo.active_stage : '') || '');
 
         return `
           <div class="epic-progress-item" 
                onclick="onFilterKanbanBoard('${escapeHtml(repo.name)}', '${isSelected ? 'all' : escapeHtml(ep.slug)}')"
-               title="Lọc Kanban theo: ${escapeHtml(ep.title || ep.slug)} (${pct}%)"
+               title="Filter Kanban by: ${escapeHtml(ep.title || ep.slug)} (${pct}%)"
                style="cursor: pointer; padding: 7px 9px; border-radius: 6px; background: ${isSelected ? 'rgba(56, 189, 248, 0.12)' : '#0d111a'}; border: 1px solid ${isSelected ? '#38bdf8' : (epNeedsConfirm ? '#ef4444' : '#1e2638')}; transition: all 0.15s ease; position: relative;">
             
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; gap: 6px;">
@@ -2868,7 +2973,7 @@
                 <span style="font-size: 11px; font-weight: 600; color: ${isSelected ? '#38bdf8' : '#e2e8f0'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(ep.title || ep.slug)}">
                   ${escapeHtml(ep.slug)}
                 </span>
-                ${epNeedsConfirm ? `<span class="tab-notification-badge" style="position: static; display: inline-block; width: 8px; height: 8px; flex-shrink: 0;" title="Epic cần bạn xác nhận / phê duyệt"></span>` : ''}
+                ${epNeedsConfirm ? `<span class="tab-notification-badge" style="position: static; display: inline-block; width: 8px; height: 8px; flex-shrink: 0;" title="Epic requires user confirmation / approval"></span>` : ''}
               </span>
               <span style="font-size: 10px; font-weight: 700; color: ${pctColor}; font-family: monospace; white-space: nowrap;">
                 ${pct}%
@@ -3033,7 +3138,7 @@
             ${epicsList.length > 0 ? `
             <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid #1e2638; display: flex; flex-direction: column; gap: 8px;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 10px; font-weight: 800; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;">TIẾN ĐỘ EPICS</span>
+                <span style="font-size: 10px; font-weight: 800; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;">EPICS PROGRESS</span>
                 <span style="font-size: 10px; font-weight: 700; color: #94a3b8; font-family: monospace;">${epicsList.length}</span>
               </div>
               <div style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; padding-right: 2px;" class="custom-scroll">
@@ -3044,11 +3149,11 @@
 
             ${uniqueEpics.length > 1 ? `
             <div style="margin-top: auto; padding-top: 16px; border-top: 1px solid #1e2638;">
-              <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 6px;">Lọc theo Epic:</div>
+              <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 6px;">Filter by Epic:</div>
               <select id="kanban-epic-filter-${escapeHtml(repo.name)}" 
                       onchange="onFilterKanbanBoard('${escapeHtml(repo.name)}', this.value)"
                       class="custom-select select-epic-filter">
-                <option value="all" ${(!selectedEpicFilter || selectedEpicFilter === 'all') ? 'selected' : ''}>⚡ Tất cả Epics (${allTasks.length})</option>
+                <option value="all" ${(!selectedEpicFilter || selectedEpicFilter === 'all') ? 'selected' : ''}>⚡ All Epics (${allTasks.length})</option>
                 ${epicsFilterOptions}
               </select>
             </div>
@@ -3072,12 +3177,16 @@
         stg: repo.active_stage || null,
         req: Boolean(repo.is_human_action_required),
         prompt: repo.prompt || null,
+        pd: repo.pending_decision || null,
+        ab: collectRepoActionBlockers(repo),
         hb: repo.heartbeat || null,
         qa: repo.quality_active || null,
         pt: repo.pipeline_telemetry || null,
         ep: (repo.epics_summary?.epics || []).map(e => [
           e.slug,
           e.status,
+          e.active_stage || '',
+          e.action_prompt || '',
           Boolean(e.is_review_converged),
           Boolean(e.is_action_required),
           e.pipeline_telemetry || null,
@@ -3088,7 +3197,8 @@
 
     function buildOverviewSig(repo) {
       const epicsSummary = repo.epics_summary || { total: 0, completed: 0, in_progress: 0, unstarted: 0, abandoned: 0 };
-      return `${epicsSummary.in_progress}|${epicsSummary.unstarted}|${epicsSummary.completed}|${epicsSummary.abandoned || 0}|${epicsSummary.total}|${repo.prompt || ''}|${Boolean(repo.is_human_action_required)}`;
+      const blockerSig = collectRepoActionBlockers(repo).map(b => `${b.epic}|${b.stage}|${b.reason}`).join(';');
+      return `${epicsSummary.in_progress}|${epicsSummary.unstarted}|${epicsSummary.completed}|${epicsSummary.abandoned || 0}|${epicsSummary.total}|${repo.prompt || ''}|${Boolean(repo.is_human_action_required)}|${blockerSig}`;
     }
 
     function buildRoadmapSig(repo) {
@@ -3097,6 +3207,7 @@
       return JSON.stringify({
         act: repo.active_epic || null,
         req: Boolean(repo.is_human_action_required),
+        ab: collectRepoActionBlockers(repo).map(b => `${b.epic}|${b.reason}`),
         e: sorted.map(e => [
           `${repo.name}:${e.slug}`,
           e.status,
@@ -3115,6 +3226,7 @@
         acc: repo.account_id || null,
         prompt: repo.prompt || null,
         req: Boolean(repo.is_human_action_required),
+        ab: collectRepoActionBlockers(repo),
         tp: {
           total: tp.total_tasks || 0,
           done: tp.done_tasks || 0,
@@ -3134,6 +3246,8 @@
           e.slug,
           e.status,
           e.pic || '',
+          e.active_stage || '',
+          e.action_prompt || '',
           Boolean(e.is_action_required),
           Boolean(e.is_review_converged),
           e.pipeline_telemetry || null,
@@ -3202,15 +3316,15 @@
 
     function renderEpicsOverviewAndApprovalGate(repo) {
       const epicsSummary = repo.epics_summary || { total: 0, completed: 0, in_progress: 0, unstarted: 0, abandoned: 0, epics: [] };
-      const promptText = repo.prompt || 'Kho lưu trữ đang ở trạng thái nghỉ (Idle)';
-      const needsConfirm = (repo.is_human_action_required === true);
+      const blockers = collectRepoActionBlockers(repo);
+      const needsConfirm = blockers.length > 0;
 
       return `
-        <!-- KHỐI 1: TỔNG QUAN VỀ EPICS -->
+        <!-- BLOCK 1: EPICS OVERVIEW -->
         <div style="background: #141722; border: 1px solid #1e2638; border-radius: 8px; padding: 14px 18px; display: flex; flex-direction: column; justify-content: space-between;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #1e2638; padding-bottom: 8px;">
             <span style="font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
-              <span>📦</span> Tổng Quan Về Epics (${epicsSummary.total} Epics)
+              <span>📦</span> Epics Overview (${epicsSummary.total} Epics)
             </span>
             <span style="font-size: 11px; color: #64748b; font-family: monospace;">.devtool/epic/</span>
           </div>
@@ -3220,38 +3334,38 @@
             <div style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #fbbf24; border-radius: 6px; padding: 8px 12px;">
               <div style="font-size: 10px; color: #fbbf24; font-weight: 700; text-transform: uppercase;">1. In-Progress</div>
               <div style="font-size: 20px; font-weight: 800; color: #fbbf24; margin-top: 2px;">${epicsSummary.in_progress}</div>
-              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Đang thực hiện</div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">In Progress</div>
             </div>
 
             <!-- 2. Backlog -->
             <div style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #38bdf8; border-radius: 6px; padding: 8px 12px;">
               <div style="font-size: 10px; color: #38bdf8; font-weight: 700; text-transform: uppercase;">2. Backlog</div>
               <div style="font-size: 20px; font-weight: 800; color: #38bdf8; margin-top: 2px;">${epicsSummary.unstarted}</div>
-              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Chưa làm / Hàng đợi</div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Queued / Backlog</div>
             </div>
 
             <!-- 3. Done -->
             <div style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #10b981; border-radius: 6px; padding: 8px 12px;">
               <div style="font-size: 10px; color: #34d399; font-weight: 700; text-transform: uppercase;">3. Done</div>
               <div style="font-size: 20px; font-weight: 800; color: #10b981; margin-top: 2px;">${epicsSummary.completed}</div>
-              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Đã hoàn thành</div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Completed</div>
             </div>
 
             <!-- 4. Abandon -->
             <div style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #ef4444; border-radius: 6px; padding: 8px 12px;">
               <div style="font-size: 10px; color: #f87171; font-weight: 700; text-transform: uppercase;">4. Abandon</div>
               <div style="font-size: 20px; font-weight: 800; color: #ef4444; margin-top: 2px;">${epicsSummary.abandoned || 0}</div>
-              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Đã gác lại / Hủy</div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Shelved / Cancelled</div>
             </div>
 
           </div>
         </div>
 
-        <!-- KHỐI 2: ĐIỂM NGHẼN CẦN PHÊ DUYỆT -->
-        <div style="background: #141722; border: 1px solid #1e2638; border-radius: 8px; padding: 14px 18px; display: flex; flex-direction: column; justify-content: space-between;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #1e2638; padding-bottom: 8px;">
-            <span style="font-size: 11px; font-weight: 800; color: ${needsConfirm ? '#f87171' : '#94a3b8'}; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
-              <span>${needsConfirm ? '🚨' : '🛡️'}</span> Điểm Nghẽn Cần Phê Duyệt
+        <!-- BLOCK 2: APPROVAL BLOCKERS -->
+        <div style="background: ${needsConfirm ? 'rgba(127, 29, 29, 0.22)' : '#141722'}; border: 1px solid ${needsConfirm ? 'rgba(239, 68, 68, 0.55)' : '#1e2638'}; border-radius: 8px; padding: 14px 18px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid ${needsConfirm ? 'rgba(239, 68, 68, 0.35)' : '#1e2638'}; padding-bottom: 8px;">
+            <span style="font-size: 11px; font-weight: 800; color: ${needsConfirm ? '#fca5a5' : '#94a3b8'}; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+              <span>${needsConfirm ? '🚨' : '🛡️'}</span> Approval Blockers
             </span>
             <span style="font-size: 10px; font-weight: 700; background: ${needsConfirm ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.15)'}; color: ${needsConfirm ? '#fca5a5' : '#34d399'}; border: 1px solid ${needsConfirm ? '#ef4444' : '#10b981'}; padding: 1px 6px; border-radius: 4px;">
               ${needsConfirm ? 'Action Required' : 'Passed'}
@@ -3259,11 +3373,21 @@
           </div>
           <div style="margin-top: 2px;">
             <div style="font-size: 16px; font-weight: 800; color: ${needsConfirm ? '#f87171' : '#34d399'};">
-              ${needsConfirm ? 'Cần Bạn Xác Nhận' : '✓ Thông Suốt'}
+              ${needsConfirm ? 'Confirmation Required' : '✓ Clear'}
             </div>
-            <div style="font-size: 11px; color: ${needsConfirm ? '#fca5a5' : '#64748b'}; margin-top: 4px; line-height: 1.4; font-family: monospace;">
-              ${needsConfirm ? escapeHtml(repo.prompt || 'Có gate chờ duyệt') : 'Không có gate nghẽn'}
-            </div>
+            ${needsConfirm ? `
+              <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px; max-height: 76px; overflow-y: auto;">
+                ${blockers.map(b => `
+                  <div style="font-size: 11px; color: #fecaca; line-height: 1.35; font-family: monospace; background: rgba(127, 29, 29, 0.35); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 4px; padding: 3px 6px;">
+                    <strong style="color: #fef2f2;">${escapeHtml(b.epic || repo.name || 'Epic')}</strong>${b.stage ? ` <span style="color: #fca5a5;">[${escapeHtml(b.stage)}]</span>` : ''}: ${escapeHtml(b.reason || 'Confirmation required')}
+                  </div>
+                `).join('')}
+              </div>
+            ` : `
+              <div style="font-size: 11px; color: #64748b; margin-top: 4px; line-height: 1.4; font-family: monospace;">
+                No blocking gates
+              </div>
+            `}
           </div>
         </div>
       `;
@@ -3273,8 +3397,9 @@
       const epicsSummary = repo.epics_summary || { total: 0, completed: 0, in_progress: 0, unstarted: 0, abandoned: 0, epics: [] };
       const sorted = sortEpicsForRoadmap(epicsSummary.epics || [], repo.active_epic);
       if (!sorted || sorted.length === 0) {
-        return `<tr><td colspan="5" style="text-align: center; color: #64748b; padding: 20px;">Không có danh sách Epics.</td></tr>`;
+        return `<tr><td colspan="5" style="text-align: center; color: #64748b; padding: 20px;">No Epics found.</td></tr>`;
       }
+      const repoBlockers = collectRepoActionBlockers(repo);
       return sorted.map(e => {
         const cat = getEpicStatusCategory(e.status);
         let badgeColor = '#94a3b8';
@@ -3299,8 +3424,10 @@
           stLabel = (e.status === 'packaged') ? '📦 Packaged' : '📋 Backlog';
         }
 
-        const isEpicDone = (cat === 'done' || e.status === 'done');
+        const isEpicDone = (cat === 'done');
+        const isEpicAbandon = (cat === 'abandon');
         const isCur = !isEpicDone && (repo.active_epic === e.slug);
+        const epicHasBlocker = !isEpicDone && !isEpicAbandon && repoBlockers.some(b => slugsMatch(b.epic, e.slug));
         const updatedStr = e.last_updated_human || (e.last_updated ? e.last_updated.substring(0, 10) : '—');
         const rowKey = `${repo.name}:${e.slug}`;
         return `
@@ -3314,7 +3441,7 @@
               <span style="display: inline-flex; align-items: center; gap: 6px;">
                 <span>${escapeHtml(e.slug)}</span>
                 ${isCur ? '<span style="color: #38bdf8; font-size: 9px;">(Active)</span>' : ''}
-                ${(!isEpicDone && (e.is_action_required || (isCur && repo.is_human_action_required))) ? `<span class="tab-notification-badge" style="position: static; display: inline-block; width: 8px; height: 8px; flex-shrink: 0;" title="Epic có thông tin cần bạn xác nhận / phê duyệt"></span>` : ''}
+                ${epicHasBlocker ? `<span class="tab-notification-badge" style="position: static; display: inline-block; width: 8px; height: 8px; flex-shrink: 0;" title="Epic requires user confirmation / approval"></span>` : ''}
               </span>
             </td>
             <td style="padding: 8px 12px; color: #94a3b8; font-size: 11px; font-family: monospace; white-space: nowrap;" title="${escapeHtml(e.last_updated || '')}">
@@ -3333,7 +3460,7 @@
 
       const repo = (currentReposData || []).find(r => r.name === repoName);
       if (!repo) {
-        container.innerHTML = `<div class="repo-card" style="text-align: center; color: #94a3b8; padding: 40px;">Đang tải thông tin chi tiết cho ${escapeHtml(repoName)}...</div>`;
+        container.innerHTML = `<div class="repo-card" style="text-align: center; color: #94a3b8; padding: 40px;">Loading details for ${escapeHtml(repoName)}...</div>`;
         return;
       }
 
@@ -3347,7 +3474,7 @@
       if (!isSwitchingRepo && !forceRender && existingContent) {
         const rootWt = (repo.worktrees || []).find(wt => wt.path === repo.path) || repo.worktrees?.[0];
         const rootBranchEl = document.getElementById('header-root-branch-' + repo.name);
-        const newBranchText = 'Branch gốc: ' + (rootWt?.branch || 'main');
+        const newBranchText = 'Root branch: ' + (rootWt?.branch || 'main');
         if (rootBranchEl && rootBranchEl.textContent !== newBranchText) {
           rootBranchEl.textContent = newBranchText;
         }
@@ -3459,25 +3586,25 @@
         <div id="repo-detail-content-${escapeHtml(repo.name)}" style="display: flex; flex-direction: column; gap: 20px;">
 
           <!-- ============================================================== -->
-          <!-- TẦNG 1: QUẢN TRỊ DỰ ÁN & BRAINSTORMING (CẤP THƯ MỤC GỐC)         -->
+          <!-- TIER 1: PROJECT MANAGEMENT & BRAINSTORMING (ROOT DIRECTORY)    -->
           <!-- ============================================================== -->
           <div style="background: #0f1422; border: 2px solid ${color}; border-radius: 8px; padding: 20px; box-shadow: 0 4px 20px -2px ${color}33;">
             
             <!-- Tier 1 Badge & Header -->
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; border-bottom: 1px solid #1e293b; padding-bottom: 14px; flex-wrap: wrap; gap: 12px;">
               <div>
-                <div style="font-size: 13px; font-weight: 800; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;"><span>🏛️ I. Thông tin tổng quan</span></div>
+                <div style="font-size: 13px; font-weight: 800; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;"><span>🏛️ I. Overview</span></div>
                 <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px;">
                   <span style="font-size: 24px; font-weight: 800; color: ${color};">
                     ${theme.icon} ${escapeHtml(repo.name)}
                   </span>
                   <span id="header-root-branch-${escapeHtml(repo.name)}" style="font-size: 11px; background: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 3px 10px; border-radius: 6px; font-weight: 600;">
-                    Branch gốc: ${escapeHtml(rootWt?.branch || 'main')}
+                    Root branch: ${escapeHtml(rootWt?.branch || 'main')}
                   </span>
                   <span style="font-size: 11px; background: rgba(15, 23, 42, 0.7); color: #cbd5e1; border: 1px solid #1e293b; padding: 3px 10px; border-radius: 6px; font-family: monospace; display: inline-flex; align-items: center; gap: 8px;">
                     <span style="font-weight: 600;">${escapeHtml(toTildePath(repo.path))}</span>
                     <button onclick="copyFolderToClipboard('${escapeHtml(toTildePath(repo.path))}', this)" 
-                            title="Copy đường dẫn thư mục" 
+                            title="Copy directory path" 
                             style="background: transparent; border: none; cursor: pointer; color: #94a3b8; padding: 0; display: inline-flex; align-items: center; line-height: 1; transition: color 0.15s ease;"
                             onmouseover="this.style.color='#f1f5f9'" onmouseout="this.style.color='#94a3b8'">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
@@ -3490,47 +3617,47 @@
               </div>
 
               <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                <button id="btn-epics-count-${escapeHtml(repo.name)}" onclick="openEpicsModal('${escapeHtml(repo.name)}')" class="btn-action-neutral" title="Xem danh sách tất cả Epics">
+                <button id="btn-epics-count-${escapeHtml(repo.name)}" onclick="openEpicsModal('${escapeHtml(repo.name)}')" class="btn-action-neutral" title="View all Epics">
                   <span>📦</span> Epics (${epicsSummary.total})
                 </button>
-                <button onclick="openContextModal('${escapeHtml(repo.name)}')" class="btn-action-neutral" title="Xem sổ cái hai tầng và ngữ cảnh dự án">
+                <button onclick="openContextModal('${escapeHtml(repo.name)}')" class="btn-action-neutral" title="View Two-Tier Ledger & project context">
                   <span>🧠</span> Contexts
                 </button>
                 <div style="display: inline-flex; align-items: center; background: #131b2e; border: 1px solid #1e293b; border-radius: 6px; padding: 2px 4px 2px 8px; gap: 8px;">
-                  <span style="font-size: 13px; color: #c084fc; display: inline-flex; align-items: center; user-select: none;" title="Người phụ trách (PIC) / Profile">👤</span>
+                  <span style="font-size: 13px; color: #c084fc; display: inline-flex; align-items: center; user-select: none;" title="Person In Charge (PIC) / Profile">👤</span>
                   <select id="ide-profile-select-${escapeHtml(repo.name)}" 
                           class="custom-select select-profile-pic"
-                          title="Chọn Antigravity Profile (PIC) để mở IDE">
+                          title="Select Antigravity Profile (PIC) to open IDE">
                     ${renderProfileOptions(accountId)}
                   </select>
                   <button onclick="triggerLaunchFromSelect('${escapeHtml(repo.name)}', '${escapeHtml(repo.path)}')" 
                           class="btn-action-primary" 
                           style="background: ${color}; border-color: ${theme.border}; padding: 6px 12px; font-size: 11px; font-weight: 700; border-radius: 4px;"
-                          title="Mở IDE theo Profile đã chọn">
-                    <span>🚀</span> Mở IDE
+                          title="Open IDE with selected Profile">
+                    <span>🚀</span> Open IDE
                   </button>
                 </div>
               </div>
             </div>
 
-            <!-- BẢNG KANBAN DASHBOARD -->
+            <!-- KANBAN BOARD DASHBOARD -->
             <div id="kanban-dashboard-wrapper-${escapeHtml(repo.name)}" data-sig="${escapeHtml(initKanbanSig)}" style="background: #0a0e17; border: 1px solid #1e2638; border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
               ${renderKanbanDashboard(repo, selectedEpicFilter)}
             </div>
 
-            <!-- TỔNG QUAN VỀ EPICS (4 TRẠNG THÁI) & ĐIỂM NGHẼN PHÊ DUYỆT -->
+            <!-- EPICS OVERVIEW (4 STATUSES) & APPROVAL BLOCKERS -->
             <div id="epics-overview-counts-${escapeHtml(repo.name)}" data-sig="${escapeHtml(initOverviewSig)}" style="display: grid; grid-template-columns: 2.6fr 1.2fr; gap: 14px; margin-bottom: 18px;">
               ${renderEpicsOverviewAndApprovalGate(repo)}
             </div>
 
-            <!-- 2 COLUMNS: LỘ TRÌNH EPICS DỰ ÁN & GHI CHÚ CHIẾN LƯỢC -->
+            <!-- 2 COLUMNS: PROJECT EPICS ROADMAP & STRATEGIC NOTES -->
             <div class="roadmap-notes-grid" style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; margin-bottom: 20px; align-items: stretch;">
               
-              <!-- Column 1: Lộ Trình Epics Dự Án (Roadmap) -->
+              <!-- Column 1: Project Epics Roadmap -->
               <div style="background: #141722; border: 1px solid #1e2638; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; min-height: 420px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                   <span style="font-size: 13px; font-weight: 700; color: #f8fafc;">
-                    📋 Lộ Trình Epics Dự Án (Roadmap từ .devtool/epic/)
+                    📋 Project Epics Roadmap (.devtool/epic/)
                   </span>
                   <span id="roadmap-count-${escapeHtml(repo.name)}" style="font-size: 11px; color: #94a3b8;">${epicsSummary.total} Epics</span>
                 </div>
@@ -3538,9 +3665,9 @@
                   <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left;">
                     <thead>
                       <tr style="background: #0f141f; border-bottom: 1px solid #1e293b; color: #94a3b8; position: sticky; top: 0; z-index: 1;">
-                        <th style="padding: 8px 12px; width: 120px; white-space: nowrap;">Trạng Thái</th>
+                        <th style="padding: 8px 12px; width: 120px; white-space: nowrap;">Status</th>
                         <th style="padding: 8px 12px;">Epic Slug</th>
-                        <th style="padding: 8px 12px; width: 80px; white-space: nowrap;">Cập Nhật</th>
+                        <th style="padding: 8px 12px; width: 80px; white-space: nowrap;">Updated</th>
                         <th style="padding: 8px 12px; width: 60px; text-align: center; white-space: nowrap;">Tasks</th>
                         <th style="padding: 8px 12px; width: 150px; white-space: nowrap;">PIC</th>
                       </tr>
@@ -3552,23 +3679,23 @@
                 </div>
               </div>
 
-              <!-- Column 2: Ghi Chú Chiến Lược (Human Architect) -->
+              <!-- Column 2: Strategic Notes (Human Architect) -->
               <div id="note-container-detail-${escapeHtml(repo.name)}" class="antigravity-note-container" style="background: #141722; border: 1px solid #1e2638; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; min-height: 420px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                   <span style="font-size: 13px; font-weight: 700; color: #f1f5f9;">
-                    📝 Ghi Chú Chiến Lược (Human Architect)
+                    📝 Strategic Notes (Human Architect)
                   </span>
                   <div style="display: flex; gap: 6px;">
                     <button onclick="copyRepoNoteText('${repo.name}', this)" class="btn-action-neutral" style="padding: 2px 8px; font-size: 10px;">Copy</button>
-                    <button onclick="clearRepoNoteText('${repo.name}')" class="btn-action-neutral" style="padding: 2px 8px; font-size: 10px;">Xoá</button>
+                    <button onclick="clearRepoNoteText('${repo.name}')" class="btn-action-neutral" style="padding: 2px 8px; font-size: 10px;">Clear</button>
                   </div>
                 </div>
                 <div style="font-size: 10px; color: #64748b; margin-bottom: 8px;">
-                  Tự động lưu • Nhấn Enter tự nhảy số 1., 2., 3... • Tab thụt lề
+                  Auto-saved • Press Enter to auto-number 1., 2., 3... • Tab to indent
                 </div>
                 <textarea id="note-textarea-detail-${repo.name}" 
                           style="flex: 1; width: 100%; min-height: 320px; height: 100%; box-sizing: border-box; background: #0c0f17; border: 1px solid #282f40; border-radius: 8px; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, monospace; font-size: 12px; line-height: 1.6; padding: 12px; resize: vertical;"
-                          placeholder="1. Ý tưởng chiến lược / roadmap..." 
+                          placeholder="1. Strategic ideas / roadmap..." 
                           onkeydown="handleAntigravityNoteKeydown(event, this, '${repo.name}')"
                           oninput="saveRepoNoteText('${repo.name}', this.value)">${escapeHtml(noteText)}</textarea>
               </div>
@@ -3578,19 +3705,19 @@
           </div>
 
           <!-- ============================================================== -->
-          <!-- TẦNG 2: TRIỂN KHAI THỰC THI THEO WORKTREES & PIC (WORKTREE LEVEL)-->
+          <!-- TIER 2: WORKTREE & PIC EXECUTION (WORKTREE LEVEL)              -->
           <!-- ============================================================== -->
           <div style="background: #0f1422; border: 2px solid ${color}; border-radius: 8px; padding: 20px; box-shadow: 0 4px 20px -2px ${color}33;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid #282f40; padding-bottom: 12px; flex-wrap: wrap; gap: 10px;">
               <div style="font-size: 13px; font-weight: 800; color: ${color}; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0; display: flex; align-items: center; gap: 8px;">
-                <span>🚀 II. Triển khai thực thi theo Worktrees & Profiles (PIC)</span>
+                <span>🚀 II. Worktree &amp; Profile (PIC) Execution</span>
               </div>
               <div style="font-size: 11px; color: #94a3b8; font-family: monospace;">
-                Phân bổ Profile cách ly • Git Worktree độc lập
+                Isolated Profile Allocation • Independent Git Worktrees
               </div>
             </div>
 
-            <!-- Danh sách tổng quan các Epic -->
+            <!-- Execution Epics List -->
             <div id="tier2-execution-epics-wrapper-${escapeHtml(repo.name)}" data-sig="${escapeHtml(initTier2Sig)}">
               ${renderExecutionEpics(repo)}
             </div>
@@ -3650,13 +3777,13 @@ let currentReviewRepo = null;
           if (iconEl) iconEl.textContent = isPrincipal ? '🛡️' : '🔬';
           if (titleEl) {
             titleEl.textContent = isPrincipal 
-              ? `Kết Quả Principal Review: ${repoName} (${data.epic || epicName || 'N/A'})` 
-              : `Kết Quả Cross-Model Review: ${repoName} (${data.epic || epicName || 'N/A'})`;
+              ? `Principal Review Results: ${repoName} (${data.epic || epicName || 'N/A'})` 
+              : `Cross-Model Review Results: ${repoName} (${data.epic || epicName || 'N/A'})`;
           }
           if (subtitleEl) {
             subtitleEl.textContent = isPrincipal
-              ? `Stage 2 HLD & Tasks Architectural Verification (Round ${round}) • Bảng Triage 6 cột`
-              : `Stage 3/4 Implementation & Diff External Multi-Model Review (Round ${round}) • Bảng Triage 6 cột`;
+              ? `Stage 2 HLD & Tasks Architectural Verification (Round ${round}) • 6-Column Triage Table`
+              : `Stage 3/4 Implementation & Diff External Multi-Model Review (Round ${round}) • 6-Column Triage Table`;
           }
 
           // Border color from repository .vscode/settings.json
@@ -3706,7 +3833,7 @@ let currentReviewRepo = null;
               tbody.innerHTML = `
                 <tr>
                   <td colspan="6" style="padding: 80px 20px; text-align: center; color: #34d399; font-weight: 600; font-size: 13px;">
-                    ✓ Không phát hiện lỗi (0 findings - CLEAN / AUTO_PASS)
+                    ✓ No findings detected (0 findings - CLEAN / AUTO_PASS)
                   </td>
                 </tr>
               `;
@@ -3827,14 +3954,14 @@ let currentReviewRepo = null;
 
           const rawEl = document.getElementById('review-raw-evidence');
           if (rawEl) {
-            rawEl.textContent = data.raw_output || 'Không có bằng chứng nguyên văn (raw output) cho round này.';
+            rawEl.textContent = data.raw_output || 'No verbatim raw output available for this round.';
           }
 
           openLiveModal('modal-cross-review');
         })
         .catch(err => {
-          console.error("Lỗi khi tải kết quả review:", err);
-          showToast("Lỗi khi tải kết quả review: " + err.message);
+          console.error("Failed to load review results:", err);
+          showToast("Failed to load review results: " + err.message);
         });
     }
 
@@ -3851,7 +3978,7 @@ let currentReviewRepo = null;
       if (!body) return;
 
       if (!repo || !repo.epics_summary) {
-        body.innerHTML = '<div style="text-align: center; color: #64748b; padding: 30px;">Không có dữ liệu epics cho repository này.</div>';
+        body.innerHTML = '<div style="text-align: center; color: #64748b; padding: 30px;">No epics data available for this repository.</div>';
         openLiveModal('modal-epics');
         return;
       }
@@ -3861,7 +3988,7 @@ let currentReviewRepo = null;
       const abandonCount = summary.abandoned || sortedEpics.filter(e => getEpicStatusCategory(e.status) === 'abandon').length;
 
       if (title) {
-        title.textContent = `Danh Sách Epics Dự Án: ${repoName} (${summary.total} Epics)`;
+        title.textContent = `Project Epics List: ${repoName} (${summary.total} Epics)`;
       }
 
       body.innerHTML = `
@@ -3885,10 +4012,10 @@ let currentReviewRepo = null;
           <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
             <thead>
               <tr style="background: #0f141f; border-bottom: 1px solid #1e293b; color: #94a3b8;">
-                <th style="padding: 10px 14px;">Trạng Thái</th>
-                <th style="padding: 10px 14px;">Tên Epic / Slug</th>
-                <th style="padding: 10px 14px;">Tiêu Đề (HLD)</th>
-                <th style="padding: 10px 14px;">Cập Nhật</th>
+                <th style="padding: 10px 14px;">Status</th>
+                <th style="padding: 10px 14px;">Epic Name / Slug</th>
+                <th style="padding: 10px 14px;">Title (HLD)</th>
+                <th style="padding: 10px 14px;">Updated</th>
                 <th style="padding: 10px 14px;">Tasks</th>
                 <th style="padding: 10px 14px;">PIC</th>
               </tr>
@@ -3959,14 +4086,14 @@ let currentReviewRepo = null;
       const body = document.getElementById('kanban-modal-body');
       if (!body) return;
 
-      const epicTitle = repo ? (repo.active_epic || 'Không có Epic') : repoName;
+      const epicTitle = repo ? (repo.active_epic || 'No Active Epic') : repoName;
       const headerTitle = document.getElementById('kanban-modal-title');
       const headerSub = document.getElementById('kanban-modal-subtitle');
       if (headerTitle) {
-        headerTitle.textContent = `Bảng Kanban Tasks: ${repoName} (${epicTitle})`;
+        headerTitle.textContent = `Kanban Tasks Board: ${repoName} (${epicTitle})`;
       }
       if (headerSub) {
-        headerSub.textContent = `Đồng bộ từ các tệp task_*.md của Epic ${epicTitle} • Mở bởi nút [ 📊 Xem Kanban ]`;
+        headerSub.textContent = `Synced from task_*.md files of Epic ${epicTitle} • Opened via [ 📊 View Kanban ]`;
       }
 
       const tasks = (repo && repo.task_progress && repo.task_progress.tasks) ? repo.task_progress.tasks : [];
@@ -4044,7 +4171,7 @@ let currentReviewRepo = null;
       const stateEl = document.getElementById('context-state-content');
       const headerTitle = document.querySelector('#modal-context .modal-header div div:first-child');
       if (headerTitle) {
-        headerTitle.textContent = `Bộ Nhớ Hai Tầng: ${repoName} (${repo ? repo.active_epic || 'Idle' : ''})`;
+        headerTitle.textContent = `Two-Tier Memory: ${repoName} (${repo ? repo.active_epic || 'Idle' : ''})`;
       }
 
       if (repo && repo.memory) {
@@ -4052,22 +4179,22 @@ let currentReviewRepo = null;
         if (ledgerEl) {
           ledgerEl.textContent = 
             `Repo: ${repo.name}\n` +
-            `Sổ cái: ${toTildePath(mem.project_ledger_path) || 'N/A'}\n` +
-            `Tổng Milestones: ${mem.total_milestones || 0}\n\n` +
-            `Cột mốc gần nhất:\n${mem.last_milestone || 'Chưa có cột mốc'}`;
+            `Ledger: ${toTildePath(mem.project_ledger_path) || 'N/A'}\n` +
+            `Total Milestones: ${mem.total_milestones || 0}\n\n` +
+            `Latest Milestone:\n${mem.last_milestone || 'No milestones yet'}`;
         }
         if (stateEl) {
           stateEl.textContent = 
-            `Active Epic: ${repo.active_epic || 'Không có'}\n` +
+            `Active Epic: ${repo.active_epic || 'None'}\n` +
             `Stage: ${repo.active_stage || 'Idle'}\n` +
-            `Role: ${mem.assistant_state_role || 'Chưa thiết lập'}\n` +
+            `Role: ${mem.assistant_state_role || 'Not set'}\n` +
             `Account: @${repo.account_id || 'default'}\n` +
             `Status: ${mem.assistant_state_status || 'N/A'}\n\n` +
-            `Bước tiếp theo:\n${repo.prompt || 'Chưa có yêu cầu'}`;
+            `Next Step:\n${repo.prompt || 'No prompt yet'}`;
         }
       } else {
-        if (ledgerEl) ledgerEl.textContent = `Không tìm thấy thông tin bộ nhớ tầng 1 cho ${repoName}`;
-        if (stateEl) stateEl.textContent = `Không tìm thấy thông tin bộ nhớ tầng 2 cho ${repoName}`;
+        if (ledgerEl) ledgerEl.textContent = `Tier 1 memory not found for ${repoName}`;
+        if (stateEl) stateEl.textContent = `Tier 2 memory not found for ${repoName}`;
       }
 
       openLiveModal('modal-context');
@@ -4116,7 +4243,7 @@ let currentReviewRepo = null;
       }
 
       const wtEl = document.getElementById('stat-worktrees-count');
-      const newWtText = `${worktreesCount} Phân lập`;
+      const newWtText = `${worktreesCount} Isolated`;
       if (wtEl && wtEl.textContent !== newWtText) {
         wtEl.textContent = newWtText;
       }
@@ -4181,7 +4308,7 @@ let currentReviewRepo = null;
 
     function refreshDashboard() {
       fetchTasks();
-      showToast('🔄 Đã làm mới trạng thái', 'info');
+      showToast('🔄 Status refreshed', 'info');
     }
 
     let isDashboardInitialized = false;
