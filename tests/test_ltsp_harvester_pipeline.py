@@ -653,3 +653,176 @@ def test_ltsp_review_edge_cases_sha_validation_and_builder_signature(
         quality_active={},
     )
     assert tel_pr2["lifecycle_progress_pct"] == 22.0
+
+
+def test_resolve_active_epic_prefers_pending_decision_over_stale_worktree_backlog(
+    tmp_path: Path,
+) -> None:
+    """Active pending_decision.json and Gate 1/2 entries win over stale worktree backlog tasks."""
+    repo = tmp_path / "repo_stale_wt_pending"
+    _init_git_repo(repo)
+
+    # Stale worktree with an unrelated todo task and no matching .devtool/epic/acr-live
+    stale_wt = repo / ".worktrees" / "acr-live"
+    stale_wt.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        ["git", "worktree", "add", "-q", str(stale_wt), "-b", "acr-live"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    stale_feat = stale_wt / ".devtool" / "features"
+    stale_feat.mkdir(parents=True, exist_ok=True)
+    (stale_feat / "task_01_old.md").write_text(
+        '---\nid: "task_01_old"\nstatus: "todo"\nepic: "mac_mini_to_cloud_roadmap"\n---\n# Old Task\n',
+        encoding="utf-8",
+    )
+
+    # Active epic with HLD, Gate 1/2 ledger entries, and active pending_decision.json blocker
+    active_slug = "alignment_flow_hardening"
+    active_dir = repo / ".devtool" / "epic" / active_slug
+    active_dir.mkdir(parents=True, exist_ok=True)
+    (active_dir / f"{active_slug}.en.md").write_text(
+        "# Alignment Flow Hardening\n\n- **Status**: In Progress\n",
+        encoding="utf-8",
+    )
+    resume_context.record_gate_approval(
+        repo, active_slug, 1, "Approved Gate 1", by="phungthuy8901"
+    )
+    resume_context.record_gate_approval(
+        repo, active_slug, 2, "Approved Gate 2", by="phungthuy8901"
+    )
+    blocker_reason = (
+        "Resolve Principal Review blocker "
+        "(FIX_LOOP on task_07_step3_retry_and_repeated_lines.md)"
+    )
+    _state_envelope.record_pending_decision(
+        repo,
+        active_slug,
+        blocker_reason,
+        kind="circuit_breaker_halt",
+        stage=check_tasks.LifecycleStage.STAGE_2_REVIEW_TRIAGE.value,
+    )
+
+    meta = check_tasks.scan_repo(repo)
+    assert meta.active_epic == active_slug
+    assert meta.is_human_action_required is True
+    assert meta.prompt == blocker_reason
+    assert meta.action_blockers == [
+        {
+            "epic": active_slug,
+            "stage": check_tasks.LifecycleStage.STAGE_2_REVIEW_TRIAGE.value,
+            "reason": blocker_reason,
+        }
+    ]
+
+    # Even after clearing pending_decision.json, Gate 1/2 ledger beats unverified stale worktree
+    _state_envelope.clear_pending_decision(repo, active_slug)
+    assert check_tasks.resolve_active_epic(repo) == active_slug
+
+
+def test_scan_repo_aggregates_secondary_epic_action_blockers_and_stages(
+    tmp_path: Path,
+) -> None:
+    """scan_repo isolates primary active_epic prompt while aggregating secondary blockers and stages."""
+    repo = tmp_path / "repo_multi_epic_blockers"
+    _init_git_repo(repo)
+
+    # 1. Primary autonomous epic in active worktree (Stage 3 Phase 2 TDD, no human action required)
+    primary_slug = "primary_auto_epic"
+    primary_dir = repo / ".devtool" / "epic" / primary_slug
+    primary_dir.mkdir(parents=True, exist_ok=True)
+    (primary_dir / f"{primary_slug}.en.md").write_text(
+        "# Primary Auto Epic\n\n- **Status**: In Progress\n",
+        encoding="utf-8",
+    )
+    primary_wt = repo / ".worktrees" / primary_slug
+    primary_wt.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            "git",
+            "worktree",
+            "add",
+            "-q",
+            str(primary_wt),
+            "-b",
+            f"epic/{primary_slug}",
+        ],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    _write_task(
+        primary_dir,
+        primary_wt / ".devtool" / "features",
+        "task_01_impl",
+        primary_slug,
+        "in-progress",
+    )
+    for gate_num in (1, 2, 3):
+        resume_context.record_gate_approval(
+            repo, primary_slug, gate_num, f"Gate {gate_num} approved"
+        )
+
+    # 2. Secondary in_progress epic paused on pending_decision.json
+    secondary_slug = "blocked_secondary_epic"
+    secondary_dir = repo / ".devtool" / "epic" / secondary_slug
+    secondary_dir.mkdir(parents=True, exist_ok=True)
+    (secondary_dir / f"{secondary_slug}.en.md").write_text(
+        "# Blocked Secondary Epic\n\n- **Status**: In Progress\n",
+        encoding="utf-8",
+    )
+    resume_context.record_gate_approval(repo, secondary_slug, 1, "Gate 1 approved")
+    resume_context.record_gate_approval(repo, secondary_slug, 2, "Gate 2 approved")
+    secondary_stage = check_tasks.LifecycleStage.STAGE_3_PHASE_1_ORDER.value
+    secondary_reason = "Confirm Gate 3 task ordering"
+    _state_envelope.record_pending_decision(
+        repo,
+        secondary_slug,
+        secondary_reason,
+        kind="gate_3_order",
+        stage=secondary_stage,
+    )
+
+    # 3. Completed epic with stale action text must be excluded from action_blockers
+    done_slug = "completed_old_epic"
+    done_dir = repo / ".devtool" / "epic" / done_slug
+    done_dir.mkdir(parents=True, exist_ok=True)
+    (done_dir / f"{done_slug}.en.md").write_text(
+        "# Completed Old Epic\n\n- **Status**: Done\n",
+        encoding="utf-8",
+    )
+    state_dir = repo / ".devtool" / "state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    (state_dir / f"{done_slug}.md").write_text(
+        f"# Active Epic: {done_slug}\n## Status:\nAction Required — waiting for user\n",
+        encoding="utf-8",
+    )
+    _state_envelope.record_pending_decision(
+        repo,
+        done_slug,
+        "Stale done epic decision",
+        kind="stale_decision",
+        stage=check_tasks.LifecycleStage.STAGE_1_INCEPTION.value,
+    )
+
+    meta = check_tasks.scan_repo(repo)
+    assert meta.active_epic == primary_slug
+    assert meta.is_human_action_required is False
+    assert meta.action_blockers == [
+        {
+            "epic": secondary_slug,
+            "stage": secondary_stage,
+            "reason": secondary_reason,
+        }
+    ]
+    assert meta.epics_summary is not None
+    by_slug = {e["slug"]: e for e in meta.epics_summary.epics}
+    sec_entry = by_slug[secondary_slug]
+    assert sec_entry["active_stage"] == secondary_stage
+    assert sec_entry["is_action_required"] is True
+    assert sec_entry["action_prompt"] == secondary_reason
+
+    done_entry = by_slug[done_slug]
+    assert done_entry["is_action_required"] is False
+    assert all(b["epic"] != done_slug for b in meta.action_blockers)
