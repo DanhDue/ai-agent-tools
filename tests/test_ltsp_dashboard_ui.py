@@ -170,7 +170,14 @@ def test_ltsp_hp_05_stepper_substeps_logs_and_kanban_overview() -> None:
     assert "9 / 9 Hoàn thành" in exec_html
     assert "100%" in exec_html
     assert 'data-telemetry="pipeline-stepper"' in exec_html
-    for stage_lbl in ("1. Spec", "2. HLD &amp; Principal", "3. Tasks", "4. Gate 4 QA", "5. Cross-Review", "6. Finish"):
+    for stage_lbl in (
+        "1. Spec",
+        "2. HLD &amp; Principal",
+        "3. Tasks",
+        "4. Gate 4 QA",
+        "5. Cross-Review",
+        "6. Finish",
+    ):
         assert stage_lbl in exec_html
     assert 'data-telemetry="sub-steps"' in exec_html
     for micro_lbl in ("Reviewing", "Lập bảng triage", "Fix findings", "Verifying"):
@@ -280,7 +287,9 @@ class TestLtspDashboardUi_Integration:
         assert "PyCore / Unit Test" in html
         assert "UI / E2E Test" in html
 
-    def test_ltsp_ar_02_tier2_sig_updates_without_clobbering_roadmap_focus(self) -> None:
+    def test_ltsp_ar_02_tier2_sig_updates_without_clobbering_roadmap_focus(
+        self,
+    ) -> None:
         """LTSP-AR-02: Section II tier2Sig detects sub-step, review_state, quality step, and event log changes without clobbering sibling Roadmap focus."""
         res = _eval_dashboard_js(
             r"""
