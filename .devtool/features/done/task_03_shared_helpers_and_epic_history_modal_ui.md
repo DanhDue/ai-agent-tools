@@ -1,13 +1,13 @@
 ---
 id: "task_03_shared_helpers_and_epic_history_modal_ui"
-status: "in-progress"
+status: "done"
 priority: "high"
 assignee: null
 epic: "check_tasks_epic_history_modal"
 dueDate: null
 created: "2026-11-15T01:00:00Z"
-modified: "2026-11-14T18:56:44Z"
-completedAt: null
+modified: "2026-11-14T19:29:42Z"
+completedAt: "2026-11-14T19:29:42Z"
 labels: ["dashboard-ui", "vanilla-js", "modal", "shared-helpers"]
 order: "a3"
 review_tier: "full"
@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 3: Shared JS Renderers and Interactive `modal-epic-history` Dashboard UI
 
-Epic: [check_tasks_epic_history_modal](../epic/check_tasks_epic_history_modal/check_tasks_epic_history_modal.en.md)
+Epic: [check_tasks_epic_history_modal](../../epic/check_tasks_epic_history_modal/check_tasks_epic_history_modal.en.md)
 
 ## Requirement Analysis
 
@@ -134,5 +134,5 @@ Downstream dependents (blocked by Task 3): `task_04`.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/check_tasks_epic_history_modal/check_tasks_epic_history_modal.en.md)
+- [Epic HLD](../../epic/check_tasks_epic_history_modal/check_tasks_epic_history_modal.en.md)
 - **Rollback**: Revert task commit to restore `skills/check-tasks/resources/dashboard/tasks_dashboard.html`.

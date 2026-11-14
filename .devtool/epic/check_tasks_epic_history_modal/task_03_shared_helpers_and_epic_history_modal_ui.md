@@ -1,13 +1,13 @@
 ---
 id: "task_03_shared_helpers_and_epic_history_modal_ui"
-status: "in-progress"
+status: "done"
 priority: "high"
 assignee: null
 epic: "check_tasks_epic_history_modal"
 dueDate: null
 created: "2026-11-15T01:00:00Z"
-modified: "2026-11-14T18:56:44Z"
-completedAt: null
+modified: "2026-11-14T19:29:42Z"
+completedAt: "2026-11-14T19:29:42Z"
 labels: ["dashboard-ui", "vanilla-js", "modal", "shared-helpers"]
 order: "a3"
 review_tier: "full"

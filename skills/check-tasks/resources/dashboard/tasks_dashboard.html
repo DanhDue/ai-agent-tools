@@ -587,11 +587,31 @@
 
     /* Roadmap Table Row Transitions */
     .roadmap-epic-row {
+      cursor: pointer;
       transition: background-color 0.15s ease;
     }
 
     .roadmap-epic-row:hover {
       background-color: #1a2234 !important;
+    }
+
+    .epic-history-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      font-family: monospace;
+    }
+
+    .epic-history-card {
+      background: #131722;
+      border: 1px solid #1e2433;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
     }
 
     .roadmap-notes-grid {
@@ -1038,7 +1058,7 @@
       </div>
       
       <!-- Header Block -->
-      <div style="padding: 8px 16px; background: #161a23; border-bottom: 1px solid #282f40;">
+      <div id="review-header-block" style="padding: 8px 16px; background: #161a23; border-bottom: 1px solid #282f40;">
         <ul style="list-style: none; padding: 0; margin: 0; font-size: 11px; line-height: 1.6; color: #cbd5e1;">
           <li>• Candidate Commit SHA: <code id="review-sha" style="background: #242b3b; color: #fde68a; padding: 1px 7px; border-radius: 4px; font-family: monospace;">N/A</code></li>
           <li>• Reviewer / Provider: <strong id="review-provider" style="color: #ffffff;">N/A</strong> ( model <code id="review-model" style="background: #242b3b; color: #fde68a; padding: 1px 6px; border-radius: 4px; font-family: monospace;">default</code> ) • Thinking Level: <strong id="review-thinking" style="color: #ffffff;">High</strong></li>
@@ -1086,6 +1106,46 @@
 Loading evidence data...
           </pre>
         </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4B: EPIC HISTORY INSPECTOR DIALOG -->
+  <div id="modal-epic-history" class="modal-backdrop" style="padding: 10px 14px;">
+    <div class="modal-box" id="modal-epic-history-box" style="border-color: #38bdf8; width: 96vw; max-width: 1440px; height: 88vh; min-height: 620px; max-height: 88vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="padding: 12px 16px; align-items: flex-start; gap: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1;">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span id="epic-history-repo-badge" class="epic-history-pill" style="background: rgba(56, 189, 248, 0.14); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">Repo</span>
+            <span id="epic-history-status-badge" class="epic-history-pill" style="background: #1e293b; color: #cbd5e1; border: 1px solid #334155;">UNKNOWN</span>
+            <div id="epic-history-title" style="font-size: 15px; font-weight: 700; color: #f8fafc; word-break: break-word;">Epic History</div>
+          </div>
+          <div id="epic-history-meta" style="font-size: 11px; color: #94a3b8; font-family: monospace; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            Loading epic metadata...
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+          <button type="button" onclick="refreshEpicHistoryModal()" class="tab-btn" style="padding: 4px 10px; font-size: 11px;" title="Refresh epic history">↻ Refresh</button>
+          <button type="button" onclick="closeLiveModal('modal-epic-history')" class="modal-close-btn" title="Close modal">✕</button>
+        </div>
+      </div>
+
+      <div id="epic-history-stepper" style="padding: 8px 16px; background: #121621; border-bottom: 1px solid #282f40;"></div>
+
+      <div id="epic-history-tabs" style="padding: 8px 16px; background: #10131a; border-bottom: 1px solid #282f40; display: flex; gap: 8px; flex-wrap: wrap;">
+        <button type="button" class="tab-btn active" data-history-tab="timeline" onclick="switchEpicHistoryTab('timeline')">Timeline &amp; Step Logs</button>
+        <button type="button" class="tab-btn" data-history-tab="tasks" onclick="switchEpicHistoryTab('tasks')">Tasks &amp; Evidence</button>
+        <button type="button" class="tab-btn" data-history-tab="principal" onclick="switchEpicHistoryTab('principal')">Principal Review</button>
+        <button type="button" class="tab-btn" data-history-tab="cross_model" onclick="switchEpicHistoryTab('cross_model')">Cross-Model Review</button>
+      </div>
+
+      <div id="epic-history-error-banner" style="display: none; padding: 10px 16px; background: rgba(239, 68, 68, 0.14); border-bottom: 1px solid rgba(239, 68, 68, 0.45); color: #fecaca; font-size: 12px; align-items: center; justify-content: space-between; gap: 12px;">
+        <span id="epic-history-error-text">Failed to load epic history.</span>
+        <button type="button" id="epic-history-retry-btn" data-action="retry-epic-history" onclick="refreshEpicHistoryModal()" style="background: rgba(239, 68, 68, 0.25); color: #ffffff; border: 1px solid #ef4444; border-radius: 4px; padding: 4px 10px; font-size: 11px; font-weight: 700; cursor: pointer;">Retry</button>
+      </div>
+
+      <div id="epic-history-body" class="modal-body" style="padding: 14px 16px; flex: 1; overflow-y: auto;">
+        <div style="padding: 40px 16px; text-align: center; color: #94a3b8;">Loading epic history...</div>
       </div>
     </div>
   </div>
@@ -1148,6 +1208,9 @@ Loading evidence data...
         if (modalId === 'modal-quota') {
           postResetQuotaSubmodals();
         }
+        if (modalId === 'modal-epic-history' && typeof abortEpicHistoryModalState === 'function') {
+          abortEpicHistoryModalState();
+        }
         const anyOpen = Array.from(document.querySelectorAll('.modal-backdrop')).some(m => m.style.display === 'flex' || m.style.display === 'block');
         if (!anyOpen) {
           document.body.style.overflow = '';
@@ -1159,6 +1222,10 @@ Loading evidence data...
     function initModalClickOutside() {
       const modals = document.querySelectorAll('.modal-backdrop');
       modals.forEach(modal => {
+        if (modal.dataset && modal.dataset.clickOutsideBound === '1') return;
+        if (typeof modal.setAttribute === 'function') {
+          modal.setAttribute('data-click-outside-bound', '1');
+        }
         modal.addEventListener('click', (e) => {
           if (e.target === modal) {
             closeLiveModal(modal.id);
@@ -1166,22 +1233,28 @@ Loading evidence data...
         });
       });
 
-      // Listen for close message from embedded iframes (e.g. Quota Dashboard)
-      window.addEventListener('message', (e) => {
-        if (e.data && (e.data.action === 'close_quota_modal' || e.data.action === 'close_modal')) {
-          closeLiveModal(e.data.modalId || 'modal-quota');
-        }
-      });
+      if (!window._cehmPostMessageBound) {
+        window._cehmPostMessageBound = true;
+        // Listen for close message from embedded iframes (e.g. Quota Dashboard)
+        window.addEventListener('message', (e) => {
+          if (e.data && (e.data.action === 'close_quota_modal' || e.data.action === 'close_modal')) {
+            closeLiveModal(e.data.modalId || 'modal-quota');
+          }
+        });
+      }
 
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-          modals.forEach(m => {
-            if (m.style.display === 'flex' || m.style.display === 'block') {
-              closeLiveModal(m.id);
-            }
-          });
-        }
-      });
+      if (!document._cehmEscModalBound) {
+        document._cehmEscModalBound = true;
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+            document.querySelectorAll('.modal-backdrop').forEach(m => {
+              if (m.style.display === 'flex' || m.style.display === 'block') {
+                closeLiveModal(m.id);
+              }
+            });
+          }
+        });
+      }
     }
 
     /* ============================================================== */
@@ -1678,7 +1751,9 @@ Loading evidence data...
       const picClass = hasPic ? 'custom-select select-pic-assigned' : 'custom-select select-pic-unassigned';
       const rowKey = `${repoName}:${epicSlug}`;
       return `
-        <select onchange="updateEpicPic('${escapeHtml(repoName)}', '${escapeHtml(epicSlug)}', this.value)" 
+        <select onchange="updateEpicPic(this.getAttribute('data-repo'), this.getAttribute('data-epic'), this.value)" 
+                onclick="event.stopPropagation()"
+                onmousedown="event.stopPropagation()"
                 class="${picClass} select-pic-roadmap"
                 data-row-key="${escapeHtml(rowKey)}"
                 data-repo="${escapeHtml(repoName)}"
@@ -2508,14 +2583,8 @@ Loading evidence data...
       };
     }
 
-    function renderPipelineStepperAndLogs(repo, slug, isPrimaryActive, progState, doneCount, totalCount) {
-      const pt = synthesizePipelineTelemetry(repo, slug, isPrimaryActive, progState, doneCount, totalCount);
-      const stages = Array.isArray(pt.stages) ? pt.stages : [];
-      const curIdx = Number(pt.current_stage_index || 3);
-      const hb = (repo.heartbeat && (!repo.heartbeat.epic_slug || slugsMatch(repo.heartbeat.epic_slug, slug) || isPrimaryActive)) ? repo.heartbeat : null;
-      const rs = (hb && hb.review_state && typeof hb.review_state === 'object') ? hb.review_state : null;
-
-      const stagePillsHtml = stages.map(st => {
+    function buildStagePillsHtml(stages, curIdx, compact) {
+      return (stages || []).map(st => {
         const stStatus = String(st.status || 'pending');
         const isCurrent = Number(st.index) === curIdx;
         const icon = stStatus === 'done' ? '✓' : (stStatus === 'running' ? '⚡' : (stStatus === 'failed' ? '✗' : (stStatus === 'action_required' ? '⚠️' : '•')));
@@ -2528,8 +2597,9 @@ Loading evidence data...
               : (stStatus === 'action_required'
                 ? 'background: rgba(245, 158, 11, 0.16); color: #fbbf24; border: 1px solid #f59e0b; font-weight: 700;'
                 : 'background: rgba(15, 23, 42, 0.5); color: #64748b; border: 1px solid #1e293b;')));
+        const pad = compact ? 'padding: 4px 7px; min-width: 96px;' : 'padding: 5px 8px; min-width: 105px;';
         return `
-          <div data-stage-id="${escapeHtml(String(st.id || ''))}" data-stage-status="${escapeHtml(stStatus)}" style="flex: 1 1 110px; min-width: 105px; padding: 5px 8px; border-radius: 4px; ${pillStyle}">
+          <div data-stage-id="${escapeHtml(String(st.id || ''))}" data-stage-status="${escapeHtml(stStatus)}" style="flex: 1 1 110px; ${pad} border-radius: 4px; ${pillStyle}">
             <div style="font-size: 10px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; gap: 4px;">
               <span>${icon} ${escapeHtml(String(st.label || ''))}</span>
             </div>
@@ -2539,8 +2609,13 @@ Loading evidence data...
           </div>
         `;
       }).join('');
+    }
 
-      const activeStageObj = stages.find(s => Number(s.index) === curIdx) || stages.find(s => s.status === 'running' || s.status === 'failed') || stages[2] || null;
+    function buildSubStepsHtml(stages, curIdx, rs) {
+      const activeStageObj = (stages || []).find(s => Number(s.index) === curIdx)
+        || (stages || []).find(s => s.status === 'running' || s.status === 'failed')
+        || (stages || [])[2]
+        || null;
       const subSteps = (activeStageObj && Array.isArray(activeStageObj.sub_steps) && activeStageObj.sub_steps.length > 0)
         ? activeStageObj.sub_steps
         : [];
@@ -2586,41 +2661,77 @@ Loading evidence data...
         `;
       }).join(' ');
 
-      const events = (Array.isArray(pt.events) && pt.events.length > 0)
-        ? pt.events
-        : (Array.isArray(hb?.events) ? hb.events : []);
-      const epicKey = `${repo.name || ''}:${slug}`;
-      const isExpanded = expandedEventLogsByEpic.has(epicKey);
-      const visibleEvents = isExpanded ? events.slice().reverse() : events.slice(-4).reverse();
-
-      const eventLogsHtml = events.length > 0 ? `
-        <div data-telemetry="event-logs" style="background: rgba(15, 23, 42, 0.55); border: 1px solid #1e293b; border-radius: 4px; padding: 6px 10px; margin-bottom: 10px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #94a3b8; margin-bottom: 4px;">
-            <span style="font-weight: 700; color: #cbd5e1;">📋 Execution Logs (${events.length})</span>
-            ${events.length > 4 ? `<button onclick="toggleEpicEventLogs('${escapeHtml(epicKey)}')" style="background: transparent; border: none; color: #38bdf8; font-size: 10px; cursor: pointer; font-family: monospace; padding: 0;">${isExpanded ? 'Collapse ▴' : `View all ${events.length} logs ▾`}</button>` : ''}
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 3px; max-height: ${isExpanded ? '180px' : '90px'}; overflow-y: auto; font-family: monospace; font-size: 10px;">
-            ${visibleEvents.map(ev => {
-              const tsRaw = String(ev.ts || '');
-              const tsShort = tsRaw.includes('T') ? tsRaw.split('T')[1].slice(0, 8) : tsRaw;
-              return `<div style="color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><span style="color: #64748b;">[${escapeHtml(tsShort)}]</span> ${ev.sub_step ? `<span style="color: #38bdf8;">[${escapeHtml(String(ev.sub_step))}]</span> ` : ''}${escapeHtml(String(ev.message || ''))}</div>`;
-            }).join('')}
-          </div>
-        </div>
-      ` : '';
-
+      if (!reviewHeaderHtml && !subStepsChipsHtml) return '';
       return `
-        <div data-telemetry="pipeline-stepper" style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px;">
-          ${stagePillsHtml}
+        <div data-telemetry="sub-steps" style="background: rgba(15, 23, 42, 0.65); border: 1px solid #1e293b; border-radius: 4px; padding: 6px 10px; margin-bottom: 8px;">
+          ${reviewHeaderHtml}
+          ${subStepsChipsHtml ? `<div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">${subStepsChipsHtml}</div>` : ''}
         </div>
-        ${(reviewHeaderHtml || subStepsChipsHtml) ? `
-          <div data-telemetry="sub-steps" style="background: rgba(15, 23, 42, 0.65); border: 1px solid #1e293b; border-radius: 4px; padding: 6px 10px; margin-bottom: 8px;">
-            ${reviewHeaderHtml}
-            ${subStepsChipsHtml ? `<div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">${subStepsChipsHtml}</div>` : ''}
-          </div>
-        ` : ''}
+      `;
+    }
+
+    function buildPipelineStepperHtml(pt, hb, options) {
+      const opts = options || {};
+      const telemetry = pt && typeof pt === 'object' ? pt : {};
+      const stages = Array.isArray(telemetry.stages) ? telemetry.stages : [];
+      const curIdx = Number(telemetry.current_stage_index || 3);
+      const rs = (hb && hb.review_state && typeof hb.review_state === 'object') ? hb.review_state : null;
+      const compact = Boolean(opts.compact);
+      const includeSubSteps = opts.includeSubSteps !== undefined ? Boolean(opts.includeSubSteps) : !compact;
+      const includeLogs = opts.includeLogs !== undefined ? Boolean(opts.includeLogs) : !compact;
+
+      const stagePillsHtml = buildStagePillsHtml(stages, curIdx, compact);
+      const subStepsSectionHtml = includeSubSteps ? buildSubStepsHtml(stages, curIdx, rs) : '';
+
+      let eventLogsHtml = '';
+      if (includeLogs) {
+        const events = (Array.isArray(telemetry.events) && telemetry.events.length > 0)
+          ? telemetry.events
+          : (Array.isArray(hb?.events) ? hb.events : []);
+        const slug = String(opts.slug || telemetry.epic_slug || '');
+        const epicKey = `${String(opts.repoName || '')}:${slug}`;
+        const isExpanded = expandedEventLogsByEpic.has(epicKey);
+        const visibleEvents = isExpanded ? events.slice().reverse() : events.slice(-4).reverse();
+
+        if (events.length > 0) {
+          eventLogsHtml = `
+            <div data-telemetry="event-logs" style="background: rgba(15, 23, 42, 0.55); border: 1px solid #1e293b; border-radius: 4px; padding: 6px 10px; margin-bottom: 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #94a3b8; margin-bottom: 4px;">
+                <span style="font-weight: 700; color: #cbd5e1;">📋 Execution Logs (${events.length})</span>
+                ${events.length > 4 ? `<button data-epic-key="${escapeHtml(epicKey)}" onclick="toggleEpicEventLogs(this.getAttribute('data-epic-key'))" style="background: transparent; border: none; color: #38bdf8; font-size: 10px; cursor: pointer; font-family: monospace; padding: 0;">${isExpanded ? 'Collapse ▴' : `View all ${events.length} logs ▾`}</button>` : ''}
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 3px; max-height: ${isExpanded ? '180px' : '90px'}; overflow-y: auto; font-family: monospace; font-size: 10px;">
+                ${visibleEvents.map(ev => {
+                  const tsRaw = String(ev.ts || '');
+                  const tsShort = tsRaw.includes('T') ? tsRaw.split('T')[1].slice(0, 8) : tsRaw;
+                  return `<div style="color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><span style="color: #64748b;">[${escapeHtml(tsShort)}]</span> ${ev.sub_step ? `<span style="color: #38bdf8;">[${escapeHtml(String(ev.sub_step))}]</span> ` : ''}${escapeHtml(String(ev.message || ''))}</div>`;
+                }).join('')}
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      const marginBottom = compact ? 'margin-bottom: 0;' : 'margin-bottom: 8px;';
+      return `
+        <div data-telemetry="pipeline-stepper" style="display: flex; gap: 6px; flex-wrap: wrap; ${marginBottom}">
+          ${stagePillsHtml || '<span style="font-size: 11px; color: #64748b;">No pipeline stage telemetry available.</span>'}
+        </div>
+        ${subStepsSectionHtml}
         ${eventLogsHtml}
       `;
+    }
+
+    function renderPipelineStepperAndLogs(repo, slug, isPrimaryActive, progState, doneCount, totalCount) {
+      const pt = synthesizePipelineTelemetry(repo, slug, isPrimaryActive, progState, doneCount, totalCount);
+      const hb = (repo.heartbeat && (!repo.heartbeat.epic_slug || slugsMatch(repo.heartbeat.epic_slug, slug) || isPrimaryActive)) ? repo.heartbeat : null;
+      return buildPipelineStepperHtml(pt, hb, {
+        repoName: repo.name || '',
+        slug,
+        compact: false,
+        includeSubSteps: true,
+        includeLogs: true,
+      });
     }
 
     function renderExecutionEpics(repo) {
@@ -3431,7 +3542,7 @@ Loading evidence data...
         const updatedStr = e.last_updated_human || (e.last_updated ? e.last_updated.substring(0, 10) : '—');
         const rowKey = `${repo.name}:${e.slug}`;
         return `
-          <tr class="roadmap-epic-row" data-row-key="${escapeHtml(rowKey)}" style="background: ${isCur ? 'rgba(56, 189, 248, 0.08)' : '#141722'}; border-bottom: 1px solid #1e2433;">
+          <tr class="roadmap-epic-row" data-row-key="${escapeHtml(rowKey)}" data-repo-name="${escapeHtml(repo.name)}" data-epic-slug="${escapeHtml(e.slug)}" onclick="handleRoadmapRowClick(event, this)" style="background: ${isCur ? 'rgba(56, 189, 248, 0.08)' : '#141722'}; border-bottom: 1px solid #1e2433;">
             <td style="padding: 8px 12px; white-space: nowrap;">
               <span style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeColor}; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">
                 ${stLabel}
@@ -3452,6 +3563,33 @@ Loading evidence data...
           </tr>
         `;
       }).join('');
+    }
+
+    function isInteractiveEventTarget(target) {
+      if (!target) return false;
+      if (typeof target.closest === 'function') {
+        return Boolean(target.closest('select, button, a, input, option, textarea, label'));
+      }
+      const interactiveTags = new Set(['SELECT', 'BUTTON', 'A', 'INPUT', 'OPTION', 'TEXTAREA', 'LABEL']);
+      let cur = target;
+      while (cur) {
+        if (cur.tagName && interactiveTags.has(String(cur.tagName).toUpperCase())) {
+          return true;
+        }
+        cur = cur.parentNode;
+      }
+      return false;
+    }
+
+    function handleRoadmapRowClick(ev, rowEl) {
+      if (ev && isInteractiveEventTarget(ev.target)) {
+        return;
+      }
+      if (!rowEl || typeof rowEl.getAttribute !== 'function') return;
+      const repoName = rowEl.getAttribute('data-repo-name') || '';
+      const epicSlug = rowEl.getAttribute('data-epic-slug') || '';
+      if (!repoName || !epicSlug) return;
+      openEpicHistoryModal(repoName, epicSlug);
     }
 
     function renderRepoDetailView(repoName, forceRender = false) {
@@ -3754,15 +3892,201 @@ let currentReviewRepo = null;
     let currentReviewEpic = null;
     let currentReviewKind = 'principal';
 
+    function resolveRepoThemeColor(repoName, preferredColor) {
+      const repoObj = (currentReposData || []).find(r => r.name === repoName);
+      return preferredColor || (repoObj && repoObj.theme_color) || (REPO_THEMES[repoName] ? REPO_THEMES[repoName].color : '#b45309');
+    }
+
+    function applyModalThemeBorder(boxId, themeColor) {
+      const box = document.getElementById(boxId);
+      if (!box || !box.style) return;
+      if (typeof box.style.setProperty === 'function') {
+        box.style.setProperty('border-color', themeColor, 'important');
+      } else {
+        box.style.borderColor = themeColor;
+      }
+      box.style.boxShadow = `0 15px 45px -5px ${themeColor}88, 0 0 0 1px ${themeColor}`;
+    }
+
+    function resolveReviewVerdictColor(verdict) {
+      const vUpper = String(verdict || '').toUpperCase();
+      if (vUpper.includes('PASS') || vUpper.includes('CLEAN') || vUpper.includes('CONVERGED')) {
+        return '#34d399';
+      }
+      if (vUpper.includes('CHANGES REQUIRED') || vUpper.includes('FAIL')) {
+        return '#f87171';
+      }
+      return '#fbbf24';
+    }
+
+    function buildReviewHeaderHtml(data, options) {
+      const d = data && typeof data === 'object' ? data : {};
+      const useIds = Boolean(options && options.useLegacyIds);
+      const sha = String(d.sha || 'N/A');
+      const provider = String(d.reviewer || 'N/A');
+      const model = String(d.model || 'default');
+      const thinking = String(d.thinking || 'High');
+      const verdict = String(d.verdict || 'UNKNOWN');
+      const vColor = resolveReviewVerdictColor(verdict);
+
+      const shaAttr = useIds ? ' id="review-sha"' : '';
+      const provAttr = useIds ? ' id="review-provider"' : '';
+      const modelAttr = useIds ? ' id="review-model"' : '';
+      const thinkAttr = useIds ? ' id="review-thinking"' : '';
+      const verdictAttr = useIds ? ' id="review-verdict"' : '';
+
+      return `
+        <ul style="list-style: none; padding: 0; margin: 0; font-size: 11px; line-height: 1.6; color: #cbd5e1;">
+          <li>• Candidate Commit SHA: <code${shaAttr} style="background: #242b3b; color: #fde68a; padding: 1px 7px; border-radius: 4px; font-family: monospace;">${escapeHtml(sha)}</code></li>
+          <li>• Reviewer / Provider: <strong${provAttr} style="color: #ffffff;">${escapeHtml(provider)}</strong> ( model <code${modelAttr} style="background: #242b3b; color: #fde68a; padding: 1px 6px; border-radius: 4px; font-family: monospace;">${escapeHtml(model)}</code> ) • Thinking Level: <strong${thinkAttr} style="color: #ffffff;">${escapeHtml(thinking)}</strong></li>
+          <li>• Overall Verdict: <strong${verdictAttr} style="color: ${vColor};">${escapeHtml(verdict)}</strong></li>
+        </ul>
+      `;
+    }
+
+    function syncLegacyReviewHeaderText(data) {
+      const d = data && typeof data === 'object' ? data : {};
+      const pairs = [
+        ['review-sha', d.sha || 'N/A'],
+        ['review-provider', d.reviewer || 'N/A'],
+        ['review-model', d.model || 'default'],
+        ['review-thinking', d.thinking || 'High'],
+        ['review-verdict', d.verdict || 'UNKNOWN'],
+      ];
+      pairs.forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = String(val);
+      });
+    }
+
+    function formatReviewLocation(loc) {
+      if (!loc) return '<span style="color: #64748b;">—</span>';
+      const items = String(loc).split(/\s*;\s*|\n+/);
+      return items.map(item => {
+        const colonIdx = item.indexOf(':');
+        if (colonIdx > -1) {
+          const file = item.slice(0, colonIdx).trim();
+          const rest = item.slice(colonIdx + 1).trim();
+          return `<div style="margin-bottom: 3px;"><span style="color: #fde68a; font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;">${escapeHtml(file)}</span>:<span style="color: #94a3b8; font-size: 11px;">${escapeHtml(rest)}</span></div>`;
+        }
+        return `<div style="margin-bottom: 3px;"><span style="color: #fde68a; font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;">${escapeHtml(item)}</span></div>`;
+      }).join('');
+    }
+
+    function formatReviewDecision(dec) {
+      const text = String(dec || '');
+      const mCommit = text.match(/([0-9a-fA-F]{7,40})/i);
+      if (mCommit) {
+        const sha = mCommit[1];
+        return `
+          <span style="display: inline-flex; align-items: center; gap: 6px; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); padding: 2px 7px; border-radius: 4px; font-family: monospace;">
+            <span style="color: #34d399; font-weight: 700; font-size: 11px;">${escapeHtml(sha)}</span>
+            <button onclick="copyFolderToClipboard(this.getAttribute('data-sha'), this)"
+                    data-sha="${escapeHtml(sha)}"
+                    title="Copy commit ID: ${escapeHtml(sha)}"
+                    style="background: transparent; border: none; cursor: pointer; color: #6ee7b7; padding: 0; display: inline-flex; align-items: center; line-height: 1; transition: color 0.15s ease;"
+                    onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#6ee7b7'">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
+          </span>
+        `;
+      }
+      const lower = text.toLowerCase();
+      if (lower.includes('dismissed')) {
+        return `<span style="color: #94a3b8; font-size: 11px;">${escapeHtml(text)}</span>`;
+      }
+      if (lower.includes('open') || lower.includes('pending')) {
+        return `<span style="color: #fbbf24; font-weight: 600; font-size: 11px;">${escapeHtml(text)}</span>`;
+      }
+      return `<span style="color: #cbd5e1; font-size: 11px;">${escapeHtml(text || '—')}</span>`;
+    }
+
+    function formatReviewTokens(txt) {
+      if (!txt) return '<span style="color: #64748b;">—</span>';
+      const src = String(txt);
+      const tokenRegex = /(?:\[([^\]]+)\]\(([^)]+)\))|(?:`([^`]+)`)|(?:\[([A-Z0-9_\-]+)\])|(?:\{[^{}]+\})|(?:"(?:\\.|[^"\\])*")|(?:\b(?:src\/|\.devtool\/|[a-zA-Z0-9_\-]+\/)[a-zA-Z0-9_\-\.\/]+\.[a-zA-Z0-9]+(?::\d+(?:-\d+)?)?)|(?:\b[a-zA-Z0-9_\-]+\.(?:py|json|md|ts|js|html|dart|kt|swift)(?::\d+(?:-\d+)?)?\b)|(?:\b(?:CPPO-[A-Z0-9\-]+|ST-\d+|T[1-9](?:[–\-]T[1-9])?|T[1-9]\/T[1-9]|Step\s+\d+(?:(?:->|→)Step\s+\d+)?)\b)|(?:\b[a-zA-Z_][a-zA-Z0-9]*_[a-zA-Z0-9_]+\b)|(?:\b[A-Z0-9]+_[A-Z0-9_]+\b)|(?:\b(?:FAIL|PASS|CLEAN|AUTO_PASS|AUTO_FIX|CHANGES REQUIRED)\b)|(?:\b[A-Z][a-z0-9]+(?:[A-Z0-9][a-z0-9]*)+\b)|(?:\b[a-z][a-z0-9]*[A-Z][a-zA-Z0-9]*\b)|(?:\b(?:null|nil|None|true|false|True|False|Re-Align|agent|unknown)\b)/g;
+
+      let lastIndex = 0;
+      let html = '';
+      let match;
+
+      while ((match = tokenRegex.exec(src)) !== null) {
+        if (match.index > lastIndex) {
+          html += escapeHtml(src.substring(lastIndex, match.index));
+        }
+        const token = match[0];
+
+        if (match[1] && match[2]) {
+          html += `<span style="color: #38bdf8; text-decoration: underline; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px;">${escapeHtml(match[1])}</span>`;
+        } else if (match[3]) {
+          html += `<code style="color: #fde68a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; font-weight: 500;">${escapeHtml(match[3])}</code>`;
+        } else if (match[4]) {
+          html += `<span style="color: #f87171; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px;">[${escapeHtml(match[4])}]</span>`;
+        } else {
+          html += `<code style="color: #fde68a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; font-weight: 500;">${escapeHtml(token)}</code>`;
+        }
+        lastIndex = tokenRegex.lastIndex;
+      }
+
+      if (lastIndex < src.length) {
+        html += escapeHtml(src.substring(lastIndex));
+      }
+      return html;
+    }
+
+    function buildReviewFindingsTableHtml(findings, options) {
+      const items = Array.isArray(findings) ? findings : [];
+      if (items.length === 0) {
+        const emptyPad = (options && options.compactEmpty) ? '36px 20px' : '80px 20px';
+        return `
+          <tr>
+            <td colspan="6" style="padding: ${emptyPad}; text-align: center; color: #34d399; font-weight: 600; font-size: 13px;">
+              ✓ No findings detected (0 findings - CLEAN / AUTO_PASS)
+            </td>
+          </tr>
+        `;
+      }
+
+      return items.map(f => {
+        const sev = String(f.severity || '').toLowerCase();
+        const isCrit = sev.includes('crit');
+        const isImp = sev.includes('import') || sev.includes('imp');
+        const sevLabel = isCrit ? 'Crit' : (isImp ? 'Imp' : 'Min');
+        const sevColor = isCrit ? '#f87171' : (isImp ? '#fbbf24' : '#38bdf8');
+        const sevBg = isCrit ? 'rgba(239, 68, 68, 0.15)' : (isImp ? 'rgba(245, 158, 11, 0.15)' : 'rgba(56, 189, 248, 0.15)');
+        const sevBorder = isCrit ? 'rgba(239, 68, 68, 0.4)' : (isImp ? 'rgba(245, 158, 11, 0.4)' : 'rgba(56, 189, 248, 0.4)');
+
+        return `
+          <tr style="border-bottom: 1px solid #1e2433; background: #14171f;">
+            <td style="padding: 8px 10px; color: #94a3b8; font-weight: 700; text-align: center;">${escapeHtml(String(f.id ?? ''))}</td>
+            <td style="padding: 8px 10px;">
+              <span style="background: ${sevBg}; color: ${sevColor}; border: 1px solid ${sevBorder}; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; font-family: monospace;">
+                ${sevLabel}
+              </span>
+            </td>
+            <td style="padding: 8px 10px; font-size: 11px; word-break: break-word; line-height: 1.4;">
+              ${formatReviewLocation(f.location)}
+            </td>
+            <td style="padding: 8px 10px; font-size: 11px; line-height: 1.5; color: #cbd5e1;">${formatReviewTokens(f.problem || '')}</td>
+            <td style="padding: 8px 10px; font-size: 11px; line-height: 1.5; color: #f1f5f9;">${formatReviewTokens(f.proposed_action || '')}</td>
+            <td style="padding: 8px 10px; font-size: 11px; line-height: 1.5;">${formatReviewDecision(f.decision)}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
     function openReviewModal(repoName, epicName, roundNum, kind) {
       currentReviewRepo = repoName;
       currentReviewEpic = epicName;
       if (kind) currentReviewKind = kind;
       const round = roundNum || 1;
 
-      const url = '/api/review?repo=' + encodeURIComponent(repoName) + 
-                  '&epic=' + encodeURIComponent(epicName || '') + 
-                  '&round=' + round + 
+      const url = '/api/review?repo=' + encodeURIComponent(repoName) +
+                  '&epic=' + encodeURIComponent(epicName || '') +
+                  '&round=' + round +
                   '&kind=' + encodeURIComponent(currentReviewKind) +
                   '&_t=' + Date.now();
 
@@ -3773,11 +4097,11 @@ let currentReviewRepo = null;
           const titleEl = document.getElementById('cross-review-title');
           const subtitleEl = document.getElementById('cross-review-subtitle');
           const iconEl = document.getElementById('review-header-icon');
-          
+
           if (iconEl) iconEl.textContent = isPrincipal ? '🛡️' : '🔬';
           if (titleEl) {
-            titleEl.textContent = isPrincipal 
-              ? `Principal Review Results: ${repoName} (${data.epic || epicName || 'N/A'})` 
+            titleEl.textContent = isPrincipal
+              ? `Principal Review Results: ${repoName} (${data.epic || epicName || 'N/A'})`
               : `Cross-Model Review Results: ${repoName} (${data.epic || epicName || 'N/A'})`;
           }
           if (subtitleEl) {
@@ -3786,32 +4110,13 @@ let currentReviewRepo = null;
               : `Stage 3/4 Implementation & Diff External Multi-Model Review (Round ${round}) • 6-Column Triage Table`;
           }
 
-          // Border color from repository .vscode/settings.json
-          const repoObj = (currentReposData || []).find(r => r.name === repoName);
-          const themeColor = data.theme_color || (repoObj && repoObj.theme_color) || (REPO_THEMES[repoName] ? REPO_THEMES[repoName].color : '#b45309');
-          const modalReviewBox = document.getElementById('modal-review-box') || document.querySelector('#modal-cross-review .modal-box');
-          if (modalReviewBox) {
-            modalReviewBox.style.setProperty('border-color', themeColor, 'important');
-            modalReviewBox.style.boxShadow = `0 15px 45px -5px ${themeColor}88, 0 0 0 1px ${themeColor}`;
-          }
+          const themeColor = resolveRepoThemeColor(repoName, data.theme_color);
+          applyModalThemeBorder('modal-review-box', themeColor);
 
-          if (data.sha) document.getElementById('review-sha').textContent = data.sha;
-          if (data.reviewer) document.getElementById('review-provider').textContent = data.reviewer;
-          if (data.model) document.getElementById('review-model').textContent = data.model;
-          const thinkingEl = document.getElementById('review-thinking');
-          if (thinkingEl) thinkingEl.textContent = data.thinking || 'High';
-
-          if (data.verdict) {
-            const vEl = document.getElementById('review-verdict');
-            vEl.textContent = data.verdict;
-            const vUpper = data.verdict.toUpperCase();
-            if (vUpper.includes('PASS') || vUpper.includes('CLEAN') || vUpper.includes('CONVERGED')) {
-              vEl.style.color = '#34d399';
-            } else if (vUpper.includes('CHANGES REQUIRED') || vUpper.includes('FAIL')) {
-              vEl.style.color = '#f87171';
-            } else {
-              vEl.style.color = '#fbbf24';
-            }
+          const headerBlock = document.getElementById('review-header-block');
+          if (headerBlock) {
+            headerBlock.innerHTML = buildReviewHeaderHtml(data, { useLegacyIds: true });
+            syncLegacyReviewHeaderText(data);
           }
 
           // Dynamic Round Tabs (Deduplicated & Sorted)
@@ -3826,130 +4131,9 @@ let currentReviewRepo = null;
             }).join('');
           }
 
-          // Findings table (6 columns matching Image 2 spec)
           const tbody = document.getElementById('review-findings-body');
           if (tbody) {
-            if (!data.findings || data.findings.length === 0) {
-              tbody.innerHTML = `
-                <tr>
-                  <td colspan="6" style="padding: 80px 20px; text-align: center; color: #34d399; font-weight: 600; font-size: 13px;">
-                    ✓ No findings detected (0 findings - CLEAN / AUTO_PASS)
-                  </td>
-                </tr>
-              `;
-            } else {
-              tbody.innerHTML = data.findings.map(f => {
-                const sev = (f.severity || '').toLowerCase();
-                const isCrit = sev.includes('crit');
-                const isImp = sev.includes('import') || sev.includes('imp');
-                const sevLabel = isCrit ? 'Crit' : (isImp ? 'Imp' : 'Min');
-                const sevColor = isCrit ? '#f87171' : (isImp ? '#fbbf24' : '#38bdf8');
-                const sevBg = isCrit ? 'rgba(239, 68, 68, 0.15)' : (isImp ? 'rgba(245, 158, 11, 0.15)' : 'rgba(56, 189, 248, 0.15)');
-                const sevBorder = isCrit ? 'rgba(239, 68, 68, 0.4)' : (isImp ? 'rgba(245, 158, 11, 0.4)' : 'rgba(56, 189, 248, 0.4)');
-                
-                // Format location with multi-file support
-                const formatLocation = (loc) => {
-                  if (!loc) return '<span style="color: #64748b;">—</span>';
-                  const items = loc.split(/\s*;\s*|\n+/);
-                  return items.map(item => {
-                    const colonIdx = item.indexOf(':');
-                    if (colonIdx > -1) {
-                      const file = item.slice(0, colonIdx).trim();
-                      const rest = item.slice(colonIdx + 1).trim();
-                      return `<div style="margin-bottom: 3px;"><span style="color: #fde68a; font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;">${escapeHtml(file)}</span>:<span style="color: #94a3b8; font-size: 11px;">${escapeHtml(rest)}</span></div>`;
-                    }
-                    return `<div style="margin-bottom: 3px;"><span style="color: #fde68a; font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;">${escapeHtml(item)}</span></div>`;
-                  }).join('');
-                };
-
-                // Format decision column: Only commit ID + copy icon
-                const dec = f.decision || '';
-                let decHtml = '';
-                const mCommit = dec.match(/([0-9a-fA-F]{7,40})/i);
-                if (mCommit) {
-                  const sha = mCommit[1];
-                  decHtml = `
-                    <span style="display: inline-flex; align-items: center; gap: 6px; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); padding: 2px 7px; border-radius: 4px; font-family: monospace;">
-                      <span style="color: #34d399; font-weight: 700; font-size: 11px;">${escapeHtml(sha)}</span>
-                      <button onclick="copyFolderToClipboard('${escapeHtml(sha)}', this)" 
-                              title="Copy commit ID: ${escapeHtml(sha)}" 
-                              style="background: transparent; border: none; cursor: pointer; color: #6ee7b7; padding: 0; display: inline-flex; align-items: center; line-height: 1; transition: color 0.15s ease;"
-                              onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#6ee7b7'">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
-                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                        </svg>
-                      </button>
-                    </span>
-                  `;
-                } else if (dec.toLowerCase().includes('dismissed')) {
-                  decHtml = `<span style="color: #94a3b8; font-size: 11px;">${escapeHtml(dec)}</span>`;
-                } else if (dec.toLowerCase().includes('open') || dec.toLowerCase().includes('pending')) {
-                  decHtml = `<span style="color: #fbbf24; font-weight: 600; font-size: 11px;">${escapeHtml(dec)}</span>`;
-                } else {
-                  decHtml = `<span style="color: #cbd5e1; font-size: 11px;">${escapeHtml(dec || '—')}</span>`;
-                }
-
-                // Format technical tokens in problem & proposed action matching reference mockup
-                const formatReviewTokens = (txt) => {
-                  if (!txt) return '<span style="color: #64748b;">—</span>';
-
-                  const tokenRegex = /(?:\[([^\]]+)\]\(([^)]+)\))|(?:`([^`]+)`)|(?:\[([A-Z0-9_\-]+)\])|(?:\{[^{}]+\})|(?:"(?:\\.|[^"\\])*")|(?:\b(?:src\/|\.devtool\/|[a-zA-Z0-9_\-]+\/)[a-zA-Z0-9_\-\.\/]+\.[a-zA-Z0-9]+(?::\d+(?:-\d+)?)?)|(?:\b[a-zA-Z0-9_\-]+\.(?:py|json|md|ts|js|html|dart|kt|swift)(?::\d+(?:-\d+)?)?\b)|(?:\b(?:CPPO-[A-Z0-9\-]+|ST-\d+|T[1-9](?:[–\-]T[1-9])?|T[1-9]\/T[1-9]|Step\s+\d+(?:(?:->|→)Step\s+\d+)?)\b)|(?:\b[a-zA-Z_][a-zA-Z0-9]*_[a-zA-Z0-9_]+\b)|(?:\b[A-Z0-9]+_[A-Z0-9_]+\b)|(?:\b(?:FAIL|PASS|CLEAN|AUTO_PASS|AUTO_FIX|CHANGES REQUIRED)\b)|(?:\b[A-Z][a-z0-9]+(?:[A-Z0-9][a-z0-9]*)+\b)|(?:\b[a-z][a-z0-9]*[A-Z][a-zA-Z0-9]*\b)|(?:\b(?:null|nil|None|true|false|True|False|Re-Align|agent|unknown)\b)/g;
-
-                  let lastIndex = 0;
-                  let html = '';
-                  let match;
-
-                  while ((match = tokenRegex.exec(txt)) !== null) {
-                    if (match.index > lastIndex) {
-                      html += escapeHtml(txt.substring(lastIndex, match.index));
-                    }
-                    const token = match[0];
-
-                    if (match[1] && match[2]) {
-                      // Markdown link
-                      html += `<span style="color: #38bdf8; text-decoration: underline; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px;">${escapeHtml(match[1])}</span>`;
-                    } else if (match[3]) {
-                      // Backtick code
-                      html += `<code style="color: #fde68a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; font-weight: 500;">${escapeHtml(match[3])}</code>`;
-                    } else if (match[4]) {
-                      // Tag [INCOMPLETE_FIX]
-                      html += `<span style="color: #f87171; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px;">[${escapeHtml(match[4])}]</span>`;
-                    } else {
-                      // Highlighted token in warm amber monospace
-                      html += `<code style="color: #fde68a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; font-weight: 500;">${escapeHtml(token)}</code>`;
-                    }
-                    lastIndex = tokenRegex.lastIndex;
-                  }
-
-                  if (lastIndex < txt.length) {
-                    html += escapeHtml(txt.substring(lastIndex));
-                  }
-
-                  return html;
-                };
-
-                const probHtml = formatReviewTokens(f.problem || '');
-                const propHtml = formatReviewTokens(f.proposed_action || '');
-
-                return `
-                  <tr style="border-bottom: 1px solid #1e2433; background: #14171f;">
-                    <td style="padding: 8px 10px; color: #94a3b8; font-weight: 700; text-align: center;">${escapeHtml(f.id)}</td>
-                    <td style="padding: 8px 10px;">
-                      <span style="background: ${sevBg}; color: ${sevColor}; border: 1px solid ${sevBorder}; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; font-family: monospace;">
-                        ${sevLabel}
-                      </span>
-                    </td>
-                    <td style="padding: 8px 10px; font-size: 11px; word-break: break-word; line-height: 1.4;">
-                      ${formatLocation(f.location)}
-                    </td>
-                    <td style="padding: 8px 10px; font-size: 11px; line-height: 1.5; color: #cbd5e1;">${probHtml}</td>
-                    <td style="padding: 8px 10px; font-size: 11px; line-height: 1.5; color: #f1f5f9;">${propHtml}</td>
-                    <td style="padding: 8px 10px; font-size: 11px; line-height: 1.5;">${decHtml}</td>
-                  </tr>
-                `;
-              }).join('');
-            }
+            tbody.innerHTML = buildReviewFindingsTableHtml(data.findings, { compactEmpty: false });
           }
 
           const rawEl = document.getElementById('review-raw-evidence');
@@ -3969,6 +4153,570 @@ let currentReviewRepo = null;
       if (currentReviewRepo) {
         openReviewModal(currentReviewRepo, currentReviewEpic, roundNum, currentReviewKind);
       }
+    }
+
+    const epicHistoryState = {
+      isOpen: false,
+      repoName: '',
+      epicSlug: '',
+      status: '',
+      activeTab: 'timeline',
+      timelineFilter: 'all',
+      roundPrincipal: null,
+      roundCross: null,
+      expandedTasks: new Set(),
+      requestToken: 0,
+      abortController: null,
+      data: null,
+      loading: false,
+      error: null,
+    };
+
+    function normalizeEpicHistoryStatus(status) {
+      const raw = String(status || '').trim().toLowerCase();
+      if (raw === 'in-progress' || raw === 'in_progress') return 'in_progress';
+      if (raw === 'abandoned' || raw === 'abandon') return 'abandoned';
+      return raw || 'unknown';
+    }
+
+    function abortEpicHistoryInFlight() {
+      if (epicHistoryState.abortController) {
+        try {
+          epicHistoryState.abortController.abort();
+        } catch (e) {}
+        epicHistoryState.abortController = null;
+      }
+    }
+
+    function abortEpicHistoryModalState() {
+      epicHistoryState.isOpen = false;
+      epicHistoryState.requestToken += 1;
+      epicHistoryState.data = null;
+      epicHistoryState.status = '';
+      epicHistoryState.loading = false;
+      epicHistoryState.error = null;
+      epicHistoryState.activeTab = 'timeline';
+      epicHistoryState.timelineFilter = 'all';
+      epicHistoryState.roundPrincipal = null;
+      epicHistoryState.roundCross = null;
+      epicHistoryState.expandedTasks = new Set();
+      abortEpicHistoryInFlight();
+    }
+
+    function formatEpicHistoryStatusMeta(status) {
+      const norm = normalizeEpicHistoryStatus(status);
+      if (norm === 'done') return { label: 'Done', color: '#34d399', bg: 'rgba(16, 185, 129, 0.14)', border: 'rgba(16, 185, 129, 0.45)' };
+      if (norm === 'in_progress') return { label: 'In Progress', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.14)', border: 'rgba(56, 189, 248, 0.45)' };
+      if (norm === 'packaged') return { label: 'Packaged', color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.14)', border: 'rgba(167, 139, 250, 0.45)' };
+      if (norm === 'abandoned') return { label: 'Abandoned', color: '#fca5a5', bg: 'rgba(239, 68, 68, 0.14)', border: 'rgba(239, 68, 68, 0.45)' };
+      return { label: 'Backlog', color: '#cbd5e1', bg: '#1e293b', border: '#334155' };
+    }
+
+    function hideEpicHistoryErrorBanner() {
+      const banner = document.getElementById('epic-history-error-banner');
+      if (banner) banner.style.display = 'none';
+    }
+
+    function showEpicHistoryErrorBanner(message) {
+      const banner = document.getElementById('epic-history-error-banner');
+      const txtEl = document.getElementById('epic-history-error-text');
+      if (txtEl) txtEl.textContent = String(message || 'Failed to load epic history.');
+      if (banner) banner.style.display = 'flex';
+    }
+
+    function setEpicHistoryTabButtons(activeTab) {
+      const tabsEl = document.getElementById('epic-history-tabs');
+      if (!tabsEl) return;
+      tabsEl.querySelectorAll('.tab-btn').forEach(btn => {
+        const tabKey = typeof btn.getAttribute === 'function' ? btn.getAttribute('data-history-tab') : '';
+        if (tabKey === activeTab) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+    }
+
+    function openEpicHistoryModal(repoName, epicSlug, options) {
+      const opts = options || {};
+      const isDifferentEpic = epicHistoryState.repoName !== repoName || epicHistoryState.epicSlug !== epicSlug;
+      if (isDifferentEpic && !opts.preserveUiState) {
+        epicHistoryState.activeTab = 'timeline';
+        epicHistoryState.timelineFilter = 'all';
+        epicHistoryState.roundPrincipal = null;
+        epicHistoryState.roundCross = null;
+        epicHistoryState.expandedTasks = new Set();
+        epicHistoryState.data = null;
+        epicHistoryState.status = '';
+      }
+      epicHistoryState.isOpen = true;
+      epicHistoryState.repoName = repoName;
+      epicHistoryState.epicSlug = epicSlug;
+      epicHistoryState.error = null;
+      epicHistoryState.loading = true;
+
+      if (!opts.silent) {
+        hideEpicHistoryErrorBanner();
+        setEpicHistoryTabButtons(epicHistoryState.activeTab);
+        applyModalThemeBorder('modal-epic-history-box', resolveRepoThemeColor(repoName, null));
+        const repoBadge = document.getElementById('epic-history-repo-badge');
+        if (repoBadge) repoBadge.textContent = String(repoName);
+        const stBadge = document.getElementById('epic-history-status-badge');
+        if (stBadge && !epicHistoryState.data) {
+          stBadge.textContent = 'LOADING';
+          stBadge.style.color = '#cbd5e1';
+          if (stBadge.style) {
+            stBadge.style.background = '#1e293b';
+            stBadge.style.borderColor = '#334155';
+          }
+        }
+        const titleEl = document.getElementById('epic-history-title');
+        if (titleEl) titleEl.textContent = String(epicSlug);
+        const metaEl = document.getElementById('epic-history-meta');
+        if (metaEl) metaEl.innerHTML = '<span>Loading epic history...</span>';
+        const stepperEl = document.getElementById('epic-history-stepper');
+        if (stepperEl) stepperEl.innerHTML = '';
+        const bodyEl = document.getElementById('epic-history-body');
+        if (bodyEl && !epicHistoryState.data) {
+          bodyEl.scrollTop = 0;
+          bodyEl.innerHTML = '<div style="padding: 40px 16px; text-align: center; color: #94a3b8;">Loading epic history...</div>';
+        }
+        openLiveModal('modal-epic-history');
+      }
+
+      return loadEpicHistoryData(opts);
+    }
+
+    function refreshEpicHistoryModal(options) {
+      if (!epicHistoryState.repoName || !epicHistoryState.epicSlug) return Promise.resolve();
+      return loadEpicHistoryData(options || {});
+    }
+
+    function buildEpicHistoryUrl() {
+      let url = '/api/epic/history?repo=' + encodeURIComponent(epicHistoryState.repoName) +
+        '&epic=' + encodeURIComponent(epicHistoryState.epicSlug);
+      if (epicHistoryState.roundPrincipal !== null) {
+        url += '&round_principal=' + encodeURIComponent(String(epicHistoryState.roundPrincipal));
+      }
+      if (epicHistoryState.roundCross !== null) {
+        url += '&round_cross=' + encodeURIComponent(String(epicHistoryState.roundCross));
+      }
+      return url;
+    }
+
+    function loadEpicHistoryData(options) {
+      const opts = options || {};
+      const token = ++epicHistoryState.requestToken;
+      abortEpicHistoryInFlight();
+      const controller = typeof AbortController === 'function' ? new AbortController() : null;
+      epicHistoryState.abortController = controller;
+      epicHistoryState.loading = true;
+      epicHistoryState.error = null;
+
+      if (!opts.silent) {
+        hideEpicHistoryErrorBanner();
+      }
+
+      const fetchOpts = controller ? { signal: controller.signal } : {};
+      return fetch(getApiUrl(buildEpicHistoryUrl()), fetchOpts)
+        .then(async (res) => {
+          if (!epicHistoryState.isOpen || token !== epicHistoryState.requestToken) return;
+          let payload = null;
+          try {
+            payload = await res.json();
+          } catch (e) {
+            payload = null;
+          }
+          if (!epicHistoryState.isOpen || token !== epicHistoryState.requestToken) return;
+
+          const httpFailed = (res && typeof res.ok === 'boolean' && !res.ok) || (res && typeof res.status === 'number' && res.status >= 400);
+          if (httpFailed || (payload && payload.success === false)) {
+            const msg = (payload && payload.error)
+              ? String(payload.error)
+              : `HTTP ${res && res.status ? res.status : 500} failed to load epic history`;
+            throw new Error(msg);
+          }
+
+          epicHistoryState.data = payload || {};
+          epicHistoryState.status = normalizeEpicHistoryStatus(payload?.epic?.status);
+          epicHistoryState.loading = false;
+          epicHistoryState.error = null;
+
+          if (epicHistoryState.roundPrincipal === null && payload?.reviews?.principal?.present && payload?.reviews?.principal?.round) {
+            epicHistoryState.roundPrincipal = Number(payload.reviews.principal.round);
+          }
+          if (epicHistoryState.roundCross === null && payload?.reviews?.cross_model?.present && payload?.reviews?.cross_model?.round) {
+            epicHistoryState.roundCross = Number(payload.reviews.cross_model.round);
+          }
+
+          hideEpicHistoryErrorBanner();
+          renderEpicHistoryHeaderAndChrome();
+          renderEpicHistoryActiveTab();
+        })
+        .catch((err) => {
+          if (err && err.name === 'AbortError') return;
+          if (!epicHistoryState.isOpen || token !== epicHistoryState.requestToken) return;
+          epicHistoryState.loading = false;
+          const message = (err && err.message) ? String(err.message) : 'Failed to load epic history.';
+          epicHistoryState.error = message;
+          showEpicHistoryErrorBanner(message);
+          if (!epicHistoryState.data) {
+            const stBadge = document.getElementById('epic-history-status-badge');
+            if (stBadge) {
+              stBadge.textContent = 'ERROR';
+              stBadge.style.color = '#fca5a5';
+              if (stBadge.style) {
+                stBadge.style.background = 'rgba(239, 68, 68, 0.14)';
+                stBadge.style.borderColor = 'rgba(239, 68, 68, 0.45)';
+              }
+            }
+            const bodyEl = document.getElementById('epic-history-body');
+            if (bodyEl) {
+              bodyEl.innerHTML = `<div style="padding: 32px 16px; text-align: center; color: #fca5a5;">Unable to load epic history: ${escapeHtml(message)}</div>`;
+            }
+          }
+        });
+    }
+
+    function renderEpicHistoryHeaderAndChrome() {
+      const data = epicHistoryState.data;
+      if (!data) return;
+      const epic = data.epic || {};
+      const themeColor = resolveRepoThemeColor(epicHistoryState.repoName, null);
+      applyModalThemeBorder('modal-epic-history-box', themeColor);
+
+      const repoBadge = document.getElementById('epic-history-repo-badge');
+      if (repoBadge) repoBadge.textContent = String(epicHistoryState.repoName || '');
+
+      const stMeta = formatEpicHistoryStatusMeta(epic.status);
+      const stBadge = document.getElementById('epic-history-status-badge');
+      if (stBadge) {
+        stBadge.textContent = stMeta.label;
+        stBadge.style.color = stMeta.color;
+        if (stBadge.style) {
+          stBadge.style.background = stMeta.bg;
+          stBadge.style.borderColor = stMeta.border;
+        }
+      }
+
+      const titleEl = document.getElementById('epic-history-title');
+      if (titleEl) {
+        titleEl.textContent = String(epic.title || epic.slug || epicHistoryState.epicSlug);
+      }
+
+      const picText = epic.pic ? `@${String(epic.pic)}` : 'Unassigned';
+      const doneTasks = Number(epic.done_tasks || 0);
+      const totalTasks = Number(epic.total_tasks || (Array.isArray(data.tasks) ? data.tasks.length : 0));
+      const updated = String(epic.last_updated_human || epic.last_updated || 'N/A');
+      const completeness = String(data.log_completeness || 'none');
+      const wtBadge = epic.has_worktree
+        ? `<span class="epic-history-pill" style="background: rgba(56, 189, 248, 0.14); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35);">worktree</span>`
+        : '';
+
+      const metaEl = document.getElementById('epic-history-meta');
+      if (metaEl) {
+        metaEl.innerHTML = `
+          <span>Slug: <code style="color: #e2e8f0;">${escapeHtml(String(epic.slug || epicHistoryState.epicSlug))}</code></span>
+          <span>• PIC: <strong style="color: #e2e8f0;">${escapeHtml(picText)}</strong></span>
+          <span>• Tasks: <strong style="color: #e2e8f0;">${doneTasks}/${totalTasks}</strong></span>
+          <span>• Updated: <strong style="color: #cbd5e1;">${escapeHtml(updated)}</strong></span>
+          <span class="epic-history-pill" style="background: rgba(148, 163, 184, 0.12); color: #cbd5e1; border: 1px solid #334155;">Stream: ${escapeHtml(completeness)}</span>
+          ${wtBadge}
+        `;
+      }
+
+      const stepperEl = document.getElementById('epic-history-stepper');
+      if (stepperEl) {
+        stepperEl.innerHTML = buildPipelineStepperHtml(data.pipeline_telemetry, null, {
+          compact: true,
+          includeSubSteps: false,
+          includeLogs: false,
+        });
+      }
+      setEpicHistoryTabButtons(epicHistoryState.activeTab);
+    }
+
+    function switchEpicHistoryTab(tabName) {
+      const nextTab = tabName || 'timeline';
+      const changed = epicHistoryState.activeTab !== nextTab;
+      epicHistoryState.activeTab = nextTab;
+      setEpicHistoryTabButtons(epicHistoryState.activeTab);
+      if (changed) {
+        const bodyEl = document.getElementById('epic-history-body');
+        if (bodyEl) bodyEl.scrollTop = 0;
+      }
+      renderEpicHistoryActiveTab();
+    }
+
+    function setEpicHistoryTimelineFilter(filterCat) {
+      epicHistoryState.timelineFilter = filterCat || 'all';
+      if (epicHistoryState.activeTab === 'timeline') {
+        renderEpicHistoryActiveTab();
+      }
+    }
+
+    function toggleEpicHistoryTaskEvidence(taskId) {
+      const id = String(taskId || '');
+      if (!id) return;
+      if (epicHistoryState.expandedTasks.has(id)) {
+        epicHistoryState.expandedTasks.delete(id);
+      } else {
+        epicHistoryState.expandedTasks.add(id);
+      }
+      if (epicHistoryState.activeTab === 'tasks') {
+        renderEpicHistoryActiveTab();
+      }
+    }
+
+    function switchEpicHistoryReviewRound(reviewKey, roundNum) {
+      const round = Number(roundNum || 1);
+      if (reviewKey === 'principal') {
+        epicHistoryState.roundPrincipal = round;
+      } else {
+        epicHistoryState.roundCross = round;
+      }
+      return refreshEpicHistoryModal({ silent: true });
+    }
+
+    function renderEpicHistoryActiveTab() {
+      const bodyEl = document.getElementById('epic-history-body');
+      const data = epicHistoryState.data;
+      if (!bodyEl || !data) return;
+
+      let nextHtml = '';
+      if (epicHistoryState.activeTab === 'tasks') {
+        nextHtml = renderEpicHistoryTasksTab(data);
+      } else if (epicHistoryState.activeTab === 'principal') {
+        nextHtml = renderEpicHistoryReviewTab(data, 'principal');
+      } else if (epicHistoryState.activeTab === 'cross_model') {
+        nextHtml = renderEpicHistoryReviewTab(data, 'cross_model');
+      } else {
+        nextHtml = renderEpicHistoryTimelineTab(data);
+      }
+
+      const prevScrollTop = Number(bodyEl.scrollTop || 0);
+      if (bodyEl.innerHTML !== nextHtml) {
+        bodyEl.innerHTML = nextHtml;
+      }
+      bodyEl.scrollTop = prevScrollTop;
+    }
+
+    function renderEpicHistoryTimelineTab(data) {
+      const events = Array.isArray(data.timeline) ? data.timeline : [];
+      const activeFilter = epicHistoryState.timelineFilter || 'all';
+      const categories = [
+        ['all', 'All'],
+        ['gate', 'Gates'],
+        ['step', 'Steps'],
+        ['activity', 'Activity'],
+        ['evidence', 'Evidence'],
+      ];
+
+      const counts = { all: events.length, gate: 0, step: 0, activity: 0, evidence: 0 };
+      events.forEach(ev => {
+        const cat = String(ev.category || '').toLowerCase();
+        if (cat in counts) counts[cat] += 1;
+      });
+
+      const pillsHtml = categories.map(([catKey, label]) => {
+        const activeClass = activeFilter === catKey ? 'tab-btn active' : 'tab-btn';
+        return `<button type="button" class="${activeClass}" data-timeline-filter="${catKey}" onclick="setEpicHistoryTimelineFilter(this.getAttribute('data-timeline-filter'))" style="padding: 4px 10px; font-size: 11px;">${label} (${counts[catKey] || 0})</button>`;
+      }).join('');
+
+      const filtered = activeFilter === 'all'
+        ? events
+        : events.filter(ev => String(ev.category || '').toLowerCase() === activeFilter);
+
+      const catBadgeColors = {
+        gate: { bg: 'rgba(16, 185, 129, 0.14)', color: '#34d399', border: 'rgba(16, 185, 129, 0.4)' },
+        step: { bg: 'rgba(56, 189, 248, 0.14)', color: '#38bdf8', border: 'rgba(56, 189, 248, 0.4)' },
+        activity: { bg: 'rgba(167, 139, 250, 0.14)', color: '#a78bfa', border: 'rgba(167, 139, 250, 0.4)' },
+        evidence: { bg: 'rgba(245, 158, 11, 0.14)', color: '#fbbf24', border: 'rgba(245, 158, 11, 0.4)' },
+      };
+
+      const rowsHtml = filtered.length === 0
+        ? `<div style="padding: 36px 16px; text-align: center; color: #94a3b8; border: 1px dashed #282f40; border-radius: 8px;">${events.length === 0 ? 'No timeline or step logs recorded for this epic yet.' : 'No timeline events match the selected filter.'}</div>`
+        : filtered.map(ev => {
+            const cat = String(ev.category || 'step').toLowerCase();
+            const badgeStyle = catBadgeColors[cat] || catBadgeColors.step;
+            const ts = String(ev.ts || '—');
+            const stage = ev.stage ? `<span style="color: #cbd5e1; font-weight: 600;">${escapeHtml(String(ev.stage))}</span>` : '';
+            const subStep = ev.sub_step ? `<span style="color: #38bdf8;">[${escapeHtml(String(ev.sub_step))}]</span>` : '';
+            const source = ev.source ? `<span style="color: #64748b; font-size: 10px;">(${escapeHtml(String(ev.source))})</span>` : '';
+            const detail = ev.detail ? `<div style="margin-top: 4px; color: #94a3b8; font-size: 11px;">${escapeHtml(String(ev.detail))}</div>` : '';
+            return `
+              <div class="epic-history-card" data-timeline-category="${escapeHtml(cat)}">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; font-family: monospace; margin-bottom: 4px;">
+                  <span style="color: #64748b;">${escapeHtml(ts)}</span>
+                  <span class="epic-history-pill" style="background: ${badgeStyle.bg}; color: ${badgeStyle.color}; border: 1px solid ${badgeStyle.border}; text-transform: uppercase;">${escapeHtml(cat)}</span>
+                  ${stage}
+                  ${subStep}
+                  ${source}
+                </div>
+                <div style="font-size: 12px; color: #f1f5f9; word-break: break-word;">${escapeHtml(String(ev.message || ''))}</div>
+                ${detail}
+              </div>
+            `;
+          }).join('');
+
+      return `
+        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;">${pillsHtml}</div>
+        <div>${rowsHtml}</div>
+      `;
+    }
+
+    function renderEpicHistoryTasksTab(data) {
+      const tasks = Array.isArray(data.tasks) ? data.tasks : [];
+      if (tasks.length === 0) {
+        return '<div style="padding: 36px 16px; text-align: center; color: #94a3b8; border: 1px dashed #282f40; border-radius: 8px;">No tasks recorded for this epic yet.</div>';
+      }
+
+      const statusPalette = {
+        done: { color: '#34d399', bg: 'rgba(16, 185, 129, 0.14)', border: 'rgba(16, 185, 129, 0.4)' },
+        'in-progress': { color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.14)', border: 'rgba(56, 189, 248, 0.4)' },
+        review: { color: '#fbbf24', bg: 'rgba(245, 158, 11, 0.14)', border: 'rgba(245, 158, 11, 0.4)' },
+      };
+
+      return tasks.map(t => {
+        const taskId = String(t.id || '');
+        const tStatus = String(t.status || 'todo');
+        const stColor = statusPalette[tStatus] || { color: '#cbd5e1', bg: '#1e293b', border: '#334155' };
+        const source = String(t.source || 'root');
+        const sourceBadge = source === 'worktree'
+          ? '<span class="epic-history-pill" style="background: rgba(56, 189, 248, 0.14); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">worktree</span>'
+          : '<span class="epic-history-pill" style="background: rgba(100, 116, 139, 0.15); color: #94a3b8; border: 1px solid #334155;">root</span>';
+
+        const ev = t.evidence && typeof t.evidence === 'object' ? t.evidence : null;
+        const isExpanded = epicHistoryState.expandedTasks.has(taskId);
+        let evidenceHeaderHtml = '<span style="font-size: 11px; color: #64748b;">No verification evidence</span>';
+        let evidenceDetailHtml = '';
+
+        if (ev) {
+          const passed = Number(ev.passed_rows || 0);
+          const total = Number(ev.total_rows || 0);
+          const rawEvStatus = String(ev.status || '').trim().toUpperCase();
+          let evStatus = rawEvStatus || (total > 0 ? (passed >= total ? 'PASS' : 'FAIL') : 'UNKNOWN');
+          let evColor = '#fbbf24';
+          if (evStatus === 'FAIL' || evStatus === 'FAILED' || (total > 0 && passed < total)) {
+            if (total > 0 && passed < total && evStatus !== 'FAILED') {
+              evStatus = 'FAIL';
+            }
+            evColor = '#f87171';
+          } else if (evStatus === 'PASS' || evStatus === 'PASSED' || evStatus === 'DONE') {
+            evColor = '#34d399';
+          } else {
+            evStatus = 'UNKNOWN';
+          }
+          const headSha = String(ev.head || 'N/A');
+          evidenceHeaderHtml = `
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; font-family: monospace;">
+              <span style="color: ${evColor}; font-weight: 700;">${escapeHtml(evStatus)} ${passed}/${total}</span>
+              <span style="color: #94a3b8;">HEAD: <code style="color: #fde68a;">${escapeHtml(headSha)}</code></span>
+              <button type="button" class="tab-btn" data-evidence-task-id="${escapeHtml(taskId)}" onclick="toggleEpicHistoryTaskEvidence(this.getAttribute('data-evidence-task-id'))" style="padding: 2px 8px; font-size: 10px;">
+                ${isExpanded ? 'Hide Evidence ▴' : 'Inspect Evidence ▾'}
+              </button>
+            </div>
+          `;
+
+          if (isExpanded) {
+            const rows = Array.isArray(ev.rows) ? ev.rows : [];
+            const rowItems = rows.length === 0
+              ? '<div style="font-size: 11px; color: #94a3b8;">No verification rows recorded.</div>'
+              : rows.map(r => {
+                  const outcome = String(r.outcome || 'UNKNOWN');
+                  const outColor = outcome.toUpperCase() === 'PASS' ? '#34d399' : '#f87171';
+                  const tailText = Array.isArray(r.output_tail) ? r.output_tail.join('\n') : String(r.output_tail || '');
+                  return `
+                    <div style="background: #0c0f17; border: 1px solid #1e293b; border-radius: 6px; padding: 8px 10px; margin-top: 6px;">
+                      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; font-family: monospace; margin-bottom: 4px;">
+                        <strong style="color: #e2e8f0;">${escapeHtml(String(r.id || ''))}</strong>
+                        <span style="color: #94a3b8;">${escapeHtml(String(r.phase || ''))}</span>
+                        <span style="color: ${outColor}; font-weight: 700;">${escapeHtml(outcome)}</span>
+                      </div>
+                      <div style="font-size: 11px; color: #fde68a; font-family: monospace; word-break: break-all;">${escapeHtml(String(r.command || ''))}</div>
+                      ${r.reason ? `<div style="font-size: 11px; color: #fca5a5; margin-top: 4px;">${escapeHtml(String(r.reason))}</div>` : ''}
+                      ${tailText ? `<pre style="margin: 6px 0 0 0; font-size: 10px; color: #94a3b8; white-space: pre-wrap; max-height: 150px; overflow-y: auto;">${escapeHtml(tailText)}</pre>` : ''}
+                    </div>
+                  `;
+                }).join('');
+            evidenceDetailHtml = `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #1e2433;">${rowItems}</div>`;
+          }
+        }
+
+        return `
+          <div class="epic-history-card" data-task-id="${escapeHtml(taskId)}">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span class="epic-history-pill" style="background: ${stColor.bg}; color: ${stColor.color}; border: 1px solid ${stColor.border};">${escapeHtml(tStatus)}</span>
+                <code style="font-size: 11px; color: #94a3b8;">${escapeHtml(taskId)}</code>
+                <strong style="font-size: 13px; color: #f8fafc;">${escapeHtml(String(t.title || taskId))}</strong>
+                ${sourceBadge}
+              </div>
+              ${evidenceHeaderHtml}
+            </div>
+            ${evidenceDetailHtml}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderEpicHistoryReviewTab(data, reviewKey) {
+      const reviewObj = (data && data.reviews && data.reviews[reviewKey]) ? data.reviews[reviewKey] : null;
+      const titleLabel = reviewKey === 'principal' ? 'Principal Review' : 'Cross-Model Review';
+      if (!reviewObj || !reviewObj.present) {
+        return `
+          <div style="padding: 36px 16px; text-align: center; color: #94a3b8; border: 1px dashed #282f40; border-radius: 8px;">
+            No ${escapeHtml(titleLabel)} report recorded for this epic yet.
+          </div>
+        `;
+      }
+
+      const rawRounds = (Array.isArray(reviewObj.available_rounds) && reviewObj.available_rounds.length > 0)
+        ? reviewObj.available_rounds
+        : (reviewObj.round ? [reviewObj.round] : []);
+      const availRounds = Array.from(new Set(rawRounds.map(Number).filter(n => !Number.isNaN(n) && n > 0))).sort((a, b) => a - b);
+      const selectedRound = Number(
+        reviewObj.round ||
+        (reviewKey === 'principal' ? epicHistoryState.roundPrincipal : epicHistoryState.roundCross) ||
+        1
+      );
+
+      const roundTabsHtml = availRounds.length > 0
+        ? `<div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">${availRounds.map(r => {
+            const activeClass = r === selectedRound ? 'tab-btn active' : 'tab-btn';
+            return `<button type="button" class="${activeClass}" data-review-round="${r}" onclick="switchEpicHistoryReviewRound('${reviewKey}', ${r})">Round ${r}</button>`;
+          }).join('')}</div>`
+        : '';
+
+      return `
+        ${roundTabsHtml}
+        <div style="background: #161a23; border: 1px solid #282f40; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px;">
+          ${buildReviewHeaderHtml(reviewObj, { useLegacyIds: false })}
+        </div>
+        <div style="overflow-x: auto; margin-bottom: 12px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; color: #e2e8f0;">
+            <thead>
+              <tr style="border-bottom: 1px solid #282f40; background: #131720; color: #94a3b8; font-size: 11px; text-transform: uppercase;">
+                <th style="padding: 8px 10px; width: 35px; text-align: center;">#</th>
+                <th style="padding: 8px 10px; width: 60px;">Sev</th>
+                <th style="padding: 8px 10px; width: 220px;">Location</th>
+                <th style="padding: 8px 10px; min-width: 240px;">Problem</th>
+                <th style="padding: 8px 10px; min-width: 240px;">Proposed Action</th>
+                <th style="padding: 8px 10px; width: 140px;">Fixed in(commit)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${buildReviewFindingsTableHtml(reviewObj.findings, { compactEmpty: true })}
+            </tbody>
+          </table>
+        </div>
+        <details style="background: #141720; border: 1px solid #282f40; border-radius: 8px; padding: 8px 12px;">
+          <summary style="font-size: 11px; font-weight: 700; color: #fde68a; cursor: pointer; user-select: none;">
+            📄 Evidence / Raw Output (Verbatim Evidence)
+          </summary>
+          <pre style="margin-top: 8px; font-size: 11px; color: #94a3b8; background: #0c0f17; padding: 10px; border-radius: 6px; overflow-x: auto; font-family: monospace; white-space: pre-wrap; max-height: 200px;">${escapeHtml(String(reviewObj.raw_output || 'No verbatim raw output available for this round.'))}</pre>
+        </details>
+      `;
     }
 
     function openEpicsModal(repoName) {
@@ -4258,7 +5006,18 @@ let currentReviewRepo = null;
     }
 
     function pollDashboard() {
-      return fetchTasks();
+      return fetchTasks().then(() => {
+        if (
+          epicHistoryState.isOpen &&
+          !epicHistoryState.error &&
+          normalizeEpicHistoryStatus(epicHistoryState.status) === 'in_progress' &&
+          epicHistoryState.repoName &&
+          epicHistoryState.epicSlug
+        ) {
+          return refreshEpicHistoryModal({ silent: true });
+        }
+        return undefined;
+      });
     }
 
     function fetchTasks() {
