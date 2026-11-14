@@ -8,6 +8,32 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.29.1 — 2026-11-14
+
+Delivers automated **Kanban Task Status Synchronization & Heartbeat Slot Overlay**, embedding physical status transition gates directly in `dev-implementation` and `subagent-driven-development` workflows without rule bloat, adding `--status working|review|idle` and `--no-reset` to `manage_worker_pool.py`, mapping active worker slots directly onto the Kanban Dashboard without dirtying the main worktree, and propagating task identities and execution waves in `lifecycle_runner.py`.
+
+### Added
+
+- **Worker Pool Slot Synchronization & State Tracking (`manage_worker_pool.py`)**:
+  - Adds `--status working|review|idle` and `--no-reset` flags to `manage_worker_pool.py sync`, recording active slot state, task IDs, and execution waves directly into `<epic_slug>.heartbeat.json`.
+  - Supports `--status review` and `--no-reset` to preserve uncommitted worktree changes and test evidence across review and fix cycles.
+  - Adds `--status idle` to reset worktrees and safely clear slot assignments upon task merge or unmerged rollback.
+- **Heartbeat Slot Status Overlay on Kanban Dashboard (`check_tasks.py`, `tasks_dashboard.html`)**:
+  - Automatically overlays active slot statuses from `<epic_slug>.heartbeat.json` onto Kanban tasks (`working` -> `in-progress`, `review` -> `review`), rendering slot badges (`slot-1`, `slot-2`) and updating task progress without dirtying tracked files in `main_wt`.
+  - Expands `tasks_dashboard.html` epic progress summary to track and render active `Review` tasks alongside `Doing` and `Done` states.
+
+### Changed
+
+- **Physical Task Transition Gates (`skills/dev-implementation/SKILL.md`, `skills/subagent-driven-development/SKILL.md`)**:
+  - Implements physical status transition gates directly in the workflow guides without bloating `rules/` (preventing Focus Dilution).
+  - Explicitly requires synchronizing task status to `working`/`in-progress` before dispatching implementers, setting status to `review` before dispatching `task-reviewer`, and returning to `working` with `--no-reset` during fix loops.
+  - Clarifies that tasks with Verification tables must run `sync_task_status.py task <task_id> done` and commit within the active worker slot before executing `manage_worker_pool.py merge`.
+- **Autonomous Lifecycle Runner Slot Propagation (`lifecycle_runner.py`)**:
+  - Updates `_run_pool_batch` to pass `task_id`, `active_wave`, and `status="working"` during slot synchronization, resetting slots to `idle` upon merge conflict or task failure.
+  - Adds fallback in `_execute_single_task` to mark tasks `in-progress` before running single-worktree dispatches.
+- **Handoff Prompts & Context Sync (`handoff-template.md`, `resume_context.py`)**:
+  - Aligns receiving agent prompts and handoff templates with explicit slot sync commands (`--status working|review`).
+
 ## 1.29.0 — 2026-11-13
 
 Introduces the interactive **Cross-Repo Tasks & Context Dashboard (`check-tasks`)**, **Token Throttling Optimization** across lifecycle & review scripts, **Runtime Sync & Dashboard Hardening** (atomic state envelopes, hybrid heartbeat estimation, single modal stack control, and worker pool hardening), plus **multi-format HLD status parsing**, **stale daemon auto-restart**, and the **embedded quota batch-schedule modal fix**.
