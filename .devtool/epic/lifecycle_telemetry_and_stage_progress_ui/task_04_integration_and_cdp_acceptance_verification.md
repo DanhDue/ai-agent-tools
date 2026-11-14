@@ -46,6 +46,7 @@ Build the end-to-end integration and headless Chrome CDP acceptance test suite `
 Allowed files:
 - `tests/test_lifecycle_telemetry_and_stage_progress.py` (new)
 - `tests/test_rsdh_harvester_and_pic.py`
+- `tests/test_runtime_sync_and_dashboard_hardening.py`
 - `tests/test_lifecycle_runner.py`
 - `scripts/verify.sh`
 
