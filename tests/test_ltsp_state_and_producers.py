@@ -239,6 +239,8 @@ def test_ltsp_st_01_external_review_runner_transitions_review_state(
         assert rc_ver == 0
         hb3 = json.loads(hb_path.read_text(encoding="utf-8"))
         assert hb3.get("review_state", {}).get("phase") == "verifying"
+        assert hb3.get("review_state", {}).get("sha") == "a1b2c3d"
+        assert hb3.get("review_state", {}).get("head_sha")
         events = hb3.get("events", [])
         assert len(events) >= 3
         phases_logged = [e.get("sub_step") for e in events[-3:]]

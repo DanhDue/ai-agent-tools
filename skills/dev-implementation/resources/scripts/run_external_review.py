@@ -2641,6 +2641,7 @@ def _emit_review_heartbeat(
     action: str = "",
     detail: str = "",
     sha: str = "",
+    head_sha: str = "",
 ) -> None:
     if not epic_dir:
         return
@@ -2721,6 +2722,8 @@ def _emit_review_heartbeat(
             rev_dict["action"] = action
         if sha:
             rev_dict["sha"] = sha
+        if head_sha:
+            rev_dict["head_sha"] = head_sha
 
         eff_round = rev_dict.get("round", 1)
         eff_max = rev_dict.get("max_rounds", MAX_REVIEW_ROUNDS)
@@ -2773,7 +2776,7 @@ def _emit_review_heartbeat(
             last_event=event_msg,
         )
     except Exception:  # noqa: BLE001
-        pass
+        return
 
 
 def status_cmd(args: argparse.Namespace) -> int:
@@ -2794,7 +2797,7 @@ def status_cmd(args: argparse.Namespace) -> int:
         round_num=round_num,
         max_rounds=getattr(args, "max_rounds", MAX_REVIEW_ROUNDS),
         detail=getattr(args, "detail", "") or "",
-        sha=head_of(root),
+        head_sha=head_of(root),
     )
     return 0
 

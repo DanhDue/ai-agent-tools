@@ -1884,73 +1884,30 @@ class LifecycleRunner:
         return True, "Scoped checks PASS"
 
     def _emit_review_phase_status(self, kind: str, phase: str, round_num: int) -> None:
-        """Emit mechanical review phase telemetry in-process without consuming subprocess mocks."""
+        """Emit mechanical review phase telemetry via run_external_review._emit_review_heartbeat."""
         try:
-            kind_norm = "principal" if kind == "principal" else "code"
-            kind_label = (
-                "Principal Review" if kind_norm == "principal" else "Cross-Model Review"
+            if not (self.root / ".devtool" / "state").is_dir():
+                return
+            ext_scripts = (
+                Path(__file__).resolve().parents[4]
+                / "skills"
+                / "dev-implementation"
+                / "resources"
+                / "scripts"
             )
-            stage_label = (
-                "Stage 2 (Principal Review)"
-                if kind_norm == "principal"
-                else "Stage 3 Phase 4 (Review)"
+            if str(ext_scripts) not in sys.path:
+                sys.path.insert(0, str(ext_scripts))
+            import run_external_review  # type: ignore[import-not-found]
+
+            run_external_review._emit_review_heartbeat(
+                self.root,
+                self.epic_slug,
+                kind="principal" if kind == "principal" else "code",
+                phase=phase,
+                round_num=round_num,
             )
-            hb_path = (
-                self.root / ".devtool" / "state" / f"{self.epic_slug}.heartbeat.json"
-            )
-            existing_hb = (
-                _state_envelope.read_json_safe(hb_path, {}) if hb_path.is_file() else {}
-            )
-            prev_rev = existing_hb.get("review_state")
-            prev_dict: dict[str, Any] = (
-                dict(prev_rev) if isinstance(prev_rev, dict) else {}
-            )
-            prev_kind = prev_dict.get("kind")
-            prev_round = (
-                int(prev_dict.get("round") or 0)
-                if str(prev_dict.get("round") or "").isdigit()
-                else 0
-            )
-            eff_round = int(
-                round_num
-                or (prev_round if prev_kind == kind_norm and prev_round > 0 else 1)
-            )
-            eff_max = int(prev_dict.get("max_rounds") or 3)
-            if (
-                prev_kind != kind_norm
-                or eff_round != prev_round
-                or phase == "reviewing"
-            ):
-                rev_dict: dict[str, Any] = {
-                    "kind": kind_norm,
-                    "round": eff_round,
-                    "max_rounds": eff_max,
-                    "phase": phase,
-                }
-                if prev_dict.get("cli"):
-                    rev_dict["cli"] = prev_dict["cli"]
-                if prev_dict.get("model"):
-                    rev_dict["model"] = prev_dict["model"]
-            else:
-                rev_dict = dict(prev_dict)
-                rev_dict["kind"] = kind_norm
-                rev_dict["round"] = eff_round
-                rev_dict["max_rounds"] = eff_max
-                rev_dict["phase"] = phase
-            sub_detail = f"Round {eff_round}/{eff_max}: {phase}"
-            rev_dict["label"] = sub_detail
-            if (self.root / ".devtool" / "state").is_dir():
-                _state_envelope.update_epic_heartbeat(
-                    self.root,
-                    self.epic_slug,
-                    stage=stage_label,
-                    sub_step=f"{kind_norm}_{phase}",
-                    sub_step_detail=sub_detail,
-                    review_state=rev_dict,
-                    last_event=f"{kind_label} {sub_detail}",
-                )
-        except Exception:
-            pass
+        except Exception:  # noqa: BLE001
+            return
 
     def _apply_code_fixes(
         self,

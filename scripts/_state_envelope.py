@@ -120,6 +120,8 @@ def _sanitize_epic_slug(epic_slug: str) -> str:
 
 def _run_git(cwd: Path, *args: str) -> str | None:
     """Run a git command inside cwd and return stripped stdout on success."""
+    if not any((p / ".git").exists() for p in (cwd, *cwd.parents)):
+        return None
     try:
         res = subprocess.run(
             ["git", *args],

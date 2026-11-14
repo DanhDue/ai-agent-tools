@@ -288,14 +288,18 @@ def test_ltsp_st_02_monotonic_6_stage_progress_and_gate4_sha_requirement(
     assert p4 == 87.0
     assert p4 > p3
 
-    # State 5: Full Gate 4 PASS (88%) + Cross-Model Review Round 2 + post-review Gate 4 re-verification running (96%)
+    # State 5: Full Gate 4 PASS (88%) -> Cross-Model Review Round 1 CHANGES REQUIRED -> Fix sha2 -> Round 2 (93%..95%) + post-review QA running
     resume_context.record_gate_approval(repo, slug, 4, "Gate 4 PASS")
     (epic_dir / "review_results.md").write_text(
-        f"# Code Review: {slug}\n\n## Round 1\n\n- **SHA**: {sha1}\n- **CLI**: codex\n- **Model**: gpt-6.1-sol\n"
-        f"- **Status**: completed\n- **Verdict**: PASS\n\n### Findings\n\nNone.\n",
+        f"# Code Review: {slug}\n\n## Round 1\n\n- **Date**: 2026-11-14T08:00:00Z\n"
+        f"- **SHA**: {sha1}\n- **CLI**: codex\n- **Model**: gpt-6.1-sol\n"
+        f"- **Status**: completed\n- **Verdict**: CHANGES REQUIRED\n\n"
+        "| # | Severity | Location | Problem | Decision |\n"
+        "|---|---|---|---|---|\n"
+        "| 1 | Important | src/app.py:1 | Missing check | |\n",
         encoding="utf-8",
     )
-    # Advance git HEAD to sha2 so post-review Gate 4 on sha2 is not yet passed
+    # Advance git HEAD to sha2, record fixed decision, and enter Round 2 reviewing + post-review QA
     (repo / "README.md").write_text("# Demo v2\n", encoding="utf-8")
     subprocess.run(
         ["git", "add", "README.md"], cwd=repo, check=True, capture_output=True
@@ -313,6 +317,30 @@ def test_ltsp_st_02_monotonic_6_stage_progress_and_gate4_sha_requirement(
         capture_output=True,
         text=True,
     ).stdout.strip()
+    (epic_dir / "review_results.md").write_text(
+        f"# Code Review: {slug}\n\n## Round 1\n\n- **Date**: 2026-11-14T08:00:00Z\n"
+        f"- **SHA**: {sha1}\n- **CLI**: codex\n- **Model**: gpt-6.1-sol\n"
+        f"- **Status**: completed\n- **Verdict**: CHANGES REQUIRED\n\n"
+        "| # | Severity | Location | Problem | Decision |\n"
+        "|---|---|---|---|---|\n"
+        f"| 1 | Important | src/app.py:1 | Missing check | fixed in {sha2} |\n",
+        encoding="utf-8",
+    )
+    _state_envelope.update_epic_heartbeat(
+        repo,
+        slug,
+        stage="Stage 3 Phase 4 (Review)",
+        sub_step="reviewing",
+        review_state={
+            "kind": "code",
+            "round": 2,
+            "max_rounds": 3,
+            "cli": "kiro",
+            "model": "claude-opus-5.5",
+            "phase": "reviewing",
+        },
+        last_event="Cross-Model Review Round 2/3 reviewing",
+    )
     _state_envelope.update_quality_run(
         repo,
         run_id="qa-2",
@@ -328,13 +356,20 @@ def test_ltsp_st_02_monotonic_6_stage_progress_and_gate4_sha_requirement(
     p5 = float(meta5.pipeline_telemetry["lifecycle_progress_pct"])
     t5 = float(meta5.pipeline_telemetry["task_completion_pct"])
     assert t5 == 100.0
-    assert p5 == 96.0
+    assert 93.0 <= p5 <= 95.5
     assert p5 > p4
 
-    # State 6: Review Converged AND Gate 4 PASS on latest HEAD SHA sha2 -> 98% Waiting Finish
+    # State 6: Cross-Model Review Round 2 PASS AND Gate 4 PASS on latest HEAD SHA sha2 -> 98% Waiting Finish
     (epic_dir / "review_results.md").write_text(
-        f"# Code Review: {slug}\n\n## Round 1\n\n- **SHA**: {sha2}\n- **CLI**: codex\n- **Model**: gpt-6.1-sol\n"
-        f"- **Status**: completed\n- **Verdict**: PASS\n\n### Findings\n\nNone.\n",
+        f"# Code Review: {slug}\n\n## Round 1\n\n- **Date**: 2026-11-14T08:00:00Z\n"
+        f"- **SHA**: {sha1}\n- **CLI**: codex\n- **Model**: gpt-6.1-sol\n"
+        f"- **Status**: completed\n- **Verdict**: CHANGES REQUIRED\n\n"
+        "| # | Severity | Location | Problem | Decision |\n"
+        "|---|---|---|---|---|\n"
+        f"| 1 | Important | src/app.py:1 | Missing check | fixed in {sha2} |\n\n"
+        f"## Round 2\n\n- **Date**: 2026-11-14T09:00:00Z\n"
+        f"- **SHA**: {sha2}\n- **CLI**: kiro\n- **Model**: claude-opus-5.5\n"
+        "- **Status**: completed\n- **Verdict**: PASS\n\n### Findings\n\nNone.\n",
         encoding="utf-8",
     )
     _state_envelope.update_quality_run(
@@ -528,3 +563,93 @@ def test_ltsp_review_edge_cases_sha_validation_and_builder_signature(
     )
     assert tel_stale_g4["lifecycle_progress_pct"] < 98.0
     assert tel_stale_g4["current_stage_index"] == 5
+
+    # 5. Corrupted non-numeric quality step_index/step_total must recover cleanly (FR-03)
+    (epic_dir / "review_results.md").unlink(missing_ok=True)
+    tel_corrupt_qa = check_tasks.build_epic_pipeline_telemetry(
+        repo,
+        slug,
+        done_tasks=4,
+        total_tasks=4,
+        heartbeat={},
+        quality_active={"status": "running", "step_index": "2/5", "step_total": "x"},
+    )
+    assert tel_corrupt_qa["current_stage_index"] == 4
+
+    # 6. Normal-flow post-fix audit_epic heartbeat advances triage/fixing to verifying; stale pre-round audit stays fixing
+    sha2 = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    (epic_dir / "review_results.md").write_text(
+        f"## Round 1\n- **Date**: 2026-11-14T08:00:00Z\n- **Status**: completed\n- **SHA**: {sha1}\n- **Verdict**: CHANGES REQUIRED\n"
+        f"| F1 | Important | src/a.py:1 | Bug | fixed in {sha2} |\n",
+        encoding="utf-8",
+    )
+    rev_post_audit = check_tasks._parse_review_rounds_summary(
+        epic_dir / "review_results.md",
+        sha2,
+        {
+            "sub_step": "audit_epic",
+            "updated_at": "2026-11-14T08:05:00Z",
+            "review_state": {
+                "kind": "code",
+                "round": 1,
+                "phase": "triage",
+                "sha": sha1,
+            },
+        },
+        None,
+        "code",
+    )
+    assert rev_post_audit["phase"] == "verifying"
+
+    rev_stale_audit = check_tasks._parse_review_rounds_summary(
+        epic_dir / "review_results.md",
+        sha2,
+        {
+            "sub_step": "audit_epic",
+            "updated_at": "2026-11-14T07:50:00Z",
+            "review_state": {
+                "kind": "code",
+                "round": 1,
+                "phase": "triage",
+                "sha": sha1,
+            },
+        },
+        None,
+        "code",
+    )
+    assert rev_stale_audit["phase"] == "fixing"
+
+    # 7. Gate 4 qa_status="passed" without SHA binding must NOT allow 98% Stage 6 Finish on git HEAD
+    (ledger_dir / "gate_ledger.jsonl").write_text("", encoding="utf-8")
+    (epic_dir / "review_results.md").write_text(
+        f"## Round 1\n- **Status**: completed\n- **SHA**: {sha2}\n- **Verdict**: PASS\n",
+        encoding="utf-8",
+    )
+    tel_unbound_qa = check_tasks.build_epic_pipeline_telemetry(
+        repo,
+        slug,
+        done_tasks=4,
+        total_tasks=4,
+        heartbeat={"review_state": {"kind": "code", "round": 1, "phase": "converged"}},
+        quality_active={"status": "passed", "step_index": 3, "step_total": 3},
+    )
+    assert tel_unbound_qa["lifecycle_progress_pct"] < 98.0
+
+    # 8. Principal round HLD bands (21.0, 22.0) and Cross-Model Round 2 HLD band (93.0..95.2)
+    tel_pr2 = check_tasks.build_epic_pipeline_telemetry(
+        repo,
+        slug,
+        done_tasks=0,
+        total_tasks=0,
+        heartbeat={
+            "review_state": {"kind": "principal", "round": 2, "phase": "reviewing"}
+        },
+        quality_active={},
+    )
+    assert tel_pr2["lifecycle_progress_pct"] == 22.0

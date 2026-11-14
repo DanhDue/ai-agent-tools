@@ -2378,6 +2378,7 @@ def _parse_review_rounds_summary(
                 rounds_data.append(
                     {
                         "round": r_num,
+                        "date": meta.get("Date", ""),
                         "sha": meta.get("SHA", ""),
                         "cli": meta.get("CLI", ""),
                         "model": meta.get("Model", ""),
@@ -2440,6 +2441,16 @@ def _parse_review_rounds_summary(
                 if hb_matches_kind and isinstance(rs, dict)
                 else ""
             )
+            hb_head_sha = (
+                str(rs.get("head_sha") or "")
+                if hb_matches_kind and isinstance(rs, dict)
+                else ""
+            )
+            hb_updated_at = str((heartbeat or {}).get("updated_at") or "")
+            round_date = str(last.get("date") or "")
+            hb_is_fresh = (
+                not round_date or not hb_updated_at or hb_updated_at >= round_date
+            )
             qa_sha = str((quality_active or {}).get("head_sha") or "")
             qa_status_cur = str((quality_active or {}).get("status") or "")
             qa_is_post_fix = bool(
@@ -2458,14 +2469,30 @@ def _parse_review_rounds_summary(
                 )
             )
             hb_sub_is_post_fix = bool(
-                hb_phase not in ("reviewing", "triage", "fixing")
-                and (not hb_rev_sha or not r_sha or not _shas_match(hb_rev_sha, r_sha))
+                hb_phase != "reviewing"
+                and hb_is_fresh
+                and (
+                    not hb_head_sha or not r_sha or not _shas_match(hb_head_sha, r_sha)
+                )
                 and (
                     hb_sub.startswith("task_")
                     or hb_sub in ("quality_check", "audit_epic", "bdd_tests")
                 )
             )
-            if hb_phase == "verifying" or hb_sub_is_post_fix or qa_is_post_fix:
+            hb_explicit_verifying = bool(
+                hb_phase == "verifying"
+                and (not round_date or not hb_updated_at or hb_is_fresh)
+                and (
+                    not hb_head_sha or not r_sha or not _shas_match(hb_head_sha, r_sha)
+                )
+                and (
+                    not hb_rev_sha
+                    or bool(hb_head_sha)
+                    or not r_sha
+                    or not _shas_match(hb_rev_sha, r_sha)
+                )
+            )
+            if hb_explicit_verifying or hb_sub_is_post_fix or qa_is_post_fix:
                 summary["phase"] = "verifying"
             else:
                 summary["phase"] = "fixing"
@@ -2493,7 +2520,10 @@ def _parse_review_rounds_summary(
                 summary["phase"] = hb_phase
                 summary["converged"] = hb_phase == "converged"
         elif hb_phase in ("fixing", "verifying", "converged"):
-            summary["phase"] = hb_phase
+            if not (
+                hb_phase == "fixing" and summary["phase"] in ("verifying", "converged")
+            ):
+                summary["phase"] = hb_phase
             if hb_phase == "converged":
                 summary["converged"] = True
         elif (
@@ -2707,28 +2737,14 @@ def build_epic_pipeline_telemetry(
     gate4_pass_on_current_sha = False
     if is_completed or 5 in approved_gates:
         gate4_pass_on_current_sha = True
-    elif gate4_full_pass and not qa_failed_or_running:
-        rev_sha = str(code_rev.get("latest_sha") or "")
-        if not head_sha:
-            gate4_pass_on_current_sha = True
-        elif rev_sha and not _shas_match(head_sha, rev_sha):
-            gate4_pass_on_current_sha = bool(
-                (latest_gate4_sha and _shas_match(head_sha, latest_gate4_sha))
-                or (qa_status == "passed" and qa_sha and _shas_match(head_sha, qa_sha))
-            )
-        elif latest_gate4_sha:
-            gate4_pass_on_current_sha = bool(
-                _shas_match(head_sha, latest_gate4_sha)
-                or (qa_status == "passed" and qa_sha and _shas_match(head_sha, qa_sha))
-            )
-        elif qa_sha:
-            gate4_pass_on_current_sha = bool(
-                qa_status == "passed" and _shas_match(head_sha, qa_sha)
-            )
-        elif qa_status == "passed":
-            gate4_pass_on_current_sha = True
-        else:
-            gate4_pass_on_current_sha = False
+    elif gate4_full_pass and not qa_failed_or_running and head_sha:
+        gate4_sha_bound = bool(
+            latest_gate4_sha and _shas_match(head_sha, latest_gate4_sha)
+        )
+        qa_sha_bound = bool(
+            qa_status == "passed" and qa_sha and _shas_match(head_sha, qa_sha)
+        )
+        gate4_pass_on_current_sha = gate4_sha_bound or qa_sha_bound
 
     if is_completed and total_tasks == 0:
         task_completion_pct = 100.0
@@ -2765,16 +2781,30 @@ def build_epic_pipeline_telemetry(
         else:
             r_num = max(1, _safe_int_val(code_rev["round"], 1))
             phase = str(code_rev["phase"])
-            phase_offsets = {
-                "reviewing": 0.0,
-                "triage": 1.0,
-                "fixing": 1.8,
-                "verifying": 2.4,
-            }
-            base_r = 89.0 + (r_num - 1) * 2.5
-            lifecycle_progress_pct = min(
-                96.0, round(base_r + phase_offsets.get(phase, 0.5), 1)
-            )
+            if r_num == 1:
+                band = {
+                    "reviewing": 89.0,
+                    "triage": 90.0,
+                    "fixing": 91.0,
+                    "verifying": 92.0,
+                }
+                lifecycle_progress_pct = band.get(phase, 90.0)
+            elif r_num == 2:
+                band = {
+                    "reviewing": 93.0,
+                    "triage": 93.8,
+                    "fixing": 94.5,
+                    "verifying": 95.2,
+                }
+                lifecycle_progress_pct = band.get(phase, 93.8)
+            else:
+                band = {
+                    "reviewing": 95.5,
+                    "triage": 95.7,
+                    "fixing": 95.9,
+                    "verifying": 96.0,
+                }
+                lifecycle_progress_pct = min(96.0, band.get(phase, 95.7))
             current_stage_index = 5
     elif all_tasks_done:
         if qa_status == "passed":
@@ -2800,8 +2830,8 @@ def build_epic_pipeline_telemetry(
         lifecycle_progress_pct = 25.0
         current_stage_index = 2
     elif principal_rev["active"] or principal_rev["round"] >= 1:
-        r_num = max(1, int(principal_rev["round"]))
-        lifecycle_progress_pct = min(24.0, round(19.0 + r_num * 1.5, 1))
+        r_num = max(1, _safe_int_val(principal_rev["round"], 1))
+        lifecycle_progress_pct = float(min(23, 20 + min(3, r_num)))
         current_stage_index = 2
     elif 2 in approved_gates or total_tasks > 0:
         lifecycle_progress_pct = 18.0
@@ -2984,8 +3014,8 @@ def build_epic_pipeline_telemetry(
             or quality_active.get("capability")
             or "Quality Check"
         )
-        s_idx = int(quality_active.get("step_index") or 0)
-        s_tot = int(quality_active.get("step_total") or 0)
+        s_idx = _safe_int_val(quality_active.get("step_index"), 0)
+        s_tot = _safe_int_val(quality_active.get("step_total"), 0)
         s4_sub.append(
             {
                 "id": "qa_active",
