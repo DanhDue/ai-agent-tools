@@ -25,3 +25,27 @@ Raw output:
 ```text
 Verdict: CHANGES REQUIRED
 ```
+
+## Round 2
+
+- **Date**: 2026-11-14T21:32:18Z
+- **SHA**: e8c78f6ddbe90924d2ac604bf18ec54b7b5cf65b
+- **Base**: main
+- **CLI**: codex
+- **Model**: gpt-6.1-sol
+- **Thinking**: high
+- **Status**: completed
+- **Verdict**: CHANGES REQUIRED
+- **Scope**: delta from round 1 (2c16f3f)
+- **Raw log**: `build/reviews/check_tasks_epic_history_modal_code_round2_e8c78f6.raw.log`
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Important | skills/check-tasks/resources/scripts/check_tasks.py:3476 | [NEW_REGRESSION] Review-aware deduplication requires review_state, which production heartbeat events omit. A read-only producer-to-aggregator probe returned three timeline steps for two review transitions: two stream records plus duplicate heartbeat overlap. Violates CEHM-ST-01 and Task 2’s frozen deduplication contract. |  |
+| 2 | Important | skills/check-tasks/resources/scripts/check_tasks.py:622 | [NEW_REGRESSION] Excluding all packaged HLDs prevents overview promotion despite Gate 3 approval or active telemetry. Probe: Packaged HLD + Gate 3 without a worktree produces packaged in Roadmap but in_progress in history, regressing Task 2’s preserved overview behavior. |  |
+
+Raw output:
+
+```text
+Verdict: CHANGES REQUIRED
+```
