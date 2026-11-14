@@ -81,12 +81,16 @@ class TestAgyQuotaServer(unittest.TestCase):
 
     def test_argon_ping_skipped_when_already_activated(self):
         """Argon must NOT be pinged when it is already activated and counting down."""
+        now_utc = agy_quota.datetime.datetime.now(agy_quota.datetime.timezone.utc)
+        far_reset = (now_utc + agy_quota.datetime.timedelta(days=2)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
         mock_cached = {
             "test_prof": {
                 "hasArgon": True,
                 "argonWeekly": {
                     "fraction": 0.45,
-                    "resetTime": "2026-11-14T05:00:00Z",
+                    "resetTime": far_reset,
                     "unavailable": False,
                 },
             }
