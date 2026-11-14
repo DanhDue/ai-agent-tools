@@ -82,28 +82,56 @@ class TestAgyQuotaServer(unittest.TestCase):
     def test_argon_ping_skipped_when_already_activated(self):
         """Argon must NOT be pinged when it is already activated and counting down."""
         now_utc = agy_quota.datetime.datetime.now(agy_quota.datetime.timezone.utc)
+        active_3h = (now_utc + agy_quota.datetime.timedelta(hours=3)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
         far_reset = (now_utc + agy_quota.datetime.timedelta(days=2)).strftime(
             "%Y-%m-%dT%H:%M:%SZ"
         )
-        mock_cached = {
-            "test_prof": {
-                "hasArgon": True,
-                "argonWeekly": {
-                    "fraction": 0.45,
-                    "resetTime": far_reset,
-                    "unavailable": False,
+        live_quota = {
+            "success": True,
+            "tier": "PRO",
+            "groups": [
+                {
+                    "name": "Gemini Models",
+                    "buckets": [
+                        {
+                            "window": "5h",
+                            "remaining_fraction": 0.85,
+                            "reset_time": active_3h,
+                            "description": "You have used some of your Gemini limit.",
+                        }
+                    ],
                 },
-            }
+                {
+                    "name": "Claude and GPT models",
+                    "buckets": [
+                        {
+                            "window": "5h",
+                            "remaining_fraction": 0.90,
+                            "reset_time": active_3h,
+                            "description": "You have used some of your Claude limit.",
+                        }
+                    ],
+                },
+                {
+                    "name": "Argon",
+                    "buckets": [
+                        {
+                            "window": "weekly",
+                            "remaining_fraction": 0.45,
+                            "reset_time": far_reset,
+                        }
+                    ],
+                },
+            ],
         }
         with (
             patch("os.path.isdir", return_value=True),
             patch("agy_quota.check_profile_appeal_status", return_value=None),
             patch("agy_quota.check_profile_auth_token", return_value=True),
-            patch("agy_quota.load_cached_profiles", return_value=mock_cached),
-            patch(
-                "agy_quota.get_session_record",
-                return_value={"is_active": True, "reset_5h": 9999999999},
-            ),
+            patch("agy_quota.load_cached_profiles", return_value={}),
+            patch("agy_quota.fetch_quota_for_profile", return_value=live_quota),
         ):
             res = agy_quota.execute_ping_profile("test_prof")
             self.assertTrue(res.get("skipped"))
@@ -112,28 +140,54 @@ class TestAgyQuotaServer(unittest.TestCase):
     def test_argon_ping_skipped_when_near_reset(self):
         """Argon must NOT be pinged when reset time is less than 7 hours away."""
         now_utc = agy_quota.datetime.datetime.now(agy_quota.datetime.timezone.utc)
+        active_3h = (now_utc + agy_quota.datetime.timedelta(hours=3)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
         soon_reset = (now_utc + agy_quota.datetime.timedelta(hours=3)).strftime(
             "%Y-%m-%dT%H:%M:%SZ"
         )
-        mock_cached = {
-            "test_prof": {
-                "hasArgon": True,
-                "argonWeekly": {
-                    "fraction": 0.20,
-                    "resetTime": soon_reset,
-                    "unavailable": False,
+        live_quota = {
+            "success": True,
+            "tier": "PRO",
+            "groups": [
+                {
+                    "name": "Gemini Models",
+                    "buckets": [
+                        {
+                            "window": "5h",
+                            "remaining_fraction": 0.85,
+                            "reset_time": active_3h,
+                        }
+                    ],
                 },
-            }
+                {
+                    "name": "Claude and GPT models",
+                    "buckets": [
+                        {
+                            "window": "5h",
+                            "remaining_fraction": 0.90,
+                            "reset_time": active_3h,
+                        }
+                    ],
+                },
+                {
+                    "name": "Argon",
+                    "buckets": [
+                        {
+                            "window": "weekly",
+                            "remaining_fraction": 0.20,
+                            "reset_time": soon_reset,
+                        }
+                    ],
+                },
+            ],
         }
         with (
             patch("os.path.isdir", return_value=True),
             patch("agy_quota.check_profile_appeal_status", return_value=None),
             patch("agy_quota.check_profile_auth_token", return_value=True),
-            patch("agy_quota.load_cached_profiles", return_value=mock_cached),
-            patch(
-                "agy_quota.get_session_record",
-                return_value={"is_active": True, "reset_5h": 9999999999},
-            ),
+            patch("agy_quota.load_cached_profiles", return_value={}),
+            patch("agy_quota.fetch_quota_for_profile", return_value=live_quota),
         ):
             res = agy_quota.execute_ping_profile("test_prof")
             self.assertTrue(res.get("skipped"))
@@ -460,6 +514,450 @@ class TestAgyQuotaServer(unittest.TestCase):
             self.assertNotIn("VSCODE_IPC_HOOK", passed_env)
             self.assertNotIn("ANTIGRAVITY_FOO", passed_env)
             self.assertNotIn("TMPDIR", passed_env)
+
+    def test_is_bucket_activated_distinguishes_unactivated_max_and_frozen(self):
+        """Fresh 100% bucket with un-frozen reset_time must NOT count as activated."""
+        now_ts = 1_700_000_000.0
+        fresh_reset = agy_quota.datetime.datetime.fromtimestamp(
+            now_ts + 5 * 3600 - 2, tz=agy_quota.datetime.timezone.utc
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+        frozen_reset = agy_quota.datetime.datetime.fromtimestamp(
+            now_ts + 4 * 3600 + 50 * 60, tz=agy_quota.datetime.timezone.utc
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        unactivated = {"fraction": 1.0, "resetTime": fresh_reset, "description": ""}
+        self.assertFalse(
+            agy_quota.is_bucket_activated(unactivated, 5 * 3600, now_ts=now_ts)
+        )
+
+        frozen = {"fraction": 1.0, "resetTime": frozen_reset, "description": ""}
+        self.assertTrue(agy_quota.is_bucket_activated(frozen, 5 * 3600, now_ts=now_ts))
+
+        desc_used = {
+            "fraction": 1.0,
+            "resetTime": fresh_reset,
+            "description": "You have used some of your Gemini Pro 5h limit.",
+        }
+        self.assertTrue(
+            agy_quota.is_bucket_activated(desc_used, 5 * 3600, now_ts=now_ts)
+        )
+
+    def test_execute_ping_profile_pings_all_three_independent_buckets(self):
+        """Unactivated Gemini 5H, Argon 7D, and Claude 5H all get pinged with explicit --model."""
+        now_utc = agy_quota.datetime.datetime.now(agy_quota.datetime.timezone.utc)
+        fresh_5h = (now_utc + agy_quota.datetime.timedelta(hours=5)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+        fresh_7d = (now_utc + agy_quota.datetime.timedelta(days=7)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+        live_quota = {
+            "success": True,
+            "tier": "PRO",
+            "groups": [
+                {
+                    "name": "Gemini Models",
+                    "buckets": [
+                        {
+                            "window": "5h",
+                            "remaining_fraction": 1.0,
+                            "reset_time": fresh_5h,
+                        }
+                    ],
+                },
+                {
+                    "name": "Claude and GPT models",
+                    "buckets": [
+                        {
+                            "window": "5h",
+                            "remaining_fraction": 1.0,
+                            "reset_time": fresh_5h,
+                        }
+                    ],
+                },
+                {
+                    "name": "Argon",
+                    "buckets": [
+                        {
+                            "window": "weekly",
+                            "remaining_fraction": 1.0,
+                            "reset_time": fresh_7d,
+                        }
+                    ],
+                },
+            ],
+        }
+        models_proc = MagicMock(
+            returncode=0,
+            stdout=(
+                "gemini-3.8-flash-low\tGemini 3.8 Flash (Low)\n"
+                "claude-sonnet-5-5-low\tClaude Sonnet 5.5 (Low)\n"
+                "gemini-4-argon-low\tGemini 4 Argon (Low)\n"
+            ),
+            stderr="",
+        )
+        ping_ok = MagicMock(returncode=0, stdout="OK", stderr="")
+
+        def fake_run(cmd, **kwargs):
+            if len(cmd) >= 2 and cmd[1] == "models":
+                return models_proc
+            return ping_ok
+
+        with (
+            patch("agy_quota.REAL_HOME", "/tmp/mock_ag_real_home"),
+            patch("os.path.isdir", return_value=True),
+            patch("os.makedirs"),
+            patch("agy_quota.load_cached_profiles", return_value={}),
+            patch("agy_quota.update_cached_profile"),
+            patch("agy_quota.check_profile_appeal_status", return_value=None),
+            patch("agy_quota.check_profile_auth_token", return_value=True),
+            patch("agy_quota.fetch_quota_for_profile", return_value=live_quota),
+            patch("agy_quota.get_session_record", return_value=None),
+            patch("agy_quota.save_session_record"),
+            patch("subprocess.run", side_effect=fake_run) as mock_run,
+            patch("time.sleep"),
+        ):
+            res = agy_quota.execute_ping_profile("brother")
+            self.assertTrue(res.get("success"))
+            self.assertTrue(res.get("pinged_gemini"))
+            self.assertTrue(res.get("pinged_claude"))
+            self.assertTrue(res.get("pinged_argon"))
+            ping_cmds = [
+                c.args[0]
+                for c in mock_run.call_args_list
+                if len(c.args[0]) > 2
+                and c.args[0][0] == agy_quota.AGY_BIN
+                and "-p" in c.args[0]
+            ]
+            self.assertEqual(len(ping_cmds), 3)
+            for cmd in ping_cmds:
+                self.assertIn("--model", cmd)
+                self.assertIn("--disable-slash-commands", cmd)
+            # Isolated sandbox cwd must be passed (never repo root)
+            for c in mock_run.call_args_list:
+                if (
+                    len(c.args[0]) > 2
+                    and c.args[0][0] == agy_quota.AGY_BIN
+                    and "-p" in c.args[0]
+                ):
+                    self.assertIsNotNone(c.kwargs.get("cwd"))
+                    self.assertGreaterEqual(c.kwargs.get("timeout", 0), 45)
+
+    def test_execute_ping_profile_standard_pro_uses_claude_4_6_and_skips_active_gemini(
+        self,
+    ):
+        """When Gemini 5H is active and profile lacks 5.5, Claude 5H uses claude-sonnet-4-6."""
+        now_utc = agy_quota.datetime.datetime.now(agy_quota.datetime.timezone.utc)
+        active_3h = (now_utc + agy_quota.datetime.timedelta(hours=3)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+        fresh_5h = (now_utc + agy_quota.datetime.timedelta(hours=5)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+        live_quota = {
+            "success": True,
+            "tier": "PRO",
+            "groups": [
+                {
+                    "name": "Gemini Models",
+                    "buckets": [
+                        {
+                            "window": "5h",
+                            "remaining_fraction": 0.85,
+                            "reset_time": active_3h,
+                            "description": "You have used some of your Gemini limit.",
+                        }
+                    ],
+                },
+                {
+                    "name": "Claude and GPT models",
+                    "buckets": [
+                        {
+                            "window": "5h",
+                            "remaining_fraction": 1.0,
+                            "reset_time": fresh_5h,
+                        }
+                    ],
+                },
+            ],
+        }
+        models_proc = MagicMock(
+            returncode=0,
+            stdout=(
+                "gemini-3.8-flash-low\tGemini 3.8 Flash (Low)\n"
+                "claude-sonnet-4-6\tClaude Sonnet 4.6\n"
+            ),
+            stderr="",
+        )
+        ping_ok = MagicMock(returncode=0, stdout="OK", stderr="")
+
+        def fake_run(cmd, **kwargs):
+            if len(cmd) >= 2 and cmd[1] == "models":
+                return models_proc
+            return ping_ok
+
+        with (
+            patch("agy_quota.REAL_HOME", "/tmp/mock_ag_real_home"),
+            patch("os.path.isdir", return_value=True),
+            patch("os.makedirs"),
+            patch("agy_quota.load_cached_profiles", return_value={}),
+            patch("agy_quota.update_cached_profile"),
+            patch("agy_quota.check_profile_appeal_status", return_value=None),
+            patch("agy_quota.check_profile_auth_token", return_value=True),
+            patch("agy_quota.fetch_quota_for_profile", return_value=live_quota),
+            # Legacy stale session record claiming active 5h globally must NOT suppress Claude
+            patch(
+                "agy_quota.get_session_record",
+                return_value={"is_active": True, "reset_5h": 9999999999},
+            ),
+            patch("agy_quota.save_session_record"),
+            patch("subprocess.run", side_effect=fake_run) as mock_run,
+            patch("time.sleep"),
+        ):
+            res = agy_quota.execute_ping_profile("d3molt")
+            self.assertTrue(res.get("success"))
+            self.assertFalse(res.get("pinged_gemini"))
+            self.assertTrue(res.get("pinged_claude"))
+            self.assertFalse(res.get("pinged_argon"))
+            ping_cmds = [
+                c.args[0]
+                for c in mock_run.call_args_list
+                if len(c.args[0]) > 2
+                and c.args[0][0] == agy_quota.AGY_BIN
+                and "-p" in c.args[0]
+            ]
+            self.assertEqual(len(ping_cmds), 1)
+            self.assertIn("claude-sonnet-4-6", ping_cmds[0])
+
+    def test_execute_ping_profile_rejects_free_and_reports_partial_failures(self):
+        """FREE accounts fail/skip cleanly without pinging; partial failures surface error."""
+        free_quota = {
+            "success": True,
+            "tier": "FREE",
+            "groups": [
+                {
+                    "name": "Gemini Models",
+                    "buckets": [{"window": "weekly", "remaining_fraction": 1.0}],
+                }
+            ],
+        }
+        with (
+            patch("agy_quota.REAL_HOME", "/tmp/mock_ag_real_home"),
+            patch("os.path.isdir", return_value=True),
+            patch("agy_quota.load_cached_profiles", return_value={}),
+            patch("agy_quota.check_profile_appeal_status", return_value=None),
+            patch("agy_quota.check_profile_auth_token", return_value=True),
+            patch("agy_quota.fetch_quota_for_profile", return_value=free_quota),
+            patch("subprocess.run") as mock_run,
+        ):
+            res = agy_quota.execute_ping_profile("buivantrong8901")
+            self.assertFalse(res.get("success"))
+            self.assertIn("FREE", res.get("error", ""))
+            mock_run.assert_not_called()
+
+    def test_execute_ping_profile_reports_partial_argon_failure_and_api_ping_error(
+        self,
+    ):
+        """Partial failure (e.g. Argon times out) must return success=False and surface error via /api/ping."""
+        now_utc = agy_quota.datetime.datetime.now(agy_quota.datetime.timezone.utc)
+        fresh_5h = (now_utc + agy_quota.datetime.timedelta(hours=5)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+        fresh_7d = (now_utc + agy_quota.datetime.timedelta(days=7)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+        live_quota = {
+            "success": True,
+            "tier": "PRO",
+            "groups": [
+                {
+                    "name": "Gemini Models",
+                    "buckets": [
+                        {
+                            "window": "5h",
+                            "remaining_fraction": 1.0,
+                            "reset_time": fresh_5h,
+                        }
+                    ],
+                },
+                {
+                    "name": "Claude and GPT models",
+                    "buckets": [
+                        {
+                            "window": "5h",
+                            "remaining_fraction": 1.0,
+                            "reset_time": fresh_5h,
+                        }
+                    ],
+                },
+                {
+                    "name": "Argon",
+                    "buckets": [
+                        {
+                            "window": "weekly",
+                            "remaining_fraction": 1.0,
+                            "reset_time": fresh_7d,
+                        }
+                    ],
+                },
+            ],
+        }
+        models_proc = MagicMock(
+            returncode=0,
+            stdout="gemini-3.8-flash-low\tGemini\nclaude-sonnet-5-5-low\tClaude\ngemini-4-argon-low\tArgon\n",
+            stderr="",
+        )
+
+        def fake_run(cmd, **kwargs):
+            if cmd[1:2] == ["models"]:
+                return models_proc
+            if "gemini-4-argon-low" in cmd:
+                raise agy_quota.subprocess.TimeoutExpired(cmd=cmd, timeout=50)
+            return MagicMock(returncode=0, stdout="OK", stderr="")
+
+        with (
+            patch("agy_quota.REAL_HOME", "/tmp/mock_ag_real_home"),
+            patch("os.path.isdir", return_value=True),
+            patch("os.makedirs"),
+            patch("agy_quota.load_cached_profiles", return_value={}),
+            patch("agy_quota.update_cached_profile"),
+            patch("agy_quota.check_profile_appeal_status", return_value=None),
+            patch("agy_quota.check_profile_auth_token", return_value=True),
+            patch("agy_quota.fetch_quota_for_profile", return_value=live_quota),
+            patch("agy_quota.get_session_record", return_value=None),
+            patch("agy_quota.save_session_record"),
+            patch("subprocess.run", side_effect=fake_run),
+            patch("time.sleep"),
+        ):
+            res = agy_quota.execute_ping_profile("brother")
+            self.assertFalse(res.get("success"))
+            self.assertIn("Argon", res.get("error", ""))
+
+        # Verify /api/ping exposes error cleanly
+        handler = agy_quota.QuotaDashboardHandler.__new__(
+            agy_quota.QuotaDashboardHandler
+        )
+        handler.send_json = MagicMock()
+        with (
+            patch(
+                "agy_quota.execute_ping_profile",
+                return_value={
+                    "success": False,
+                    "error": "Argon 7D Timeout",
+                    "duration_ms": 100,
+                },
+            ),
+            patch("agy_quota.fetch_quota_for_profile", return_value=live_quota),
+            patch(
+                "agy_quota.format_profile_for_dashboard",
+                return_value={"status": "ACTIVE"},
+            ),
+            patch("agy_quota.update_cached_profile"),
+        ):
+            handler.path = "/api/ping?profile=brother"
+            handler.command = "GET"
+            handler.do_GET()
+            resp = handler.send_json.call_args[0][0]
+            self.assertFalse(resp["success"])
+            self.assertEqual(resp["error"], "Argon 7D Timeout")
+
+    def test_api_schedule_endpoints_and_free_tier_rejection(self):
+        """/api/schedule supports multi-schedule CRUD and rejects FREE tier and bad hours."""
+        handler = agy_quota.QuotaDashboardHandler.__new__(
+            agy_quota.QuotaDashboardHandler
+        )
+        handler.send_json = MagicMock()
+        handler.headers = {}
+        handler.rfile = io.BytesIO(b"")
+
+        fake_status = {
+            "success": True,
+            "platform": "darwin",
+            "schedules": [
+                {
+                    "label": "com.d3nexus.refresh-session.0700-d30",
+                    "time": "07:00",
+                    "hour": 7,
+                    "minute": 0,
+                    "delay": 30,
+                    "target": "brother",
+                    "targets": ["brother"],
+                    "loaded": True,
+                }
+            ],
+            "by_profile": {
+                "brother": [
+                    {
+                        "label": "com.d3nexus.refresh-session.0700-d30",
+                        "time": "07:00",
+                        "hour": 7,
+                        "minute": 0,
+                        "delay": 30,
+                        "loaded": True,
+                    }
+                ]
+            },
+        }
+        mock_mod = MagicMock()
+        mock_mod.get_schedule_status.return_value = fake_status
+        mock_mod.install_schedule.return_value = {"success": True}
+        mock_mod.uninstall_schedule.return_value = {"success": True}
+        mock_mod.parse_flexible_time.side_effect = lambda s: (
+            (int(s.split(":")[0]), int(s.split(":")[1]))
+            if ":" in s
+            and 0 <= int(s.split(":")[0]) <= 23
+            and 0 <= int(s.split(":")[1]) <= 59
+            else (_ for _ in ()).throw(ValueError("bad time"))
+        )
+
+        cached = {
+            "brother": {"tier": "PRO"},
+            "buivantrong8901": {"tier": "FREE"},
+        }
+
+        with (
+            patch("agy_quota._load_refresh_session_module", return_value=mock_mod),
+            patch("agy_quota.load_cached_profiles", return_value=cached),
+        ):
+            handler.path = "/api/schedule"
+            handler.command = "GET"
+            handler.do_GET()
+            handler.send_json.assert_called_once()
+            self.assertEqual(
+                handler.send_json.call_args[0][0]["schedules"], fake_status["schedules"]
+            )
+
+            # Reject FREE tier
+            handler.send_json.reset_mock()
+            payload = json.dumps(
+                {
+                    "action": "set",
+                    "profiles": ["buivantrong8901"],
+                    "time": "07:00",
+                    "delay": 30,
+                }
+            ).encode()
+            handler.headers = {"Content-Length": str(len(payload))}
+            handler.rfile = io.BytesIO(payload)
+            handler.command = "POST"
+            handler.do_POST()
+            self.assertEqual(
+                handler.send_json.call_args[1].get("status")
+                or handler.send_json.call_args[0][1],
+                400,
+            )
+            self.assertFalse(handler.send_json.call_args[0][0]["success"])
+
+            # Valid multi-schedule upsert
+            handler.send_json.reset_mock()
+            payload2 = json.dumps(
+                {"action": "set", "profiles": ["brother"], "time": "07:00", "delay": 30}
+            ).encode()
+            handler.headers = {"Content-Length": str(len(payload2))}
+            handler.rfile = io.BytesIO(payload2)
+            handler.do_POST()
+            mock_mod.install_schedule.assert_called_once()
+            self.assertTrue(handler.send_json.call_args[0][0]["success"])
 
 
 if __name__ == "__main__":

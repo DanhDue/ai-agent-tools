@@ -12,6 +12,7 @@ import datetime
 import hashlib
 import json
 import os
+import plistlib
 import random
 import re
 import shutil
@@ -22,6 +23,7 @@ import tempfile
 import time
 from pathlib import Path
 from typing import Any
+from xml.sax.saxutils import escape as _xml_escape
 
 def _derive_real_home() -> str:
     """Host user's real HOME, derived (never hard-coded); strips /antigravity_homes/<profile> when inside a profile."""
@@ -48,6 +50,141 @@ NATURAL_PROMPTS = [
 
 def hash_profile(name: str) -> str:
     return hashlib.sha256(f"{SALT}:{name}".encode("utf-8")).hexdigest()[:24]
+
+
+GEMINI_MODEL_CANDIDATES: tuple[str, ...] = (
+    "gemini-3.8-flash-low",
+    "gemini-4-hydrogen-low",
+    "gemini-3.8-flash-medium",
+    "gemini-4-hydrogen-medium",
+    "gemini-3.8-flash-high",
+)
+CLAUDE_MODEL_CANDIDATES: tuple[str, ...] = (
+    "claude-sonnet-5-5-low",
+    "claude-sonnet-4-6",
+    "claude-sonnet-5-5-medium",
+    "claude-opus-5-5-low",
+    "claude-opus-4-6-thinking",
+    "gpt-oss-120b-medium",
+)
+ARGON_MODEL_CANDIDATES: tuple[str, ...] = (
+    "gemini-4-argon-low",
+    "gemini-4-argon-medium",
+    "gemini-4-argon-high",
+)
+
+
+def parse_agy_models_output(stdout: str) -> list[str]:
+    """Extract ordered model IDs from `agy models` stdout."""
+    models: list[str] = []
+    seen: set[str] = set()
+    for raw_line in (stdout or "").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith(("#", "-", "=")):
+            continue
+        token = line.split()[0].strip()
+        if not token or token.lower() in ("model", "id", "models", "available"):
+            continue
+        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{2,}", token) and token not in seen:
+            seen.add(token)
+            models.append(token)
+    return models
+
+
+def select_model_from_candidates(
+    available_models: list[str],
+    candidates: tuple[str, ...] | list[str],
+    default: str,
+) -> str:
+    """Choose the first preferred model present in available_models, else fallback safely."""
+    if available_models:
+        avail_set = set(available_models)
+        for cand in candidates:
+            if cand in avail_set:
+                return cand
+    return candidates[0] if candidates else default
+
+
+def is_bucket_activated(
+    bucket: dict[str, Any] | None,
+    window_seconds: int,
+    now_ts: float | None = None,
+    freeze_grace_sec: int = 180,
+) -> bool:
+    """Return True iff a quota bucket has genuinely started/frozen its window."""
+    if not bucket or bucket.get("unavailable"):
+        return False
+    if "available" in bucket and not bucket.get("available"):
+        return False
+
+    frac = bucket.get("fraction")
+    if frac is None:
+        frac = bucket.get("remaining_fraction")
+    if frac is not None:
+        try:
+            if float(frac) < 0.999:
+                return True
+        except (TypeError, ValueError):
+            pass
+
+    desc = str(bucket.get("description") or "").strip().lower()
+    if "used some" in desc:
+        return True
+
+    reset_str = str(bucket.get("resetTime") or bucket.get("reset_time") or "").strip()
+    if reset_str:
+        try:
+            dt = datetime.datetime.fromisoformat(reset_str.replace("Z", "+00:00"))
+            now = now_ts if now_ts is not None else time.time()
+            rem_sec = dt.timestamp() - now
+            if 0 < rem_sec < (window_seconds - freeze_grace_sec):
+                return True
+        except (TypeError, ValueError):
+            pass
+    return False
+
+
+def _clean_host_env(base_env: dict[str, str] | None = None) -> dict[str, str]:
+    """Build a sanitized environment free of leaked IDE/profile IPC variables."""
+    env = (base_env if base_env is not None else os.environ).copy()
+    strip_exact = {
+        "AGY_PROFILE",
+        "AGY_CLI_MODE",
+        "AGY_ENABLE_HUB",
+        "ANTIGRAVITY_AGENT",
+        "ELECTRON_RUN_AS_NODE",
+        "CHROME_DESKTOP",
+        "TERM_PROGRAM",
+        "TERM_PROGRAM_VERSION",
+        "TERM_SESSION_ID",
+        "TMPDIR",
+        "ZDOTDIR",
+    }
+    for k in list(env.keys()):
+        if k in strip_exact or k.startswith(("VSCODE_", "ANTIGRAVITY_")):
+            env.pop(k, None)
+    env["HOME"] = REAL_HOME
+    env["REAL_HOME"] = REAL_HOME
+    return env
+
+
+def _clean_host_path(raw_path: str | None = None) -> str:
+    """Return a clean PATH stripped of sandboxed antigravity_homes/<profile> segments."""
+    required = [
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+        str(REAL_HOME_DIR / ".local" / "bin"),
+        "/usr/bin",
+        "/bin",
+        "/usr/sbin",
+        "/sbin",
+    ]
+    parts = [p for p in (raw_path or "").split(":") if p and "/antigravity_homes/" not in p]
+    ordered: list[str] = []
+    for p in required + parts:
+        if p and p not in ordered:
+            ordered.append(p)
+    return ":".join(ordered)
 
 
 def is_target_session_active(target_name: str) -> tuple[bool, str]:
@@ -94,21 +231,6 @@ def is_target_session_active(target_name: str) -> tuple[bool, str]:
             except Exception:
                 pass
 
-    # 3. Check .session_store.db for Antigravity or any target
-    if SESSION_STORE_DB.is_file():
-        try:
-            con = sqlite3.connect(str(SESSION_STORE_DB), timeout=2.0)
-            cur = con.cursor()
-            cur.execute("SELECT reset_5h, is_active FROM session_store WHERE profile_hash = ?", (hash_profile(target_name),))
-            row = cur.fetchone()
-            con.close()
-            if row and row[1] and row[0] > now_ts:
-                rem = row[0] - now_ts
-                loc = datetime.datetime.fromtimestamp(row[0]).strftime("%H:%M:%S")
-                return True, f"Session active ({rem // 3600}h {(rem % 3600) // 60}m remaining, reset at {loc})"
-        except Exception:
-            pass
-
     return False, ""
 
 
@@ -146,7 +268,7 @@ def validate_target(target_val: str | list[str]) -> str:
     if not s:
         return "providers"
     tokens = [t.strip() for t in re.split(r"[\s,]+", s) if t.strip()]
-    known = set(SUPPORTED_TARGETS)
+    known = set(SUPPORTED_TARGETS) | set(get_known_profiles())
     for t in tokens:
         if t not in known:
             raise argparse.ArgumentTypeError(
@@ -154,10 +276,29 @@ def validate_target(target_val: str | list[str]) -> str:
             )
     return ",".join(tokens)
 
+def _resolve_darwin_dirs(real_home: str | Path | None = None) -> tuple[Path, Path]:
+    """Resolve LaunchAgents and log directories under real user HOME (never sandboxed HOME)."""
+    base = Path(real_home) if real_home else Path(_derive_real_home())
+    return base / "Library" / "LaunchAgents", base / ".devtool" / "logs"
+
+
+def _default_dashboard_html_candidates() -> list[Path]:
+    """Return candidate paths to quota_dashboard.html in priority order."""
+    script_dir = Path(__file__).resolve()
+    candidates = [
+        script_dir.parents[3] / "check-quota" / "resources" / "dashboard" / "quota_dashboard.html",
+        REAL_HOME_DIR / ".gemini" / "config" / "plugins" / "d3nexus" / "skills" / "check-quota" / "resources" / "dashboard" / "quota_dashboard.html",
+        REAL_HOME_DIR / "Projects" / "ai-agent-tools" / "skills" / "check-quota" / "resources" / "dashboard" / "quota_dashboard.html",
+    ]
+    return candidates
+
+
+REAL_HOME_DIR = Path(_derive_real_home())
 DARWIN_LABEL = "com.d3nexus.refresh-session"
-DARWIN_PLIST_DIR = Path.home() / "Library" / "LaunchAgents"
+DARWIN_PLIST_DIR, LOG_DIR = _resolve_darwin_dirs(REAL_HOME_DIR)
 DARWIN_PLIST_PATH = DARWIN_PLIST_DIR / f"{DARWIN_LABEL}.plist"
-LOG_DIR = Path.home() / ".devtool" / "logs"
+SESSION_DB_PATH = REAL_HOME_DIR / ".gemini" / "antigravity" / ".session_store.db"
+_DASHBOARD_HTML_CANDIDATES = _default_dashboard_html_candidates()
 CRON_START_MARKER = "# BEGIN d3nexus-refresh-session"
 CRON_END_MARKER = "# END d3nexus-refresh-session"
 
@@ -216,28 +357,138 @@ def parse_flexible_time(time_str: str) -> tuple[int, int]:
     )
 
 
+def _slot_label(hour: int, minute: int, delay: int = 30) -> str:
+    """Return unique LaunchAgent label for a schedule time slot + delay."""
+    return f"{DARWIN_LABEL}.{hour:02d}{minute:02d}-d{delay}"
+
+
+def _clean_broken_launchagent_symlinks(plist_dir: Path) -> None:
+    """Remove broken symlinks under LaunchAgents belonging to refresh-session."""
+    if not plist_dir.is_dir():
+        return
+    try:
+        for entry in plist_dir.glob(f"{DARWIN_LABEL}*.plist"):
+            if entry.is_symlink() and not entry.exists():
+                entry.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+def _iter_managed_plist_paths() -> list[Path]:
+    """Return all existing managed LaunchAgent plist files on disk cleanly."""
+    candidates: list[Path] = []
+    seen_keys: set[str] = set()
+    if DARWIN_PLIST_DIR.is_dir():
+        for entry in sorted(DARWIN_PLIST_DIR.glob(f"{DARWIN_LABEL}*.plist")):
+            if entry.exists() and not (entry.is_symlink() and not entry.exists()):
+                candidates.append(entry)
+                seen_keys.add(str(entry))
+    if DARWIN_PLIST_PATH.exists() and str(DARWIN_PLIST_PATH) not in seen_keys:
+        candidates.append(DARWIN_PLIST_PATH)
+    return candidates
+
+
+def _parse_plist_targets(items: list[str]) -> tuple[str, int]:
+    """Extract target string and delay integer from ProgramArguments items."""
+    target = "providers"
+    delay = 30
+    pos_args: list[str] = []
+    i = 2
+    while i < len(items):
+        arg = items[i]
+        if arg in ("--delay", "--offset") and i + 1 < len(items):
+            try:
+                delay = int(items[i + 1])
+            except ValueError:
+                pass
+            i += 2
+            continue
+        if arg == "--target" and i + 1 < len(items):
+            target = items[i + 1]
+            i += 2
+            continue
+        pos_args.append(arg)
+        i += 1
+    if pos_args and target == "providers":
+        target = pos_args[0]
+    return target, delay
+
+
+def _parse_plist_schedule(plist_path: Path) -> dict[str, Any]:
+    """Parse LaunchAgent plist metadata using plistlib with minimal-XML regex fallback."""
+    try:
+        content = plist_path.read_text(encoding="utf-8", errors="ignore") if plist_path.exists() else ""
+    except OSError:
+        content = ""
+    raw_bytes = content.encode("utf-8", errors="ignore")
+    label = plist_path.stem
+    hour: int | None = None
+    minute: int | None = None
+    target = "providers"
+    delay = 30
+
+    try:
+        parsed = plistlib.loads(raw_bytes)
+        if isinstance(parsed, dict):
+            label = str(parsed.get("Label") or label)
+            cal = parsed.get("StartCalendarInterval")
+            if isinstance(cal, dict):
+                hour = int(cal["Hour"]) if "Hour" in cal else None
+                minute = int(cal.get("Minute", 0))
+            prog = parsed.get("ProgramArguments")
+            if isinstance(prog, list):
+                target, delay = _parse_plist_targets([str(x) for x in prog])
+    except Exception:
+        h_match = re.search(r"<key>Hour</key>\s*<integer>(\d+)</integer>", content)
+        m_match = re.search(r"<key>Minute</key>\s*<integer>(\d+)</integer>", content)
+        if not h_match:
+            int_matches = re.findall(r"<integer>(\d+)</integer>", content)
+            hour = int(int_matches[0]) if len(int_matches) >= 1 else None
+            minute = int(int_matches[1]) if len(int_matches) >= 2 else None
+        else:
+            hour = int(h_match.group(1))
+            minute = int(m_match.group(1)) if m_match else 0
+
+        lbl_match = re.search(r"<key>Label</key>\s*<string>(.*?)</string>", content)
+        if lbl_match:
+            label = lbl_match.group(1).strip()
+
+        args_block = re.search(r"<key>ProgramArguments</key>\s*<array>(.*?)</array>", content, re.DOTALL)
+        if args_block:
+            items = re.findall(r"<string>(.*?)</string>", args_block.group(1))
+            target, delay = _parse_plist_targets(items)
+        else:
+            delay_match = re.search(r"<string>--(?:delay|offset)</string>\s*<string>(\d+)</string>", content)
+            delay = int(delay_match.group(1)) if delay_match else (30 if "<key>Hour</key>" in content else 0)
+
+    targets_list = [t.strip() for t in re.split(r"[\s,]+", target) if t.strip()]
+    return {
+        "label": label,
+        "plist_path": str(plist_path),
+        "hour": hour,
+        "minute": minute if minute is not None else 0,
+        "time": f"{hour:02d}:{(minute or 0):02d}" if hour is not None else None,
+        "delay": delay,
+        "target": ",".join(targets_list) if targets_list else target,
+        "targets": targets_list,
+    }
+
+
 def build_darwin_plist(
-    script_path: str, hour: int, minute: int, target: str = "providers", delay: int = 30
+    script_path: str,
+    hour: int,
+    minute: int,
+    target: str = "providers",
+    delay: int = 30,
+    label: str = DARWIN_LABEL,
 ) -> str:
-    """Generate launchd plist XML for macOS with absolute paths, delay buffer, and full PATH environment."""
+    """Generate launchd plist XML for macOS with sanitized REAL_HOME environment and clean PATH."""
     resolved_script = str(Path(script_path).resolve())
     python_bin = sys.executable or "/usr/bin/python3"
     log_out = str((LOG_DIR / "refresh_session_daemon.log").resolve())
     log_err = str((LOG_DIR / "refresh_session_daemon.err").resolve())
-
-    standard_paths = [
-        "/opt/homebrew/bin",
-        "/usr/local/bin",
-        str(Path.home() / ".local" / "bin"),
-        "/usr/bin",
-        "/bin",
-        "/usr/sbin",
-        "/sbin",
-    ]
-    env_path = os.environ.get("PATH", ":".join(standard_paths))
-    for p in standard_paths:
-        if p not in env_path:
-            env_path = f"{p}:{env_path}"
+    real_home_str = str(REAL_HOME_DIR)
+    env_path = _clean_host_path(os.environ.get("PATH"))
 
     delay_xml = (
         f"""\n        <string>--delay</string>\n        <string>{delay}</string>"""
@@ -250,17 +501,21 @@ def build_darwin_plist(
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>{DARWIN_LABEL}</string>
+    <string>{_xml_escape(label)}</string>
     <key>ProgramArguments</key>
     <array>
-        <string>{python_bin}</string>
-        <string>{resolved_script}</string>
-        <string>{target}</string>{delay_xml}
+        <string>{_xml_escape(python_bin)}</string>
+        <string>{_xml_escape(resolved_script)}</string>
+        <string>{_xml_escape(target)}</string>{delay_xml}
     </array>
     <key>EnvironmentVariables</key>
     <dict>
+        <key>HOME</key>
+        <string>{_xml_escape(real_home_str)}</string>
+        <key>REAL_HOME</key>
+        <string>{_xml_escape(real_home_str)}</string>
         <key>PATH</key>
-        <string>{env_path}</string>
+        <string>{_xml_escape(env_path)}</string>
     </dict>
     <key>StartCalendarInterval</key>
     <dict>
@@ -270,12 +525,58 @@ def build_darwin_plist(
         <integer>{minute}</integer>
     </dict>
     <key>StandardOutPath</key>
-    <string>{log_out}</string>
+    <string>{_xml_escape(log_out)}</string>
     <key>StandardErrorPath</key>
-    <string>{log_err}</string>
+    <string>{_xml_escape(log_err)}</string>
 </dict>
 </plist>
 """
+
+
+def _darwin_reload_plist(label: str, plist_path: Path) -> str | None:
+    """Unload existing label (best-effort) and bootstrap plist into gui/<uid>. Returns error or None."""
+    domain = f"gui/{os.getuid()}"
+    subprocess.run(
+        ["launchctl", "bootout", f"{domain}/{label}"],
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    boot_proc = subprocess.run(
+        ["launchctl", "bootstrap", domain, str(plist_path)],
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    if boot_proc.returncode == 0:
+        return None
+    load_proc = subprocess.run(
+        ["launchctl", "load", "-w", str(plist_path)],
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    if load_proc.returncode == 0:
+        return None
+    return (boot_proc.stderr or load_proc.stderr or boot_proc.stdout or f"launchctl failed ({boot_proc.returncode})").strip()
+
+
+def _darwin_bootout_plist(label: str, plist_path: Path) -> None:
+    """Unload a LaunchAgent from gui/<uid> with legacy fallback on genuine errors."""
+    domain = f"gui/{os.getuid()}"
+    proc = subprocess.run(
+        ["launchctl", "bootout", f"{domain}/{label}"],
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    err_low = (proc.stderr or "").lower()
+    if proc.returncode != 0 and "could not find" not in err_low and "no such process" not in err_low:
+        subprocess.run(
+            ["launchctl", "unload", str(plist_path)],
+            capture_output=True,
+            check=False,
+        )
 
 
 def install_schedule_darwin(
@@ -284,49 +585,68 @@ def install_schedule_darwin(
     target: str = "providers",
     delay: int = 30,
     script_path: str | None = None,
+    merge: bool = True,
 ) -> dict[str, Any]:
-    """Install launchd agent on macOS with safety delay buffer."""
+    """Install or update a per-slot LaunchAgent on macOS supporting multi-schedule targets."""
     if script_path is None:
         script_path = str(Path(__file__).resolve())
 
     DARWIN_PLIST_DIR.mkdir(parents=True, exist_ok=True)
     LOG_DIR.mkdir(parents=True, exist_ok=True)
+    _clean_broken_launchagent_symlinks(DARWIN_PLIST_DIR)
+
+    label = _slot_label(hour, minute, delay)
+    plist_path = DARWIN_PLIST_DIR / f"{label}.plist"
+
+    incoming = [t.strip() for t in re.split(r"[\s,]+", str(target)) if t.strip()] or ["providers"]
+    existing_targets: list[str] = []
+    if merge and plist_path.exists():
+        try:
+            existing_targets = _parse_plist_schedule(plist_path).get("targets", [])
+        except Exception:
+            existing_targets = []
+    merged_list = list(dict.fromkeys(existing_targets + incoming))
+    merged_target = ",".join(merged_list)
 
     plist_content = build_darwin_plist(
-        script_path, hour=hour, minute=minute, target=target, delay=delay
+        script_path,
+        hour=hour,
+        minute=minute,
+        target=merged_target,
+        delay=delay,
+        label=label,
     )
-    DARWIN_PLIST_PATH.write_text(plist_content)
+    plist_path.write_text(plist_content, encoding="utf-8")
+    try:
+        if plist_path.exists():
+            os.chmod(plist_path, 0o644)
+    except OSError:
+        pass
 
-    subprocess.run(
-        ["launchctl", "unload", str(DARWIN_PLIST_PATH)],
-        capture_output=True,
-        check=False,
-    )
-    load_proc = subprocess.run(
-        ["launchctl", "load", str(DARWIN_PLIST_PATH)],
-        capture_output=True,
-        check=False,
-        text=True,
-    )
-
-    success = load_proc.returncode == 0
-    error_msg = load_proc.stderr.strip() if not success else None
+    error_msg = _darwin_reload_plist(label, plist_path)
     return {
-        "success": success,
+        "success": error_msg is None,
         "platform": "darwin",
+        "label": label,
         "hour": hour,
         "minute": minute,
-        "target": target,
+        "time": f"{hour:02d}:{minute:02d}",
+        "target": merged_target,
+        "targets": merged_list,
         "delay": delay,
-        "plist_path": str(DARWIN_PLIST_PATH),
+        "plist_path": str(plist_path),
         "error": error_msg,
     }
 
 
 def get_schedule_status_darwin() -> dict[str, Any]:
-    """Get status of launchd agent on macOS."""
-    if not DARWIN_PLIST_PATH.exists():
+    """Get multi-schedule status of all managed LaunchAgents on macOS."""
+    _clean_broken_launchagent_symlinks(DARWIN_PLIST_DIR)
+    plist_paths = _iter_managed_plist_paths()
+    if not plist_paths:
         return {
+            "success": True,
+            "platform": "darwin",
             "installed": False,
             "loaded": False,
             "hour": None,
@@ -334,62 +654,115 @@ def get_schedule_status_darwin() -> dict[str, Any]:
             "target": None,
             "delay": None,
             "plist_path": str(DARWIN_PLIST_PATH),
+            "schedules": [],
+            "by_profile": {},
         }
-
-    content = DARWIN_PLIST_PATH.read_text()
-    h_match = re.search(r"<key>Hour</key>\s*<integer>(\d+)</integer>", content)
-    m_match = re.search(r"<key>Minute</key>\s*<integer>(\d+)</integer>", content)
-
-    if not h_match:
-        int_matches = re.findall(r"<integer>(\d+)</integer>", content)
-        hour = int(int_matches[0]) if len(int_matches) >= 1 else None
-        minute = int(int_matches[1]) if len(int_matches) >= 2 else None
-    else:
-        hour = int(h_match.group(1)) if h_match else None
-        minute = int(m_match.group(1)) if m_match else 0
-
-    args_block = re.search(r"<key>ProgramArguments</key>\s*<array>(.*?)</array>", content, re.DOTALL)
-    if args_block:
-        items = re.findall(r"<string>(.*?)</string>", args_block.group(1))
-        target = items[2] if len(items) >= 3 else "providers"
-    else:
-        target_match = re.search(r"<string>([a-zA-Z0-9_-]+)</string>", content)
-        target = target_match.group(1) if target_match else "providers"
-
-    delay_match = re.search(
-        r"<string>--(?:delay|offset)</string>\s*<string>(\d+)</string>", content
-    )
-    delay = int(delay_match.group(1)) if delay_match else (30 if "<key>Hour</key>" in content else 0)
 
     check_proc = subprocess.run(
         ["launchctl", "list"], capture_output=True, text=True, check=False
     )
-    loaded = check_proc.returncode == 0 and DARWIN_LABEL in (check_proc.stdout or "")
+    loaded_labels: set[str] = set()
+    if check_proc.returncode == 0:
+        for line in (check_proc.stdout or "").splitlines():
+            cols = line.strip().split()
+            if cols and cols[-1].startswith(DARWIN_LABEL):
+                loaded_labels.add(cols[-1])
 
+    schedules: list[dict[str, Any]] = []
+    by_profile: dict[str, list[dict[str, Any]]] = {}
+    for plist_path in plist_paths:
+        info = _parse_plist_schedule(plist_path)
+        lbl = info["label"]
+        info["loaded"] = lbl in loaded_labels or (lbl == DARWIN_LABEL and DARWIN_LABEL in (check_proc.stdout or ""))
+        schedules.append(info)
+        for prof in info.get("targets", []):
+            by_profile.setdefault(prof, []).append({
+                "label": lbl,
+                "time": info["time"],
+                "hour": info["hour"],
+                "minute": info["minute"],
+                "delay": info["delay"],
+                "plist_path": info["plist_path"],
+                "loaded": info["loaded"],
+            })
+
+    schedules.sort(key=lambda s: ((s["hour"] if s["hour"] is not None else 99), s["minute"], s["delay"], s["label"]))
+    first = schedules[0]
     return {
+        "success": True,
+        "platform": "darwin",
         "installed": True,
-        "loaded": loaded,
-        "hour": hour,
-        "minute": minute,
-        "target": target,
-        "delay": delay,
-        "plist_path": str(DARWIN_PLIST_PATH),
+        "loaded": any(s["loaded"] for s in schedules),
+        "hour": first["hour"],
+        "minute": first["minute"],
+        "target": first["target"],
+        "delay": first["delay"],
+        "plist_path": first["plist_path"],
+        "schedules": schedules,
+        "by_profile": by_profile,
     }
 
 
-def uninstall_schedule_darwin() -> dict[str, Any]:
-    """Uninstall launchd agent on macOS."""
-    subprocess.run(
-        ["launchctl", "unload", str(DARWIN_PLIST_PATH)],
-        capture_output=True,
-        check=False,
+def uninstall_schedule_darwin(
+    target: str | None = None,
+    time_str: str | None = None,
+    delay: int | None = None,
+) -> dict[str, Any]:
+    """Uninstall all managed LaunchAgents or surgically remove target(s)/time slot(s)."""
+    _clean_broken_launchagent_symlinks(DARWIN_PLIST_DIR)
+    filter_hm: tuple[int, int] | None = None
+    if time_str:
+        filter_hm = parse_flexible_time(time_str)
+
+    drop_targets = (
+        {t.strip() for t in re.split(r"[\s,]+", str(target)) if t.strip()}
+        if target
+        else set()
     )
-    if DARWIN_PLIST_PATH.exists():
-        DARWIN_PLIST_PATH.unlink()
+
+    removed: list[str] = []
+    updated: list[str] = []
+    script_path = str(Path(__file__).resolve())
+
+    for plist_path in _iter_managed_plist_paths():
+        info = _parse_plist_schedule(plist_path)
+        if filter_hm is not None and (info["hour"], info["minute"]) != filter_hm:
+            continue
+        if delay is not None and info["delay"] != delay:
+            continue
+
+        lbl = info["label"]
+        if drop_targets:
+            current_targets = info.get("targets", [])
+            remaining = [t for t in current_targets if t not in drop_targets]
+            if len(remaining) == len(current_targets):
+                continue
+            if remaining and info["hour"] is not None:
+                new_target = ",".join(remaining)
+                new_xml = build_darwin_plist(
+                    script_path,
+                    hour=int(info["hour"]),
+                    minute=int(info["minute"] or 0),
+                    target=new_target,
+                    delay=int(info["delay"] or 0),
+                    label=lbl,
+                )
+                plist_path.write_text(new_xml, encoding="utf-8")
+                _darwin_reload_plist(lbl, plist_path)
+                updated.append(lbl)
+                continue
+
+        _darwin_bootout_plist(lbl, plist_path)
+        if plist_path.exists() or plist_path.is_symlink():
+            plist_path.unlink(missing_ok=True)
+        removed.append(lbl)
+
     return {
         "success": True,
         "platform": "darwin",
         "plist_path": str(DARWIN_PLIST_PATH),
+        "removed": removed,
+        "updated": updated,
     }
 
 
@@ -512,10 +885,12 @@ def get_schedule_status() -> dict[str, Any]:
     return get_schedule_status_linux()
 
 
-def uninstall_schedule() -> dict[str, Any]:
+def uninstall_schedule(
+    target: str | None = None, time_str: str | None = None, delay: int | None = None
+) -> dict[str, Any]:
     """Uninstall daily schedule dispatching to darwin or linux."""
     if sys.platform == "darwin":
-        return uninstall_schedule_darwin()
+        return uninstall_schedule_darwin(target=target, time_str=time_str, delay=delay)
     return uninstall_schedule_linux()
 
 
@@ -658,10 +1033,7 @@ def check_profile_auth_token(profile: str) -> bool:
 
 def check_profile_has_argon(profile: str) -> bool:
     """Check whether an Antigravity profile supports Argon model from cached dashboard data."""
-    for p in [
-        Path(REAL_HOME) / "AllProjects/ai-agent-tools/skills/check-quota/resources/dashboard/quota_dashboard.html",
-        Path(REAL_HOME) / ".gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html",
-    ]:
+    for p in _DASHBOARD_HTML_CANDIDATES:
         if p.is_file():
             try:
                 content = p.read_text(encoding="utf-8")
@@ -671,7 +1043,8 @@ def check_profile_has_argon(profile: str) -> bool:
                 if i1 != -1:
                     i2 = content.find(end_marker, i1)
                     if i2 != -1:
-                        data = json.loads(content[i1 + len(marker):i2 + len(end_marker)].strip())
+                        raw_json = content[i1 + len(marker):i2 + len(end_marker)].strip().rstrip(";")
+                        data = json.loads(raw_json)
                         prof_data = data.get(profile, {})
                         return bool(prof_data.get("hasArgon") and not prof_data.get("argonWeekly", {}).get("unavailable", False))
             except Exception:
@@ -679,11 +1052,167 @@ def check_profile_has_argon(profile: str) -> bool:
     return False
 
 
-def ping_profile(profile_name: str, timeout: int = 25) -> dict[str, Any]:
-    """Execute sandboxed minimal multi-model (Gemini 5H, Claude 5H, and Argon) ping for an Antigravity profile.
+def _extract_usage_buckets(cmd_data: dict[str, Any]) -> dict[str, Any]:
+    """Parse `/usage` command payload into normalized per-bucket state."""
+    plan_raw = str(cmd_data.get("plan_name") or cmd_data.get("tier") or "").strip().upper()
+    groups = cmd_data.get("groups") or []
+    buckets: dict[str, Any] = {
+        "has_groups": bool(groups),
+        "tier": "FREE" if "FREE" in plan_raw else ("PRO" if groups else plan_raw or "PRO"),
+        "gem_5h": {"available": False, "fraction": 1.0, "reset_time": "", "description": ""},
+        "cld_5h": {"available": False, "fraction": 1.0, "reset_time": "", "description": ""},
+        "argon_weekly": {"available": False, "fraction": 1.0, "reset_time": "", "description": ""},
+    }
+    for grp in groups:
+        g_name = str(grp.get("name") or "").lower()
+        for b in grp.get("buckets") or []:
+            win = b.get("window")
+            entry = {
+                "available": True,
+                "fraction": float(b.get("remaining_fraction", 1.0)),
+                "reset_time": str(b.get("reset_time") or ""),
+                "description": str(b.get("description") or ""),
+            }
+            if "gemini models" in g_name and win == "5h":
+                buckets["gem_5h"] = entry
+            elif "claude" in g_name and win == "5h":
+                buckets["cld_5h"] = entry
+            elif "argon" in g_name and win == "weekly":
+                buckets["argon_weekly"] = entry
 
-    Sets isolated HOME, AGY_PROFILE, TMPDIR, and unlocks profile keychain.
-    """
+    has_5h = buckets["gem_5h"]["available"] or buckets["cld_5h"]["available"]
+    if groups and not has_5h:
+        buckets["tier"] = "FREE"
+    return buckets
+
+
+def _detect_appeal_in_output(text: str) -> bool:
+    """Return True if agy CLI output indicates Terms of Service account disablement."""
+    low = (text or "").lower()
+    return (
+        "submit an appeal" in low
+        or "violation of terms of service" in low
+        or "service has been disabled" in low
+    )
+
+
+def _probe_profile_usage_and_models(
+    agy_bin: str,
+    env: dict[str, str],
+    cwd: str,
+    timeout: int,
+) -> tuple[dict[str, Any], list[str], bool]:
+    """Query live `/usage` and `agy models` inside isolated cwd cleanly."""
+    usage_buckets: dict[str, Any] = {"has_groups": False}
+    available_models: list[str] = []
+    is_appeal = False
+
+    try:
+        proc_usage = subprocess.run(
+            [agy_bin, "--output-format", "json", "-p", "/usage"],
+            env=env,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=timeout,
+        )
+        combined = f"{proc_usage.stdout or ''}\n{proc_usage.stderr or ''}"
+        if _detect_appeal_in_output(combined):
+            return usage_buckets, available_models, True
+        if proc_usage.returncode == 0 and proc_usage.stdout:
+            try:
+                parsed = json.loads(proc_usage.stdout.strip())
+                cmd_data = parsed.get("command", {}).get("data", {})
+                if isinstance(cmd_data, dict) and cmd_data.get("groups"):
+                    usage_buckets = _extract_usage_buckets(cmd_data)
+            except (TypeError, ValueError):
+                pass
+    except Exception:
+        pass
+
+    try:
+        proc_models = subprocess.run(
+            [agy_bin, "models"],
+            env=env,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=min(timeout, 25),
+        )
+        if _detect_appeal_in_output(f"{proc_models.stdout or ''}\n{proc_models.stderr or ''}"):
+            return usage_buckets, available_models, True
+        if proc_models.returncode == 0 and proc_models.stdout:
+            available_models = parse_agy_models_output(proc_models.stdout)
+    except Exception:
+        pass
+
+    return usage_buckets, available_models, is_appeal
+
+
+def _record_bucket_session(profile_name: str, bucket_suffix: str, window_seconds: int) -> None:
+    """Persist per-bucket ping timestamp in SESSION_STORE_DB for propagation-lag tracing."""
+    if not SESSION_STORE_DB.parent.is_dir():
+        return
+    con = None
+    try:
+        con = sqlite3.connect(str(SESSION_STORE_DB), timeout=2.0)
+        now_ts = int(time.time())
+        con.execute(
+            """
+            INSERT INTO session_store (profile_hash, reset_5h, reset_weekly, fraction_5h, last_checked, last_ping, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(profile_hash) DO UPDATE SET
+                reset_5h=excluded.reset_5h,
+                last_checked=excluded.last_checked,
+                last_ping=excluded.last_ping,
+                is_active=excluded.is_active;
+            """,
+            (hash_profile(f"{profile_name}:{bucket_suffix}"), now_ts + window_seconds, 0, 1.0, now_ts, now_ts, 1),
+        )
+        con.commit()
+    except Exception:
+        pass
+    finally:
+        if con is not None:
+            con.close()
+
+
+def _run_isolated_agy_model_ping(
+    agy_bin: str,
+    model_id: str,
+    prompt: str,
+    env: dict[str, str],
+    cwd: str,
+    timeout: int,
+) -> tuple[bool, bool, str]:
+    """Execute one sandboxed agy model ping. Returns (ok, is_appeal, error_msg)."""
+    try:
+        proc = subprocess.run(
+            [agy_bin, "--disable-slash-commands", "--model", model_id, "-p", prompt],
+            env=env,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=timeout,
+        )
+        combined = f"{proc.stdout or ''}\n{proc.stderr or ''}"
+        if _detect_appeal_in_output(combined):
+            return False, True, "Profile is disabled for Terms of Service (Appeal needed)"
+        if proc.returncode == 0:
+            return True, False, ""
+        err = (proc.stderr or proc.stdout or f"Exited with return code {proc.returncode}").strip()
+        return False, False, err
+    except subprocess.TimeoutExpired:
+        return False, False, f"Timed out after {timeout}s ({model_id})"
+    except Exception as exc:
+        return False, False, str(exc)
+
+
+def ping_profile(profile_name: str, timeout: int = 50) -> dict[str, Any]:
+    """Check live quota & models and ping unactivated Gemini 5H, Claude 5H, and Argon 7D independently."""
     result: dict[str, Any] = {
         "cli": f"agy ({profile_name})",
         "profile": profile_name,
@@ -691,6 +1220,8 @@ def ping_profile(profile_name: str, timeout: int = 25) -> dict[str, Any]:
         "latency_ms": 0.0,
         "tokens": 0,
         "error": None,
+        "models_pinged": [],
+        "details": {},
     }
     ag_home = f"{REAL_HOME}/antigravity_homes/{profile_name}"
     if not os.path.isdir(ag_home):
@@ -698,13 +1229,11 @@ def ping_profile(profile_name: str, timeout: int = 25) -> dict[str, Any]:
         result["error"] = f"Profile directory not found: {ag_home}"
         return result
 
-    # Prevent agy from opening browser if profile has no CLI auth token
     if not check_profile_auth_token(profile_name):
         result["status"] = "SKIPPED"
         result["error"] = "Profile is not authenticated in CLI keychain"
         return result
 
-    # Fast skip if profile was disabled for Terms of Service violation (submit an appeal)
     marker_file = os.path.join(ag_home, ".gemini/antigravity/tos_disabled.json")
     if os.path.isfile(marker_file):
         result["status"] = "SKIPPED"
@@ -718,8 +1247,7 @@ def ping_profile(profile_name: str, timeout: int = 25) -> dict[str, Any]:
         for log_file in logs[:2]:
             try:
                 with open(log_file, "rb") as f:
-                    content = f.read().decode("utf-8", errors="ignore").lower()
-                    if "submit an appeal" in content or "violation of terms of service" in content:
+                    if _detect_appeal_in_output(f.read().decode("utf-8", errors="ignore")):
                         result["status"] = "SKIPPED"
                         result["error"] = "Profile is disabled for Terms of Service (Appeal needed)"
                         return result
@@ -740,106 +1268,118 @@ def ping_profile(profile_name: str, timeout: int = 25) -> dict[str, Any]:
         result["error"] = "Antigravity CLI (agy) binary not found."
         return result
 
-    env = os.environ.copy()
+    tmpdir_path = f"/tmp/ag_{profile_name}"
+    os.makedirs(tmpdir_path, exist_ok=True)
+    env = _clean_host_env()
     env.update({
         "HOME": ag_home,
         "AGY_PROFILE": profile_name,
         "AGY_CLI_MODE": "1",
-        "TMPDIR": f"/tmp/ag_{profile_name}",
+        "TMPDIR": tmpdir_path,
+        "BROWSER": "true",
     })
 
     start_time = time.perf_counter()
-    has_argon = check_profile_has_argon(profile_name)
-    models_pinged = []
-    last_proc = None
+    models_pinged: list[str] = []
+    failures: list[str] = []
 
-    # 1. Ping Gemini 5H
-    prompt_gem = random.choice(NATURAL_PROMPTS)
-    try:
-        proc_gem = subprocess.run(
-            [agy_bin, "-p", prompt_gem],
-            env=env,
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=timeout,
+    with tempfile.TemporaryDirectory(prefix=f"agy_ping_{profile_name}_") as sandbox_cwd:
+        usage_buckets, available_models, appeal_detected = _probe_profile_usage_and_models(
+            agy_bin, env=env, cwd=sandbox_cwd, timeout=min(timeout, 45)
         )
-        last_proc = proc_gem
-        if proc_gem.returncode == 0:
-            models_pinged.append("Gemini 5H")
-    except Exception:
-        pass
+        if appeal_detected:
+            result["status"] = "SKIPPED"
+            result["error"] = "Profile is disabled for Terms of Service (Appeal needed)"
+            return result
 
-    # Humanized jitter between model requests
-    time.sleep(round(random.uniform(1.5, 2.5), 2))
+        if usage_buckets.get("has_groups") and usage_buckets.get("tier") == "FREE":
+            result["status"] = "SKIPPED"
+            result["error"] = "Profile is FREE tier (no 5H or Argon buckets)"
+            result["latency_ms"] = round((time.perf_counter() - start_time) * 1000.0, 2)
+            return result
 
-    # 2. Ping Claude 5H
-    other_prompts = [p for p in NATURAL_PROMPTS if p != prompt_gem] or NATURAL_PROMPTS
-    prompt_cld = random.choice(other_prompts)
-    try:
-        proc_cld = subprocess.run(
-            [agy_bin, "--model", "claude-sonnet-5-5-low", "-p", prompt_cld],
-            env=env,
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=timeout,
+        has_live = bool(usage_buckets.get("has_groups"))
+        now_ts = time.time()
+
+        gem_bucket = usage_buckets.get("gem_5h") if has_live else {"available": True}
+        cld_bucket = usage_buckets.get("cld_5h") if has_live else {"available": True}
+        if has_live:
+            argon_bucket = usage_buckets["argon_weekly"]
+            has_argon = bool(argon_bucket.get("available")) or any("argon" in m for m in available_models)
+        else:
+            has_argon = check_profile_has_argon(profile_name) or any("argon" in m for m in available_models)
+            argon_bucket = {"available": has_argon}
+
+        should_gem = bool(gem_bucket.get("available")) and not (has_live and is_bucket_activated(gem_bucket, 5 * 3600, now_ts=now_ts))
+        should_cld = bool(cld_bucket.get("available")) and not (has_live and is_bucket_activated(cld_bucket, 5 * 3600, now_ts=now_ts))
+
+        argon_near_reset = False
+        if has_argon and has_live and argon_bucket.get("reset_time"):
+            try:
+                dt_a = datetime.datetime.fromisoformat(argon_bucket["reset_time"].replace("Z", "+00:00"))
+                rem_a = dt_a.timestamp() - now_ts
+                argon_near_reset = 0 < rem_a < 7 * 3600
+            except Exception:
+                pass
+        should_argon = (
+            has_argon
+            and not argon_near_reset
+            and not (has_live and is_bucket_activated(argon_bucket, 7 * 86400, now_ts=now_ts))
         )
-        last_proc = proc_cld
-        if proc_cld.returncode == 0:
-            models_pinged.append("Claude 5H")
-    except Exception:
-        pass
 
-    # 3. Ping Argon (if profile has Argon)
-    if has_argon:
-        time.sleep(round(random.uniform(1.8, 3.0), 2))
-        other_arg = [p for p in NATURAL_PROMPTS if p not in (prompt_gem, prompt_cld)] or NATURAL_PROMPTS
-        prompt_arg = random.choice(other_arg)
-        try:
-            proc_arg = subprocess.run(
-                [agy_bin, "--model", "gemini-4-argon-low", "-p", prompt_arg],
-                env=env,
-                capture_output=True,
-                text=True,
-                check=False,
-                timeout=timeout,
+        if not should_gem and not should_cld and not should_argon:
+            result["status"] = "SKIPPED"
+            result["error"] = "All eligible sessions already active (Gemini 5H / Claude 5H / Argon 7D)"
+            result["latency_ms"] = round((time.perf_counter() - start_time) * 1000.0, 2)
+            return result
+
+        gem_model = select_model_from_candidates(available_models, GEMINI_MODEL_CANDIDATES, "gemini-3.8-flash-low")
+        cld_model = select_model_from_candidates(available_models, CLAUDE_MODEL_CANDIDATES, "claude-sonnet-5-5-low")
+        arg_model = select_model_from_candidates(available_models, ARGON_MODEL_CANDIDATES, "gemini-4-argon-low")
+
+        targets_plan: list[tuple[str, str, str, int, tuple[float, float] | None]] = []
+        if should_gem:
+            targets_plan.append(("Gemini 5H", gem_model, "gem5h", 18000, None))
+        if should_cld:
+            targets_plan.append(("Claude 5H", cld_model, "cld5h", 18000, (1.5, 2.5)))
+        if should_argon:
+            targets_plan.append(("Argon 7D", arg_model, "argon7d", 7 * 86400, (1.8, 3.0)))
+
+        used_prompts: set[str] = set()
+        for idx, (label, model_id, store_key, store_win, jitter_range) in enumerate(targets_plan):
+            if idx > 0 and jitter_range:
+                time.sleep(round(random.uniform(*jitter_range), 2))
+            prompt_pool = [p for p in NATURAL_PROMPTS if p not in used_prompts] or NATURAL_PROMPTS
+            prompt = random.choice(prompt_pool)
+            used_prompts.add(prompt)
+
+            ok, is_appeal, err_msg = _run_isolated_agy_model_ping(
+                agy_bin, model_id=model_id, prompt=prompt, env=env, cwd=sandbox_cwd, timeout=timeout
             )
-            last_proc = proc_arg
-            if proc_arg.returncode == 0:
-                models_pinged.append("Argon 7D")
-        except Exception:
-            pass
+            if is_appeal:
+                result["status"] = "FAIL"
+                result["error"] = err_msg
+                result["latency_ms"] = round((time.perf_counter() - start_time) * 1000.0, 2)
+                return result
+            result["details"][label] = {"model": model_id, "ok": ok, "error": err_msg or None}
+            if ok:
+                models_pinged.append(label)
+                _record_bucket_session(profile_name, store_key, store_win)
+            else:
+                failures.append(f"{label} ({model_id}): {err_msg}")
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000.0
     result["latency_ms"] = round(elapsed_ms, 2)
     result["models_pinged"] = models_pinged
+    result["tokens"] = len(models_pinged)
 
-    if len(models_pinged) > 0:
+    if failures:
+        result["status"] = "FAIL"
+        result["error"] = "; ".join(failures)
+    elif len(models_pinged) > 0:
         result["status"] = "PASS"
-        result["tokens"] = len(models_pinged)
-        # Update session store
-        try:
-            con = sqlite3.connect(str(SESSION_STORE_DB), timeout=2.0)
-            now_ts = int(time.time())
-            con.execute("""
-                INSERT INTO session_store (profile_hash, reset_5h, reset_weekly, fraction_5h, last_checked, last_ping, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(profile_hash) DO UPDATE SET
-                    reset_5h=excluded.reset_5h,
-                    last_checked=excluded.last_checked,
-                    last_ping=excluded.last_ping,
-                    is_active=excluded.is_active;
-            """, (hash_profile(profile_name), now_ts + 18000, 0, 1.0, now_ts, now_ts, 1))
-            con.commit()
-            con.close()
-        except Exception:
-            pass
     else:
-        err_msg = ""
-        if last_proc:
-            err_msg = (last_proc.stderr or last_proc.stdout or "").strip()
-        result["error"] = err_msg or (f"Exited with return code {last_proc.returncode}" if last_proc else "No models pinged")
+        result["error"] = "No models pinged"
 
     return result
 
@@ -893,6 +1433,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parsed = sched_parser.parse_args(argv[1:])
         parsed.command = "schedule"
         try:
+            parsed.target_explicit = any(
+                a == "--target" or a.startswith("--target=") for a in argv[1:]
+            )
             parsed.target = validate_target(parsed.target)
         except argparse.ArgumentTypeError as exc:
             sched_parser.error(str(exc))
@@ -948,7 +1491,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "schedule":
         if args.uninstall:
-            res = uninstall_schedule()
+            has_explicit_target = getattr(args, "target_explicit", False)
+            if has_explicit_target or args.time:
+                res = uninstall_schedule(
+                    target=args.target if has_explicit_target else None,
+                    time_str=args.time,
+                    delay=args.delay if args.delay != 30 else None,
+                )
+            else:
+                res = uninstall_schedule()
             if args.json:
                 print(json.dumps(res, indent=2))
             else:
@@ -961,23 +1512,32 @@ def main(argv: list[str] | None = None) -> int:
                 print(json.dumps(status, indent=2))
             else:
                 if status.get("installed"):
-                    h = status.get("hour")
-                    m = status.get("minute", 0)
-                    time_display = f"{h:02d}:{m:02d}" if h is not None else "Unknown"
-                    target_display = status.get("target") or "all"
+                    schedules = status.get("schedules") or []
                     loaded_str = (
                         "loaded & active"
                         if status.get("loaded")
                         else "installed but not loaded"
                     )
                     print(f"Scheduled daemon: ACTIVE ({loaded_str})")
-                    print(f"  • Trigger time: {time_display} daily")
-                    print(f"  • Target:       {target_display}")
-                    delay_val = status.get("delay")
-                    if delay_val is not None:
-                        print(f"  • Delay buffer: {delay_val}s")
-                    if "plist_path" in status:
-                        print(f"  • Config:       {status['plist_path']}")
+                    if len(schedules) > 1:
+                        for item in schedules:
+                            st = "LOADED" if item.get("loaded") else "NOT LOADED"
+                            print(
+                                f"  • {item.get('time')} daily (+{item.get('delay', 0)}s) | "
+                                f"Target: {item.get('target')} | {st} ({item.get('label')})"
+                            )
+                    else:
+                        h = status.get("hour")
+                        m = status.get("minute", 0)
+                        time_display = f"{h:02d}:{m:02d}" if h is not None else "Unknown"
+                        target_display = status.get("target") or "all"
+                        print(f"  • Trigger time: {time_display} daily")
+                        print(f"  • Target:       {target_display}")
+                        delay_val = status.get("delay")
+                        if delay_val is not None:
+                            print(f"  • Delay buffer: {delay_val}s")
+                        if "plist_path" in status:
+                            print(f"  • Config:       {status['plist_path']}")
                 else:
                     print("Scheduled daemon: INACTIVE (No schedule configured)")
             return 0

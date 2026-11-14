@@ -28,11 +28,114 @@ import urllib.parse
 import urllib.request
 import sqlite3
 import hashlib
+import importlib.util
 import random
 import shlex
 import shutil
+import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+
+GEMINI_MODEL_CANDIDATES = (
+    "gemini-3.8-flash-low",
+    "gemini-4-hydrogen-low",
+    "gemini-3.8-flash-medium",
+    "gemini-4-hydrogen-medium",
+    "gemini-3.8-flash-high",
+)
+CLAUDE_MODEL_CANDIDATES = (
+    "claude-sonnet-5-5-low",
+    "claude-sonnet-4-6",
+    "claude-sonnet-5-5-medium",
+    "claude-opus-5-5-low",
+    "claude-opus-4-6-thinking",
+    "gpt-oss-120b-medium",
+)
+ARGON_MODEL_CANDIDATES = (
+    "gemini-4-argon-low",
+    "gemini-4-argon-medium",
+    "gemini-4-argon-high",
+)
+
+_REFRESH_SESSION_MOD = None
+
+
+def _load_refresh_session_module():
+    """Dynamically locate and load sibling refresh_session.py module."""
+    global _REFRESH_SESSION_MOD
+    if _REFRESH_SESSION_MOD is not None:
+        return _REFRESH_SESSION_MOD
+    here = Path(__file__).resolve()
+    candidates = [
+        here.parent.parent / "skills" / "refresh-session" / "resources" / "scripts" / "refresh_session.py",
+        Path(REAL_HOME) / ".gemini" / "config" / "plugins" / "d3nexus" / "skills" / "refresh-session" / "resources" / "scripts" / "refresh_session.py",
+    ]
+    for cand in candidates:
+        if cand.is_file():
+            spec = importlib.util.spec_from_file_location("d3nexus_refresh_session", str(cand))
+            if spec and spec.loader:
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                _REFRESH_SESSION_MOD = mod
+                return mod
+    return None
+
+
+def is_bucket_activated(
+    bucket: dict | None,
+    window_seconds: int,
+    now_ts: float | None = None,
+    freeze_grace_sec: int = 180,
+) -> bool:
+    """Delegate bucket-activation check to refresh_session module with built-in fallback."""
+    mod = _load_refresh_session_module()
+    if mod and hasattr(mod, "is_bucket_activated"):
+        return mod.is_bucket_activated(bucket, window_seconds, now_ts=now_ts, freeze_grace_sec=freeze_grace_sec)
+    if not bucket or bucket.get("unavailable"):
+        return False
+    if "available" in bucket and not bucket.get("available"):
+        return False
+    frac = bucket.get("fraction") if bucket.get("fraction") is not None else bucket.get("remaining_fraction")
+    if frac is not None and float(frac) < 0.999:
+        return True
+    if "used some" in str(bucket.get("description") or "").lower():
+        return True
+    reset_str = str(bucket.get("resetTime") or bucket.get("reset_time") or "").strip()
+    if reset_str:
+        try:
+            dt = datetime.datetime.fromisoformat(reset_str.replace("Z", "+00:00"))
+            now = now_ts if now_ts is not None else time.time()
+            rem = dt.timestamp() - now
+            if 0 < rem < (window_seconds - freeze_grace_sec):
+                return True
+        except Exception:
+            pass
+    return False
+
+
+def parse_agy_models_output(stdout: str) -> list[str]:
+    """Parse model IDs from `agy models` stdout."""
+    mod = _load_refresh_session_module()
+    if mod and hasattr(mod, "parse_agy_models_output"):
+        return mod.parse_agy_models_output(stdout)
+    models = []
+    for raw in (stdout or "").splitlines():
+        tok = raw.strip().split()[0] if raw.strip() else ""
+        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{2,}", tok) and tok not in models:
+            models.append(tok)
+    return models
+
+
+def select_model_from_candidates(available_models: list[str], candidates, default: str) -> str:
+    """Select first available preferred model ID, or safe default."""
+    mod = _load_refresh_session_module()
+    if mod and hasattr(mod, "select_model_from_candidates"):
+        return mod.select_model_from_candidates(available_models, candidates, default)
+    avail = set(available_models or [])
+    for c in candidates:
+        if c in avail:
+            return c
+    return candidates[0] if candidates else default
 
 # ANSI Colors & Styling
 GREEN       = "\033[38;2;114;188;130m"      # Soft Green (#72bc82)
@@ -714,19 +817,22 @@ def fetch_quota_for_profile(profile: str, force_probe: bool = False) -> dict:
         subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, profile_kc], capture_output=True)
 
     # 4. Build isolated environment
-    env = os.environ.copy()
+    tmpdir_path = f"/tmp/ag_{profile}"
+    os.makedirs(tmpdir_path, exist_ok=True)
+    env = build_clean_host_env()
     env.update({
         "HOME": ag_home,
         "AGY_PROFILE": profile,
         "AGY_CLI_MODE": "1",
-        "TMPDIR": f"/tmp/ag_{profile}",
+        "TMPDIR": tmpdir_path,
         "BROWSER": "true",  # Safeguard against browser launch
     })
 
     cmd = [AGY_BIN, "--output-format", "json", "-p", "/usage"]
     t0 = time.time()
     try:
-        proc = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=25)
+        with tempfile.TemporaryDirectory(prefix=f"agy_usage_{profile}_") as sandbox_cwd:
+            proc = subprocess.run(cmd, env=env, cwd=sandbox_cwd, capture_output=True, text=True, timeout=45)
         duration = time.time() - t0
         all_out = (proc.stdout or "") + " " + (proc.stderr or "")
 
@@ -754,49 +860,72 @@ def fetch_quota_for_profile(profile: str, force_probe: bool = False) -> dict:
         data = json.loads(stdout)
         cmd_data = data.get("command", {}).get("data", {})
         groups = cmd_data.get("groups", [])
+        plan_raw = str(cmd_data.get("plan_name") or cmd_data.get("tier") or "").strip().upper()
+        items = parse_quota_items(groups)
+        has_5h = items["gem_5h"]["available"] or items["cld_5h"]["available"]
+        tier = "FREE" if ("FREE" in plan_raw or (groups and not has_5h)) else "PRO"
         return {
             "profile": profile,
             "success": True,
             "duration": duration,
             "groups": groups,
+            "tier": tier,
         }
     except subprocess.TimeoutExpired:
-        return {"profile": profile, "success": False, "duration": 25.0, "error": "Request timed out (25s)"}
+        return {"profile": profile, "success": False, "duration": 45.0, "error": "Request timed out (45s)"}
     except Exception as e:
         return {"profile": profile, "success": False, "error": str(e)}
 
 
 def parse_quota_items(groups: list) -> dict:
-    """Extract standard buckets into a structured dictionary."""
+    """Extract standard buckets including description into a structured dictionary."""
     items = {
-        "gem_5h": {"fraction": 1.0, "reset_time": "", "available": False},
-        "gem_weekly": {"fraction": 1.0, "reset_time": "", "available": False},
-        "cld_5h": {"fraction": 1.0, "reset_time": "", "available": False},
-        "cld_weekly": {"fraction": 1.0, "reset_time": "", "available": False},
+        "gem_5h": {"fraction": 1.0, "reset_time": "", "description": "", "available": False},
+        "gem_weekly": {"fraction": 1.0, "reset_time": "", "description": "", "available": False},
+        "cld_5h": {"fraction": 1.0, "reset_time": "", "description": "", "available": False},
+        "cld_weekly": {"fraction": 1.0, "reset_time": "", "description": "", "available": False},
         "argon_5h": None,
-        "argon_weekly": {"fraction": 0.0, "reset_time": "", "available": False},
+        "argon_weekly": {"fraction": 0.0, "reset_time": "", "description": "", "available": False},
     }
 
     for g in groups:
         g_name = g.get("name", "").lower()
         if "gemini models" in g_name:
             for b in g.get("buckets", []):
+                entry = {
+                    "fraction": b.get("remaining_fraction", 1.0),
+                    "reset_time": b.get("reset_time", ""),
+                    "description": b.get("description", ""),
+                    "available": True,
+                }
                 if b.get("window") == "5h":
-                    items["gem_5h"] = {"fraction": b.get("remaining_fraction", 1.0), "reset_time": b.get("reset_time", ""), "available": True}
+                    items["gem_5h"] = entry
                 elif b.get("window") == "weekly":
-                    items["gem_weekly"] = {"fraction": b.get("remaining_fraction", 1.0), "reset_time": b.get("reset_time", ""), "available": True}
+                    items["gem_weekly"] = entry
         elif "claude" in g_name:
             for b in g.get("buckets", []):
+                entry = {
+                    "fraction": b.get("remaining_fraction", 1.0),
+                    "reset_time": b.get("reset_time", ""),
+                    "description": b.get("description", ""),
+                    "available": True,
+                }
                 if b.get("window") == "5h":
-                    items["cld_5h"] = {"fraction": b.get("remaining_fraction", 1.0), "reset_time": b.get("reset_time", ""), "available": True}
+                    items["cld_5h"] = entry
                 elif b.get("window") == "weekly":
-                    items["cld_weekly"] = {"fraction": b.get("remaining_fraction", 1.0), "reset_time": b.get("reset_time", ""), "available": True}
+                    items["cld_weekly"] = entry
         elif "argon" in g_name:
             for b in g.get("buckets", []):
+                entry = {
+                    "fraction": b.get("remaining_fraction", 1.0),
+                    "reset_time": b.get("reset_time", ""),
+                    "description": b.get("description", ""),
+                    "available": True,
+                }
                 if b.get("window") == "5h":
-                    items["argon_5h"] = {"fraction": b.get("remaining_fraction", 1.0), "reset_time": b.get("reset_time", ""), "available": True}
+                    items["argon_5h"] = entry
                 elif b.get("window") == "weekly":
-                    items["argon_weekly"] = {"fraction": b.get("remaining_fraction", 1.0), "reset_time": b.get("reset_time", ""), "available": True}
+                    items["argon_weekly"] = entry
 
     return items
 
@@ -2050,11 +2179,12 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
             dt_5h = datetime.datetime.fromisoformat(gem_5h_reset.replace("Z", "+00:00"))
             gem_5h_ts = int(dt_5h.timestamp())
             local_5h_reset = dt_5h.astimezone().strftime("%H:%M:%S")
-            rem_sec_5h = int((dt_5h - now_utc).total_seconds())
-            if 0 < rem_sec_5h < 5 * 3600 and items["gem_5h"]["fraction"] < 1.0:
-                is_5h_active = True
         except Exception:
             pass
+
+    is_gem_active = is_bucket_activated(items["gem_5h"], 5 * 3600)
+    is_cld_active = is_bucket_activated(items["cld_5h"], 5 * 3600)
+    is_5h_active = is_gem_active or is_cld_active
 
     gem_w_ts = 0
     local_w_reset = ""
@@ -2243,7 +2373,7 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
             "is_appeal": True,
             "error_id": appeal_err_id,
             "duration_ms": 50,
-            "error": "Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal)"
+            "error": "Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal)",
         }
 
     if not check_profile_auth_token(profile):
@@ -2253,97 +2383,117 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
             "status": "AUTH NEEDED",
             "is_appeal": False,
             "duration_ms": 50,
-            "error": "Profile chưa đăng nhập CLI. Cần đăng nhập bằng Terminal trước khi ping."
+            "error": "Profile chưa đăng nhập CLI. Cần đăng nhập bằng Terminal trước khi ping.",
         }
 
-    # Inspect current Argon state for this profile:
+    t0 = time.time()
     cached_profiles = load_cached_profiles()
     cached_p = cached_profiles.get(profile, {})
 
+    # Always probe live quota before deciding which buckets need activation
+    live_q = fetch_quota_for_profile(profile)
+    if live_q.get("status") == "DISABLED" or live_q.get("is_appeal"):
+        err_id = live_q.get("error_id") or "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
+        return {
+            "profile": profile,
+            "success": False,
+            "status": "DISABLED",
+            "is_appeal": True,
+            "error_id": err_id,
+            "duration_ms": int((time.time() - t0) * 1000),
+            "error": live_q.get("error") or f"Tài khoản bị vô hiệu hóa (Mã lỗi: {err_id})",
+        }
+    if live_q.get("status") == "AUTH NEEDED":
+        return {
+            "profile": profile,
+            "success": False,
+            "status": "AUTH NEEDED",
+            "is_appeal": False,
+            "duration_ms": int((time.time() - t0) * 1000),
+            "error": live_q.get("error") or "Profile chưa đăng nhập CLI.",
+        }
+
+    tier = str(live_q.get("tier") or cached_p.get("tier") or "").upper()
+    if tier == "FREE":
+        return {
+            "profile": profile,
+            "success": False,
+            "status": "FREE",
+            "skipped": True,
+            "duration_ms": int((time.time() - t0) * 1000),
+            "error": "Tài khoản FREE không hỗ trợ kích hoạt session 5H / Argon.",
+        }
+
+    if not live_q.get("success") and not cached_p:
+        return {
+            "profile": profile,
+            "success": False,
+            "duration_ms": int((time.time() - t0) * 1000),
+            "error": live_q.get("error") or "Không thể kiểm tra quota live trước khi ping.",
+        }
+
     now_utc = datetime.datetime.now(datetime.timezone.utc)
-    now_ts = int(time.time())
-    sec_rec = get_session_record(profile)
-    is_5h_session_active = bool(
-        sec_rec
-        and sec_rec.get("is_active")
-        and sec_rec.get("reset_5h", 0) > now_ts
+    now_ts = time.time()
+
+    if live_q.get("success") and live_q.get("groups"):
+        q_items = parse_quota_items(live_q["groups"])
+        gem_bucket = q_items["gem_5h"]
+        cld_bucket = q_items["cld_5h"]
+        arg_bucket = q_items["argon_weekly"]
+    else:
+        gem_bucket = _bucket_from_cached_entry(
+            cached_p.get("gemini5h"), default_available=(tier == "PRO" or not tier)
+        )
+        cld_bucket = _bucket_from_cached_entry(
+            cached_p.get("claude5h"), default_available=(tier == "PRO" or not tier)
+        )
+        arg_bucket = _bucket_from_cached_entry(
+            cached_p.get("argonWeekly"),
+            default_available=bool(cached_p.get("hasArgon")),
+        )
+        if not cached_p.get("hasArgon"):
+            arg_bucket["available"] = False
+
+    gemini_available = bool(gem_bucket.get("available"))
+    claude_available = bool(cld_bucket.get("available"))
+    has_argon = bool(arg_bucket.get("available"))
+
+    gem_rem_sec = _parse_reset_rem_sec(str(gem_bucket.get("reset_time") or ""), now_utc)
+    cld_rem_sec = _parse_reset_rem_sec(str(cld_bucket.get("reset_time") or ""), now_utc)
+    argon_rem_sec = _parse_reset_rem_sec(
+        str(arg_bucket.get("reset_time") or ""), now_utc, default=7 * 86400
     )
 
-    # 1. Gemini 5H status:
-    gemini_info = cached_p.get("gemini5h")
-    gemini_available = (gemini_info is not None and not gemini_info.get("unavailable", False))
-    if gemini_info is None:
-        gemini_available = (cached_p.get("tier", "PRO") == "PRO")
-    gem_rem_sec = 0
-    if gemini_info and gemini_info.get("resetTime"):
-        try:
-            dt_g = datetime.datetime.fromisoformat(gemini_info["resetTime"].replace("Z", "+00:00"))
-            gem_rem_sec = (dt_g - now_utc).total_seconds()
-        except Exception:
-            pass
-    is_gemini_active = (gem_rem_sec > 60) or is_5h_session_active
+    is_gemini_active = is_bucket_activated(gem_bucket, 5 * 3600, now_ts=now_ts)
+    is_claude_active = is_bucket_activated(cld_bucket, 5 * 3600, now_ts=now_ts)
+    is_argon_active = is_bucket_activated(arg_bucket, 7 * 86400, now_ts=now_ts)
+
+    argon_fraction = float(arg_bucket.get("fraction", 0.0) or 0.0)
+    is_argon_near_reset = has_argon and (argon_rem_sec < 7 * 3600)
+    is_argon_max_7d = has_argon and not is_argon_active and (argon_fraction >= 0.999)
+
     should_ping_gemini = gemini_available and (force or not is_gemini_active)
-
-    # 2. Claude 5H status:
-    claude_info = cached_p.get("claude5h")
-    claude_available = (claude_info is not None and not claude_info.get("unavailable", False))
-    if claude_info is None:
-        claude_available = (cached_p.get("tier", "PRO") == "PRO")
-    cld_rem_sec = 0
-    if claude_info and claude_info.get("resetTime"):
-        try:
-            dt_c = datetime.datetime.fromisoformat(claude_info["resetTime"].replace("Z", "+00:00"))
-            cld_rem_sec = (dt_c - now_utc).total_seconds()
-        except Exception:
-            pass
-    is_claude_active = (cld_rem_sec > 60) or is_5h_session_active
     should_ping_claude = claude_available and (force or not is_claude_active)
-
-    # 3. Argon status:
-    has_argon = cached_p.get("hasArgon", False)
-    argon_info = cached_p.get("argonWeekly", {})
-    argon_unavailable = argon_info.get("unavailable", False)
-    argon_fraction = argon_info.get("fraction", 0.0)
-    argon_reset = argon_info.get("resetTime", "")
-
-    argon_rem_sec = 7 * 86400
-    if argon_reset:
-        try:
-            dt_a = datetime.datetime.fromisoformat(argon_reset.replace("Z", "+00:00"))
-            argon_rem_sec = (dt_a - now_utc).total_seconds()
-        except Exception:
-            pass
-
-    # Argon Activation Rules:
-    # 1. Tự động kích hoạt nếu vẫn max 7D: fraction >= 0.999 VÀ rem_sec >= (7*86400 - 3600)
-    # 2. Nếu đã kích hoạt, reset time < 7h (rem_sec < 7 * 3600): TUYỆT ĐỐI KHÔNG GỬI
-    # 3. Nếu đã kích hoạt (chu kỳ đang chạy): KHÔNG GỬI
-    is_argon_max_7d = (argon_fraction >= 0.999) and (argon_rem_sec >= (7 * 86400 - 3600))
-    is_argon_near_reset = (argon_rem_sec < 7 * 3600)  # reset time < 7h
-
     should_ping_argon = (
         has_argon
-        and not argon_unavailable
         and not is_argon_near_reset
         and (force or is_argon_max_7d)
     )
 
-    # If all models are already active, skip cleanly
+    # If all eligible buckets are already active, skip cleanly
     if not should_ping_gemini and not should_ping_claude and not should_ping_argon:
         active_parts = []
         if gemini_available:
             active_parts.append(f"Gemini 5H ({int(gem_rem_sec // 3600)}h {int((gem_rem_sec % 3600) // 60)}m)")
         if claude_available:
-            cld_str = f"{int(cld_rem_sec // 3600)}h {int((cld_rem_sec % 3600) // 60)}m" if cld_rem_sec > 60 else (
-                f"{(sec_rec['reset_5h'] - now_ts) // 3600}h {((sec_rec['reset_5h'] - now_ts) % 3600) // 60}m" if sec_rec else "5h"
-            )
+            cld_str = f"{int(cld_rem_sec // 3600)}h {int((cld_rem_sec % 3600) // 60)}m" if cld_rem_sec > 60 else "active"
             active_parts.append(f"Claude 5H ({cld_str})")
-        if has_argon and not argon_unavailable:
+        if has_argon:
             if is_argon_near_reset:
                 active_parts.append("Argon < 7h (bỏ qua)")
             else:
                 active_parts.append("Argon đã kích hoạt")
-        elif not has_argon or argon_unavailable:
+        else:
             active_parts.append("Không hỗ trợ Argon")
 
         msg = f"Tất cả models đang trong phiên hoạt động ({', '.join(active_parts)}). Bỏ qua ping."
@@ -2366,198 +2516,199 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
     if os.path.exists(profile_kc):
         subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, profile_kc], capture_output=True)
 
-    env = os.environ.copy()
-    env.update({
+    tmp_profile_dir = f"/tmp/ag_{profile}"
+    os.makedirs(tmp_profile_dir, exist_ok=True)
+    env = build_clean_host_env({
         "HOME": ag_home,
         "AGY_PROFILE": profile,
         "AGY_CLI_MODE": "1",
-        "TMPDIR": f"/tmp/ag_{profile}",
+        "TMPDIR": tmp_profile_dir,
         "BROWSER": "true",
     })
 
-    t0 = time.time()
     pinged_gemini = False
     pinged_claude = False
     pinged_argon = False
     jitter_applied = 0.0
-    prompt_gem = ""
-    prompt_cld = ""
-    prompt_arg = ""
+    used_prompts: list[str] = []
+    failures: list[str] = []
+    act_names: list[str] = []
 
-    # 1. Ping Gemini 5H (if needed)
-    if should_ping_gemini:
-        prompt_gem = random.choice(NATURAL_PROMPTS)
-        try:
-            res_gem = subprocess.run([AGY_BIN, "-p", prompt_gem], env=env, capture_output=True, text=True, timeout=25)
-            out_all = (res_gem.stdout or "") + " " + (res_gem.stderr or "")
-            appeal_out_id = check_profile_appeal_status(profile, out_all)
-            low_out = out_all.lower()
-            if appeal_out_id or "submit an appeal" in low_out or "violation of terms of service" in low_out or "service has been disabled" in low_out:
-                err_id = appeal_out_id or "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
-                record_profile_disabled(profile, err_id)
-                disabled_data = format_profile_for_dashboard(profile, {
-                    "success": False,
-                    "status": "DISABLED",
-                    "is_appeal": True,
-                    "error_id": err_id
-                })
-                update_cached_profile(profile, disabled_data)
-                return {
-                    "profile": profile,
-                    "success": False,
-                    "status": "DISABLED",
-                    "is_appeal": True,
-                    "error_id": err_id,
-                    "duration_ms": int((time.time() - t0) * 1000),
-                    "error": f"Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal). Mã lỗi: {err_id}"
-                }
-            if res_gem.returncode == 0:
-                pinged_gemini = True
-            else:
-                return {
-                    "profile": profile,
-                    "success": False,
-                    "duration_ms": int((time.time() - t0) * 1000),
-                    "error": res_gem.stderr.strip() or f"Gemini ping exited with code {res_gem.returncode}"
-                }
-        except subprocess.TimeoutExpired:
-            return {"profile": profile, "success": False, "duration_ms": 25000, "error": "Gemini ping timed out (25s)"}
-        except Exception as e:
-            return {"profile": profile, "success": False, "duration_ms": 50, "error": str(e)}
-
-    # 2. Ping Claude (claude-sonnet-5-5-low) model (if needed)
-    if should_ping_claude:
-        if pinged_gemini:
-            j = round(random.uniform(1.5, 2.5), 2)
-            jitter_applied += j
-            time.sleep(j)
-
-        other_cld = [p for p in NATURAL_PROMPTS if p != prompt_gem] or NATURAL_PROMPTS
-        prompt_cld = random.choice(other_cld)
-        try:
-            res_cld = subprocess.run([AGY_BIN, "--model", "claude-sonnet-5-5-low", "-p", prompt_cld], env=env, capture_output=True, text=True, timeout=25)
-            out_all = (res_cld.stdout or "") + " " + (res_cld.stderr or "")
-            appeal_out_id = check_profile_appeal_status(profile, out_all)
-            low_out = out_all.lower()
-            if appeal_out_id or "submit an appeal" in low_out or "violation of terms of service" in low_out or "service has been disabled" in low_out:
-                err_id = appeal_out_id or "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
-                record_profile_disabled(profile, err_id)
-                disabled_data = format_profile_for_dashboard(profile, {
-                    "success": False,
-                    "status": "DISABLED",
-                    "is_appeal": True,
-                    "error_id": err_id
-                })
-                update_cached_profile(profile, disabled_data)
-                return {
-                    "profile": profile,
-                    "success": False,
-                    "status": "DISABLED",
-                    "is_appeal": True,
-                    "error_id": err_id,
-                    "duration_ms": int((time.time() - t0) * 1000),
-                    "error": f"Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal). Mã lỗi: {err_id}"
-                }
-            if res_cld.returncode == 0:
-                pinged_claude = True
-            else:
-                return {
-                    "profile": profile,
-                    "success": False,
-                    "duration_ms": int((time.time() - t0) * 1000),
-                    "error": res_cld.stderr.strip() or f"Claude ping exited with code {res_cld.returncode}"
-                }
-        except subprocess.TimeoutExpired:
-            return {"profile": profile, "success": False, "duration_ms": 25000, "error": "Claude ping timed out (25s)"}
-        except Exception as e:
-            return {"profile": profile, "success": False, "duration_ms": 50, "error": str(e)}
-
-    # 3. Ping Argon (if max 7D and not near reset)
-    if should_ping_argon:
-        # Mandatory humanized jitter between requests to eliminate bot flags
-        if pinged_gemini or pinged_claude:
-            j = round(random.uniform(1.8, 3.0), 2)
-            jitter_applied += j
-            time.sleep(j)
-
-        other_arg = [p for p in NATURAL_PROMPTS if p not in (prompt_gem, prompt_cld)] or NATURAL_PROMPTS
-        prompt_argon = random.choice(other_arg)
-        try:
-            res_arg = subprocess.run(
-                [AGY_BIN, "--model", "gemini-4-argon-low", "-p", prompt_argon],
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=25
+    with tempfile.TemporaryDirectory(prefix=f"agy_ping_{profile}_") as sandbox_cwd:
+        available_models = _discover_profile_models(env, sandbox_cwd)
+        bucket_plan = []
+        if should_ping_gemini:
+            gem_model = select_model_from_candidates(
+                available_models, GEMINI_MODEL_CANDIDATES, GEMINI_MODEL_CANDIDATES[0]
             )
-            out_all = (res_arg.stdout or "") + " " + (res_arg.stderr or "")
-            appeal_out_id = check_profile_appeal_status(profile, out_all)
-            low_out = out_all.lower()
-            if appeal_out_id or "submit an appeal" in low_out or "violation of terms of service" in low_out or "service has been disabled" in low_out:
-                err_id = appeal_out_id or "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
-                record_profile_disabled(profile, err_id)
-                disabled_data = format_profile_for_dashboard(profile, {
-                    "success": False,
-                    "status": "DISABLED",
-                    "is_appeal": True,
-                    "error_id": err_id
-                })
-                update_cached_profile(profile, disabled_data)
-                return {
-                    "profile": profile,
-                    "success": False,
-                    "status": "DISABLED",
-                    "is_appeal": True,
-                    "error_id": err_id,
-                    "duration_ms": int((time.time() - t0) * 1000),
-                    "error": f"Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal). Mã lỗi: {err_id}"
-                }
-            if "is not recognized" in low_out or "invalid model selection" in low_out:
-                cached_p["hasArgon"] = False
-                if "argonWeekly" in cached_p:
-                    cached_p["argonWeekly"]["unavailable"] = True
-                    cached_p["argonWeekly"]["countdown"] = "Unavailable N/A"
-                update_cached_profile(profile, cached_p)
-            elif res_arg.returncode == 0:
-                pinged_argon = True
-        except Exception:
-            pass  # Argon failure does not abort if Claude succeeded
+            bucket_plan.append(("gemini", "Gemini 3.8 / Pro 5H", gem_model, (0.0, 0.0)))
+        if should_ping_claude:
+            cld_model = select_model_from_candidates(
+                available_models, CLAUDE_MODEL_CANDIDATES, CLAUDE_MODEL_CANDIDATES[0]
+            )
+            cld_label = "Claude 5.5" if "5-5" in cld_model else f"Claude 5H ({cld_model})"
+            bucket_plan.append(("claude", cld_label, cld_model, (1.5, 2.5)))
+        if should_ping_argon:
+            arg_model = select_model_from_candidates(
+                available_models, ARGON_MODEL_CANDIDATES, ARGON_MODEL_CANDIDATES[0]
+            )
+            bucket_plan.append(("argon", "Argon 7D", arg_model, (1.8, 3.0)))
+
+        for key, label, model_id, jitter_range in bucket_plan:
+            if (pinged_gemini or pinged_claude) and jitter_range[1] > 0:
+                j = round(random.uniform(*jitter_range), 2)
+                jitter_applied += j
+                time.sleep(j)
+
+            choices = [p for p in NATURAL_PROMPTS if p not in used_prompts] or NATURAL_PROMPTS
+            prompt = random.choice(choices)
+            used_prompts.append(prompt)
+
+            res = _ping_agy_model(profile, label, model_id, prompt, env, sandbox_cwd, timeout=50)
+            if res.get("disabled"):
+                return {**res["response"], "duration_ms": int((time.time() - t0) * 1000)}
+            if res.get("ok"):
+                act_names.append(label)
+                if key == "gemini":
+                    pinged_gemini = True
+                elif key == "claude":
+                    pinged_claude = True
+                elif key == "argon":
+                    pinged_argon = True
+            else:
+                if res.get("invalid_model") and key == "argon":
+                    cached_p["hasArgon"] = False
+                    if "argonWeekly" in cached_p:
+                        cached_p["argonWeekly"]["unavailable"] = True
+                        cached_p["argonWeekly"]["countdown"] = "Unavailable N/A"
+                    update_cached_profile(profile, cached_p)
+                failures.append(f"{label}: {res.get('error', 'Ping thất bại')}")
 
     total_dur = int((time.time() - t0) * 1000)
     jitter_applied = round(jitter_applied, 2)
 
     # Post-ping quota refresh to update dashboard immediately
     post_q = fetch_quota_for_profile(profile)
+    post_quota_formatted = None
     if post_q.get("success"):
-        f_data = format_profile_for_dashboard(profile, post_q)
-        update_cached_profile(profile, f_data)
+        post_quota_formatted = format_profile_for_dashboard(profile, post_q)
+        update_cached_profile(profile, post_quota_formatted)
 
-    # Build detailed success message
-    act_names = []
-    if pinged_gemini:
-        act_names.append("Gemini 3.8 / Pro 5H")
-    if pinged_claude:
-        act_names.append("Claude 5.5")
-    if pinged_argon:
-        act_names.append("Argon 7D")
-
-    if act_names:
-        act_str = " & ".join(act_names)
-        jitter_str = f", Jitter {jitter_applied}s" if jitter_applied > 0 else ""
-        msg = f"Kích hoạt thành công {act_str}{jitter_str} ({total_dur}ms)"
+    jitter_str = f", Jitter {jitter_applied}s" if jitter_applied > 0 else ""
+    if act_names and not failures:
+        msg = f"Kích hoạt thành công {' & '.join(act_names)}{jitter_str} ({total_dur}ms)"
+    elif act_names and failures:
+        msg = f"Kích hoạt một phần: Đã bật {' & '.join(act_names)}; Lỗi: {'; '.join(failures)}"
+    elif failures:
+        msg = f"Kích hoạt thất bại: {'; '.join(failures)}"
     else:
         msg = f"Đã kiểm tra phiên làm việc của {profile} ({total_dur}ms)"
 
-    return {
+    result = {
         "profile": profile,
-        "success": True,
+        "success": len(failures) == 0,
         "duration_ms": total_dur,
         "message": msg,
         "pinged_gemini": pinged_gemini,
         "pinged_claude": pinged_claude,
         "pinged_argon": pinged_argon,
         "jitter_seconds": jitter_applied,
+        "details": {"failures": failures, "activated": act_names},
     }
+    if failures:
+        result["error"] = "; ".join(failures)
+    if post_quota_formatted is not None:
+        result["post_quota"] = post_quota_formatted
+    return result
+
+
+def _parse_reset_rem_sec(reset_str: str, now_utc: datetime.datetime, default: float = 0.0) -> float:
+    """Parse ISO UTC reset_time string into remaining seconds from now_utc."""
+    if not reset_str:
+        return default
+    try:
+        dt = datetime.datetime.fromisoformat(reset_str.replace("Z", "+00:00"))
+        return (dt - now_utc).total_seconds()
+    except Exception:
+        return default
+
+
+def _bucket_from_cached_entry(entry: dict | None, default_available: bool = True) -> dict:
+    """Convert cached dashboard bucket dict into normalized live-bucket format."""
+    if not entry:
+        return {"fraction": 1.0, "reset_time": "", "description": "", "available": default_available}
+    return {
+        "fraction": entry.get("fraction", 1.0),
+        "reset_time": entry.get("resetTime", ""),
+        "description": entry.get("description", ""),
+        "available": not bool(entry.get("unavailable", False)),
+    }
+
+
+def _discover_profile_models(env: dict[str, str], cwd: str) -> list[str]:
+    """Query `agy models` for the active profile inside an isolated temp cwd."""
+    try:
+        res = subprocess.run(
+            [AGY_BIN, "models"],
+            env=env,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=25,
+        )
+        if res.returncode == 0:
+            return parse_agy_models_output(res.stdout or "")
+    except Exception:
+        pass
+    return []
+
+
+def _ping_agy_model(
+    profile: str,
+    bucket_label: str,
+    model_id: str,
+    prompt: str,
+    env: dict[str, str],
+    cwd: str,
+    timeout: int = 50,
+) -> dict:
+    """Ping a single Antigravity model inside an isolated sandbox directory."""
+    cmd = [AGY_BIN, "--model", model_id, "--disable-slash-commands", "-p", prompt]
+    try:
+        res = subprocess.run(cmd, env=env, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+        out_all = f"{res.stdout or ''} {res.stderr or ''}"
+        appeal_id = check_profile_appeal_status(profile, out_all)
+        low_out = out_all.lower()
+        if appeal_id or "submit an appeal" in low_out or "violation of terms of service" in low_out or "service has been disabled" in low_out:
+            err_id = appeal_id or "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
+            record_profile_disabled(profile, err_id)
+            disabled_data = format_profile_for_dashboard(
+                profile,
+                {"success": False, "status": "DISABLED", "is_appeal": True, "error_id": err_id},
+            )
+            update_cached_profile(profile, disabled_data)
+            return {
+                "ok": False,
+                "disabled": True,
+                "response": {
+                    "profile": profile,
+                    "success": False,
+                    "status": "DISABLED",
+                    "is_appeal": True,
+                    "error_id": err_id,
+                    "error": f"Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal). Mã lỗi: {err_id}",
+                },
+            }
+        if "is not recognized" in low_out or "invalid model selection" in low_out:
+            return {"ok": False, "invalid_model": True, "error": f"Model {model_id} không khả dụng"}
+        if res.returncode == 0:
+            return {"ok": True}
+        err_txt = (res.stderr or res.stdout or "").strip() or f"Exit code {res.returncode}"
+        return {"ok": False, "error": err_txt}
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "error": f"{bucket_label} ping timed out ({timeout}s)"}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
 
 
 def scan_all_profiles_parallel(profiles: list) -> list:
@@ -2609,8 +2760,177 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
 
+    def _read_json_body(self) -> dict:
+        try:
+            length = int(self.headers.get("Content-Length", "0") or "0")
+        except (AttributeError, TypeError, ValueError):
+            length = 0
+        if length <= 0 or not getattr(self, "rfile", None):
+            return {}
+        try:
+            raw = self.rfile.read(length).decode("utf-8", errors="ignore")
+            data = json.loads(raw) if raw.strip() else {}
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
+
+    def _safe_schedule_status(self) -> dict:
+        mod = _load_refresh_session_module()
+        if not mod or not hasattr(mod, "get_schedule_status"):
+            return {"success": False, "schedules": [], "by_profile": {}}
+        try:
+            st = mod.get_schedule_status()
+            return st if isinstance(st, dict) else {"success": True, "schedules": [], "by_profile": {}}
+        except Exception as exc:
+            return {"success": False, "error": str(exc), "schedules": [], "by_profile": {}}
+
+    def _handle_api_schedule(self, query: dict, method: str = "GET") -> None:
+        mod = _load_refresh_session_module()
+        if not mod:
+            self.send_json({"success": False, "error": "Không tìm thấy module refresh_session.py"}, status=500)
+            return
+
+        if method == "GET":
+            status = self._safe_schedule_status()
+            status.setdefault("success", True)
+            self.send_json(status)
+            return
+
+        body = self._read_json_body() if method in ("POST", "DELETE") else {}
+        action = str(body.get("action") or query.get("action", ["remove" if method == "DELETE" else "set"])[0]).lower()
+
+        if action in ("remove", "delete", "uninstall"):
+            remove_all = bool(body.get("all"))
+            raw_profiles = body.get("profiles") or ([] if body.get("profile") is None else [body.get("profile")])
+            if isinstance(raw_profiles, str):
+                raw_profiles = [x.strip() for x in raw_profiles.split(",") if x.strip()]
+            q_prof = query.get("profile", [""])[0]
+            if not raw_profiles and q_prof:
+                raw_profiles = [x.strip() for x in q_prof.split(",") if x.strip()]
+            for p in raw_profiles:
+                if not re.fullmatch(r"[A-Za-z0-9_-]+", str(p)):
+                    self.send_json({"success": False, "error": f"Tên profile không hợp lệ: {p}"}, status=400)
+                    return
+
+            time_str = body.get("time") or query.get("time", [None])[0]
+            raw_delay = body.get("delay") if "delay" in body else query.get("delay", [None])[0]
+            delay_val = int(raw_delay) if raw_delay is not None and str(raw_delay) != "" else None
+            target_arg = None if remove_all else (",".join(raw_profiles) if raw_profiles else None)
+            try:
+                res = mod.uninstall_schedule(target=target_arg, time_str=time_str, delay=delay_val)
+            except ValueError as exc:
+                self.send_json({"success": False, "error": str(exc)}, status=400)
+                return
+            status = self._safe_schedule_status()
+            self.send_json({
+                "success": bool(res.get("success", True)),
+                "message": "Đã cập nhật lịch LaunchAgent trên hệ thống.",
+                "error": res.get("error"),
+                **{k: v for k, v in status.items() if k != "success"},
+            })
+            return
+
+        # Action: set / add multi-schedule
+        raw_profiles = body.get("profiles")
+        if raw_profiles is None and body.get("profile"):
+            raw_profiles = [body.get("profile")]
+        if isinstance(raw_profiles, str):
+            raw_profiles = [x.strip() for x in raw_profiles.split(",") if x.strip()]
+        if not raw_profiles:
+            q_prof = query.get("profile", [""])[0]
+            raw_profiles = [x.strip() for x in q_prof.split(",") if x.strip()]
+        if not raw_profiles:
+            self.send_json({"success": False, "error": "Cần chọn ít nhất 1 profile để lên lịch."}, status=400)
+            return
+
+        for p in raw_profiles:
+            if not re.fullmatch(r"[A-Za-z0-9_-]+", str(p)):
+                self.send_json({"success": False, "error": f"Tên profile không hợp lệ: {p}"}, status=400)
+                return
+
+        cached = load_cached_profiles()
+        blocked_free = []
+        blocked_other = []
+        for p in raw_profiles:
+            pdata = cached.get(p, {})
+            if p == "kiro" or pdata.get("isCreditOnly"):
+                blocked_other.append(f"{p} (credit pool)")
+            elif pdata.get("tier") == "FREE":
+                blocked_free.append(p)
+            elif pdata.get("status") in ("DISABLED", "AUTH NEEDED") or pdata.get("isAppeal"):
+                blocked_other.append(f"{p} ({pdata.get('status')})")
+        if blocked_free:
+            self.send_json({
+                "success": False,
+                "error": f"Tài khoản FREE ({', '.join(blocked_free)}) không hỗ trợ lên lịch kích hoạt.",
+            }, status=400)
+            return
+        if blocked_other:
+            self.send_json({
+                "success": False,
+                "error": f"Profile không đủ điều kiện lên lịch: {', '.join(blocked_other)}",
+            }, status=400)
+            return
+
+        time_str = str(body.get("time") or query.get("time", [""])[0]).strip()
+        try:
+            hour, minute = mod.parse_flexible_time(time_str)
+        except Exception as exc:
+            self.send_json({"success": False, "error": f"Giờ không hợp lệ (chấp nhận 00:00-23:59): {exc}"}, status=400)
+            return
+
+        try:
+            delay_val = int(body.get("delay") if "delay" in body else query.get("delay", [30])[0])
+        except (TypeError, ValueError):
+            self.send_json({"success": False, "error": "Offset giây không hợp lệ."}, status=400)
+            return
+        if not (0 <= delay_val <= 60):
+            self.send_json({"success": False, "error": "Offset giây phải trong khoảng 0 - 60s."}, status=400)
+            return
+
+        if body.get("replace"):
+            mod.uninstall_schedule(target=",".join(raw_profiles))
+
+        inst = mod.install_schedule(hour, minute, target=",".join(raw_profiles), delay=delay_val)
+        status = self._safe_schedule_status()
+        if not inst.get("success"):
+            self.send_json({
+                "success": False,
+                "error": inst.get("error") or "Không thể kích hoạt macOS LaunchAgent.",
+                **{k: v for k, v in status.items() if k != "success"},
+            }, status=500)
+            return
+
+        self.send_json({
+            "success": True,
+            "message": f"Đã cài đặt lịch {hour:02d}:{minute:02d} (+{delay_val}s) cho {', '.join(raw_profiles)}",
+            "plist_path": inst.get("plist_path"),
+            "label": inst.get("label"),
+            **{k: v for k, v in status.items() if k != "success"},
+        })
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
     def do_POST(self):
+        parsed = urllib.parse.urlparse(self.path)
+        query = urllib.parse.parse_qs(parsed.query)
+        if parsed.path == "/api/schedule":
+            self._handle_api_schedule(query, method="POST")
+            return
         self.do_GET()
+
+    def do_DELETE(self):
+        parsed = urllib.parse.urlparse(self.path)
+        query = urllib.parse.parse_qs(parsed.query)
+        if parsed.path == "/api/schedule":
+            self._handle_api_schedule(query, method="DELETE")
+            return
+        self.send_json({"success": False, "error": "Method Not Allowed"}, status=405)
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -2643,14 +2963,21 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
                 record_refresh_all_time(last_rf)
             elapsed = max(0, now - last_rf)
             can_auto = elapsed >= GLOBAL_REFRESH_INTERVAL_SECONDS
+            sched = self._safe_schedule_status()
             self.send_json({
                 "success": True,
                 "profiles": load_cached_profiles(),
                 "last_refresh_all": last_rf,
                 "elapsed_seconds": elapsed,
                 "can_auto_refresh": can_auto,
-                "interval_seconds": GLOBAL_REFRESH_INTERVAL_SECONDS
+                "interval_seconds": GLOBAL_REFRESH_INTERVAL_SECONDS,
+                "schedules": sched.get("schedules", []),
+                "schedules_by_profile": sched.get("by_profile", {}),
             })
+            return
+
+        if path == "/api/schedule":
+            self._handle_api_schedule(query, method="GET")
             return
 
         if path == "/api/check-blocked":
@@ -2793,16 +3120,20 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
                     "error": ping_res.get("error", "Tài khoản bị vô hiệu hóa (Submit an appeal)")
                 })
                 return
-            result = fetch_quota_for_profile(profile)
-            formatted = format_profile_for_dashboard(profile, result)
-            update_cached_profile(profile, formatted)
+            post_q = ping_res.get("post_quota")
+            result = post_q if (isinstance(post_q, dict) and post_q.get("success")) else fetch_quota_for_profile(profile)
+            formatted = format_profile_for_dashboard(profile, result) if result.get("groups") else load_cached_profiles().get(profile, {})
+            if result.get("groups"):
+                update_cached_profile(profile, formatted)
             self.send_json({
-                "success": ping_res.get("success", False) and (result.get("success", False) or ping_res.get("skipped", False)),
+                "success": bool(ping_res.get("success", False)),
                 "profile": profile,
                 "duration_ms": ping_res.get("duration_ms", 500),
                 "data": formatted,
                 "message": ping_res.get("message"),
-                "skipped": ping_res.get("skipped", False)
+                "error": ping_res.get("error"),
+                "details": ping_res.get("details", {}),
+                "skipped": ping_res.get("skipped", False),
             })
             return
 

@@ -1432,3 +1432,373 @@ try {{
 """
             cdp_res = _run_node_script(cdp_script, timeout=60)
             assert cdp_res["status"] == "ok"
+
+    def test_free_tier_disabled_and_multi_schedule_ui(self) -> None:
+        """FREE accounts disable Activate/Schedule buttons & batch select; PRO supports multi-schedule."""
+        preamble = _NODE_DOM_HARNESS_PREAMBLE.replace(
+            "__QUOTA_HTML_PATH__", json.dumps(str(QUOTA_DASHBOARD_HTML))
+        )
+        node_script = (
+            preamble
+            + r"""
+const { sandbox, doc } = createQuotaDomHarness({
+  search: '?no-auto-refresh=1',
+  embeddedParent: false,
+});
+
+// Seed 1 PRO account and 1 FREE account in PROFILES_DATA via VM context lexical binding
+vm.runInContext(`
+  const baseTpl = JSON.parse(JSON.stringify(PROFILES_DATA.brother || Object.values(PROFILES_DATA)[0]));
+  PROFILES_DATA.pro_test = {
+    ...JSON.parse(JSON.stringify(baseTpl)),
+    displayName: 'pro_test',
+    tier: 'PRO',
+    status: 'ACTIVE',
+    isAppeal: false,
+    isCreditOnly: false,
+    priority: 10,
+    hasArgon: true,
+    isProvider: false,
+  };
+  PROFILES_DATA.free_test = {
+    ...JSON.parse(JSON.stringify(baseTpl)),
+    displayName: 'free_test',
+    tier: 'FREE',
+    status: 'ACTIVE',
+    isAppeal: false,
+    isCreditOnly: false,
+    priority: 99,
+    hasArgon: false,
+    isProvider: false,
+  };
+  syncSchedulesFromPayload({
+    by_profile: {
+      pro_test: [
+        { label: 'com.d3nexus.refresh-session.1230-d15', time: '12:30', delay: 15, loaded: true },
+        { label: 'com.d3nexus.refresh-session.0500-d30', time: '05:00', delay: 30, loaded: true },
+      ],
+    },
+  });
+  renderAllProfiles();
+`, sandbox);
+
+// 1. FREE card buttons must include HTML disabled attribute and stay excluded from batch select
+const freeActBtn = doc.getElementById('btnActivate-free_test');
+const freeSchedBtn = doc.getElementById('btnSchedule-free_test');
+assert.ok(freeActBtn && freeActBtn.getAttribute('disabled') === 'disabled', 'FREE btnActivate must be disabled');
+assert.ok(freeSchedBtn && freeSchedBtn.getAttribute('disabled') === 'disabled', 'FREE btnSchedule must be disabled');
+
+const proActBtn = doc.getElementById('btnActivate-pro_test');
+const proSchedBtn = doc.getElementById('btnSchedule-pro_test');
+assert.ok(proActBtn && proActBtn.getAttribute('disabled') === null, 'PRO btnActivate must stay enabled');
+assert.ok(proSchedBtn && proSchedBtn.getAttribute('disabled') === null, 'PRO btnSchedule must stay enabled');
+
+// 2. Multi-schedule summary appears on PRO card and in scheduleModal banner
+assert.ok(
+  proSchedBtn.innerHTML.includes('2 lịch (05:00, 12:30)'),
+  'PRO card schedule button must render multi-schedule sorted summary',
+);
+sandbox.openScheduleModal('pro_test');
+const listHtml = doc.getElementById('activeSchedListContainer').innerHTML;
+assert.ok(listHtml.includes('05:00') && listHtml.includes('12:30'), 'Modal banner lists both schedule slots');
+
+// 3. Hour/minute clamping follows launchd bounds 0..23 and 0..59
+const hourMock = { value: '25' };
+sandbox.clampHour(hourMock);
+assert.equal(hourMock.value, 23, 'clampHour must cap at 23');
+const minMock = { value: '60' };
+sandbox.clampMinute(minMock);
+assert.equal(minMock.value, 59, 'clampMinute must cap at 59');
+
+// 4. selectAllProfiles(true) excludes FREE profile
+sandbox.selectAllProfiles(true);
+assert.equal(vm.runInContext("selectedBatchProfiles.has('pro_test')", sandbox), true, 'selectAllProfiles includes PRO');
+assert.equal(vm.runInContext("selectedBatchProfiles.has('free_test')", sandbox), false, 'selectAllProfiles excludes FREE');
+
+console.log(JSON.stringify({ status: 'ok' }));
+"""
+        )
+        res = _run_node_script(node_script)
+        assert res["status"] == "ok"
+
+    def test_chrome_live_free_disabled_and_multi_schedule_roundtrip(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """[E2E Chrome CDP] Live QuotaDashboardHandler + LaunchAgent multi-schedule CRUD & FREE tier controls."""
+        monkeypatch.syspath_prepend(str(REPO_ROOT / "scripts"))
+        monkeypatch.syspath_prepend(
+            str(REPO_ROOT / "skills" / "refresh-session" / "resources" / "scripts")
+        )
+        import agy_quota  # noqa: PLC0415
+        import refresh_session  # noqa: PLC0415
+
+        plist_dir = tmp_path / "LaunchAgents"
+        log_dir = tmp_path / "Logs"
+        plist_dir.mkdir(parents=True)
+        log_dir.mkdir(parents=True)
+
+        monkeypatch.setattr(refresh_session, "DARWIN_PLIST_DIR", plist_dir)
+        monkeypatch.setattr(refresh_session, "LOG_DIR", log_dir)
+        monkeypatch.setattr(
+            refresh_session,
+            "_darwin_reload_plist",
+            lambda _label, _path: None,
+        )
+        monkeypatch.setattr(
+            refresh_session,
+            "_darwin_bootout_plist",
+            lambda _label, _path: None,
+        )
+        monkeypatch.setattr(
+            agy_quota, "_load_refresh_session_module", lambda: refresh_session
+        )
+        monkeypatch.setattr(
+            agy_quota, "get_last_refresh_all_time", lambda: int(time.time())
+        )
+
+        sample_profiles = {
+            "brother": {
+                "displayName": "brother",
+                "tier": "PRO",
+                "status": "ACTIVE",
+                "priority": 10,
+                "hasArgon": True,
+                "isProvider": False,
+                "gemini5h": {
+                    "name": "Gemini 3.8",
+                    "pct": 100,
+                    "countdown": "4h 59m",
+                    "fraction": 1.0,
+                    "color": "green",
+                },
+                "claude5h": {
+                    "name": "Claude Sonnet 5.5",
+                    "pct": 100,
+                    "countdown": "4h 59m",
+                    "fraction": 1.0,
+                    "color": "green",
+                },
+                "geminiWeekly": {
+                    "name": "Gemini Weekly",
+                    "pct": 100,
+                    "countdown": "6d 23h",
+                    "fraction": 1.0,
+                    "color": "green",
+                },
+                "claudeWeekly": {
+                    "name": "Claude Weekly",
+                    "pct": 100,
+                    "countdown": "6d 23h",
+                    "fraction": 1.0,
+                    "color": "green",
+                },
+                "argonWeekly": {
+                    "name": "Argon 7D",
+                    "pct": 100,
+                    "countdown": "6d 23h",
+                    "fraction": 1.0,
+                    "color": "green",
+                    "unavailable": False,
+                },
+            },
+            "free_demo": {
+                "displayName": "free_demo",
+                "tier": "FREE",
+                "status": "ACTIVE",
+                "priority": 90,
+                "hasArgon": False,
+                "isProvider": False,
+                "gemini5h": {
+                    "name": "Gemini",
+                    "pct": 100,
+                    "countdown": "6d 23h",
+                    "fraction": 1.0,
+                    "color": "green",
+                },
+                "claude5h": {
+                    "name": "Claude",
+                    "pct": 0,
+                    "countdown": "N/A",
+                    "fraction": 0.0,
+                    "color": "gray",
+                    "unavailable": True,
+                },
+                "geminiWeekly": {
+                    "name": "Gemini Weekly",
+                    "pct": 100,
+                    "countdown": "6d 23h",
+                    "fraction": 1.0,
+                    "color": "green",
+                },
+                "claudeWeekly": {
+                    "name": "Claude Weekly",
+                    "pct": 0,
+                    "countdown": "N/A",
+                    "fraction": 0.0,
+                    "color": "gray",
+                    "unavailable": True,
+                },
+                "argonWeekly": {
+                    "name": "Argon 7D",
+                    "pct": 0,
+                    "countdown": "Unavailable N/A",
+                    "fraction": 0.0,
+                    "color": "gray",
+                    "unavailable": True,
+                },
+            },
+        }
+        monkeypatch.setattr(agy_quota, "load_cached_profiles", lambda: sample_profiles)
+
+        port = tasks_server.find_available_port(19800)
+        httpd = http.server.ThreadingHTTPServer(
+            ("127.0.0.1", port), agy_quota.QuotaDashboardHandler
+        )
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        time.sleep(0.1)
+
+        chrome_bin = _resolve_chrome_binary()
+        cdp_helper_path = tmp_path / "cdp_helper.mjs"
+        cdp_helper_path.write_text(_NODE_CDP_HELPER, encoding="utf-8")
+        target_url = f"http://127.0.0.1:{port}/?no-auto-refresh=1"
+
+        try:
+            cdp_script = rf"""
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {{ launchHeadlessChromeCdp }} from {json.dumps(str(cdp_helper_path))};
+
+const plistDir = {json.dumps(str(plist_dir))};
+const listPlists = () => fs.readdirSync(plistDir).filter((f) => f.endsWith('.plist')).sort();
+
+const cdp = await launchHeadlessChromeCdp({json.dumps(chrome_bin)});
+try {{
+  await cdp.send('Page.navigate', {{ url: {json.dumps(target_url)} }});
+  for (let i = 0; i < 60; i++) {{
+    const ready = await cdp.evaluate(
+      `typeof OS_SCHEDULES_LOADED !== 'undefined' && OS_SCHEDULES_LOADED === true && Boolean(document.getElementById('btnActivate-free_demo')) && Boolean(document.getElementById('btnSchedule-brother'))`
+    );
+    if (ready) break;
+    await new Promise((r) => setTimeout(r, 100));
+  }}
+
+  // 1. FREE card buttons are disabled & clicking btnSchedule does not open modal
+  const freeStates = await cdp.evaluate(`({{
+    actDisabled: Boolean(document.getElementById('btnActivate-free_demo')?.disabled),
+    schedDisabled: Boolean(document.getElementById('btnSchedule-free_demo')?.disabled),
+  }})`);
+  assert.equal(freeStates.actDisabled, true, 'FREE Activate button must be disabled in Chrome DOM');
+  assert.equal(freeStates.schedDisabled, true, 'FREE Schedule button must be disabled in Chrome DOM');
+  await cdp.evaluate(`document.getElementById('btnSchedule-free_demo')?.click()`);
+  assert.equal(
+    await cdp.evaluate(`document.getElementById('scheduleModal').classList.contains('hidden')`),
+    true,
+    'Disabled FREE Schedule button must keep #scheduleModal hidden',
+  );
+
+  // 2. Batch selection mode disables FREE checkbox and excludes FREE on "Chọn tất cả"
+  await cdp.evaluate(`document.getElementById('batchScheduleBtn').click()`);
+  const batchCheck = await cdp.evaluate(`(() => {{
+    const freeCb = document.querySelector('#card-free_demo input[type="checkbox"]');
+    const freeDis = Boolean(freeCb && freeCb.disabled);
+    selectAllProfiles(true);
+    return {{
+      freeDis,
+      hasFree: selectedBatchProfiles.has('free_demo'),
+      hasBrother: selectedBatchProfiles.has('brother'),
+    }};
+  }})()`);
+  assert.equal(batchCheck.freeDis, true, 'Batch checkbox for FREE profile must be disabled');
+  assert.equal(batchCheck.hasFree, false, 'selectAllProfiles must exclude FREE profile');
+  assert.equal(batchCheck.hasBrother, true, 'selectAllProfiles must include PRO brother');
+  await cdp.evaluate(`exitBatchSelectMode()`);
+
+  // 3. Open scheduleModal on brother, verify 0..23 / 0..59 clamping & target preview
+  await cdp.evaluate(`document.getElementById('btnSchedule-brother').click()`);
+  const modalPre = await cdp.evaluate(`(() => {{
+    const h = document.getElementById('customHour');
+    const m = document.getElementById('customMin');
+    h.value = '25';
+    h.dispatchEvent(new Event('input'));
+    m.value = '75';
+    m.dispatchEvent(new Event('input'));
+    return {{
+      clampedH: h.value,
+      clampedM: m.value,
+      target: document.getElementById('cmdPreviewTarget')?.textContent?.trim(),
+    }};
+  }})()`);
+  assert.equal(modalPre.clampedH, '23', 'customHour must clamp 25 -> 23');
+  assert.equal(modalPre.clampedM, '59', 'customMin must clamp 75 -> 59');
+  assert.equal(modalPre.target, 'brother', '#cmdPreviewTarget must reflect brother');
+
+  const waitForScheduleState = async (expectedPlists, expectedBtnText) => {{
+    for (let i = 0; i < 60; i++) {{
+      const txt = await cdp.evaluate(`document.getElementById('btnSchedule-brother')?.textContent || ''`);
+      if (listPlists().length === expectedPlists && txt.includes(expectedBtnText)) {{
+        return txt;
+      }}
+      await new Promise((r) => setTimeout(r, 80));
+    }}
+    return await cdp.evaluate(`document.getElementById('btnSchedule-brother')?.textContent || ''`);
+  }};
+
+  // 4. Save first schedule 05:00 (+30s) -> persists plist on disk & updates button
+  await cdp.evaluate(`setScheduleTime('05:00'); document.getElementById('customScheduleOffset').value = '30'; confirmSchedule();`);
+  const btn4 = await waitForScheduleState(1, '05:00 (+30s)');
+  assert.equal(listPlists().length, 1, 'First schedule must create 1 LaunchAgent plist on disk');
+  assert.ok(btn4.includes('05:00 (+30s)'), 'Card button shows 05:00 (+30s)');
+
+  // 5. Add second schedule 12:30 (+15s) -> multi-schedule summary & 2 plists on disk
+  await cdp.evaluate(`document.getElementById('btnSchedule-brother').click()`);
+  await cdp.evaluate(`
+    document.getElementById('customHour').value = '12';
+    document.getElementById('customMin').value = '30';
+    document.getElementById('customScheduleOffset').value = '15';
+    confirmSchedule();
+  `);
+  const btn5 = await waitForScheduleState(2, '2 lịch (05:00, 12:30)');
+  assert.equal(listPlists().length, 2, 'Second schedule must create 2 LaunchAgent plists on disk');
+  assert.ok(btn5.includes('2 lịch (05:00, 12:30)'), 'Card button shows 2 lịch (05:00, 12:30)');
+
+  // 6. Full page reload -> OS schedules survive reload from backend /api/status
+  await cdp.send('Page.navigate', {{ url: {json.dumps(target_url)} }});
+  for (let i = 0; i < 60; i++) {{
+    const ready = await cdp.evaluate(
+      `typeof OS_SCHEDULES_LOADED !== 'undefined' && OS_SCHEDULES_LOADED === true && (document.getElementById('btnSchedule-brother')?.textContent || '').includes('2 lịch')`
+    );
+    if (ready) break;
+    await new Promise((r) => setTimeout(r, 100));
+  }}
+  assert.ok(
+    (await cdp.evaluate(`document.getElementById('btnSchedule-brother')?.textContent || ''`)).includes('2 lịch (05:00, 12:30)'),
+    'Multi-schedule must persist across page reload via backend /api/status',
+  );
+
+  // 7. Cancel single slot 05:00 -> leaves 12:30 (+15s) & 1 plist on disk
+  await cdp.evaluate(`document.getElementById('btnSchedule-brother').click()`);
+  await cdp.evaluate(`document.querySelector('#activeSchedListContainer button[title*="05:00"]')?.click()`);
+  const btn7 = await waitForScheduleState(1, '12:30 (+15s)');
+  assert.equal(listPlists().length, 1, 'Cancelling 05:00 must leave 1 plist on disk');
+  assert.ok(btn7.includes('12:30 (+15s)'), 'Card updates to 12:30 (+15s) after cancelling 05:00');
+
+  // 8. Cancel remaining schedule via modal footer button -> 0 plists & button resets
+  await cdp.evaluate(`document.getElementById('btnModalCancelSched').click()`);
+  const btn8 = await waitForScheduleState(0, 'Lên lịch');
+  assert.equal(listPlists().length, 0, 'Cancelling all must remove remaining plist from disk');
+  assert.ok(btn8.includes('Lên lịch'), 'Card schedule button must revert to Lên lịch');
+
+  assert.deepEqual(cdp.consoleErrors, [], `Unexpected console errors: ${{cdp.consoleErrors}}`);
+  assert.deepEqual(cdp.runtimeExceptions, [], `Unexpected runtime exceptions: ${{cdp.runtimeExceptions}}`);
+  console.log(JSON.stringify({{ status: 'ok' }}));
+}} finally {{
+  await cdp.close();
+}}
+"""
+            cdp_res = _run_node_script(cdp_script, timeout=60)
+            assert cdp_res["status"] == "ok"
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
