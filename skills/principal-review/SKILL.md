@@ -66,37 +66,29 @@ Invoked on-demand to review standalone design documents, architecture proposals,
      - **Round 3 (`Scope: convergence`)**: Strict Blocker-Only Convergence Mode (incomplete fixes or new `Critical`/`Important` regressions in `prev_sha..curr_sha`).
    - **Shared Context & 4 Anti-Fix-Loop Prompt Strategies**: `.devtool/epic/<epic_dir>/principal_review.md` acts as the persistent Shared Context SSOT across rounds (`Earlier Rounds Shared Context Ledger`). `delta_round_context()` injects the **Universal Anti-Ping-Pong Guardrail** (both single-model and mixed-model), the **Previously Fixed Locations Registry (`Verify-Then-Close`)**, and **Diff-Hunk Isolation** on fixed files. See [document-triage.md](references/document-triage.md) for the complete 4-strategy specification.
 
-3. **Triage Findings, Top 3 Highest-Risk Report & Auto-Triage Gate**:
-   - Read and follow [document-triage.md](references/document-triage.md) (Source-of-Truth Hierarchy: Forward Alignment over Legacy Reversion, Top 3 Highest-Risk Findings Report, and Auto-Triage Gate).
-   - Inspect `## Auto-Triage Gate` from `run_external_review.py triage --kind principal --epic-dir <epic_dir>`:
-     - **`AUTO_PASS_CLEAN` / `AUTO_PASS_FINAL_MINOR_SWEEP` / `AUTO_PASS_FINAL_SWEEP` (Round 3 with `0 Critical`)**: Verify all findings against source code and the approved Spec/HLD first (halting only on `CRITICAL_CONFLICT`, `Debatable` trade-offs, `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING`). Apply any valid final sweep revisions and decision commits, then run final packaging (`package_epic.py <epic_dir>`, or `--revise --reason "Revise after Principal Review"` if `handoff.md` already exists), commit `[<EPIC_NAME>] Package epic for handoff`, save state (`--state`), **print `--emit-prompt implement`**, and (in interactive mode) prompt **Triển khai (tự động)** vs **Dừng lại** without calling another review round.
-     - **`AUTO_FIX_ELIGIBLE` (Round 1..2 with `Critical`/`Important`, no `shared-contracts/` conflict, no Fix Loop)**: Verify every finding against live source code and the approved Spec/HLD (`Decisions Already Made`), and emit the triage summary header block (`## Auto-Triage Gate`, `## Top 3 Highest-Risk Findings`, `## Findings`). In **BOTH Autonomous (`lifecycle_runner.py`) and Interactive Mode**, when all blocking findings verify as `Valid` (plus any objective `False positive` refuted with exact source/approved-Spec proof) and zero halt triggers apply, **do NOT pause for confirmation**: automatically apply document revisions in Role 2.2, record decisions (`fixed in <sha>` / verified evidence), verify readiness (`check_epic_readiness.py <epic_dir>`, without premature `handoff.md` packaging), and immediately advance to Round $N+1$. Stop calling tools and escalate to the Human Architect **ONLY** on **`CRITICAL_CONFLICT`** (business/domain requirement, critical risk, or Tier-1 Spec intent conflict — in autonomous mode `lifecycle_runner.py` transitions to `AWAITING_PRINCIPAL_CONFIRMATION` and writes `.devtool/epic/<epic_dir>/principal_fix_proposal_round<N>.md`), a **`Debatable`** finding requiring a trade-off choice, **`SHARED_CONTRACT_CONFLICT`**, **`FIX_LOOP`**, or **`MAX_ROUNDS_CRITICAL_REMAINING`** (triage header block format):
-       ```markdown
-       Principal Review Triage: Round <N> (<CLI>)
-       *(or `Principal Review Triage: <doc_path> (<CLI>)`)*
+3. **Role Matrix (`Argon` Orchestrator vs One-Shot `Hydrogen xhigh` Subagent) & Auto-Triage Gate**:
+   - **Hard Ban on Main Context (`Argon`)**: Role 2.2 (`Argon`) runs `run_external_review.py run --kind principal` & `triage` and inspects the triage table, but is STRICTLY FORBIDDEN from reading `src/`/`tests/` or directly editing `.devtool/epic/<epic_dir>/task_*.md` in the main session.
+   - **One-Shot Investigate & Fix Subagent (Role 2.3 — `Hydrogen xhigh`)**: Because findings already carry `Proposed: <edit>` / `PROPOSED ACTION`, `Argon` dispatches an isolated Role 2.3 subagent (`invoke_subagent` with `Model="flash"`, or `gemini-4-hydrogen-xhigh --effort xhigh` from `.devtool/review_config.json["providers"]["programmer"]`) whenever findings exist (`AUTO_FIX_ELIGIBLE`, `AUTO_PASS_FINAL_MINOR_SWEEP`, or `AUTO_PASS_FINAL_SWEEP`):
+     1. The subagent reads findings and inspects actual source code per [document-triage.md](references/document-triage.md).
+     2. **Exception-Only Plan**: Only write `principal_fix_plan_round<N>.md` and pause for `Argon` / Human Architect review if there is an architectural/contract ambiguity or HLD scope change.
+     3. **Default One-Shot Fix**: For clear/mechanical findings with explicit `PROPOSED ACTION`, the subagent directly edits `.devtool/epic/<epic_dir>/...`, commits `[<EPIC_NAME>] Revise epic after Principal Review round <n>`, records `fixed in <sha>` in `principal_review.md`, commits `[<EPIC_NAME>] Record Principal Review decisions for round <n>`, runs `check_epic_readiness.py <epic_dir>`, and returns a compact summary (`fixed SHA` + readiness status) to `Argon`.
+   - **Halt Triggers (`CIRCUIT_BREAKER_HALT` / Escalation)**: Stop immediately and record `python3 scripts/resume_context.py --pending-decision "Resolve Principal Review blocker (<reason>)" --decision-kind blocker --epic <epic_slug>` ONLY on `CRITICAL_CONFLICT`, `Debatable` trade-offs, `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING`:
+     ```markdown
+     Principal Review Triage: Round <N> (<CLI>)
+     *(or `Principal Review Triage: <doc_path> (<CLI>)`)*
 
-       • Candidate SHA: <commit_sha>
-       • Reviewer: <CLI> ( <model> )
-       • Thinking Level: <Light | Low | Medium | High | Extra High | None>
-       • Verdict: <VERDICT> (<count> <Severity> findings)
-       ```
-     - **`CIRCUIT_BREAKER_HALT` (`SHARED_CONTRACT_CONFLICT` in any round, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING` when `>= 1 Critical` survives Round 3)**: **STOP IMMEDIATELY**, never auto-fix or revert the user-approved HLD design, record `python3 scripts/resume_context.py --pending-decision "Resolve Principal Review blocker (<reason>)" --decision-kind blocker --epic <epic_slug>`, and report `## Top 3 Highest-Risk Findings (Executive Report)` to the Human Architect. (All review tables, findings, and revision prose stay strictly in **English**.)
+     • Candidate SHA: <commit_sha>
+     • Reviewer: <CLI> ( <model> )
+     • Thinking Level: <Light | Low | Medium | High | Extra High | None>
+     • Verdict: <VERDICT> (<count> <Severity> findings)
+     ```
 
-4. **Revision Loop, Convergence & Post-Review Packaging (`package_epic.py` + `/save-context`)**:
-   - **Intermediate rounds (when advancing to Round `n+1`)**: apply document edits and record decisions without running `package_epic.py` mid-loop:
-     - Emit fixing sub-step status:
-       `python3 skills/dev-implementation/resources/scripts/run_external_review.py status --kind principal --epic-dir <epic_dir> --phase fixing --round <n>`
-     - Apply document edits first and commit:
-       `git commit -m "[<EPIC_NAME>] Revise epic after Principal Review round <n>"`
-     - Record decisions with revision commit SHA in `principal_review.md`, then commit:
-       `git commit -m "[<EPIC_NAME>] Record Principal Review decisions for round <n>"`
-     - Emit verifying sub-step status and verify `python3 skills/dev-implementation/resources/scripts/check_epic_readiness.py <epic_dir>` exits 0, then automatically advance to Round `n+1`:
-       `python3 skills/dev-implementation/resources/scripts/run_external_review.py status --kind principal --epic-dir <epic_dir> --phase verifying --round <n>`
-   - **At completion of `/principal-review` (after convergence `AUTO_PASS_CLEAN`, `AUTO_PASS_FINAL_MINOR_SWEEP`, or `AUTO_PASS_FINAL_SWEEP` and any final sweep commits)**:
-     - Execute packaging now: `python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir>` (pass `--revise --reason "Revise after Principal Review round <n>"` only if `handoff.md` already exists — packaging stamps creator PIC cleanly and clears any pending decision for this epic) and commit `[<EPIC_NAME>] Package epic for handoff` if `auto_commit: true`.
-     - Record Gate 2 approval (if revised) via `python3 scripts/resume_context.py --gate 2 --epic <epic_slug> --approved "Passed Principal Review round <n> and packaged"`.
-     - Record state via `python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 2: Packaged & Ready"`, and **print the AI Programmer implementation prompt** (`python3 scripts/resume_context.py --emit-prompt implement --epic <epic_slug>` + `handoff.md` path).
-     - In autonomous lifecycle mode (`lifecycle_runner.py`), transition directly to Role 2.3 (AI Programmer, resolved from `.devtool/review_config.json["providers"]["programmer"]` / default `gemini-4-hydrogen-xhigh --effort xhigh`) and invoke `d3nexus:dev-implementation`. In interactive mode, record `--pending-decision "Choose Triển khai (tự động) vs Dừng lại" --decision-kind choice_a`, stop calling tools, and ask **Triển khai (tự động)** vs **Dừng lại** (*"Dừng lại ở đây để tôi lấy prompt cho một AI Agents khác triển khai"*): invoke `d3nexus:dev-implementation` automatically if **Triển khai (tự động)**, or stop cleanly if **Dừng lại**.
+4. **Round Progression, Convergence & Post-Review Packaging (`package_epic.py` + `/save-context`)**:
+   - **Intermediate Rounds (`Round n -> n+1`)**: Once the 1-shot `Hydrogen xhigh` subagent returns its compact summary (`fixed SHA` + `check_epic_readiness.py` PASS), `Argon` immediately triggers Round `n+1` (never running `package_epic.py` mid-loop). Sub-step heartbeats (`--phase fixing` / `--phase verifying`) are emitted during execution.
+   - **Upon Convergence (`AUTO_PASS_CLEAN`, `AUTO_PASS_FINAL_MINOR_SWEEP`, or `AUTO_PASS_FINAL_SWEEP`)**:
+     - Run `python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir>` (`--revise --reason "Revise after Principal Review round <n>"` if `handoff.md` exists) and commit `[<EPIC_NAME>] Package epic for handoff`.
+     - Record Gate 2 (`python3 scripts/resume_context.py --gate 2 --epic <epic_slug> --approved "Passed Principal Review round <n> and packaged"`), save state (`--state --epic <epic_slug> --status "Stage 2: Packaged & Ready"`), and print `python3 scripts/resume_context.py --emit-prompt implement --epic <epic_slug>` + `handoff.md` path.
+     - In autonomous mode (`lifecycle_runner.py`), transition directly to `d3nexus:dev-implementation` (`gemini-4-hydrogen-xhigh --effort xhigh`). In interactive mode, record `--pending-decision "Choose Triển khai (tự động) vs Dừng lại" --decision-kind choice_a`, stop calling tools, and ask **Triển khai (tự động)** vs **Dừng lại**.
 
 ## Guidelines & Reference Documents
 

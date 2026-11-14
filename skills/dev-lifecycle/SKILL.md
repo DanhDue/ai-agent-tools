@@ -21,17 +21,15 @@ The orchestrator for epic-scale work. It owns **sequence and gates only** — ea
 Human-facing lifecycle and resume diagrams live in [lifecycles.en.md](../../docs/lifecycles.en.md) and [lifecycles.vi.md](../../docs/lifecycles.vi.md). Runtime sequence (Interactive & Autonomous Pipeline Mode):
 
 1. **Stage 1 (Inception & Spec)**: `dev-brainstorming` -> Gate 1 approval -> Route to `dev-designer` (epic) or `writing-plans` (non-epic).
-2. **Stage 2 (Architecture & Tasks)**: `dev-designer` -> Gate 2 approval -> Provider/model priority prompt -> `/principal-review` (auto, up to Max 3 rounds) -> Post-review Package (`package_epic.py`) & print implement prompt -> Choice (**Triển khai (tự động)** vs **Dừng lại**).
-3. **Stage 3 (Automated Execution & Audit)**: Role 2.3 (resolved via `.devtool/review_config.json["providers"]["programmer"]`, default `gemini-4-hydrogen-xhigh --effort xhigh`) -> `dev-implementation` -> Automated Gate 3 (order & worktree) -> TDD in worktree -> Gate 4 local PASS -> Automated Cross-Model Review (`review_config.json`, Max 3 rounds) -> full Gate 4 re-verification.
+2. **Stage 2 (Architecture & Tasks)**: `dev-designer` -> Gate 2 approval -> Provider priority prompt -> `/principal-review` (Max 3 rounds; 1-shot Role 2.3 `Hydrogen xhigh` subagent fixes for clear findings) -> Post-review Package (`package_epic.py`) & print implement prompt -> Choice (**Triển khai (tự động)** vs **Dừng lại**).
+3. **Stage 3 (Automated Execution & Audit)**: Role 2.2 (`Argon` Orchestrator) coordinates only -> `dev-implementation` -> Automated Gate 3 (wave order & 2-slot pool) -> dispatches Role 2.3 (`Hydrogen xhigh` subagent via `invoke_subagent(..., Model="flash")` / `.devtool/review_config.json["providers"]["programmer"]` default `gemini-4-hydrogen-xhigh --effort xhigh`) for `task-implementer`, `task-reviewer`, single-dispatch Gate 4 suite, and 1-shot `/cross-model-review` fixes (Max 3 rounds) -> full Gate 4 convergence.
 4. **Stage 4 (Finish Decision, Integration & Archival)**: Prompt Human Architect for Finish Decision & Gate 5 Sign-off -> `finishing-a-development-branch` -> Archive tasks into `.devtool/epic/<slug>/`, rebase, verify by tier (`Test All` once), `--no-ff` or squash merge, explicit Git push confirmation.
 
 <HARD-GATE>
-Do NOT create `implementation_plan.md` or Antigravity planning-mode artifacts.
-Specs go to `docs/superpowers/specs/` (Stage 1) or `.devtool/epic/<epic_dir>/` (Stage 2+); plans go through `writing-plans` (non-epic) or `dev-designer` tasks (epic).
-Do NOT package (`package_epic.py`) before `/principal-review` completes.
-Once Gate 2 passes, ask for provider/model priority and run `d3nexus:principal-review`; package (`handoff.md`) only when converged, print implementation prompt, and ask **Triển khai (tự động)** vs **Dừng lại**.
-In **Triển khai (tự động)**, Gate 3 order and worktree bootstrap run automatically.
-When tasks complete and Gate 4 passes locally, transition automatically into Cross-model review. Finish belongs strictly in Stage 4 (Gate 5 sign-off).
+- **Global Hard Ban for Role 2.2 (`Argon` Orchestrator)**: Strictly forbidden from calling `read_file`, `edit_file`, or `write_file` on `src/`, `tests/`, or `.devtool/epic/<epic>/task_*.md` during execution/fix loops, or running `pytest`, `ruff`, `mypy`, or `run_task_checks.py` in main context. Delegate all investigations, fixes, TDD tasks, reviews, and Gate 4 sweeps to isolated Role 2.3 (`Hydrogen xhigh`, `Model="flash"`) subagents via `invoke_subagent`.
+- Never create `implementation_plan.md`; specs live in `docs/superpowers/specs/` or `.devtool/epic/<epic_dir>/`.
+- Package (`package_epic.py`) only after `/principal-review` converges, then ask **Triển khai (tự động)** vs **Dừng lại**.
+- In **Triển khai (tự động)**, Gate 3, worktree bootstrap, and Gate 4 -> Cross-model review run automatically; Finish belongs in Stage 4 (Gate 5).
 </HARD-GATE>
 
 ## Document Contract
@@ -111,15 +109,14 @@ Follow [references/principal-review.md](references/principal-review.md) across S
 **Exit (Gate 5):** Gate 4 is 🟢 LGTM and user approves Kanban completion.
 
 - **Prerequisites & Concurrency Check**: If `Depends on epic:` is declared, verify prerequisites via `sync_task_status.py check-prereqs <epic_dir>`. If queued behind another epic, inspect conflicts via `sync_task_status.py check-conflicts <epic_dir>` and promote when confirmed via `sync_task_status.py promote <epic_dir> [--force]`.
-- **Gate 3 (Execution Order & Worktree — Automated)**: The AI Assistant automatically resolves execution order via `compute_execution_order.py`, creates/bootstraps the isolated Git worktree, records Gate 3 in `.devtool/GATE_LEDGER.md` via `resume_context.py --gate 3`, and invokes Role 2.3 (AI Programmer) without pausing for manual confirmation. Manual halt occurs ONLY on fatal errors (cyclic DAG or unresolvable prerequisites).
-- **Execution**: One worktree, one task at a time, one commit per task, docs kept truthful. Rebase and integrate with `develop` after each task.
+- **Gate 3 (Automated)**: `Argon` runs `compute_execution_order.py --parallel`, bootstraps worktree + 2-slot pool, and records `--gate 3` (halting ONLY on cyclic DAG or unresolvable prerequisites).
+- **Wave Execution (`Argon` + `Hydrogen xhigh` Subagents)**: Per slot, `Argon` dispatches at most 2 sequential `Hydrogen xhigh` (`Model="flash"`) subagents: (1) `task-implementer` (syncs `working`, runs `check_code_impact.py`, `RED -> GREEN`, `run_task_checks.py verify`, auto-syncs `review`) and (2) `task-reviewer` on Selective Gating (audits diff/AST/Zero Fakery, verifies `done gate: PASS`, marks `done`, commits in slot). `Argon` runs `manage_worker_pool.py merge` & `cleanup`, then dispatches 1 `Hydrogen xhigh` subagent to run the full Gate 4 suite.
 
 **Automated Review Pipeline (Gate 4 Local PASS → Automatic Cross-Model Review)**:
-Once all tasks are complete and Phase 4 / Gate 4 local machine verification returns PASS (🟢 LGTM):
-1. **Zero-Pause Transition**: The workflow automatically transitions into `d3nexus:cross-model-review` without pausing or asking for an intermediate Review Choice.
-2. **Review Execution**: `run_external_review.py run --epic-dir <epic_dir> --base <base_ref> --auto-quota` runs using the provider priority and model configured in `.devtool/review_config.json`.
-3. **Auto-Triage & Auto-Fix Funnel (Max 3 Rounds)**: `AUTO_PASS_CLEAN` and `AUTO_PASS_FINAL_MINOR_SWEEP` apply valid minor fixes, run full Gate 4 convergence (`audit_epic.py` + `quality_check`), and complete without a 4th round. In intermediate `AUTO_FIX_ELIGIBLE` rounds, AI Programmer fixes verified issues, commits, records decisions in `review_results.md`, runs **Tier 1 scoped tests only** (never `tests/e2e` or repo-wide pytest), and advances to Round `N+1`. Halt strictly on `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or remaining Critical findings after Round 3.
-4. **Transition to Stage 4**: After convergence and Gate 4 PASS on latest SHA, render Top 3 Highest-Risk Findings and prompt Human Architect for **Stage 4 Finish Decision & Gate 5 Sign-off**.
+When the Gate 4 subagent returns `PASS` (🟢 LGTM):
+1. **Zero-Pause Transition**: `Argon` records `--gate 4` and runs `run_external_review.py run --epic-dir <epic_dir> --base <base_ref> --auto-quota` & `triage`.
+2. **One-Shot Subagent Fix Loop (Max 3 Rounds)**: `Argon` dispatches a 1-shot `Hydrogen xhigh` subagent per round. For clear findings with `PROPOSED ACTION`, the subagent applies fixes directly, runs **Tier 1 scoped tests only**, commits `[<EPIC_NAME>] Fix ...`, records `fixed in <sha>` in `review_results.md` (plus full Gate 4 on final round), and returns SHA + status (`fix_plan_round<N>.md` required **only** if public contracts/HLD change). Halt on `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or Critical findings after Round 3.
+3. **Transition to Stage 4**: On convergence + Gate 4 PASS, render Top 3 Highest-Risk Findings and prompt Human Architect for **Stage 4 Finish Decision & Gate 5 Sign-off**.
 
 - **Zero-Pause, Test Efficiency & Anti-Test-Bloat**: Finish belongs in Stage 4 / Gate 5. Require `@pytest.mark.parametrize` (no copy-pasted per-input tests), ban boilerplate language/Pydantic-default/getter tests, enforce `scope="module"`/`scope="session"` read-only/server/browser fixtures, and follow Tier 1 (`uv run pytest <changed_test_files> -n auto --timeout=30 -q --tb=short`), Tier 2 (`--ignore=tests/e2e -n auto --dist loadscope --timeout=30 -q --tb=short`), and Tier 3 (Tier 2 + session `tests/e2e` + `quality_check` once per epic). Never delete deps/reports or fake fixtures. See [governance-checklists.md](references/governance-checklists.md).
 

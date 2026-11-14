@@ -68,20 +68,24 @@ Invoked on-demand to review a feature branch, pull request diff, or specific com
    - **Shared Context & 4 Anti-Fix-Loop Prompt Strategies**: `.devtool/epic/<epic_dir>/review_results.md` serves as the persistent Shared Context SSOT across rounds (`Earlier Rounds Shared Context Ledger`). `delta_round_context()` injects the **Universal Anti-Ping-Pong Guardrail** (both single-model and mixed-model), the **Previously Fixed Locations Registry (`Verify-Then-Close`)**, and **Diff-Hunk Isolation** on fixed files. See [review-triage.md](references/review-triage.md) for the complete 4-strategy specification.
    - CLI invocations run in read-only sandboxes under isolated process groups (`--timeout` default 1800s); any working-tree mutation discards the round immediately.
 
-## The Triage & Fix Loop
+## The Triage & Fix Loop (`Argon` Orchestrator + One-Shot `Hydrogen xhigh` Subagent)
 
-Every review round is triaged and verified against active code and the approved design before taking action. Follow [review-triage.md](references/review-triage.md) in full:
+Follow [review-triage.md](references/review-triage.md) while enforcing strict role separation between Role 2.2 (`Argon` Orchestrator) and Role 2.3 (`Hydrogen xhigh` Subagent):
 
-1. **Check Decisions & Print Triage Skeleton**:
-   ```bash
-   python3 skills/dev-implementation/resources/scripts/run_external_review.py check --epic-dir <epic_dir>
-   python3 skills/dev-implementation/resources/scripts/run_external_review.py triage --epic-dir <epic_dir>
-   ```
-2. **Verify Against Code & Approved Design (`d3nexus:receiving-code-review`)**:
-   - Inspect exact files/lines and anchor strictly to the approved HLD, `bdd_scenarios.en.md`, and `Decisions Already Made`. Fill `## Top 3 Highest-Risk Findings (Executive Report)` and `## Findings` (`Valid`, `Debatable`, `False positive`, `Not shown`).
-3. **Execute Auto-Triage Gate or Present Triage**:
-   - **`AUTO_PASS_CLEAN` / `AUTO_PASS_FINAL_MINOR_SWEEP` / `AUTO_PASS_FINAL_SWEEP` (Round 3 with `0 Critical`)**: Fix any valid non-critical items in a single sweep, run full Gate 4 machine acceptance green (Final Convergence Gate), and finish without calling another review round.
-   - **`AUTO_FIX_ELIGIBLE` (Round 1..2 with `Critical`/`Important`, no `shared-contracts/` conflict, no Fix Loop)**: In autonomous mode (`lifecycle_runner.py`), the AI Programmer drafts `fix_plan_round<N>.md`. Role 2.2 (AI Assistant) evaluates the fix plan against approved HLD specifications emitting `APPROVED`, `ADJUSTED`, or `CRITICAL_CONFLICT`. Upon approval or adjustment, Role 2.3 applies fixes, commits them, records `fixed in <sha>`, runs **scoped tests only** (fast static/architecture checks and targeted unit tests covering modified modules; repo-wide pytest and Playwright E2E suites forbidden), and advances to Round N+1. Full Gate 4 is reserved strictly for the Final Convergence Gate. If `CRITICAL_CONFLICT` or `SHARED_CONTRACT_CONFLICT` is detected, the runner halts immediately for the Human Architect. In interactive mode, present the 4-bullet header block and wait for developer decisions:
+1. **Run & Triage (`Argon` Main Session)**:
+   - `Argon` runs `run_external_review.py run` and `triage`, commits `review_results.md`, and inspects `## Auto-Triage Gate`:
+     ```bash
+     python3 skills/dev-implementation/resources/scripts/run_external_review.py check --epic-dir <epic_dir>
+     python3 skills/dev-implementation/resources/scripts/run_external_review.py triage --epic-dir <epic_dir>
+     ```
+   - **Hard Ban on Main Context (`Argon`)**: `Argon` is STRICTLY FORBIDDEN from calling `read_file`/`edit_file`/`write_file` on `src/` or `tests/` or running `pytest`/`ruff`/`mypy` directly in the main session.
+
+2. **One-Shot Code Fix Subagent (Role 2.3 — `Hydrogen xhigh`)**:
+   - For `AUTO_FIX_ELIGIBLE`, `AUTO_PASS_FINAL_MINOR_SWEEP`, or `AUTO_PASS_FINAL_SWEEP`, `Argon` dispatches an isolated Role 2.3 subagent (`invoke_subagent` with `Model="flash"`, never `"inherit"`, or `agy --model gemini-4-hydrogen-xhigh --effort xhigh --mode auto`):
+     1. **Inspect & Verify**: The subagent reads code at finding locations against the approved HLD, `bdd_scenarios.en.md`, and `Decisions Already Made`.
+     2. **Exception-Only Fix Plan**: Write `fix_plan_round<N>.md` and pause for `Argon` evaluation (`APPROVED`, `ADJUSTED`, `CRITICAL_CONFLICT`) **only** when a finding alters public contracts, `shared-contracts/`, or HLD architecture.
+     3. **Default One-Shot Fix**: When clear per `PROPOSED ACTION`, the subagent directly applies code/test fixes (emitting `--phase fixing`), runs **Tier 1 scoped tests only** (`--phase verifying`: `uv run pytest <changed_test_files> -n auto --timeout=30 -q --tb=short` + fast static checks; repo-wide pytest and `tests/e2e/` forbidden), commits `[<EPIC_NAME>] Fix <what>`, records `fixed in <sha>` in `review_results.md`, commits `[<EPIC_NAME>] Record review decisions for round <n>`, and returns **only** the commit SHA and test status to `Argon`.
+   - **Halt Triggers (`CIRCUIT_BREAKER_HALT`)**: Stop immediately and record `python3 scripts/resume_context.py --pending-decision "Resolve Cross-Model Review blocker (<reason>)" --decision-kind blocker --epic <epic_slug>` on `CRITICAL_CONFLICT`, `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING`:
      ```markdown
      Cross-Model Review Triage: Round <N> (<CLI>)
 
@@ -90,20 +94,10 @@ Every review round is triaged and verified against active code and the approved 
      • Thinking Level: <Light | Low | Medium | High | Extra High | None>
      • Verdict: <VERDICT> (<count> <Severity> findings)
      ```
-   - **`CIRCUIT_BREAKER_HALT` (`SHARED_CONTRACT_CONFLICT` in any round, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING` when `>= 1 Critical` survives Round 3)**: **STOP IMMEDIATELY**, never auto-fix or revert user-approved HLD decisions, record `python3 scripts/resume_context.py --pending-decision "Resolve Cross-Model Review blocker (<reason>)" --decision-kind blocker --epic <epic_slug>`, and report `## Top 3 Highest-Risk Findings (Executive Report)` to the Human Architect. (All review tables, findings, and fix commits remain strictly in **English**.)
 
-5. **Commit Fixes, Record Decisions & Final Gate Verification**:
-   - Before editing files for Round `n` fixes, emit fixing sub-step status:
-     `python3 skills/dev-implementation/resources/scripts/run_external_review.py status --epic-dir <epic_dir> --phase fixing --round <n>`
-   - When applying fixes (via `AUTO_FIX_ELIGIBLE` / `AUTO_PASS_FINAL_MINOR_SWEEP` or after developer confirmation), make each fix in its own commit: `[<EPIC_NAME>] Fix <what>`.
-   - Update each Decision cell in `review_results.md`: `fixed in <sha>` or `dismissed: <reason>` in developer's exact words.
-   - Commit decisions: `[<EPIC_NAME>] Record review decisions for round <n>`.
-   - Emit verifying sub-step status before running scoped or final checks:
-     `python3 skills/dev-implementation/resources/scripts/run_external_review.py status --epic-dir <epic_dir> --phase verifying --round <n>`
-   - **Intermediate Rounds (Round 1, Round 2...)**: Run **scoped tests only** (`uv run pytest <test_file.py>` covering modified modules, fast static checks). Strictly forbid repo-wide pytest discovery, `tests/e2e/`, and piping to `| tail`.
-   - **Final Convergence Gate Only**: Once Cross-Model Review converges (`AUTO_PASS_CLEAN`, `AUTO_PASS_FINAL_MINOR_SWEEP`, or `AUTO_PASS_FINAL_SWEEP` with 0 Critical findings), **automatically re-run Gate 4 machine acceptance in full** (full regression suite, Playwright E2E browser harness, and `@quality_check` artifact regeneration) on the new candidate SHA without asking for a separate confirmation.
-   - Record state via `python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 4: Awaiting Finish"`, record `python3 scripts/resume_context.py --pending-decision "Review Gate 5 executive report and choose Finish strategy" --decision-kind gate_5 --epic <epic_slug>`, and emit next prompt via `python3 scripts/resume_context.py --emit-prompt finish --epic <epic_slug>`.
-   - Once Gate 4 is green on candidate SHA: render the synthesized `## Top 3 Highest-Risk Findings (Executive Report)` and stop calling tools to prompt the Human Architect for the **Stage 4 Finish Decision** (Gate 5 Sign-off) and Git merge strategy selection.
+3. **Final Convergence Gate & Stage 4 Handoff**:
+   - Once Cross-Model Review converges (`AUTO_PASS_CLEAN`, `AUTO_PASS_FINAL_MINOR_SWEEP`, or `AUTO_PASS_FINAL_SWEEP` with 0 Critical findings), the `Hydrogen xhigh` subagent executes **full Gate 4 machine acceptance** (full regression suite, `tests/e2e/`, `audit_epic.py`, and `@quality_check --profile epic`) on the latest candidate SHA and returns the verdict to `Argon`.
+   - Once Gate 4 is green on candidate SHA, `Argon` records `python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 4: Awaiting Finish"` and `python3 scripts/resume_context.py --pending-decision "Review Gate 5 executive report and choose Finish strategy" --decision-kind gate_5 --epic <epic_slug>`, emits `python3 scripts/resume_context.py --emit-prompt finish --epic <epic_slug>`, renders `## Top 3 Highest-Risk Findings (Executive Report)`, and stops calling tools for Gate 5 Sign-off.
 
 ## ⚡ Remediation Loop & Test Execution Protocol (Hard Constraints)
 
