@@ -183,6 +183,10 @@ def test_ltsp_ec_02_dormant_and_abandoned_epics_not_activated(tmp_path: Path) ->
     )
 
     assert check_tasks.resolve_active_epic(repo) is None
+    # Even if an abandoned epic has an active worktree branch, resolve_active_epic must ignore it
+    wt_abandoned = repo / ".worktrees" / "abandoned_old"
+    wt_abandoned.mkdir(parents=True, exist_ok=True)
+    assert check_tasks.resolve_active_epic(repo) is None
     summary = check_tasks.harvest_epics_overview(repo)
     by_slug = {e["slug"]: e for e in summary.epics}
     assert by_slug["dormant_backlog"]["status"] == "unstarted"
@@ -417,3 +421,110 @@ def test_ltsp_ar_01_multiprocess_concurrent_heartbeat_events(tmp_path: Path) -> 
         "worker-event-3",
         "worker-event-4",
     }
+
+
+def test_ltsp_review_edge_cases_sha_validation_and_builder_signature(
+    tmp_path: Path,
+) -> None:
+    """Verify Gate 4 SHA strict matching, truncated CHANGES REQUIRED non-convergence, and builder signature."""
+    repo = tmp_path / "repo_edges"
+    sha1 = _init_git_repo(repo)
+    slug = "edge_epic"
+    epic_dir = repo / ".devtool" / "epic" / slug
+    features_dir = repo / ".devtool" / "features"
+    epic_dir.mkdir(parents=True, exist_ok=True)
+    for idx in range(1, 5):
+        _write_task(epic_dir, features_dir, f"task_0{idx}_edge", slug, "done")
+
+    # 1. Signature accepts frozen HLD kwargs (task_progress, decision, quality_runs)
+    tp = check_tasks.TaskProgress(
+        total_tasks=4,
+        done_tasks=4,
+        in_progress_tasks=0,
+        todo_tasks=0,
+        task_completion_pct=100.0,
+    )
+    dec = check_tasks.LifecycleDecision(
+        stage_name="Stage 3 Phase 4 (Review)",
+        gate_status="Pending",
+        prompt="Review",
+        is_human_action_required=False,
+    )
+    tel_sig = check_tasks.build_epic_pipeline_telemetry(
+        repo,
+        slug,
+        task_progress=tp,
+        decision=dec,
+        heartbeat={},
+        quality_active={},
+        quality_runs=[],
+    )
+    assert tel_sig["task_completion_pct"] == 100.0
+
+    # 2. Failed audit_epic or empty review_results.md must not promote 87% QA-only to 88%
+    (epic_dir / "review_results.md").write_text("", encoding="utf-8")
+    tel_fail_audit = check_tasks.build_epic_pipeline_telemetry(
+        repo,
+        slug,
+        done_tasks=4,
+        total_tasks=4,
+        heartbeat={
+            "sub_step": "audit_epic",
+            "sub_step_detail": "audit_epic: FAIL",
+            "last_event": "audit_epic -> FAIL",
+        },
+        quality_active={"status": "passed", "step_index": 3, "step_total": 3},
+    )
+    assert tel_fail_audit["lifecycle_progress_pct"] == 87.0
+
+    # 3. Truncated finding table under CHANGES REQUIRED must NOT be marked converged
+    (epic_dir / "review_results.md").write_text(
+        f"## Round 1\n- **Status**: completed\n- **SHA**: {sha1}\n- **Verdict**: CHANGES REQUIRED\n"
+        "| F1 | Important\n",
+        encoding="utf-8",
+    )
+    rev_trunc = check_tasks._parse_review_rounds_summary(
+        epic_dir / "review_results.md",
+        sha1,
+        {"review_state": {"kind": "code", "round": "broken"}},
+        None,
+        "code",
+    )
+    assert rev_trunc["converged"] is False
+
+    # 4. Stale Gate 4 commit SHA or failed quality_active must NOT allow 98% Stage 6 Finish
+    (repo / "README.md").write_text("# v2\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "add", "README.md"], cwd=repo, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "[EDGE] Advance HEAD"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    # Record Gate 4 on older sha1 manually via ledger
+    ledger_dir = repo / ".devtool" / "state"
+    ledger_dir.mkdir(parents=True, exist_ok=True)
+    (ledger_dir / "gate_ledger.jsonl").write_text(
+        json.dumps(
+            {
+                "epic": slug,
+                "gate": 4,
+                "commit": sha1,
+                "timestamp": "2026-11-14T00:00:00Z",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    tel_stale_g4 = check_tasks.build_epic_pipeline_telemetry(
+        repo,
+        slug,
+        done_tasks=4,
+        total_tasks=4,
+        heartbeat={"review_state": {"kind": "code", "round": 1, "phase": "converged"}},
+        quality_active={},
+    )
+    assert tel_stale_g4["lifecycle_progress_pct"] < 98.0
+    assert tel_stale_g4["current_stage_index"] == 5

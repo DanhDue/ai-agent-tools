@@ -38,11 +38,11 @@
       "passed": true
     },
     "verify": {
-      "head": "b1bf082fc663b853127af908bd7b7967243402b8",
-      "tree": "4b60e97eab336b01919c56232b7b998ea775ee42",
-      "patch_id": "ffa8c41e9369f641f1e5d79e3636cadb3bc2e83b",
-      "started": "2026-11-14T04:17:30Z",
-      "finished": "2026-11-14T04:17:43Z",
+      "head": "32affe0ff9f49080783f7cd1d2706b24d786c2a5",
+      "tree": "7eb207e1578038bb95c57d9628a816323c491422",
+      "patch_id": "fa6f1825e0862b4b6549ec31caa3170da305e2ac",
+      "started": "2026-11-14T04:50:06Z",
+      "finished": "2026-11-14T04:50:20Z",
       "rows": [
         {
           "id": "V2",
@@ -53,13 +53,13 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-14T04:17:30Z",
-          "finished": "2026-11-14T04:17:34Z",
+          "started": "2026-11-14T04:50:06Z",
+          "finished": "2026-11-14T04:50:10Z",
           "output_tail": [
-            ".....                                                                    [100%]",
-            "5 passed in 4.07s"
+            "......                                                                   [100%]",
+            "6 passed in 4.65s"
           ],
-          "output_sha256": "ee8aad16eec984b8345c21865c92227e5de147f808bf3d3bcafbaa83a0bb263a"
+          "output_sha256": "75b2ed68643afd4c1d2bcca8bc7b516d8db4f9ac31a0520e6d5b03f0fea01593"
         },
         {
           "id": "V3",
@@ -70,13 +70,13 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-14T04:17:34Z",
-          "finished": "2026-11-14T04:17:39Z",
+          "started": "2026-11-14T04:50:10Z",
+          "finished": "2026-11-14T04:50:15Z",
           "output_tail": [
             ".....................                                      [100%]",
-            "21 passed, 14 subtests passed in 4.14s"
+            "21 passed, 14 subtests passed in 3.95s"
           ],
-          "output_sha256": "eda6999a2f0f31ec84b3f04144085d7a7bfe341e97e611c59fc4a67fc0fc1392"
+          "output_sha256": "c2da5805c4b12aae49c183669aa0a4b7cf7e3b8a2338406f439af9b4a5c30e72"
         },
         {
           "id": "V4",
@@ -87,8 +87,8 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-14T04:17:39Z",
-          "finished": "2026-11-14T04:17:39Z",
+          "started": "2026-11-14T04:50:15Z",
+          "finished": "2026-11-14T04:50:15Z",
           "output_tail": [
             "All checks passed!"
           ],
@@ -103,8 +103,8 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-14T04:17:39Z",
-          "finished": "2026-11-14T04:17:39Z",
+          "started": "2026-11-14T04:50:15Z",
+          "finished": "2026-11-14T04:50:15Z",
           "output_tail": [
             "Success: no issues found in 8 source files"
           ],
@@ -119,13 +119,13 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-14T04:17:39Z",
-          "finished": "2026-11-14T04:17:43Z",
+          "started": "2026-11-14T04:50:15Z",
+          "finished": "2026-11-14T04:50:19Z",
           "output_tail": [
-            ".....                                                                    [100%]",
-            "5 passed in 3.74s"
+            "......                                                                   [100%]",
+            "6 passed in 4.37s"
           ],
-          "output_sha256": "2c352beaa2761ebdcd40564f9d1d6de93008cac83cf02f72ef73d1877769db6d",
+          "output_sha256": "1960810901bf45984bc7b5d10dcdd4d761f1224d64a91215ec988036f51d3638",
           "results": {
             "path": "build/test-results/ltsp_task_02.xml",
             "fresh": true,
@@ -170,7 +170,8 @@
           "phase": "SCOPE",
           "outcome": "PASS",
           "changed": [
-            "skills/check-tasks/resources/scripts/check_tasks.py"
+            "skills/check-tasks/resources/scripts/check_tasks.py",
+            "tests/test_ltsp_harvester_pipeline.py"
           ],
           "violations": []
         }

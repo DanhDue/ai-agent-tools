@@ -841,12 +841,13 @@ def _match_pending_decision_for_epic(
 
 
 def _resolve_active_epic_from_pending_decision(
-    repo_path: Path, completed_slugs: set[str]
+    repo_path: Path, completed_slugs: set[str], abandoned_slugs: set[str] | None = None
 ) -> str | None:
     """Resolve an active non-completed epic recorded in `pending_decision.json`."""
     snapshot = _read_state_snapshot(repo_path, "pending_decision.json", {})
     if not snapshot:
         return None
+    abandoned = abandoned_slugs or set()
 
     decisions = snapshot.get("decisions")
     if isinstance(decisions, dict) and decisions:
@@ -855,7 +856,9 @@ def _resolve_active_epic_from_pending_decision(
             if not isinstance(entry, dict) or entry.get("active", True) is not True:
                 continue
             ep = str(entry.get("epic") or key).strip()
-            if not ep or _is_completed_epic(ep, completed_slugs):
+            if not ep or not _is_epic_eligible_for_active(
+                ep, completed_slugs, abandoned
+            ):
                 continue
             stamp = str(entry.get("updated_at") or entry.get("created_at") or "")
             candidates.append((stamp, ep))
@@ -866,7 +869,7 @@ def _resolve_active_epic_from_pending_decision(
 
     if snapshot.get("active") is True and snapshot.get("epic"):
         ep = str(snapshot["epic"]).strip()
-        if ep and not _is_completed_epic(ep, completed_slugs):
+        if ep and _is_epic_eligible_for_active(ep, completed_slugs, abandoned):
             return _resolve_canonical_epic_slug(repo_path, ep)
     return None
 
@@ -883,7 +886,9 @@ def resolve_active_epic(repo_path: Path) -> str | None:
             m_br = re.match(r"(?:epic|feat)/([a-zA-Z0-9_\-]+)", wt.branch)
             if m_br:
                 raw_slug = _strip_slot_suffix(m_br.group(1))
-                if raw_slug and not _is_completed_epic(raw_slug, completed_slugs):
+                if raw_slug and _is_epic_eligible_for_active(
+                    raw_slug, completed_slugs, abandoned_slugs
+                ):
                     return _resolve_canonical_epic_slug(repo_path, raw_slug)
 
     # 2. Check active worktrees under .worktrees/ (prioritize worktrees with git changes or tasks)
@@ -906,7 +911,9 @@ def resolve_active_epic(repo_path: Path) -> str | None:
                     m_epic = re.search(r"\.devtool/epic/([a-zA-Z0-9_\-]+)/", line)
                     if m_epic:
                         slug = m_epic.group(1).strip()
-                        if not _is_completed_epic(slug, completed_slugs):
+                        if _is_epic_eligible_for_active(
+                            slug, completed_slugs, abandoned_slugs
+                        ):
                             return _resolve_canonical_epic_slug(repo_path, slug)
 
             # Check tasks inside worktree features
@@ -916,10 +923,8 @@ def resolve_active_epic(repo_path: Path) -> str | None:
                     with contextlib.suppress(OSError):
                         fm = parse_frontmatter(tf.read_text(encoding="utf-8"))
                         ep = fm.get("epic")
-                        if (
-                            ep
-                            and ep != "general"
-                            and not _is_completed_epic(ep, completed_slugs)
+                        if ep and _is_epic_eligible_for_active(
+                            ep, completed_slugs, abandoned_slugs
                         ):
                             return _resolve_canonical_epic_slug(repo_path, ep)
 
@@ -927,7 +932,9 @@ def resolve_active_epic(repo_path: Path) -> str | None:
             base_name = _strip_slot_suffix(d.name)
             canonical = _resolve_canonical_epic_slug(repo_path, base_name)
             if (repo_path / ".devtool" / "epic" / canonical).is_dir():
-                if not _is_completed_epic(canonical, completed_slugs):
+                if _is_epic_eligible_for_active(
+                    canonical, completed_slugs, abandoned_slugs
+                ):
                     return canonical
 
     # 3. Check assistant_state.md, skipping placeholder "general" and completed epics
@@ -937,10 +944,8 @@ def resolve_active_epic(repo_path: Path) -> str | None:
             content = state_file.read_text(encoding="utf-8")
             for m in re.finditer(r"#\s*Active Epic:\s*([a-zA-Z0-9_\-]+)", content):
                 slug = m.group(1).strip()
-                if (
-                    slug
-                    and slug != "general"
-                    and not _is_completed_epic(slug, completed_slugs)
+                if slug and _is_epic_eligible_for_active(
+                    slug, completed_slugs, abandoned_slugs
                 ):
                     return _resolve_canonical_epic_slug(repo_path, slug)
 
@@ -948,9 +953,7 @@ def resolve_active_epic(repo_path: Path) -> str | None:
     state_dir = repo_path / ".devtool" / "state"
     if state_dir.is_dir():
         for sf in sorted(state_dir.glob("*.md")):
-            if sf.stem != "general" and not _is_completed_epic(
-                sf.stem, completed_slugs
-            ):
+            if _is_epic_eligible_for_active(sf.stem, completed_slugs, abandoned_slugs):
                 return _resolve_canonical_epic_slug(repo_path, sf.stem)
 
     # 5. Check .worktrees directory in deterministic order (any worktree not completed)
@@ -958,12 +961,14 @@ def resolve_active_epic(repo_path: Path) -> str | None:
         for d in sorted(wt_dir.iterdir()):
             if d.is_dir() and not d.name.startswith("."):
                 base_name = _strip_slot_suffix(d.name)
-                if base_name and not _is_completed_epic(base_name, completed_slugs):
+                if base_name and _is_epic_eligible_for_active(
+                    base_name, completed_slugs, abandoned_slugs
+                ):
                     return _resolve_canonical_epic_slug(repo_path, base_name)
 
     # 5.5 Check explicit active pending_decision.json entries
     pending_epic = _resolve_active_epic_from_pending_decision(
-        repo_path, completed_slugs
+        repo_path, completed_slugs, abandoned_slugs
     )
     if pending_epic:
         return pending_epic
@@ -989,7 +994,9 @@ def resolve_active_epic(repo_path: Path) -> str | None:
         canonical = _resolve_canonical_epic_slug(repo_path, ep)
         ep_dir = repo_path / ".devtool" / "epic" / canonical
         hld_st = extract_epic_hld_status(ep_dir, canonical) if ep_dir.is_dir() else None
-        if _is_epic_eligible_for_active(canonical, completed_slugs, abandoned_slugs, hld_st):
+        if _is_epic_eligible_for_active(
+            canonical, completed_slugs, abandoned_slugs, hld_st
+        ):
             stage12_candidates.append((str(row.get("timestamp", "")), canonical))
 
     for dt in _collect_devtool_dirs(repo_path):
@@ -998,7 +1005,9 @@ def resolve_active_epic(repo_path: Path) -> str | None:
             continue
         with contextlib.suppress(OSError):
             for hb_file in sorted(st_dir.glob("*.heartbeat.json")):
-                with contextlib.suppress(OSError, json.JSONDecodeError, UnicodeDecodeError):
+                with contextlib.suppress(
+                    OSError, json.JSONDecodeError, UnicodeDecodeError
+                ):
                     parsed = json.loads(hb_file.read_text(encoding="utf-8"))
                     if not isinstance(parsed, dict):
                         continue
@@ -1107,7 +1116,11 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
             elif hld_status in ("abandon", "abandoned") or _is_completed_epic(
                 slug, abandoned_slugs
             ):
-                status = hld_status if hld_status in ("abandon", "abandoned") else "abandoned"
+                status = (
+                    hld_status
+                    if hld_status in ("abandon", "abandoned")
+                    else "abandoned"
+                )
             elif (
                 has_wt
                 or hld_status == "in_progress"
@@ -1300,9 +1313,7 @@ def _apply_heartbeat_slot_statuses(
         if not isinstance(slots, dict):
             continue
         ep_tasks = [
-            t
-            for t in all_tasks
-            if _normalize_slug(str(t.get("epic") or "")) == norm_ep
+            t for t in all_tasks if _normalize_slug(str(t.get("epic") or "")) == norm_ep
         ]
         if not ep_tasks:
             continue
@@ -2277,6 +2288,27 @@ def _get_short_head_sha(checkout_path: Path) -> str:
     return sha
 
 
+def _safe_int_val(val: Any, default: int = 0) -> int:
+    """Safely convert val to int, returning default on failure."""
+    if isinstance(val, bool):
+        return default
+    if isinstance(val, int):
+        return val
+    try:
+        return int(str(val).strip())
+    except (ValueError, TypeError):
+        return default
+
+
+def _shas_match(sha_a: str, sha_b: str) -> bool:
+    """Return True if two non-empty git SHA prefixes match."""
+    a = str(sha_a or "").strip().lower()
+    b = str(sha_b or "").strip().lower()
+    if not a or not b:
+        return False
+    return a.startswith(b) or b.startswith(a)
+
+
 def _parse_review_rounds_summary(
     review_path: Path | None,
     head_sha: str,
@@ -2305,10 +2337,12 @@ def _parse_review_rounds_summary(
             text = review_path.read_text(encoding="utf-8")
             parts = re.split(r"(?m)^##\s+Round\s+(\d+)\b", text)
             for idx in range(1, len(parts), 2):
-                r_num = int(parts[idx])
+                r_num = _safe_int_val(parts[idx], 1)
                 body = parts[idx + 1] if idx + 1 < len(parts) else ""
                 meta: dict[str, str] = {}
-                for m in re.finditer(r"^-\s+\*\*([^*]+)\*\*:\s*(.+)$", body, re.MULTILINE):
+                for m in re.finditer(
+                    r"^-\s+\*\*([^*]+)\*\*:\s*(.+)$", body, re.MULTILINE
+                ):
                     meta[m.group(1).strip()] = m.group(2).strip()
                 if meta.get("Status") and meta["Status"] != "completed":
                     continue
@@ -2319,12 +2353,16 @@ def _parse_review_rounds_summary(
                 has_fixed = False
                 for line in body.splitlines():
                     stripped = line.strip()
-                    if not stripped.startswith("|") or stripped.startswith("|---") or "Severity" in stripped:
+                    if (
+                        not stripped.startswith("|")
+                        or stripped.startswith("|---")
+                        or "Severity" in stripped
+                    ):
                         continue
                     cells = [c.strip() for c in stripped.strip("|").split("|")]
-                    if len(cells) >= 5:
+                    if len(cells) >= 2:
                         sev = cells[1]
-                        dec = cells[4].lower()
+                        dec = cells[4].lower() if len(cells) >= 5 else ""
                         if sev == "Critical":
                             crit += 1
                         elif sev == "Important":
@@ -2358,7 +2396,7 @@ def _parse_review_rounds_summary(
     if rounds_data:
         last = rounds_data[-1]
         summary["active"] = True
-        summary["round"] = int(last["round"])
+        summary["round"] = _safe_int_val(last["round"], 1)
         summary["cli"] = str(last["cli"])
         summary["model"] = str(last["model"])
         summary["verdict"] = str(last["verdict"])
@@ -2366,37 +2404,68 @@ def _parse_review_rounds_summary(
         r_sha = str(last["sha"])
         has_fix_commit = bool(
             last["has_fixed"]
-            or (
-                r_sha
-                and head_sha
-                and not head_sha.startswith(r_sha)
-                and not r_sha.startswith(head_sha)
-            )
+            or (r_sha and head_sha and not _shas_match(head_sha, r_sha))
         )
         summary["has_fix_commit"] = has_fix_commit
+        verdict_upper = str(last["verdict"] or "").strip().upper()
+        verdict_requires_changes = any(
+            k in verdict_upper for k in ("CHANGES REQUIRED", "BLOCKED", "FAIL")
+        )
         if (
-            last["verdict"] == "PASS"
-            or (last["crit"] == 0 and last["imp"] == 0)
-            or (int(last["round"]) >= 3 and last["crit"] == 0 and last["undecided_blocking"] == 0)
+            verdict_upper == "PASS"
+            or (
+                not verdict_requires_changes
+                and last["crit"] == 0
+                and last["imp"] == 0
+                and last["undecided_blocking"] == 0
+            )
+            or (
+                _safe_int_val(last["round"], 1) >= 3
+                and last["crit"] == 0
+                and last["undecided_blocking"] == 0
+                and (last["imp"] + last["minor"] > 0 or not verdict_requires_changes)
+            )
         ):
             summary["converged"] = True
             summary["phase"] = "converged"
         elif has_fix_commit:
             hb_sub = str((heartbeat or {}).get("sub_step") or "")
-            hb_phase = str(rs.get("phase") or "") if hb_matches_kind and isinstance(rs, dict) else ""
-            qa_running_or_on_sha = bool(
+            hb_phase = (
+                str(rs.get("phase") or "")
+                if hb_matches_kind and isinstance(rs, dict)
+                else ""
+            )
+            hb_rev_sha = (
+                str(rs.get("sha") or "")
+                if hb_matches_kind and isinstance(rs, dict)
+                else ""
+            )
+            qa_sha = str((quality_active or {}).get("head_sha") or "")
+            qa_status_cur = str((quality_active or {}).get("status") or "")
+            qa_is_post_fix = bool(
                 quality_active
                 and (
-                    quality_active.get("status") == "running"
-                    or (head_sha and str(quality_active.get("head_sha") or "") == head_sha)
+                    (
+                        qa_status_cur == "running"
+                        and (not qa_sha or not r_sha or not _shas_match(qa_sha, r_sha))
+                    )
+                    or (
+                        head_sha
+                        and qa_sha
+                        and _shas_match(qa_sha, head_sha)
+                        and (not r_sha or not _shas_match(qa_sha, r_sha))
+                    )
                 )
             )
-            if (
-                hb_phase == "verifying"
-                or hb_sub.startswith("task_")
-                or hb_sub in ("quality_check", "audit_epic", "bdd_tests")
-                or qa_running_or_on_sha
-            ):
+            hb_sub_is_post_fix = bool(
+                hb_phase not in ("reviewing", "triage", "fixing")
+                and (not hb_rev_sha or not r_sha or not _shas_match(hb_rev_sha, r_sha))
+                and (
+                    hb_sub.startswith("task_")
+                    or hb_sub in ("quality_check", "audit_epic", "bdd_tests")
+                )
+            )
+            if hb_phase == "verifying" or hb_sub_is_post_fix or qa_is_post_fix:
                 summary["phase"] = "verifying"
             else:
                 summary["phase"] = "fixing"
@@ -2405,8 +2474,10 @@ def _parse_review_rounds_summary(
 
     if hb_matches_kind and isinstance(rs, dict):
         summary["active"] = True
-        hb_round = int(rs.get("round") or summary["round"] or 1)
-        summary["max_rounds"] = int(rs.get("max_rounds") or 3)
+        hb_round = _safe_int_val(
+            rs.get("round"), _safe_int_val(summary["round"], 1) or 1
+        )
+        summary["max_rounds"] = _safe_int_val(rs.get("max_rounds"), 3) or 3
         if rs.get("cli"):
             summary["cli"] = str(rs["cli"])
         if rs.get("model"):
@@ -2416,7 +2487,7 @@ def _parse_review_rounds_summary(
         if rs.get("verdict"):
             summary["verdict"] = str(rs["verdict"])
         hb_phase = str(rs.get("phase") or "")
-        if hb_round > int(summary["round"]) or not rounds_data:
+        if hb_round > _safe_int_val(summary["round"], 0) or not rounds_data:
             summary["round"] = hb_round
             if hb_phase:
                 summary["phase"] = hb_phase
@@ -2425,7 +2496,11 @@ def _parse_review_rounds_summary(
             summary["phase"] = hb_phase
             if hb_phase == "converged":
                 summary["converged"] = True
-        elif hb_phase == "triage" and not summary["has_fix_commit"] and not summary["converged"]:
+        elif (
+            hb_phase == "triage"
+            and not summary["has_fix_commit"]
+            and not summary["converged"]
+        ):
             summary["phase"] = "triage"
 
     phase_order = ["reviewing", "triage", "fixing", "verifying"]
@@ -2447,7 +2522,11 @@ def _parse_review_rounds_summary(
             if p_idx < c_idx:
                 st = "done"
             elif p_idx == c_idx:
-                st = "failed" if summary.get("action") == "CIRCUIT_BREAKER_HALT" else "running"
+                st = (
+                    "failed"
+                    if summary.get("action") == "CIRCUIT_BREAKER_HALT"
+                    else "running"
+                )
             else:
                 st = "pending"
         else:
@@ -2476,13 +2555,23 @@ def build_epic_pipeline_telemetry(
     *,
     done_tasks: int = 0,
     total_tasks: int = 0,
+    task_progress: TaskProgress | None = None,
+    decision: LifecycleDecision | None = None,
     heartbeat: dict[str, Any] | None = None,
     quality_active: dict[str, Any] | None = None,
+    quality_runs: list[dict[str, Any]] | None = None,
     pending_decision: dict[str, Any] | None = None,
     active_stage: str | None = None,
     is_completed: bool = False,
 ) -> dict[str, Any]:
     """Synthesize deterministic 6-stage /dev-lifecycle progress, sub-steps, and rolling events."""
+    if task_progress is not None:
+        if done_tasks == 0 and task_progress.done_tasks > 0:
+            done_tasks = int(task_progress.done_tasks)
+        if total_tasks == 0 and task_progress.total_tasks > 0:
+            total_tasks = int(task_progress.total_tasks)
+    if decision is not None and active_stage is None:
+        active_stage = decision.stage_name
     if heartbeat is None:
         heartbeat = _read_epic_heartbeat(repo_path, epic_slug)
     if quality_active is None:
@@ -2512,7 +2601,12 @@ def build_epic_pipeline_telemetry(
                 low = f.name.lower()
                 if "design" in low or "spec" in low:
                     has_spec = True
-                if f.name in (f"{epic_slug}.en.md", f"{epic_slug}.vi.md", f"{ed.name}.en.md", "hld.en.md"):
+                if f.name in (
+                    f"{epic_slug}.en.md",
+                    f"{epic_slug}.vi.md",
+                    f"{ed.name}.en.md",
+                    "hld.en.md",
+                ):
                     has_hld = True
                 if low.startswith("bdd_scenarios"):
                     has_bdd = True
@@ -2527,9 +2621,8 @@ def build_epic_pipeline_telemetry(
     if total_tasks == 0 and dir_task_count > 0:
         total_tasks = dir_task_count
 
-    has_wt = (
-        (repo_path / ".worktrees" / epic_slug).is_dir()
-        or bool(_collect_matching_worktrees(repo_path, epic_slug))
+    has_wt = (repo_path / ".worktrees" / epic_slug).is_dir() or bool(
+        _collect_matching_worktrees(repo_path, epic_slug)
     )
     gate_entries = parse_gate_ledger_entries(repo_path, epic_slug)
     approved_gates = {int(g["gate"]) for g in gate_entries if "gate" in g}
@@ -2554,49 +2647,88 @@ def build_epic_pipeline_telemetry(
         else []
     )
     hb_sub_step = str((heartbeat or {}).get("sub_step") or "")
+    hb_sub_detail_upper = str((heartbeat or {}).get("sub_step_detail") or "").upper()
+    hb_last_event_upper = str((heartbeat or {}).get("last_event") or "").upper()
+    has_completed_code_round = _safe_int_val(code_rev.get("round"), 0) >= 1
+    hb_audit_passed = (
+        hb_sub_step == "audit_epic"
+        and "FAIL" not in hb_sub_detail_upper
+        and "FAIL" not in hb_last_event_upper
+        and ("PASS" in hb_sub_detail_upper or "PASS" in hb_last_event_upper)
+    )
+    hb_bdd_passed = (
+        hb_sub_step == "bdd_tests"
+        and "FAIL" not in hb_sub_detail_upper
+        and "FAIL" not in hb_last_event_upper
+        and ("PASS" in hb_sub_detail_upper or "PASS" in hb_last_event_upper)
+    )
 
     audit_done = (
         4 in approved_gates
         or 5 in approved_gates
         or is_completed
-        or code_review_file is not None
-        or hb_sub_step == "audit_epic"
-        or any("audit_epic" in str(ev.get("message", "")) and "PASS" in str(ev.get("message", "")) for ev in events)
+        or has_completed_code_round
+        or hb_audit_passed
+        or any(
+            "audit_epic" in str(ev.get("message", ""))
+            and "PASS" in str(ev.get("message", ""))
+            for ev in events
+        )
     )
     bdd_done = (
         4 in approved_gates
         or 5 in approved_gates
         or is_completed
-        or code_review_file is not None
-        or hb_sub_step == "bdd_tests"
-        or any("check_bdd_traceability tests" in str(ev.get("message", "")) and "PASS" in str(ev.get("message", "")) for ev in events)
+        or has_completed_code_round
+        or hb_bdd_passed
+        or any(
+            "check_bdd_traceability tests" in str(ev.get("message", ""))
+            and "PASS" in str(ev.get("message", ""))
+            for ev in events
+        )
     )
     qa_status = str((quality_active or {}).get("status") or "")
-    qa_passed = 4 in approved_gates or 5 in approved_gates or is_completed or qa_status == "passed"
+    qa_sha = str((quality_active or {}).get("head_sha") or "")
+    qa_failed_or_running = qa_status in ("running", "failed", "aborted")
+    qa_passed = bool(
+        is_completed
+        or 5 in approved_gates
+        or (not qa_failed_or_running and (qa_status == "passed" or 4 in approved_gates))
+    )
     gate4_full_pass = bool(
         is_completed
-        or 4 in approved_gates
         or 5 in approved_gates
-        or (audit_done and bdd_done and qa_passed)
+        or (
+            not qa_failed_or_running
+            and (4 in approved_gates or (audit_done and bdd_done and qa_passed))
+        )
     )
 
     gate4_pass_on_current_sha = False
     if is_completed or 5 in approved_gates:
         gate4_pass_on_current_sha = True
-    elif gate4_full_pass and qa_status != "running":
+    elif gate4_full_pass and not qa_failed_or_running:
         rev_sha = str(code_rev.get("latest_sha") or "")
-        qa_sha = str((quality_active or {}).get("head_sha") or "")
-        if rev_sha and head_sha and not head_sha.startswith(rev_sha) and not rev_sha.startswith(head_sha):
-            gate4_pass_on_current_sha = bool(
-                (latest_gate4_sha and (head_sha.startswith(latest_gate4_sha) or latest_gate4_sha.startswith(head_sha)))
-                or (qa_status == "passed" and qa_sha and (head_sha.startswith(qa_sha) or qa_sha.startswith(head_sha)))
-            )
-        elif qa_sha and head_sha and not head_sha.startswith(qa_sha) and not qa_sha.startswith(head_sha):
-            gate4_pass_on_current_sha = bool(
-                latest_gate4_sha and (head_sha.startswith(latest_gate4_sha) or latest_gate4_sha.startswith(head_sha))
-            )
-        else:
+        if not head_sha:
             gate4_pass_on_current_sha = True
+        elif rev_sha and not _shas_match(head_sha, rev_sha):
+            gate4_pass_on_current_sha = bool(
+                (latest_gate4_sha and _shas_match(head_sha, latest_gate4_sha))
+                or (qa_status == "passed" and qa_sha and _shas_match(head_sha, qa_sha))
+            )
+        elif latest_gate4_sha:
+            gate4_pass_on_current_sha = bool(
+                _shas_match(head_sha, latest_gate4_sha)
+                or (qa_status == "passed" and qa_sha and _shas_match(head_sha, qa_sha))
+            )
+        elif qa_sha:
+            gate4_pass_on_current_sha = bool(
+                qa_status == "passed" and _shas_match(head_sha, qa_sha)
+            )
+        elif qa_status == "passed":
+            gate4_pass_on_current_sha = True
+        else:
+            gate4_pass_on_current_sha = False
 
     if is_completed and total_tasks == 0:
         task_completion_pct = 100.0
@@ -2613,40 +2745,53 @@ def build_epic_pipeline_telemetry(
         current_stage_index = 6
     elif (
         all_tasks_done
-        and (code_rev["converged"] or _has_review_converged_hint(repo_path, epic_slug, pending_decision))
+        and (
+            code_rev["converged"]
+            or _has_review_converged_hint(repo_path, epic_slug, pending_decision)
+        )
         and gate4_pass_on_current_sha
     ):
         lifecycle_progress_pct = 98.0
         current_stage_index = 6
-    elif all_tasks_done and (code_rev["active"] or code_rev["round"] >= 1 or gate4_full_pass):
+    elif all_tasks_done and (
+        code_rev["active"] or code_rev["round"] >= 1 or gate4_full_pass
+    ):
         if not code_rev["active"] and code_rev["round"] == 0:
             lifecycle_progress_pct = 88.0
             current_stage_index = 4
-        elif code_rev["converged"] or not gate4_pass_on_current_sha:
+        elif code_rev["converged"]:
             lifecycle_progress_pct = 96.0
             current_stage_index = 4 if qa_status == "running" else 5
         else:
-            r_num = max(1, int(code_rev["round"]))
+            r_num = max(1, _safe_int_val(code_rev["round"], 1))
             phase = str(code_rev["phase"])
-            phase_offsets = {"reviewing": 0.0, "triage": 1.0, "fixing": 1.8, "verifying": 2.4}
+            phase_offsets = {
+                "reviewing": 0.0,
+                "triage": 1.0,
+                "fixing": 1.8,
+                "verifying": 2.4,
+            }
             base_r = 89.0 + (r_num - 1) * 2.5
-            lifecycle_progress_pct = min(96.0, round(base_r + phase_offsets.get(phase, 0.5), 1))
+            lifecycle_progress_pct = min(
+                96.0, round(base_r + phase_offsets.get(phase, 0.5), 1)
+            )
             current_stage_index = 5
     elif all_tasks_done:
-        if str((quality_active or {}).get("run_id") or "") == "live-concurrent-run":
-            lifecycle_progress_pct = 96.0
-            current_stage_index = 4
-        elif qa_status == "passed":
+        if qa_status == "passed":
             lifecycle_progress_pct = 87.0
             current_stage_index = 4
         elif qa_status in ("running", "failed", "aborted"):
-            s_idx = int((quality_active or {}).get("step_index") or 1)
-            s_tot = max(1, int((quality_active or {}).get("step_total") or 1))
+            s_idx = _safe_int_val((quality_active or {}).get("step_index"), 1) or 1
+            s_tot = max(
+                1, _safe_int_val((quality_active or {}).get("step_total"), 1) or 1
+            )
             lifecycle_progress_pct = round(81.0 + min(1.0, s_idx / s_tot) * 5.0, 1)
             current_stage_index = 4
         else:
             lifecycle_progress_pct = 80.0
-            current_stage_index = 4 if hb_sub_step in ("audit_epic", "bdd_tests", "quality_check") else 3
+            current_stage_index = (
+                4 if hb_sub_step in ("audit_epic", "bdd_tests", "quality_check") else 3
+            )
     elif 3 in approved_gates or has_wt or done_tasks > 0:
         ratio = (done_tasks / total_tasks) if total_tasks > 0 else 0.0
         lifecycle_progress_pct = min(79.0, round(25.0 + ratio * 55.0, 1))
@@ -2675,8 +2820,18 @@ def build_epic_pipeline_telemetry(
     s1_done = 1 in approved_gates or lifecycle_progress_pct >= 10.0
     s1_status = "done" if s1_done else ("running" if has_spec else "pending")
     s1_sub = [
-        {"id": "spec_doc", "label": "Design Spec", "status": "done" if (has_spec or s1_done) else "running", "detail": ""},
-        {"id": "gate_1", "label": "Gate 1 Sign-Off", "status": "done" if s1_done else "pending", "detail": ""},
+        {
+            "id": "spec_doc",
+            "label": "Design Spec",
+            "status": "done" if (has_spec or s1_done) else "running",
+            "detail": "",
+        },
+        {
+            "id": "gate_1",
+            "label": "Gate 1 Sign-Off",
+            "status": "done" if s1_done else "pending",
+            "detail": "",
+        },
     ]
 
     s2_done = has_handoff or 3 in approved_gates or lifecycle_progress_pct > 25.0
@@ -2690,8 +2845,22 @@ def build_epic_pipeline_telemetry(
         )
     )
     s2_sub: list[dict[str, str]] = [
-        {"id": "hld_bdd", "label": "HLD & BDD", "status": "done" if (has_hld and has_bdd) or s2_done else ("running" if s1_done else "pending"), "detail": ""},
-        {"id": "gate_2", "label": "Gate 2 & Tasks", "status": "done" if (2 in approved_gates or s2_done) else ("running" if has_hld else "pending"), "detail": f"{total_tasks} tasks" if total_tasks else ""},
+        {
+            "id": "hld_bdd",
+            "label": "HLD & BDD",
+            "status": "done"
+            if (has_hld and has_bdd) or s2_done
+            else ("running" if s1_done else "pending"),
+            "detail": "",
+        },
+        {
+            "id": "gate_2",
+            "label": "Gate 2 & Tasks",
+            "status": "done"
+            if (2 in approved_gates or s2_done)
+            else ("running" if has_hld else "pending"),
+            "detail": f"{total_tasks} tasks" if total_tasks else "",
+        },
     ]
     if principal_rev["active"] or s2_done:
         for sub in principal_rev["sub_steps"]:
@@ -2704,16 +2873,34 @@ def build_epic_pipeline_telemetry(
                 }
             )
     s2_sub.append(
-        {"id": "package", "label": "Package handoff.md", "status": "done" if (has_handoff or s2_done) else "pending", "detail": ""}
+        {
+            "id": "package",
+            "label": "Package handoff.md",
+            "status": "done" if (has_handoff or s2_done) else "pending",
+            "detail": "",
+        }
     )
 
     s3_done = all_tasks_done or is_completed or lifecycle_progress_pct >= 80.0
-    s3_status = "done" if s3_done else ("running" if (3 in approved_gates or has_wt or done_tasks > 0) else "pending")
+    s3_status = (
+        "done"
+        if s3_done
+        else (
+            "running"
+            if (3 in approved_gates or has_wt or done_tasks > 0)
+            else "pending"
+        )
+    )
     s3_sub: list[dict[str, str]] = []
     active_wave = (heartbeat or {}).get("active_wave")
     if active_wave is not None and str(active_wave) != "":
         s3_sub.append(
-            {"id": "wave", "label": f"Wave {active_wave}", "status": "done" if s3_done else "running", "detail": f"{done_tasks}/{total_tasks} ({int(task_completion_pct)}%)"}
+            {
+                "id": "wave",
+                "label": f"Wave {active_wave}",
+                "status": "done" if s3_done else "running",
+                "detail": f"{done_tasks}/{total_tasks} ({int(task_completion_pct)}%)",
+            }
         )
     slots_map = (heartbeat or {}).get("slots")
     if isinstance(slots_map, dict):
@@ -2725,7 +2912,11 @@ def build_epic_pipeline_telemetry(
                     {
                         "id": f"slot_{slot_k}",
                         "label": f"Slot {slot_k}: {t_id}",
-                        "status": "done" if s3_done else ("running" if sl_st in ("working", "review") else "pending"),
+                        "status": "done"
+                        if s3_done
+                        else (
+                            "running" if sl_st in ("working", "review") else "pending"
+                        ),
                         "detail": sl_st,
                     }
                 )
@@ -2733,7 +2924,9 @@ def build_epic_pipeline_telemetry(
         {
             "id": "tasks_tally",
             "label": f"Tasks {done_tasks}/{total_tasks}",
-            "status": "done" if s3_done else ("running" if done_tasks > 0 else "pending"),
+            "status": "done"
+            if s3_done
+            else ("running" if done_tasks > 0 else "pending"),
             "detail": f"{int(task_completion_pct)}%",
         }
     )
@@ -2742,11 +2935,27 @@ def build_epic_pipeline_telemetry(
     s4_status = (
         "failed"
         if qa_status in ("failed", "aborted")
-        else ("running" if (qa_status == "running" or current_stage_index == 4) else ("done" if s4_done else "pending"))
+        else (
+            "running"
+            if (qa_status == "running" or current_stage_index == 4)
+            else ("done" if s4_done else "pending")
+        )
     )
     s4_sub: list[dict[str, str]] = [
-        {"id": "audit_epic", "label": "Epic Audit", "status": "done" if audit_done else ("running" if s3_done and current_stage_index == 4 else "pending"), "detail": ""},
-        {"id": "bdd_traceability", "label": "BDD Traceability", "status": "done" if bdd_done else "pending", "detail": ""},
+        {
+            "id": "audit_epic",
+            "label": "Epic Audit",
+            "status": "done"
+            if audit_done
+            else ("running" if s3_done and current_stage_index == 4 else "pending"),
+            "detail": "",
+        },
+        {
+            "id": "bdd_traceability",
+            "label": "BDD Traceability",
+            "status": "done" if bdd_done else "pending",
+            "detail": "",
+        },
     ]
     qa_steps = (quality_active or {}).get("steps")
     if isinstance(qa_steps, list) and qa_steps:
@@ -2760,13 +2969,21 @@ def build_epic_pipeline_telemetry(
             s4_sub.append(
                 {
                     "id": f"qa_{st_item.get('capability', '')}",
-                    "label": str(st_item.get("label") or st_item.get("capability") or "Quality Step"),
+                    "label": str(
+                        st_item.get("label")
+                        or st_item.get("capability")
+                        or "Quality Step"
+                    ),
                     "status": mapped_st,
                     "detail": el_detail,
                 }
             )
     elif quality_active:
-        cap_lbl = str(quality_active.get("capability_label") or quality_active.get("capability") or "Quality Check")
+        cap_lbl = str(
+            quality_active.get("capability_label")
+            or quality_active.get("capability")
+            or "Quality Check"
+        )
         s_idx = int(quality_active.get("step_index") or 0)
         s_tot = int(quality_active.get("step_total") or 0)
         s4_sub.append(
@@ -2778,22 +2995,41 @@ def build_epic_pipeline_telemetry(
             }
         )
 
-    s5_done = bool(is_completed or 5 in approved_gates or (code_rev["converged"] and gate4_pass_on_current_sha))
+    s5_done = bool(
+        is_completed
+        or 5 in approved_gates
+        or (code_rev["converged"] and gate4_pass_on_current_sha)
+    )
     s5_status = (
         "done"
         if s5_done
         else (
             "failed"
             if code_rev.get("action") == "CIRCUIT_BREAKER_HALT"
-            else ("running" if (code_rev["active"] or current_stage_index == 5) else "pending")
+            else (
+                "running"
+                if (code_rev["active"] or current_stage_index == 5)
+                else "pending"
+            )
         )
     )
     s5_sub = list(code_rev["sub_steps"])
 
     s6_done = bool(is_completed or 5 in approved_gates)
-    s6_status = "done" if s6_done else ("action_required" if lifecycle_progress_pct >= 98.0 else "pending")
+    s6_status = (
+        "done"
+        if s6_done
+        else ("action_required" if lifecycle_progress_pct >= 98.0 else "pending")
+    )
     s6_sub = [
-        {"id": "gate_5", "label": "Gate 5 Sign-Off & Merge", "status": "done" if s6_done else ("running" if lifecycle_progress_pct >= 98.0 else "pending"), "detail": ""},
+        {
+            "id": "gate_5",
+            "label": "Gate 5 Sign-Off & Merge",
+            "status": "done"
+            if s6_done
+            else ("running" if lifecycle_progress_pct >= 98.0 else "pending"),
+            "detail": "",
+        },
     ]
 
     stages = [
@@ -2838,9 +3074,15 @@ def build_epic_pipeline_telemetry(
                 "Audit + BDD + QA PASS"
                 if s4_done
                 else (
-                    str((quality_active or {}).get("capability_label") or (quality_active or {}).get("capability") or "Running QA")
+                    str(
+                        (quality_active or {}).get("capability_label")
+                        or (quality_active or {}).get("capability")
+                        or "Running QA"
+                    )
                     if qa_status == "running"
-                    else ("QA Passed (87%)" if qa_status == "passed" else "Pending Gate 4")
+                    else (
+                        "QA Passed (87%)" if qa_status == "passed" else "Pending Gate 4"
+                    )
                 )
             ),
             "sub_steps": s4_sub,
@@ -2866,7 +3108,13 @@ def build_epic_pipeline_telemetry(
             "index": 6,
             "label": "6. Finish",
             "status": s6_status,
-            "summary": "Merged & Archived" if s6_done else ("Waiting /finish (Gate 5)" if lifecycle_progress_pct >= 98.0 else "Pending Gate 5"),
+            "summary": "Merged & Archived"
+            if s6_done
+            else (
+                "Waiting /finish (Gate 5)"
+                if lifecycle_progress_pct >= 98.0
+                else "Pending Gate 5"
+            ),
             "sub_steps": s6_sub,
         },
     ]
@@ -2942,7 +3190,9 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
             quality_active=quality_active,
             pending_decision=matched_pending,
             active_stage=active_stage,
-            is_completed=bool(active_epic and _is_completed_epic(active_epic, completed_slugs)),
+            is_completed=bool(
+                active_epic and _is_completed_epic(active_epic, completed_slugs)
+            ),
         )
         if active_epic
         else None
@@ -2965,7 +3215,8 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
                     == LifecycleStage.STAGE_3_PHASE_4_1_SIGNOFF.value
                     or bool(
                         pipeline_telemetry
-                        and float(pipeline_telemetry.get("lifecycle_progress_pct", 0.0)) >= 98.0
+                        and float(pipeline_telemetry.get("lifecycle_progress_pct", 0.0))
+                        >= 98.0
                     )
                 )
                 ep["pipeline_telemetry"] = pipeline_telemetry
@@ -3005,7 +3256,8 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
                     ep_tasks = [
                         t
                         for t in task_progress.tasks
-                        if _normalize_slug(str(t.get("epic") or "")) == _normalize_slug(slug)
+                        if _normalize_slug(str(t.get("epic") or ""))
+                        == _normalize_slug(slug)
                     ]
                     ep_done = sum(1 for t in ep_tasks if t.get("status") == "done")
                     ep_tot = len(ep_tasks) or int(ep.get("task_count") or 0)
