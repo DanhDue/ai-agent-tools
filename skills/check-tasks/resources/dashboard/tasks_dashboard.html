@@ -2084,7 +2084,7 @@ Loading evidence data...
         if (!ep || typeof ep !== 'object') return;
         const cat = getEpicStatusCategory(ep.status);
         if (cat === 'done' || cat === 'abandon') return;
-        if (ep.status !== 'done' && ep.status !== 'abandon' && ep.is_action_required === true) {
+        if (ep.is_action_required === true) {
           addBlocker(ep.slug || '', ep.active_stage || '', ep.action_prompt || '');
         }
       });
@@ -2104,9 +2104,13 @@ Loading evidence data...
       const bar = document.getElementById('repo-tab-bar');
       if (!bar) return;
 
-      const tabsSig = FOCUSED_REPOS.map(name => {
+      const tabEntries = FOCUSED_REPOS.map(name => {
         const r = (repos || []).find(x => x.name === name);
         const blockers = r ? collectRepoActionBlockers(r) : [];
+        return { name, repo: r, blockers };
+      });
+
+      const tabsSig = tabEntries.map(({ name, repo: r, blockers }) => {
         const blockerSig = blockers.map(b => `${b.epic}:${b.reason}`).join(',');
         return [name, r?.epics_summary?.in_progress, r?.active_epic, r?.prompt, r?.is_human_action_required, blockerSig, activeFocusTab === name, getRepoNoteCount(getRepoNoteText(name))].join('~');
       }).join('|');
@@ -2117,11 +2121,9 @@ Loading evidence data...
       bar.dataset.sig = tabsSig;
 
       let html = '';
-      FOCUSED_REPOS.forEach(name => {
-        const r = (repos || []).find(x => x.name === name);
+      tabEntries.forEach(({ name, repo: r, blockers }) => {
         const theme = REPO_THEMES[name];
         const inProgressEpics = r?.epics_summary?.in_progress || (r?.active_epic ? 1 : 0);
-        const blockers = r ? collectRepoActionBlockers(r) : [];
         const needsConfirm = blockers.length > 0;
 
         const isActive = activeFocusTab === name;
@@ -2148,41 +2150,34 @@ Loading evidence data...
 
     function computeEpicProgressState(repo, slug, totalCount, doneCount, summaryEp, fallbackDone = false) {
       const isPrimaryActive = slugsMatch(repo.active_epic, slug);
-      const isFullyDone = Boolean(fallbackDone || summaryEp?.status === 'done');
+      const summaryCat = getEpicStatusCategory(summaryEp?.status);
+      const isEpicInactive = Boolean(fallbackDone || summaryCat === 'done' || summaryCat === 'abandon');
+      const isFullyDone = Boolean(fallbackDone || summaryCat === 'done');
       const blockers = collectRepoActionBlockers(repo);
-      const matchingBlocker = blockers.find(b => slugsMatch(b.epic, slug)) || null;
-      const decisionEntry = (repo.pending_decision && repo.pending_decision.decisions && typeof repo.pending_decision.decisions === 'object')
-        ? Object.entries(repo.pending_decision.decisions).find(([k, v]) => v && v.active === true && slugsMatch(v.epic || k, slug))?.[1] || null
-        : null;
-      const hasPendingDecision = Boolean(
-        decisionEntry ||
-        (
-          repo.pending_decision &&
-          repo.pending_decision.active === true &&
-          (!repo.pending_decision.epic || slugsMatch(repo.pending_decision.epic, slug))
-        )
-      );
+      const matchingBlocker = isEpicInactive ? null : (blockers.find(b => slugsMatch(b.epic, slug)) || null);
+      const hasPendingDecision = Boolean(matchingBlocker);
       const epNeedsConfirm = Boolean(
-        !isFullyDone && (
-          summaryEp?.is_action_required === true ||
+        !isEpicInactive && (
           matchingBlocker ||
-          (isPrimaryActive && (repo.is_human_action_required === true || hasPendingDecision))
+          summaryEp?.is_action_required === true
         )
       );
-      const stageStr = String(summaryEp?.active_stage || (isPrimaryActive ? repo.active_stage : '') || '');
-      const promptStr = String(summaryEp?.action_prompt || (isPrimaryActive ? repo.prompt : '') || '');
+      const stageStr = String(summaryEp?.active_stage || (matchingBlocker && matchingBlocker.stage) || (isPrimaryActive ? repo.active_stage : '') || '');
+      const promptStr = String(summaryEp?.action_prompt || (matchingBlocker && matchingBlocker.reason) || (isPrimaryActive ? repo.prompt : '') || '');
       const isWaitingFinish = Boolean(
-        summaryEp?.is_review_converged === true ||
-        stageStr.includes('Waiting Finish') ||
-        stageStr.includes('Waiting /finish') ||
-        stageStr.includes('Chờ /finish') ||
-        stageStr.includes('Sign-off') ||
-        (epNeedsConfirm && (
-          promptStr.includes('Gate 5') ||
-          promptStr.includes('/finish') ||
-          promptStr.includes('Waiting /finish') ||
-          promptStr.includes('Chờ /finish')
-        ))
+        !isEpicInactive && (
+          summaryEp?.is_review_converged === true ||
+          stageStr.includes('Waiting Finish') ||
+          stageStr.includes('Waiting /finish') ||
+          stageStr.includes('Chờ /finish') ||
+          stageStr.includes('Sign-off') ||
+          (epNeedsConfirm && (
+            promptStr.includes('Gate 5') ||
+            promptStr.includes('/finish') ||
+            promptStr.includes('Waiting /finish') ||
+            promptStr.includes('Chờ /finish')
+          ))
+        )
       );
 
       const pipelineTelemetry = summaryEp?.pipeline_telemetry || (isPrimaryActive ? repo.pipeline_telemetry : null) || null;
@@ -2246,9 +2241,11 @@ Loading evidence data...
 
       return {
         isPrimaryActive,
+        isEpicInactive,
         isFullyDone,
         epNeedsConfirm,
         hasPendingDecision,
+        matchingBlocker,
         isWaitingFinish,
         pct,
         taskPct,
@@ -2678,11 +2675,8 @@ Loading evidence data...
         `;
       }
 
-      const repoBlockers = collectRepoActionBlockers(repo);
-
       return epicSlugs.map(slug => {
         const epicMeta = (repo.epics_summary?.epics || []).find(e => slugsMatch(e.slug, slug));
-        const matchingBlocker = repoBlockers.find(b => slugsMatch(b.epic, slug)) || null;
 
         // Tasks for this epic
         const epicTasks = allTasks.filter(t => slugsMatch(t.epic, slug));
@@ -2690,6 +2684,7 @@ Loading evidence data...
         const doneCount = epicTasks.length > 0 ? epicTasks.filter(t => t.status === 'done').length : (slugsMatch(repo.active_epic, slug) ? (repo.task_progress?.done_tasks || 0) : 0);
 
         const progState = computeEpicProgressState(repo, slug, totalCount, doneCount, epicMeta);
+        const matchingBlocker = progState.matchingBlocker;
         const isPrimaryActive = progState.isPrimaryActive;
         const progressPct = progState.pct;
 
@@ -2710,24 +2705,15 @@ Loading evidence data...
         }
 
         const stageName = epicMeta?.active_stage || (matchingBlocker && matchingBlocker.stage) || (isPrimaryActive ? repo.active_stage : '') || (epicMeta?.status === 'in_progress' ? 'Stage 3 (Implementation)' : 'Stage 1 (Inception)');
-        const decisionEntry = (repo.pending_decision && repo.pending_decision.decisions && typeof repo.pending_decision.decisions === 'object')
-          ? Object.entries(repo.pending_decision.decisions).find(([k, v]) => v && v.active === true && slugsMatch(v.epic || k, slug))?.[1] || null
-          : null;
-        const decisionReason = (decisionEntry && decisionEntry.reason)
-          ? String(decisionEntry.reason)
-          : (progState.hasPendingDecision && repo.pending_decision?.reason ? String(repo.pending_decision.reason) : '');
-        const promptText = (matchingBlocker && matchingBlocker.reason) || (epicMeta && epicMeta.action_prompt) || (isPrimaryActive ? (decisionReason || repo.prompt || 'Executing...') : (decisionReason || 'Active worktree execution'));
+        const promptText = (matchingBlocker && matchingBlocker.reason) || (epicMeta && epicMeta.action_prompt) || (isPrimaryActive ? (repo.prompt || 'Executing...') : 'Active worktree execution');
         const hasPromptActionWords = (
           promptText.includes('Approve') || promptText.includes('Phê duyệt') ||
           promptText.includes('Review Choice') || promptText.includes('Lựa chọn') ||
           promptText.includes('Chờ Bạn Chọn') || promptText.includes('Confirm') ||
           promptText.includes('Action Required')
         );
-        const isEpicInactive = Boolean(epicMeta && (getEpicStatusCategory(epicMeta.status) === 'done' || getEpicStatusCategory(epicMeta.status) === 'abandon'));
-        const isActionReq = !isEpicInactive && Boolean(
-          matchingBlocker ||
+        const isActionReq = !progState.isEpicInactive && Boolean(
           progState.epNeedsConfirm ||
-          epicMeta?.is_action_required === true ||
           (isPrimaryActive && repo.is_human_action_required !== false && hasPromptActionWords)
         );
         const telemetryHtml = renderLiveTelemetryBanner(repo, slug, isPrimaryActive);
@@ -3240,7 +3226,7 @@ Loading evidence data...
         acc: repo.account_id || null,
         prompt: repo.prompt || null,
         req: Boolean(repo.is_human_action_required),
-        ab: repo.action_blockers || null,
+        ab: collectRepoActionBlockers(repo),
         tp: {
           total: tp.total_tasks || 0,
           done: tp.done_tasks || 0,
@@ -3438,10 +3424,10 @@ Loading evidence data...
           stLabel = (e.status === 'packaged') ? '📦 Packaged' : '📋 Backlog';
         }
 
-        const isEpicDone = (cat === 'done' || e.status === 'done');
-        const isEpicAbandon = (cat === 'abandon' || e.status === 'abandon');
+        const isEpicDone = (cat === 'done');
+        const isEpicAbandon = (cat === 'abandon');
         const isCur = !isEpicDone && (repo.active_epic === e.slug);
-        const epicHasBlocker = repoBlockers.some(b => slugsMatch(b.epic, e.slug));
+        const epicHasBlocker = !isEpicDone && !isEpicAbandon && repoBlockers.some(b => slugsMatch(b.epic, e.slug));
         const updatedStr = e.last_updated_human || (e.last_updated ? e.last_updated.substring(0, 10) : '—');
         const rowKey = `${repo.name}:${e.slug}`;
         return `
@@ -3455,7 +3441,7 @@ Loading evidence data...
               <span style="display: inline-flex; align-items: center; gap: 6px;">
                 <span>${escapeHtml(e.slug)}</span>
                 ${isCur ? '<span style="color: #38bdf8; font-size: 9px;">(Active)</span>' : ''}
-                ${(!isEpicDone && !isEpicAbandon && (e.is_action_required || epicHasBlocker || (isCur && repo.is_human_action_required))) ? `<span class="tab-notification-badge" style="position: static; display: inline-block; width: 8px; height: 8px; flex-shrink: 0;" title="Epic requires user confirmation / approval"></span>` : ''}
+                ${epicHasBlocker ? `<span class="tab-notification-badge" style="position: static; display: inline-block; width: 8px; height: 8px; flex-shrink: 0;" title="Epic requires user confirmation / approval"></span>` : ''}
               </span>
             </td>
             <td style="padding: 8px 12px; color: #94a3b8; font-size: 11px; font-family: monospace; white-space: nowrap;" title="${escapeHtml(e.last_updated || '')}">

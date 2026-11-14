@@ -995,6 +995,7 @@ try {{
   assert.equal(afterState.canary, 'alive', 'Clearing blockers must update DOM in-place without page reload');
   assert.equal(afterState.secondaryText.includes('HUMAN DECISION REQUIRED:'), false);
   assert.equal(afterState.secondaryText.includes('Action Required'), false);
+  assert.ok(afterState.secondaryText.includes('Stage 3 (Implementation)'));
   assert.equal(afterState.primaryText.includes('HUMAN DECISION REQUIRED:'), false);
   assert.equal(afterState.kanbanSecHasBadge, false);
   assert.equal(afterState.kanbanSecStyleAttr.includes('#ef4444'), false);
@@ -1021,3 +1022,95 @@ try {{
         ctrl_server.server_close()
         server.shutdown()
         server.server_close()
+
+
+def test_legacy_pending_decision_no_sibling_leak_and_inactive_exclusion() -> None:
+    """Verify legacy pending_decision without .epic does not leak onto sibling epics and completed/abandoned epics stay clear."""
+    res = _eval_dashboard_js(
+        r"""
+        const ctx = createDashboardContext();
+        const repo = {
+          name: 'lyrics-sync',
+          path: '/tmp/lyrics-sync',
+          active_epic: 'primary_auto_epic',
+          active_stage: 'Stage 2 (HLD & Tasks)',
+          is_human_action_required: true,
+          prompt: '',
+          pending_decision: {
+            active: true,
+            reason: 'Legacy Gate 2 Reason',
+          },
+          action_blockers: [
+            { epic: 'done_stale_epic', stage: 'Stage 2', reason: 'Stale done blocker' },
+            { epic: 'abandoned_stale_epic', stage: 'Stage 2', reason: 'Stale abandoned blocker' },
+          ],
+          worktrees: [
+            { path: '/tmp/lyrics-sync/.worktrees/primary_auto_epic', branch: 'feat/primary', is_dirty: false, dirty_file_count: 0 },
+            { path: '/tmp/lyrics-sync/.worktrees/sibling_auto_epic', branch: 'feat/sibling', is_dirty: false, dirty_file_count: 0 },
+          ],
+          task_progress: {
+            total_tasks: 2,
+            done_tasks: 1,
+            in_progress_tasks: 1,
+            todo_tasks: 0,
+            percentage: 50,
+            tasks: [],
+          },
+          epics_summary: {
+            total: 4,
+            in_progress: 2,
+            completed: 1,
+            abandoned: 1,
+            unstarted: 0,
+            epics: [
+              { slug: 'primary_auto_epic', title: 'Primary', status: 'in_progress', task_count: 2 },
+              { slug: 'sibling_auto_epic', title: 'Sibling', status: 'in_progress', task_count: 0 },
+              { slug: 'done_stale_epic', title: 'Done Stale', status: 'completed', is_action_required: true, action_prompt: 'Stale done prompt', task_count: 1 },
+              { slug: 'abandoned_stale_epic', title: 'Abandoned Stale', status: 'abandoned', is_action_required: true, action_prompt: 'Stale abandon prompt', task_count: 1 },
+            ],
+          },
+        };
+
+        const primaryProg = ctx.computeEpicProgressState(repo, 'primary_auto_epic', 2, 1, repo.epics_summary.epics[0]);
+        const siblingProg = ctx.computeEpicProgressState(repo, 'sibling_auto_epic', 0, 0, repo.epics_summary.epics[1]);
+        const doneProg = ctx.computeEpicProgressState(repo, 'done_stale_epic', 1, 1, repo.epics_summary.epics[2]);
+        const abandonedProg = ctx.computeEpicProgressState(repo, 'abandoned_stale_epic', 1, 0, repo.epics_summary.epics[3]);
+        const blockers = ctx.collectRepoActionBlockers(repo);
+        const execHtml = ctx.renderExecutionEpics(repo);
+        const roadmapHtml = ctx.renderRoadmapTableRows(repo);
+        console.log(JSON.stringify({ primaryProg, siblingProg, doneProg, abandonedProg, blockers, execHtml, roadmapHtml }));
+        """
+    )
+
+    assert res["primaryProg"]["epNeedsConfirm"] is True
+    assert res["primaryProg"]["hasPendingDecision"] is True
+    assert res["primaryProg"]["matchingBlocker"]["reason"] == "Legacy Gate 2 Reason"
+
+    assert res["siblingProg"]["epNeedsConfirm"] is False
+    assert res["siblingProg"]["hasPendingDecision"] is False
+    assert res["siblingProg"]["matchingBlocker"] is None
+
+    assert res["doneProg"]["epNeedsConfirm"] is False
+    assert res["doneProg"]["isFullyDone"] is True
+    assert res["doneProg"]["matchingBlocker"] is None
+
+    assert res["abandonedProg"]["epNeedsConfirm"] is False
+    assert res["abandonedProg"]["isFullyDone"] is False
+    assert res["abandonedProg"]["matchingBlocker"] is None
+
+    assert [b["epic"] for b in res["blockers"]] == ["primary_auto_epic"]
+
+    exec_html = res["execHtml"]
+    sibling_idx = exec_html.index("sibling_auto_epic")
+    sibling_slice = exec_html[sibling_idx:]
+    assert "Active worktree execution" in sibling_slice
+    assert "Legacy Gate 2 Reason" not in sibling_slice
+    assert "Human Decision Required:" not in sibling_slice
+
+    roadmap_html = res["roadmapHtml"]
+    done_row = roadmap_html[roadmap_html.index("done_stale_epic") :].split("</tr>")[0]
+    abandoned_row = roadmap_html[roadmap_html.index("abandoned_stale_epic") :].split(
+        "</tr>"
+    )[0]
+    assert "tab-notification-badge" not in done_row
+    assert "tab-notification-badge" not in abandoned_row
