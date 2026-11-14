@@ -20,10 +20,12 @@ import re
 import socket
 import subprocess
 import sys
+import threading
 from typing import Any
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 _STATE_ENVELOPE_MOD: Any | None = None
+_SCAN_CTX = threading.local()
 _SLOT_SUFFIX_RE = re.compile(r"-slot-\d+$")
 _PIC_PLACEHOLDERS = frozenset(
     {
@@ -379,6 +381,11 @@ def extract_vscode_styling(repo_path: Path) -> tuple[str, str]:
 
 def scan_worktrees(repo_path: Path) -> list[WorktreeMetadata]:
     """Discover all git worktrees and detect uncommitted modifications."""
+    cache = getattr(_SCAN_CTX, "cache", None)
+    cache_key = ("worktrees", str(repo_path))
+    if isinstance(cache, dict) and cache_key in cache:
+        return list(cache[cache_key])
+
     worktrees: list[WorktreeMetadata] = []
     try:
         proc = subprocess.run(
@@ -388,6 +395,8 @@ def scan_worktrees(repo_path: Path) -> list[WorktreeMetadata]:
             check=True,
         )
     except Exception:
+        if isinstance(cache, dict):
+            cache[cache_key] = worktrees
         return worktrees
 
     raw_blocks = proc.stdout.strip().split("\n\n")
@@ -441,6 +450,8 @@ def scan_worktrees(repo_path: Path) -> list[WorktreeMetadata]:
                 )
             )
 
+    if isinstance(cache, dict):
+        cache[cache_key] = list(worktrees)
     return worktrees
 
 
@@ -700,6 +711,11 @@ def _collect_devtool_dirs(
     repo_path: Path, active_epic: str | None = None
 ) -> list[Path]:
     """Collect unique `.devtool` directories across root, worktrees, and git common dir."""
+    cache = getattr(_SCAN_CTX, "cache", None)
+    cache_key = ("devtool_dirs", str(repo_path), active_epic)
+    if isinstance(cache, dict) and cache_key in cache:
+        return list(cache[cache_key])
+
     dirs: list[Path] = []
     seen: set[Path] = set()
 
@@ -718,11 +734,36 @@ def _collect_devtool_dirs(
 
     state_env = _load_state_envelope()
     if state_env is not None:
-        with contextlib.suppress(Exception):
-            for shared_dir in state_env.resolve_shared_devtool_dirs(repo_path):
-                _add_dir(shared_dir)
+        shared_key = ("shared_devtool_dirs", str(repo_path))
+        if isinstance(cache, dict) and shared_key in cache:
+            shared_dirs = cache[shared_key]
+        else:
+            shared_dirs = []
+            with contextlib.suppress(Exception):
+                shared_dirs = list(state_env.resolve_shared_devtool_dirs(repo_path))
+            if isinstance(cache, dict):
+                cache[shared_key] = shared_dirs
+        for shared_dir in shared_dirs:
+            _add_dir(shared_dir)
 
+    if isinstance(cache, dict):
+        cache[cache_key] = list(dirs)
     return dirs
+
+
+def _get_cached_target_devtool_dirs(
+    state_env: Any, repo_path: Path, filename: str
+) -> list[Path]:
+    cache = getattr(_SCAN_CTX, "cache", None)
+    key = ("target_devtool_dirs", str(repo_path))
+    if isinstance(cache, dict) and key in cache:
+        return list(cache[key])
+    extras: list[Path] = []
+    with contextlib.suppress(Exception):
+        extras = list(state_env._collect_target_devtool_dirs(repo_path, filename))
+    if isinstance(cache, dict):
+        cache[key] = list(extras)
+    return extras
 
 
 def _read_state_snapshot(
@@ -736,11 +777,10 @@ def _read_state_snapshot(
     collected_dirs = _collect_devtool_dirs(repo_path, active_epic)
     if state_env is not None:
         seen = {d.resolve() for d in collected_dirs if d.is_dir()}
-        with contextlib.suppress(Exception):
-            for extra in state_env._collect_target_devtool_dirs(repo_path, filename):
-                if extra.is_dir() and extra.resolve() not in seen:
-                    seen.add(extra.resolve())
-                    collected_dirs.append(extra)
+        for extra in _get_cached_target_devtool_dirs(state_env, repo_path, filename):
+            if extra.is_dir() and extra.resolve() not in seen:
+                seen.add(extra.resolve())
+                collected_dirs.append(extra)
         if not collected_dirs:
             return dict(default)
         snapshot, _ = state_env._read_highest_snapshot(
@@ -1854,13 +1894,12 @@ def _read_quality_state(
     devtool_dirs = _collect_devtool_dirs(repo_path, active_epic=None)
     if state_env is not None:
         seen = {d.resolve() for d in devtool_dirs if d.is_dir()}
-        with contextlib.suppress(Exception):
-            for extra in state_env._collect_target_devtool_dirs(
-                repo_path, "quality_active.json"
-            ):
-                if extra.is_dir() and extra.resolve() not in seen:
-                    seen.add(extra.resolve())
-                    devtool_dirs.append(extra)
+        for extra in _get_cached_target_devtool_dirs(
+            state_env, repo_path, "quality_active.json"
+        ):
+            if extra.is_dir() and extra.resolve() not in seen:
+                seen.add(extra.resolve())
+                devtool_dirs.append(extra)
         snapshot, _ = state_env._read_highest_snapshot(
             devtool_dirs, "quality_active.json", {}
         )
@@ -2218,6 +2257,11 @@ def extract_epic_pic(repo_path: Path, active_epic: str | None) -> str | None:
 
 def _get_short_head_sha(checkout_path: Path) -> str:
     """Return short HEAD SHA for a git checkout, or empty string on error."""
+    cache = getattr(_SCAN_CTX, "cache", None)
+    cache_key = ("head_sha", str(checkout_path))
+    if isinstance(cache, dict) and cache_key in cache:
+        return str(cache[cache_key])
+    sha = ""
     with contextlib.suppress(Exception):
         res = subprocess.run(
             ["git", "-C", str(checkout_path), "rev-parse", "--short", "HEAD"],
@@ -2227,8 +2271,10 @@ def _get_short_head_sha(checkout_path: Path) -> str:
             check=False,
         )
         if res.returncode == 0 and res.stdout.strip():
-            return res.stdout.strip()
-    return ""
+            sha = res.stdout.strip()
+    if isinstance(cache, dict):
+        cache[cache_key] = sha
+    return sha
 
 
 def _parse_review_rounds_summary(
@@ -2841,6 +2887,19 @@ def build_epic_pipeline_telemetry(
 
 def scan_repo(repo_path: Path) -> RepoMetadata:
     """Harvest complete metadata and telemetry for a single repository."""
+    depth = getattr(_SCAN_CTX, "depth", 0)
+    if depth == 0:
+        _SCAN_CTX.cache = {}
+    _SCAN_CTX.depth = depth + 1
+    try:
+        return _scan_repo_impl(repo_path)
+    finally:
+        _SCAN_CTX.depth = max(0, getattr(_SCAN_CTX, "depth", 1) - 1)
+        if _SCAN_CTX.depth == 0:
+            _SCAN_CTX.cache = None
+
+
+def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
     # 1. Project-level: styling, memory, notes, and epics overview from root repo
     theme_color, window_title = extract_vscode_styling(repo_path)
     worktrees = scan_worktrees(repo_path)
