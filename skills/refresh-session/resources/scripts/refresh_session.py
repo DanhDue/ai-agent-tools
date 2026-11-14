@@ -273,6 +273,47 @@ def _fetch_live_claude_usage() -> dict[str, Any] | None:
     return None
 
 
+def merge_claude_utilization(
+    existing_cache: dict[str, Any] | None,
+    new_util: dict[str, Any],
+    account_uuid: str = "",
+) -> dict[str, Any]:
+    """Merge live Claude utilization into existing cache without clobbering richer fields omitted by narrower responses."""
+    cache = existing_cache if isinstance(existing_cache, dict) else {}
+    existing_util = cache.get("utilization")
+    existing_uuid = str(cache.get("accountUuid") or "").strip()
+    target_uuid = str(account_uuid or "").strip()
+    if not isinstance(existing_util, dict) or (
+        existing_uuid and target_uuid and existing_uuid != target_uuid
+    ):
+        return dict(new_util)
+
+    merged: dict[str, Any] = {**existing_util, **new_util}
+    if "limits" not in new_util and isinstance(existing_util.get("limits"), list):
+        five_h = new_util.get("five_hour")
+        seven_d = new_util.get("seven_day")
+        synced_limits: list[Any] = []
+        for entry in existing_util["limits"]:
+            if not isinstance(entry, dict):
+                synced_limits.append(entry)
+                continue
+            item = dict(entry)
+            kind = item.get("kind")
+            if kind == "session" and isinstance(five_h, dict):
+                if five_h.get("utilization") is not None:
+                    item["percent"] = five_h["utilization"]
+                if five_h.get("resets_at"):
+                    item["resets_at"] = five_h["resets_at"]
+            elif kind == "weekly_all" and isinstance(seven_d, dict):
+                if seven_d.get("utilization") is not None:
+                    item["percent"] = seven_d["utilization"]
+                if seven_d.get("resets_at"):
+                    item["resets_at"] = seven_d["resets_at"]
+            synced_limits.append(item)
+        merged["limits"] = synced_limits
+    return merged
+
+
 def _update_claude_cache_file(usage: dict[str, Any]) -> None:
     """Persist live Claude usage into ~/.claude.json cachedUsageUtilization if file exists."""
     claude_json = Path(REAL_HOME) / ".claude.json"
@@ -281,10 +322,15 @@ def _update_claude_cache_file(usage: dict[str, Any]) -> None:
     try:
         data = json.loads(claude_json.read_text(encoding="utf-8"))
         uuid = data.get("oauthAccount", {}).get("accountUuid", "")
+        merged_usage = merge_claude_utilization(
+            data.get("cachedUsageUtilization"),
+            usage,
+            account_uuid=uuid,
+        )
         data["cachedUsageUtilization"] = {
             "fetchedAtMs": int(time.time() * 1000),
             "accountUuid": uuid,
-            "utilization": usage,
+            "utilization": merged_usage,
         }
         claude_json.write_text(json.dumps(data, indent=2), encoding="utf-8")
     except Exception:

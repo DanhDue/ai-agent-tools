@@ -1914,7 +1914,43 @@
       "resetTimeLocal": "",
       "unavailable": false,
       "tags": true
-    }
+    },
+    "quotaBuckets": [
+      {
+        "id": "session",
+        "name": "Claude 5H Session Window",
+        "group": "session",
+        "kind": "session",
+        "scopeLabel": "",
+        "fraction": 0.0,
+        "utilization": 100.0,
+        "countdown": "⏱ 2h 30m (04:40:00)",
+        "resetTime": "2026-11-14T21:40:00.103107+00:00",
+        "resetTimeLocal": "04:40:00",
+        "severity": "normal",
+        "isActive": true,
+        "isLive": true,
+        "shareInfo": null,
+        "unavailable": false
+      },
+      {
+        "id": "weekly_all",
+        "name": "Claude 7D Weekly Remaining",
+        "group": "weekly",
+        "kind": "weekly_all",
+        "scopeLabel": "",
+        "fraction": 0.86,
+        "utilization": 14.0,
+        "countdown": "⏱ 3d 4h (18/11 07:00)",
+        "resetTime": "2026-11-18T00:00:00.103127+00:00",
+        "resetTimeLocal": "18/11 07:00",
+        "severity": "normal",
+        "isActive": false,
+        "isLive": true,
+        "shareInfo": null,
+        "unavailable": false
+      }
+    ]
   },
   "codex": {
     "profile": "codex",
@@ -2252,15 +2288,31 @@
      * - Top Row: Icon, Model Name, Tags (High/Med/Low or INACTIVE), ⏱ Countdown, % Percentage
      * - Bottom Row: Full 100% Progress Bar with Unified Matching Tone
      */
-    function renderDetailModelCard(icon, iconColor, title, timerStr, fraction, hasTags = false, unavailable = false) {
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function renderDetailModelCard(icon, iconColor, title, timerStr, fraction, hasTags = false, unavailable = false, badgeText = "") {
+      const safeIcon = escapeHtml(icon);
+      const safeIconColor = escapeHtml(iconColor);
+      const safeTitle = escapeHtml(title);
+      const safeTimerStr = escapeHtml(timerStr);
+      const safeBadge = typeof badgeText === 'string' && badgeText.trim() ? escapeHtml(badgeText.trim()) : '';
+
       if (unavailable) {
         return `
           <div class="model-card-item unavailable p-3 shadow-sm transition-all" style="border-radius: 14px !important; overflow: hidden;">
             <div class="flex items-center justify-between gap-1.5 mb-1.5">
               <div class="flex items-center gap-1.5 min-w-0">
                 <span class="text-slate-500 text-sm shrink-0">✦</span>
-                <span class="font-semibold text-xs text-slate-400 truncate">${title}</span>
+                <span class="font-semibold text-xs text-slate-400 truncate">${safeTitle}</span>
                 <span class="pill-badge bg-slate-800/90 text-slate-400 border border-slate-700/80 text-[10px] py-0 px-2 font-bold" style="border-radius: 9999px !important;">INACTIVE</span>
+                ${safeBadge ? `<span class="pill-badge bg-slate-800/80 text-slate-300 border border-slate-700/70 text-[10px] py-0 px-1.5 font-medium shrink-0" title="${safeBadge}" style="border-radius: 9999px !important;">${safeBadge}</span>` : ''}
               </div>
             </div>
             <div class="w-full bg-slate-800/60 border border-slate-700/50 rounded-full h-2 relative overflow-hidden progress-track" style="border-radius: 9999px !important; isolation: isolate;">
@@ -2270,7 +2322,9 @@
         `;
       }
 
-      const pct = (fraction * 100).toFixed(1);
+      const numericFraction = Number(fraction);
+      const safeFraction = Number.isFinite(numericFraction) ? Math.max(0, Math.min(1, numericFraction)) : 0;
+      const pct = (safeFraction * 100).toFixed(1);
       const theme = getColorTheme(parseFloat(pct));
 
       const tagsHTML = hasTags ? `
@@ -2281,16 +2335,19 @@
         </div>
       ` : '';
 
+      const shareBadgeHTML = safeBadge ? `<span class="pill-badge bg-amber-950/60 text-amber-200 border border-amber-700/60 text-[10px] py-0 px-1.5 font-medium shrink-0" title="${safeBadge}" style="border-radius: 9999px !important;">${safeBadge}</span>` : '';
+
       return `
         <div class="model-card-item p-3 shadow-sm transition-all cursor-pointer" style="border-radius: 14px !important; overflow: hidden;">
           <div class="flex items-center justify-between gap-1.5 mb-1.5">
             <div class="flex items-center gap-1.5 min-w-0">
-              <span class="${iconColor} text-sm shrink-0">${icon}</span>
-              <span class="font-semibold text-xs text-[var(--foreground)] truncate">${title}</span>
+              <span class="${safeIconColor} text-sm shrink-0">${safeIcon}</span>
+              <span class="font-semibold text-xs text-[var(--foreground)] truncate">${safeTitle}</span>
               ${tagsHTML}
+              ${shareBadgeHTML}
             </div>
             <div class="flex items-center gap-2 shrink-0 font-mono text-xs">
-              <span class="text-amber-400 font-medium">${timerStr}</span>
+              <span class="text-amber-400 font-medium">${safeTimerStr}</span>
               <span class="${theme.textColor} font-bold">${pct}%</span>
             </div>
           </div>
@@ -2601,13 +2658,31 @@
 
             <!-- Body: Models + Quota -->
             <div class="space-y-2.5">
-              ${profile === 'claude' ? `
-              <!-- Claude Provider: 2 hàng Quota thực tế (5H Session & 7D Weekly) -->
+              ${profile === 'claude' ? (() => {
+                const claudeBuckets = Array.isArray(data.quotaBuckets) && data.quotaBuckets.length > 0
+                  ? data.quotaBuckets
+                  : [data.gemini5h, data.geminiWeekly].filter(Boolean);
+                return `
+              <!-- Claude Provider: Dynamic Quota Buckets -->
               <div class="space-y-2.5">
-                ${renderDetailModelCard("✺", "text-amber-400", data.gemini5h.name, data.gemini5h.countdown, data.gemini5h.fraction, false, data.gemini5h.unavailable)}
-                ${renderDetailModelCard("✺", "text-amber-400", data.geminiWeekly.name, data.geminiWeekly.countdown, data.geminiWeekly.fraction, false, data.geminiWeekly.unavailable)}
+                ${claudeBuckets.map((bucket) => {
+                  const shareLabel = bucket && bucket.shareInfo && typeof bucket.shareInfo.label === 'string'
+                    ? bucket.shareInfo.label
+                    : '';
+                  return renderDetailModelCard(
+                    "✺",
+                    "text-amber-400",
+                    bucket?.name || bucket?.scopeLabel || "Claude Quota",
+                    bucket?.countdown || "",
+                    bucket?.fraction ?? 1.0,
+                    false,
+                    Boolean(bucket?.unavailable),
+                    shareLabel
+                  );
+                }).join('')}
               </div>
-              ` : (profile === 'codex' ? `
+              `;
+              })() : (profile === 'codex' ? `
               <!-- Codex Provider: Quota thực tế từ OpenAI Plan limits (5H Limit & Weekly Limit) -->
               <div class="space-y-2.5">
                 ${renderDetailModelCard("✱", "text-white", data.gemini5h.name, data.gemini5h.countdown, data.gemini5h.fraction, false, data.gemini5h.unavailable)}
@@ -2773,6 +2848,14 @@
     function getProfileQuotaScore(profile) {
       const d = PROFILES_DATA[profile];
       if (!d || d.status === "DISABLED" || d.status === "AUTH NEEDED") return -1;
+      if (Array.isArray(d.quotaBuckets) && d.quotaBuckets.length > 0) {
+        const total = d.quotaBuckets.reduce((sum, bucket) => {
+          if (!bucket || bucket.unavailable) return sum;
+          const frac = Number(bucket.fraction);
+          return sum + (Number.isFinite(frac) ? Math.max(0, Math.min(1, frac)) : 0);
+        }, 0);
+        return (total / d.quotaBuckets.length) * 100;
+      }
       const g5 = d.gemini5h?.unavailable ? 0 : (d.gemini5h?.fraction || 0);
       const c5 = d.claude5h?.unavailable ? 0 : (d.claude5h?.fraction || 0);
       const gw = d.geminiWeekly?.unavailable ? 0 : (d.geminiWeekly?.fraction || 0);
@@ -2976,7 +3059,12 @@
         const data = PROFILES_DATA[profile];
         if (!data) return;
 
-        if (search && !profile.toLowerCase().includes(search) && !(data.displayName && data.displayName.toLowerCase().includes(search))) return;
+        const bucketMatch = Array.isArray(data.quotaBuckets) && data.quotaBuckets.some((b) =>
+          (b?.name && String(b.name).toLowerCase().includes(search)) ||
+          (b?.scopeLabel && String(b.scopeLabel).toLowerCase().includes(search)) ||
+          (b?.kind && String(b.kind).toLowerCase().includes(search))
+        );
+        if (search && !profile.toLowerCase().includes(search) && !(data.displayName && data.displayName.toLowerCase().includes(search)) && !bucketMatch) return;
         if (statusFilter && statusFilter !== "ALL") {
           if (statusFilter === "PROVIDERS") {
             if (!data.isProvider) return;

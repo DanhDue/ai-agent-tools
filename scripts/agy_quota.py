@@ -1283,6 +1283,42 @@ def get_claude_oauth_token() -> tuple[str | None, str | None, bool]:
     return None, None, False
 
 
+def _merge_claude_utilization(existing_cache: dict | None, new_util: dict, account_uuid: str = "") -> dict:
+    """Merge live Claude usage into cached utilization without clobbering omitted richer fields."""
+    mod = _load_refresh_session_module()
+    if mod and hasattr(mod, "merge_claude_utilization"):
+        return mod.merge_claude_utilization(existing_cache, new_util, account_uuid=account_uuid)
+    cache = existing_cache if isinstance(existing_cache, dict) else {}
+    existing_util = cache.get("utilization")
+    existing_uuid = str(cache.get("accountUuid") or "").strip()
+    target_uuid = str(account_uuid or "").strip()
+    if not isinstance(existing_util, dict) or (existing_uuid and target_uuid and existing_uuid != target_uuid):
+        return dict(new_util)
+    merged = {**existing_util, **new_util}
+    if "limits" not in new_util and isinstance(existing_util.get("limits"), list):
+        five_h = new_util.get("five_hour")
+        seven_d = new_util.get("seven_day")
+        synced_limits = []
+        for entry in existing_util["limits"]:
+            if not isinstance(entry, dict):
+                synced_limits.append(entry)
+                continue
+            item = dict(entry)
+            if item.get("kind") == "session" and isinstance(five_h, dict):
+                if five_h.get("utilization") is not None:
+                    item["percent"] = five_h["utilization"]
+                if five_h.get("resets_at"):
+                    item["resets_at"] = five_h["resets_at"]
+            elif item.get("kind") == "weekly_all" and isinstance(seven_d, dict):
+                if seven_d.get("utilization") is not None:
+                    item["percent"] = seven_d["utilization"]
+                if seven_d.get("resets_at"):
+                    item["resets_at"] = seven_d["resets_at"]
+            synced_limits.append(item)
+        merged["limits"] = synced_limits
+    return merged
+
+
 def update_claude_json_cache(u: dict, account_uuid: str = ""):
     """Synchronize freshly fetched live usage into ~/.claude.json cachedUsageUtilization."""
     claude_json_path = Path(REAL_HOME) / ".claude.json"
@@ -1292,15 +1328,326 @@ def update_claude_json_cache(u: dict, account_uuid: str = ""):
                 c_data = json.load(f)
             if not account_uuid:
                 account_uuid = c_data.get("oauthAccount", {}).get("accountUuid", "")
+            merged_util = _merge_claude_utilization(
+                c_data.get("cachedUsageUtilization"),
+                u,
+                account_uuid=account_uuid,
+            )
             c_data["cachedUsageUtilization"] = {
                 "fetchedAtMs": int(time.time() * 1000),
                 "accountUuid": account_uuid,
-                "utilization": u,
+                "utilization": merged_util,
             }
             with open(claude_json_path, "w", encoding="utf-8") as f:
                 json.dump(c_data, f, indent=2)
         except Exception as e:
             sys.stderr.write(f"Warning: Failed to update .claude.json cache: {e}\n")
+
+
+def _humanize_claude_key(key: str) -> str:
+    """Convert snake_case Claude quota key or suffix into a readable display label."""
+    raw = str(key or "").strip()
+    if raw.startswith("seven_day_"):
+        raw = raw[len("seven_day_"):]
+    tokens = [tok for tok in raw.split("_") if tok]
+    if not tokens:
+        return "Scoped"
+    special = {"oauth": "OAuth", "api": "API", "ai": "AI", "cli": "CLI"}
+    return " ".join(special.get(tok.lower(), tok.capitalize()) for tok in tokens)
+
+
+def _format_claude_surface_label(surface: object) -> str:
+    """Extract readable surface name from string or dict scope.surface."""
+    if isinstance(surface, dict):
+        val = str(surface.get("display_name") or surface.get("name") or surface.get("id") or "").strip()
+    elif isinstance(surface, str):
+        val = surface.strip()
+    else:
+        val = ""
+    if not val:
+        return ""
+    if re.fullmatch(r"[a-z0-9_]+", val):
+        return _humanize_claude_key(val)
+    return val
+
+
+def _extract_claude_scope_label(scope: object) -> str:
+    """Extract combined model + surface label from a Claude limit scope object."""
+    if not isinstance(scope, dict):
+        return ""
+    model = scope.get("model")
+    if isinstance(model, dict):
+        model_label = str(model.get("display_name") or model.get("name") or model.get("id") or "").strip()
+    elif isinstance(model, str):
+        model_label = model.strip()
+    else:
+        model_label = ""
+    surface_label = _format_claude_surface_label(scope.get("surface"))
+    if model_label and surface_label:
+        return f"{model_label} · {surface_label}"
+    return model_label or surface_label
+
+
+def _format_claude_bucket_timing(
+    resets_at_iso: str,
+    group: str,
+    now_utc: datetime.datetime,
+) -> tuple[int, str, str]:
+    """Compute (reset_ts, reset_local, countdown) for a Claude quota bucket."""
+    resets_at_ts = 0
+    local_reset = ""
+    rem_sec = 0
+    iso_str = str(resets_at_iso or "").strip()
+    if iso_str:
+        try:
+            dt = datetime.datetime.fromisoformat(iso_str)
+            resets_at_ts = int(dt.timestamp())
+            local_reset = dt.astimezone().strftime("%H:%M:%S" if group == "session" else "%d/%m %H:%M")
+            rem_sec = max(0, int((dt - now_utc).total_seconds()))
+        except (ValueError, TypeError):
+            resets_at_ts = 0
+
+    if group == "session":
+        countdown = (
+            f"⏱ {rem_sec // 3600}h {(rem_sec % 3600) // 60}m"
+            if rem_sec > 0
+            else "⏱ 5h 00m (Reset xong)"
+        )
+    else:
+        if rem_sec > 0:
+            days = rem_sec // 86400
+            hours = (rem_sec % 86400) // 3600
+            mins = (rem_sec % 3600) // 60
+            countdown = f"⏱ {days}d {hours}h" if days > 0 else f"⏱ {hours}h {mins}m"
+        else:
+            countdown = "⏱ 7d 00h (Reset xong)"
+    if local_reset and rem_sec > 0:
+        countdown += f" ({local_reset})"
+    return resets_at_ts, local_reset, countdown
+
+
+def _build_claude_share_info(share_entry: object) -> dict | None:
+    """Normalize weekly_scoped_shares entry into UI/CLI-friendly shareInfo metadata."""
+    if not isinstance(share_entry, dict):
+        return None
+    limit_idx = share_entry.get("limit_index")
+    used_pct = share_entry.get("used_percent_of_weekly")
+    allowance_pct = share_entry.get("allowance_percent_of_weekly")
+    if allowance_pct is not None and used_pct is not None:
+        label = f"Allowance: {allowance_pct}% of weekly (used {used_pct}%)"
+    elif allowance_pct is not None:
+        label = f"Allowance: {allowance_pct}% of weekly"
+    elif used_pct is not None:
+        label = f"Used {used_pct}% of weekly"
+    else:
+        label = ""
+    return {
+        "limitIndex": limit_idx,
+        "usedPercentOfWeekly": used_pct,
+        "allowancePercentOfWeekly": allowance_pct,
+        "label": label,
+    }
+
+
+def _slugify_bucket_id(text: str, fallback: str) -> str:
+    """Generate a safe lowercase ASCII slug identifier for a dynamic bucket."""
+    slug = re.sub(r"[^a-z0-9]+", "_", str(text or "").lower()).strip("_")
+    return slug or fallback
+
+
+def _make_claude_bucket(
+    *,
+    bucket_id: str,
+    name: str,
+    group: str,
+    kind: str,
+    scope_label: str,
+    raw_percent: object,
+    resets_at_iso: str,
+    now_utc: datetime.datetime,
+    severity: str = "normal",
+    is_active: bool = False,
+    is_live: bool = False,
+    share_info: dict | None = None,
+    unavailable: bool = False,
+) -> dict:
+    """Construct a normalized Claude quota bucket dictionary."""
+    try:
+        utilization = float(raw_percent if raw_percent is not None else 0.0)
+    except (TypeError, ValueError):
+        utilization = 0.0
+    utilization = max(0.0, min(100.0, utilization))
+    fraction = max(0.0, min(1.0, (100.0 - utilization) / 100.0))
+    resets_at_ts, local_reset, countdown = _format_claude_bucket_timing(
+        resets_at_iso, group, now_utc
+    )
+    return {
+        "id": bucket_id,
+        "name": name,
+        "group": group,
+        "kind": kind,
+        "scopeLabel": scope_label,
+        "fraction": fraction,
+        "utilization": utilization,
+        "countdown": countdown,
+        "resetTime": str(resets_at_iso or ""),
+        "resetTimeLocal": local_reset,
+        "resetTimeTs": resets_at_ts,
+        "severity": str(severity or "normal"),
+        "isActive": bool(is_active),
+        "isLive": bool(is_live),
+        "shareInfo": share_info,
+        "unavailable": bool(unavailable),
+    }
+
+
+def build_claude_quota_buckets(
+    api_data: dict | None,
+    now_utc: datetime.datetime | None = None,
+    is_live: bool = False,
+) -> list[dict]:
+    """Normalize Anthropic limits[], weekly_scoped_shares, five_hour, seven_day, and seven_day_* into ordered buckets."""
+    data = api_data if isinstance(api_data, dict) else {}
+    now_ref = now_utc or datetime.datetime.now(datetime.timezone.utc)
+
+    shares_raw = data.get("weekly_scoped_shares")
+    share_by_idx: dict[int, dict] = {}
+    if isinstance(shares_raw, list):
+        for sh in shares_raw:
+            if isinstance(sh, dict) and isinstance(sh.get("limit_index"), int):
+                share_by_idx[sh["limit_index"]] = sh
+
+    buckets: list[dict] = []
+    seen_ids: set[str] = set()
+    seen_scopes: set[str] = set()
+    has_session = False
+    has_weekly_all = False
+
+    def _unique_id(base_id: str) -> str:
+        cand = base_id
+        suffix = 2
+        while cand in seen_ids:
+            cand = f"{base_id}_{suffix}"
+            suffix += 1
+        seen_ids.add(cand)
+        return cand
+
+    limits_raw = data.get("limits")
+    if isinstance(limits_raw, list):
+        for idx, entry in enumerate(limits_raw):
+            if not isinstance(entry, dict):
+                continue
+            kind = str(entry.get("kind") or "").strip() or f"limit_{idx}"
+            group = str(entry.get("group") or ("session" if kind == "session" else "weekly")).strip()
+            scope_label = _extract_claude_scope_label(entry.get("scope"))
+            raw_pct = entry.get("percent")
+            if raw_pct is None:
+                raw_pct = entry.get("utilization")
+            resets_at_iso = str(entry.get("resets_at") or "").strip()
+            severity = str(entry.get("severity") or "normal").strip()
+            is_active = bool(entry.get("is_active"))
+            share_info = _build_claude_share_info(share_by_idx.get(idx))
+
+            if kind == "session" or (group == "session" and not scope_label):
+                has_session = True
+                name = "Claude 5H Session Window"
+                bucket_id = _unique_id("session")
+            elif kind == "weekly_all":
+                has_weekly_all = True
+                name = "Claude 7D Weekly Remaining"
+                bucket_id = _unique_id("weekly_all")
+            else:
+                prefix = "Claude 5H" if group == "session" else ("Claude 7D" if group == "weekly" or kind.startswith("weekly") else "Claude")
+                label_part = scope_label or _humanize_claude_key(kind)
+                name = f"{prefix} — {label_part}"
+                slug = _slugify_bucket_id(scope_label or kind, f"idx_{idx}")
+                bucket_id = _unique_id(f"{kind}_{slug}" if scope_label else kind)
+                if scope_label:
+                    seen_scopes.add(scope_label.lower())
+
+            buckets.append(
+                _make_claude_bucket(
+                    bucket_id=bucket_id,
+                    name=name,
+                    group=group,
+                    kind=kind,
+                    scope_label=scope_label,
+                    raw_percent=raw_pct,
+                    resets_at_iso=resets_at_iso,
+                    now_utc=now_ref,
+                    severity=severity,
+                    is_active=is_active,
+                    is_live=is_live,
+                    share_info=share_info,
+                    unavailable=bool(entry.get("locked_reason")),
+                )
+            )
+
+    if not has_session:
+        five_h = data.get("five_hour") if isinstance(data.get("five_hour"), dict) else {}
+        is_act_5h, _, _, _ = evaluate_claude_5h_session(data, now_utc=now_ref)
+        buckets.append(
+            _make_claude_bucket(
+                bucket_id=_unique_id("session"),
+                name="Claude 5H Session Window",
+                group="session",
+                kind="session",
+                scope_label="",
+                raw_percent=five_h.get("utilization", 0),
+                resets_at_iso=str(five_h.get("resets_at") or ""),
+                now_utc=now_ref,
+                is_active=is_act_5h,
+                is_live=is_live,
+                unavailable=bool(five_h.get("locked_reason")),
+            )
+        )
+
+    if not has_weekly_all:
+        seven_d = data.get("seven_day") if isinstance(data.get("seven_day"), dict) else {}
+        buckets.append(
+            _make_claude_bucket(
+                bucket_id=_unique_id("weekly_all"),
+                name="Claude 7D Weekly Remaining",
+                group="weekly",
+                kind="weekly_all",
+                scope_label="",
+                raw_percent=seven_d.get("utilization", 0),
+                resets_at_iso=str(seven_d.get("resets_at") or ""),
+                now_utc=now_ref,
+                is_live=is_live,
+                unavailable=bool(seven_d.get("locked_reason")),
+            )
+        )
+
+    for key, val in data.items():
+        if not key.startswith("seven_day_") or key == "seven_day_breakdown":
+            continue
+        if not isinstance(val, dict) or not any(k in val for k in ("utilization", "percent", "resets_at")):
+            continue
+        scope_label = _humanize_claude_key(key)
+        raw_suffix = key[len("seven_day_"):].lower()
+        if scope_label.lower() in seen_scopes or raw_suffix in seen_scopes:
+            continue
+        seen_scopes.add(scope_label.lower())
+        raw_pct = val.get("utilization")
+        if raw_pct is None:
+            raw_pct = val.get("percent", 0)
+        buckets.append(
+            _make_claude_bucket(
+                bucket_id=_unique_id(key),
+                name=f"Claude 7D — {scope_label}",
+                group="weekly",
+                kind=key,
+                scope_label=scope_label,
+                raw_percent=raw_pct,
+                resets_at_iso=str(val.get("resets_at") or ""),
+                now_utc=now_ref,
+                is_live=is_live,
+                unavailable=bool(val.get("locked_reason")),
+            )
+        )
+
+    return buckets
 
 
 def fetch_claude_quota() -> dict:
@@ -1350,44 +1697,35 @@ def fetch_claude_quota() -> dict:
     if not api_data:
         api_data = c_data.get("cachedUsageUtilization", {}).get("utilization", {})
 
-    five_h = api_data.get("five_hour") or {}
-    utilization_5h = five_h.get("utilization", 0)
-    resets_at_5h_iso = five_h.get("resets_at", "")
-
-    seven_d = api_data.get("seven_day") or {}
-    utilization_7d = seven_d.get("utilization", 0)
-    resets_at_7d_iso = seven_d.get("resets_at", "")
-
     now_utc = datetime.datetime.now(datetime.timezone.utc)
-    is_active_5h, rem_sec_5h, resets_at_5h_ts, local_reset_5h = evaluate_claude_5h_session(
-        api_data, now_utc=now_utc
+    quota_buckets = build_claude_quota_buckets(api_data, now_utc=now_utc, is_live=is_live)
+
+    session_bucket = next(
+        (b for b in quota_buckets if b["kind"] == "session" or b["group"] == "session"),
+        quota_buckets[0],
+    )
+    weekly_bucket = next(
+        (b for b in quota_buckets if b["kind"] == "weekly_all"),
+        next((b for b in quota_buckets if b["group"] == "weekly"), quota_buckets[-1]),
     )
 
-    rem_sec_7d = 0
-    resets_at_7d_ts = 0
-    local_reset_7d = ""
-    if resets_at_7d_iso:
-        try:
-            dt_7d = datetime.datetime.fromisoformat(resets_at_7d_iso.replace("Z", "+00:00"))
-            resets_at_7d_ts = int(dt_7d.timestamp())
-            local_reset_7d = dt_7d.astimezone().strftime("%d/%m %H:%M")
-            rem_sec_7d = max(0, int((dt_7d - now_utc).total_seconds()))
-        except Exception:
-            pass
+    is_active_5h, _, eval_resets_ts, eval_local_reset = evaluate_claude_5h_session(
+        api_data, now_utc=now_utc
+    )
+    if session_bucket["isActive"]:
+        is_active_5h = True
 
-    # Strictly calculate REMAINING percentage (100% - utilization%)
-    fraction_5h = max(0.0, min(1.0, (100.0 - float(utilization_5h)) / 100.0))
-    fraction_7d = max(0.0, min(1.0, (100.0 - float(utilization_7d)) / 100.0))
+    fraction_5h = session_bucket["fraction"]
+    resets_at_5h_iso = session_bucket["resetTime"]
+    local_reset_5h = eval_local_reset or session_bucket["resetTimeLocal"]
+    resets_at_5h_ts = eval_resets_ts or session_bucket.get("resetTimeTs", 0)
+    countdown_5h = session_bucket["countdown"]
 
-    countdown_5h = f"⏱ {rem_sec_5h // 3600}h {(rem_sec_5h % 3600) // 60}m" if rem_sec_5h > 0 else "⏱ 5h 00m (Reset xong)"
-    if local_reset_5h and rem_sec_5h > 0:
-        countdown_5h += f" ({local_reset_5h})"
-
-    days_7d = rem_sec_7d // 86400
-    hours_7d = (rem_sec_7d % 86400) // 3600
-    countdown_7d = f"⏱ {days_7d}d {hours_7d}h" if rem_sec_7d > 0 else "⏱ 7d 00h (Reset xong)"
-    if local_reset_7d and rem_sec_7d > 0:
-        countdown_7d += f" ({local_reset_7d})"
+    fraction_7d = weekly_bucket["fraction"]
+    resets_at_7d_iso = weekly_bucket["resetTime"]
+    local_reset_7d = weekly_bucket["resetTimeLocal"]
+    resets_at_7d_ts = weekly_bucket.get("resetTimeTs", 0)
+    countdown_7d = weekly_bucket["countdown"]
 
     # Status handling
     if not is_logged_in and not is_live:
@@ -1406,6 +1744,11 @@ def fetch_claude_quota() -> dict:
     # Save to hashed SQLite session store
     save_session_record("claude", resets_at_5h_ts, resets_at_7d_ts, fraction_5h, is_active_5h)
 
+    public_buckets = [
+        {k: v for k, v in b.items() if k != "resetTimeTs"}
+        for b in quota_buckets
+    ]
+
     return {
         "profile": "claude",
         "displayName": "Claude Code",
@@ -1420,13 +1763,14 @@ def fetch_claude_quota() -> dict:
         "resetTimeLocal": local_reset_5h,
         "remainingCountdown": countdown_5h_card,
         "hasArgon": True,
+        "quotaBuckets": public_buckets,
         "gemini5h": {
-            "name": "Claude 5H Session Window",
+            "name": session_bucket["name"],
             "fraction": fraction_5h,
             "countdown": countdown_5h,
             "resetTime": resets_at_5h_iso,
             "resetTimeLocal": local_reset_5h,
-            "unavailable": False,
+            "unavailable": session_bucket["unavailable"],
             "isLive": is_live,
         },
         "claude5h": {
@@ -1438,12 +1782,12 @@ def fetch_claude_quota() -> dict:
             "unavailable": False,
         },
         "geminiWeekly": {
-            "name": "Claude 7D Weekly Remaining",
+            "name": weekly_bucket["name"],
             "fraction": fraction_7d,
             "countdown": countdown_7d,
             "resetTime": resets_at_7d_iso,
             "resetTimeLocal": local_reset_7d,
-            "unavailable": False,
+            "unavailable": weekly_bucket["unavailable"],
         },
         "claudeWeekly": {
             "name": "Anthropic Rate Limit Scope",
@@ -1949,22 +2293,50 @@ def fetch_kiro_quota() -> dict:
     }
 
 
+_TERMINAL_ESCAPE_RE = re.compile(r"\x1b(?:\[[0-9;?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[@-Z\\-_])")
+_CONTROL_CHARS_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]+")
+
+
+def _sanitize_terminal_text(value: object) -> str:
+    """Strip ANSI escape sequences and control characters before terminal output."""
+    if value is None:
+        return ""
+    cleaned = _TERMINAL_ESCAPE_RE.sub("", str(value))
+    cleaned = _CONTROL_CHARS_RE.sub(" ", cleaned)
+    return " ".join(cleaned.split())
+
+
+def _extract_claude_bucket_render_args(bucket: dict) -> tuple[str, str, float, bool, str]:
+    """Normalize a Claude bucket dict into sanitized render_card inputs and share label."""
+    title = _sanitize_terminal_text(bucket.get("name") or bucket.get("scopeLabel") or "Claude Quota") or "Claude Quota"
+    countdown = _sanitize_terminal_text(bucket.get("countdown") or "")
+    raw_fraction = bucket.get("fraction", 1.0)
+    try:
+        fraction = max(0.0, min(1.0, float(1.0 if raw_fraction is None else raw_fraction)))
+    except (TypeError, ValueError):
+        fraction = 1.0
+    available = not bool(bucket.get("unavailable", False))
+    share = bucket.get("shareInfo") if isinstance(bucket.get("shareInfo"), dict) else {}
+    share_label = _sanitize_terminal_text(share.get("label") or "")
+    return title, countdown, fraction, available, share_label
+
+
 def print_claude_card(data: dict):
-    tier = data.get("tier", "ANTHROPIC")
-    email = data.get("email", "")
-    status = data.get("status", "ACTIVE")
-    g5h = data.get("gemini5h", {})
-    g7d = data.get("geminiWeekly", {})
-    frac_5h = g5h.get("fraction", 1.0)
-    frac_7d = g7d.get("fraction", 1.0)
-    cd_5h = g5h.get("countdown", "")
-    cd_7d = g7d.get("countdown", "")
-    is_live = g5h.get("isLive", False)
+    tier = _sanitize_terminal_text(data.get("tier", "ANTHROPIC")) or "ANTHROPIC"
+    email = _sanitize_terminal_text(data.get("email", ""))
+    status = _sanitize_terminal_text(data.get("status", "ACTIVE")) or "ACTIVE"
+    g5h = data.get("gemini5h") if isinstance(data.get("gemini5h"), dict) else {}
+    g7d = data.get("geminiWeekly") if isinstance(data.get("geminiWeekly"), dict) else {}
+    raw_buckets = data.get("quotaBuckets")
+    buckets = [b for b in raw_buckets if isinstance(b, dict)] if isinstance(raw_buckets, list) else []
+    if not buckets:
+        buckets = [b for b in (g5h, g7d) if b] or [g5h, g7d]
+    is_live = bool(g5h.get("isLive", False) or any(bool(b.get("isLive", False)) for b in buckets))
 
     if status == "ACTIVE":
         status_tag = f"\033[38;2;114;188;130m🟢 {status}\033[0m"
     elif status in ("NEED_LOGIN", "AUTH NEEDED"):
-        status_tag = f"\033[38;2;245;158;11m🔑 NEED LOGIN\033[0m"
+        status_tag = "\033[38;2;245;158;11m🔑 NEED LOGIN\033[0m"
     else:
         status_tag = f"\033[38;2;239;68;68m🔴 {status}\033[0m"
 
@@ -1976,10 +2348,23 @@ def print_claude_card(data: dict):
     if email:
         print(f"  {DIM}Account: {email}{RESET}")
 
-    c1 = render_card("✺", "\033[38;2;251;146;60m", "Claude 5H Session Window", cd_5h, frac_5h, width=45)
-    c2 = render_card("✺", "\033[38;2;251;146;60m", "Claude 7D Weekly Remaining", cd_7d, frac_7d, width=45)
-    for l1, l2 in zip(c1, c2):
-        print(l1 + "  " + l2)
+    claude_orange = "\033[38;2;251;146;60m"
+    for idx in range(0, len(buckets), 2):
+        title1, cd1, frac1, avail1, share1 = _extract_claude_bucket_render_args(buckets[idx])
+        if idx + 1 < len(buckets):
+            title2, cd2, frac2, avail2, share2 = _extract_claude_bucket_render_args(buckets[idx + 1])
+            c1 = render_card("✺", claude_orange, title1, cd1, frac1, width=45, available=avail1)
+            c2 = render_card("✺", claude_orange, title2, cd2, frac2, width=45, available=avail2)
+            for l1, l2 in zip(c1, c2):
+                print(l1 + "  " + l2)
+            row_shares = [(t, s) for t, s in ((title1, share1), (title2, share2)) if s]
+        else:
+            c1 = render_card("✺", claude_orange, title1, cd1, frac1, width=92, available=avail1)
+            for line in c1:
+                print(line)
+            row_shares = [(title1, share1)] if share1 else []
+        for title, share_label in row_shares:
+            print(f"  {DIM}↳ {title}: {share_label}{RESET}")
 
     print(f" {DIM}⚙️  Actions:{RESET}")
     print(f"   \033[38;2;56;189;248m⚡ Refresh nhanh\033[0m : {DIM}check-quota refresh claude{RESET}")
