@@ -619,7 +619,7 @@ def _is_epic_eligible_for_active(
         return False
     if abandoned_slugs and _is_completed_epic(slug, abandoned_slugs):
         return False
-    return hld_status not in ("done", "abandon", "abandoned", "packaged")
+    return hld_status not in ("done", "abandon", "abandoned")
 
 
 def _normalize_slug(slug: str) -> str:
@@ -985,6 +985,9 @@ def resolve_active_epic(repo_path: Path) -> str | None:
         canonical = _resolve_canonical_epic_slug(repo_path, ep)
         ep_dir = repo_path / ".devtool" / "epic" / canonical
         hld_st = extract_epic_hld_status(ep_dir, canonical) if ep_dir.is_dir() else None
+        gate_num = _safe_int_val(row.get("gate"), 0)
+        if hld_st == "packaged" and gate_num < 3:
+            continue
         if _is_epic_eligible_for_active(
             canonical, completed_slugs, abandoned_slugs, hld_st
         ):
@@ -1109,6 +1112,70 @@ def find_epic_worktree_path(repo_path: Path, active_epic: str | None) -> Path:
     return repo_path
 
 
+def _has_epic_active_tasks(repo_path: Path, slug: str) -> bool:
+    """Return True if any task file for this epic has active status (in-progress, review, done)."""
+    variants = _collect_slug_variants(slug)
+    task_dirs = [repo_path / ".devtool" / "epic" / v for v in variants]
+    wt_root = repo_path / ".worktrees"
+    if wt_root.is_dir():
+        with contextlib.suppress(OSError):
+            for wt in wt_root.iterdir():
+                if wt.is_dir() and _normalize_slug(wt.name) == _normalize_slug(slug):
+                    task_dirs.extend(
+                        [
+                            wt / ".devtool" / "features",
+                            wt / ".devtool" / "features" / "done",
+                            *[wt / ".devtool" / "epic" / v for v in variants],
+                        ]
+                    )
+    for td in task_dirs:
+        if not td.is_dir():
+            continue
+        with contextlib.suppress(OSError):
+            for tf in td.glob("task_*.md"):
+                fm = parse_frontmatter(tf.read_text(encoding="utf-8"))
+                if fm.get("status") in ("in-progress", "review", "done"):
+                    return True
+    return False
+
+
+def _has_epic_stream_events(repo_path: Path, slug: str) -> bool:
+    """Return True if any append-only event stream file exists for this epic."""
+    variants = _collect_slug_variants(slug)
+    variants_set = set(variants)
+    norm_target = _normalize_slug(slug)
+    devtool_dirs = _collect_devtool_dirs(repo_path, active_epic=slug)
+    for dt_dir in devtool_dirs:
+        for subdir in ("logs", "archive"):
+            td = dt_dir / subdir
+            if not td.is_dir():
+                continue
+            with contextlib.suppress(OSError):
+                for entry in td.glob("events_*.jsonl"):
+                    if _matches_epic_artifact_filename(
+                        entry.name, "events_", ".jsonl", variants_set, norm_target
+                    ):
+                        return True
+    return False
+
+
+def _is_packaged_epic_promoted(
+    repo_path: Path,
+    slug: str,
+    *,
+    has_wt: bool = False,
+    has_gate3_or_more: bool = False,
+    has_active_telemetry: bool = False,
+    has_active_tasks: bool | None = None,
+) -> bool:
+    """Return True if a packaged epic has started implementation (Stage 3+)."""
+    if has_wt or has_gate3_or_more or has_active_telemetry:
+        return True
+    if has_active_tasks is None:
+        has_active_tasks = _has_epic_active_tasks(repo_path, slug)
+    return bool(has_active_tasks)
+
+
 def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
     """Harvest high-level project epics summary and status breakdown from the root repository."""
     epic_dir = repo_path / ".devtool" / "epic"
@@ -1143,6 +1210,9 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
                 _read_epic_heartbeat(repo_path, slug) is not None
                 or (repo_path / ".devtool" / "state" / f"{slug}.md").is_file()
             )
+            has_active_telemetry = has_active_hb or _has_epic_stream_events(
+                repo_path, slug
+            )
 
             # Status determination (HLD status is SSOT for Done/Abandon)
             if hld_status == "done" or _is_completed_epic(slug, completed_slugs):
@@ -1155,10 +1225,17 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
                     if hld_status in ("abandon", "abandoned")
                     else "abandoned"
                 )
-            elif hld_status == "packaged" and not (
-                has_wt or has_gate3_or_more or has_active_hb
-            ):
-                status = "packaged"
+            elif hld_status == "packaged":
+                if _is_packaged_epic_promoted(
+                    repo_path,
+                    slug,
+                    has_wt=has_wt,
+                    has_gate3_or_more=has_gate3_or_more,
+                    has_active_telemetry=has_active_telemetry,
+                ):
+                    status = "in_progress"
+                else:
+                    status = "packaged"
             elif (
                 has_wt
                 or hld_status == "in_progress"
@@ -1166,12 +1243,10 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
                     _is_epic_eligible_for_active(
                         slug, completed_slugs, abandoned_slugs, hld_status
                     )
-                    and (has_gate1_or_more or has_active_hb)
+                    and (has_gate1_or_more or has_active_telemetry)
                 )
             ):
                 status = "in_progress"
-            elif hld_status == "packaged":
-                status = "packaged"
             else:
                 status = "unstarted"
 
@@ -3421,6 +3496,8 @@ def _merge_epic_heartbeats(repo_path: Path, epic_slug: str) -> dict[str, Any]:
     step_events: list[dict[str, Any]] = []
     seen_exact: set[tuple[str, str, str, str, str]] = set()
     stream_msg_keys: set[tuple[str, str, str, str]] = set()
+    stream_base_msg_keys: set[tuple[str, str, str]] = set()
+    stream_base_exact_keys: set[tuple[str, str, str, str]] = set()
     has_stream = False
 
     for s_path in stream_files:
@@ -3433,6 +3510,10 @@ def _merge_epic_heartbeats(repo_path: Path, epic_slug: str) -> dict[str, Any]:
                 continue
             seen_exact.add(exact_key)
             stream_msg_keys.add((ev["stage"], ev["sub_step"], ev["message"], rev_key))
+            stream_base_msg_keys.add((ev["stage"], ev["sub_step"], ev["message"]))
+            stream_base_exact_keys.add(
+                (ev["ts"], ev["stage"], ev["sub_step"], ev["message"])
+            )
             step_events.append(ev)
 
     best_hb: dict[str, Any] | None = None
@@ -3479,6 +3560,28 @@ def _merge_epic_heartbeats(repo_path: Path, epic_slug: str) -> dict[str, Any]:
                 hb_ev["message"],
                 rev_key,
             )
+            base_exact = (
+                hb_ev["ts"],
+                hb_ev["stage"],
+                hb_ev["sub_step"],
+                hb_ev["message"],
+            )
+            base_msg = (
+                hb_ev["stage"],
+                hb_ev["sub_step"],
+                hb_ev["message"],
+            )
+            # If heartbeat event omits review_state and stream already contains this event, drop it as duplicate
+            if (
+                not rev_key
+                and has_stream
+                and (
+                    base_exact in stream_base_exact_keys
+                    or base_msg in stream_base_msg_keys
+                )
+            ):
+                continue
+
             if exact_key in seen_exact or msg_key in stream_msg_keys:
                 continue
             seen_exact.add(exact_key)
@@ -3834,17 +3937,32 @@ def _build_unified_timeline(
             }
         )
 
+    # First pass: collect which (ts, category, sub_step, message) tuples have at least one non-empty review_state
+    has_nonempty_rev: set[tuple[str, str, str, str]] = set()
+    for item in raw_items:
+        rev_k = _review_state_key(item.get("review_state"))
+        if rev_k:
+            b_key = (
+                str(item.get("ts") or ""),
+                str(item.get("category") or ""),
+                str(item.get("sub_step") or ""),
+                str(item.get("message") or ""),
+            )
+            has_nonempty_rev.add(b_key)
+
     deduped: list[dict[str, Any]] = []
     seen: set[tuple[str, str, str, str, str]] = set()
     for item in raw_items:
         rev_key = _review_state_key(item.get("review_state"))
-        key = (
+        base_key = (
             str(item.get("ts") or ""),
             str(item.get("category") or ""),
             str(item.get("sub_step") or ""),
             str(item.get("message") or ""),
-            rev_key,
         )
+        if not rev_key and base_key in has_nonempty_rev:
+            continue
+        key = (*base_key, rev_key)
         if key in seen:
             continue
         seen.add(key)
@@ -3956,24 +4074,26 @@ def harvest_epic_history(repo_path: Path, epic_slug: str) -> dict[str, Any]:
         epic_slug, abandoned_slugs
     ):
         status = hld_status if hld_status in ("abandon", "abandoned") else "abandoned"
-    elif hld_status == "packaged" and not (
-        matching_wts
-        or has_gate3_or_more
-        or merged_hb["has_heartbeat"]
-        or merged_hb["has_stream"]
-    ):
-        status = "packaged"
+    elif hld_status == "packaged":
+        if _is_packaged_epic_promoted(
+            repo_path,
+            epic_slug,
+            has_wt=bool(matching_wts),
+            has_gate3_or_more=has_gate3_or_more,
+            has_active_telemetry=merged_hb["has_heartbeat"] or merged_hb["has_stream"],
+            has_active_tasks=False,  # Checked below when tasks are collected
+        ):
+            status = "in_progress"
+        else:
+            status = "packaged"
     elif (
         matching_wts
         or hld_status == "in_progress"
-        or has_gate3_or_more
-        or (gate_entries and hld_status != "packaged")
+        or gate_entries
         or merged_hb["has_heartbeat"]
         or merged_hb["has_stream"]
     ):
         status = "in_progress"
-    elif hld_status == "packaged":
-        status = "packaged"
     else:
         status = "unstarted"
 

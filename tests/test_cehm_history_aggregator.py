@@ -23,6 +23,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+import pytest  # type: ignore[import-not-found]
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = REPO_ROOT / "skills" / "check-tasks" / "resources" / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
@@ -884,3 +886,234 @@ def test_cehm_regression_round1_unreadable_review_files_resilience(
     assert len(payload["timeline"]) >= 1
     assert payload["reviews"]["principal"]["present"] is False
     assert payload["reviews"]["cross_model"]["present"] is False
+
+
+@pytest.mark.parametrize(
+    ("stream_same_ts", "hb_shift_ts"),
+    [
+        (True, False),  # Identical timestamps across stream transitions and heartbeat
+        (False, False),  # Sequential timestamps across stream transitions
+        (True, True),  # Shifted timestamp on heartbeat (idle tick)
+        (False, True),  # Sequential timestamps + shifted heartbeat
+    ],
+)
+def test_cehm_regression_round2_review_heartbeat_overlap_deduplication(
+    tmp_path: Path,
+    stream_same_ts: bool,
+    hb_shift_ts: bool,
+) -> None:
+    """Regression #1 (Round 2): Overlapping heartbeat omitting review_state must deduplicate against stream."""
+    repo = tmp_path / f"dedup_repo_{stream_same_ts}_{hb_shift_ts}"
+    epic_slug = "review_dedup_r2"
+    epic_dir = repo / ".devtool" / "epic" / epic_slug
+    _write_text(
+        epic_dir / f"{epic_slug}.en.md",
+        "# Epic: Review Dedup Epic R2\n\n- **Status**: In Progress\n",
+    )
+
+    ts1 = "2026-11-14T21:00:00Z"
+    ts2 = "2026-11-14T21:00:00Z" if stream_same_ts else "2026-11-14T21:00:05Z"
+    ts_hb = "2026-11-14T21:00:10Z" if hb_shift_ts else ts2
+
+    ev1 = {
+        "ts": ts1,
+        "epic": epic_slug,
+        "stage": "Stage 5",
+        "sub_step": "review",
+        "message": "cross-model review",
+        "review_state": {
+            "kind": "code",
+            "round": 1,
+            "phase": "reviewing",
+            "cli": "codex",
+        },
+    }
+    ev2 = {
+        "ts": ts2,
+        "epic": epic_slug,
+        "stage": "Stage 5",
+        "sub_step": "review",
+        "message": "cross-model review",
+        "review_state": {
+            "kind": "code",
+            "round": 1,
+            "phase": "triage",
+            "action": "AUTO_FIX_ELIGIBLE",
+        },
+    }
+    stream_file = repo / ".devtool" / "logs" / f"events_{epic_slug}.jsonl"
+    _write_text(stream_file, json.dumps(ev1) + "\n" + json.dumps(ev2) + "\n")
+
+    # Production heartbeat events ring buffer omits review_state
+    hb_item = {
+        "ts": ts_hb,
+        "stage": "Stage 5",
+        "sub_step": "review",
+        "message": "cross-model review",
+    }
+    _write_json(
+        repo / ".devtool" / "state" / f"{epic_slug}.heartbeat.json",
+        {
+            "generation": 1,
+            "epic_slug": epic_slug,
+            "stage": "Stage 5",
+            "sub_step": "review",
+            "updated_at": ts_hb,
+            "events": [hb_item],
+        },
+    )
+
+    merged = check_tasks._merge_epic_heartbeats(repo, epic_slug)
+    # Must contain exactly 2 events (the two stream transitions), NOT 3!
+    assert len(merged["step_events"]) == 2
+    assert merged["step_events"][0]["review_state"]["phase"] == "reviewing"
+    assert merged["step_events"][1]["review_state"]["phase"] == "triage"
+
+    history = check_tasks.harvest_epic_history(repo, epic_slug)
+    timeline_steps = [ev for ev in history["timeline"] if ev.get("category") == "step"]
+    assert len(timeline_steps) == 2
+    assert timeline_steps[0]["review_state"]["phase"] == "reviewing"
+    assert timeline_steps[1]["review_state"]["phase"] == "triage"
+
+
+def test_cehm_regression_round2_unified_timeline_ordering_and_tie_breaking(
+    tmp_path: Path,
+) -> None:
+    """Regression #1 order-invariance: If heartbeat empty review_state precedes stream, stream still wins."""
+    repo = tmp_path / "order_repo"
+    raw_step_events: list[dict[str, Any]] = [
+        # Heartbeat event (omits review_state) comes FIRST
+        {
+            "ts": "2026-11-14T21:00:00Z",
+            "category": "step",
+            "stage": "Stage 5",
+            "sub_step": "review",
+            "message": "cross-model review",
+            "source": "heartbeat",
+        },
+        # Followed by stream event 1
+        {
+            "ts": "2026-11-14T21:00:00Z",
+            "category": "step",
+            "stage": "Stage 5",
+            "sub_step": "review",
+            "message": "cross-model review",
+            "source": "stream",
+            "review_state": {"phase": "reviewing"},
+        },
+        # And stream event 2
+        {
+            "ts": "2026-11-14T21:00:00Z",
+            "category": "step",
+            "stage": "Stage 5",
+            "sub_step": "review",
+            "message": "cross-model review",
+            "source": "stream",
+            "review_state": {"phase": "triage"},
+        },
+    ]
+    timeline = check_tasks._build_unified_timeline(
+        repo, "test_epic", raw_step_events, [], [], []
+    )
+    assert len(timeline) == 2
+    phases = [ev["review_state"]["phase"] for ev in timeline]
+    assert "reviewing" in phases
+    assert "triage" in phases
+
+
+@pytest.mark.parametrize(
+    (
+        "variant_name",
+        "has_gate3",
+        "has_wt",
+        "has_active_task",
+        "has_active_telemetry",
+        "expected_status",
+    ),
+    [
+        ("gate1_gate2_only", False, False, False, False, "packaged"),
+        ("gate3_approved_no_wt", True, False, False, False, "in_progress"),
+        ("worktree_present", False, True, False, False, "in_progress"),
+        ("active_task_present", False, False, True, False, "in_progress"),
+        ("active_telemetry_hb", False, False, False, True, "in_progress"),
+    ],
+)
+def test_cehm_regression_round2_packaged_hld_roadmap_and_history_parity(
+    tmp_path: Path,
+    variant_name: str,
+    has_gate3: bool,
+    has_wt: bool,
+    has_active_task: bool,
+    has_active_telemetry: bool,
+    expected_status: str,
+) -> None:
+    """Regression #2 (Round 2): Packaged HLD parity across scan_repo (Roadmap) and harvest_epic_history (History)."""
+    repo = tmp_path / f"parity_repo_{variant_name}"
+    epic_slug = f"parity_epic_{variant_name}"
+    epic_dir = repo / ".devtool" / "epic" / epic_slug
+    _write_text(
+        epic_dir / f"{epic_slug}.en.md",
+        f"---\nstatus: packaged\n---\n\n# Epic: Parity {variant_name}\n\n- **Status**: Packaged\n",
+    )
+
+    # Base ledger: Gate 1 and Gate 2
+    ledger_lines = [
+        "# Gate Ledger\n",
+        f"| 2026-11-14T10:00:00Z | {epic_slug} | 1 | Architect | a1b2c3d | Gate 1 Inception |",
+        f"| 2026-11-14T11:00:00Z | {epic_slug} | 2 | Architect | d4e5f6a | Gate 2 Packaging |",
+    ]
+    if has_gate3:
+        ledger_lines.append(
+            f"| 2026-11-14T12:00:00Z | {epic_slug} | 3 | Architect | g7h8i9j | Gate 3 Approved |"
+        )
+    _write_text(repo / ".devtool" / "GATE_LEDGER.md", "\n".join(ledger_lines) + "\n")
+
+    if has_wt:
+        (repo / ".worktrees" / epic_slug).mkdir(parents=True, exist_ok=True)
+
+    if has_active_task:
+        _write_text(
+            epic_dir / "task_01_core.md",
+            f"---\nepic: {epic_slug}\nstatus: in-progress\n---\n\n# Task 1\n",
+        )
+    else:
+        # Idle task in todo state
+        _write_text(
+            epic_dir / "task_01_core.md",
+            f"---\nepic: {epic_slug}\nstatus: todo\n---\n\n# Task 1\n",
+        )
+
+    if has_active_telemetry:
+        _write_json(
+            repo / ".devtool" / "state" / f"{epic_slug}.heartbeat.json",
+            {
+                "generation": 1,
+                "epic_slug": epic_slug,
+                "stage": "tasks",
+                "sub_step": "coding",
+                "updated_at": "2026-11-14T12:30:00Z",
+                "events": [
+                    {
+                        "ts": "2026-11-14T12:30:00Z",
+                        "stage": "tasks",
+                        "sub_step": "coding",
+                        "message": "Active coding task",
+                    }
+                ],
+            },
+        )
+
+    # Verify History modal status
+    history = check_tasks.harvest_epic_history(repo, epic_slug)
+    assert history["epic"]["status"] == expected_status, (
+        f"History status mismatch for {variant_name}: expected {expected_status}, got {history['epic']['status']}"
+    )
+
+    # Verify Roadmap (scan_repo) status
+    meta = check_tasks.scan_repo(repo)
+    assert meta.epics_summary is not None
+    matching = [e for e in meta.epics_summary.epics if e.get("slug") == epic_slug]
+    assert len(matching) == 1
+    assert matching[0]["status"] == expected_status, (
+        f"Roadmap status mismatch for {variant_name}: expected {expected_status}, got {matching[0]['status']}"
+    )
