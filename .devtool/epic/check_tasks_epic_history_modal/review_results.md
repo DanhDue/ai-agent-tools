@@ -65,7 +65,7 @@ Verdict: CHANGES REQUIRED
 
 | # | Severity | Location | Problem | Decision |
 |---|----------|----------|---------|----------|
-| 1 | Important | skills/check-tasks/resources/scripts/check_tasks.py:1136 | [NEW_REGRESSION] _has_epic_active_tasks only suppresses OSError around tf.read_text(encoding="utf-8"); a non-UTF-8 or partially written task_*.md in an otherwise unpromoted Packaged epic raises UnicodeDecodeError out of harvest_epics_overview/scan_repo and aborts the whole Roadmap overview (probe: same fixture is OK at e8c78f6 and raises at 4652f0f); suppress UnicodeDecodeError per file |  |
+| 1 | Important | skills/check-tasks/resources/scripts/check_tasks.py:1136 | [NEW_REGRESSION] _has_epic_active_tasks only suppresses OSError around tf.read_text(encoding="utf-8"); a non-UTF-8 or partially written task_*.md in an otherwise unpromoted Packaged epic raises UnicodeDecodeError out of harvest_epics_overview/scan_repo and aborts the whole Roadmap overview (probe: same fixture is OK at e8c78f6 and raises at 4652f0f); suppress UnicodeDecodeError per file | fixed in 2c159bc: Valid - suppressed (OSError, UnicodeDecodeError) per task file in _has_epic_active_tasks so non-UTF-8 or corrupt task_*.md files never abort scan_repo, harvest_epics_overview, or harvest_epic_history; tested by test_cehm_regression_round3_unreadable_task_file_in_packaged_epic |
 
 Raw output:
 
