@@ -462,13 +462,19 @@ def _assert_cehm_hp_04_flow() -> None:
           }
           if (parsed.pathname === '/api/review') {
             reviewCalls.push(parsed.searchParams.toString());
+            const reqRound = Number(parsed.searchParams.get('round') || '1');
+            const isStrictModal = parsed.searchParams.get('strict') === '1';
+            const reqEpic = parsed.searchParams.get('epic') || 'epic_done';
             return {
               ok: true,
               status: 200,
               async json() {
+                if (isStrictModal) {
+                  return makeEpicPayload(reqEpic, reqEpic.replace('epic_', ''), reqRound).reviews.cross_model;
+                }
                 return {
                   repo: 'ai-agent-tools',
-                  epic: parsed.searchParams.get('epic'),
+                  epic: reqEpic,
                   round: 1,
                   available_rounds: [1],
                   kind: 'cross-model',
@@ -606,6 +612,7 @@ def _assert_cehm_hp_04_flow() -> None:
         assert.ok(crossText.includes('CR-1'), 'Cross-Model Review must show Round 1 finding CR-1');
         assert.ok(!bodyEl.innerHTML.includes('<script>alert'), 'Review findings HTML must escape <script>');
 
+        const historyCountBeforeRoundSwitch = historyCalls.length;
         const round2Btn = findAllByPredicate(bodyEl, (el) => el.getAttribute('data-review-round') === '2')[0];
         assert.ok(round2Btn, 'In-modal Round 2 button must exist');
         simulateDomClick(round2Btn, sandbox);
@@ -613,13 +620,23 @@ def _assert_cehm_hp_04_flow() -> None:
 
         crossText = getAllText(bodyEl);
         assert.ok(crossText.includes('CR-R2-1'), 'Switching round in-modal must render Round 2 finding CR-R2-1');
-        assert.ok(historyCalls.some((qs) => qs.includes('round_cross=2')), 'Switching round must request round_cross=2 on /api/epic/history');
+        assert.equal(historyCalls.length, historyCountBeforeRoundSwitch, 'Switching round must NOT re-fetch /api/epic/history');
+        assert.ok(reviewCalls.some((qs) => qs.includes('round=2') && qs.includes('include_raw=0')), 'Switching round must request round=2&include_raw=0 on /api/review');
         assert.equal(doc.getElementById('modal-cross-review').style.display, 'none', 'Legacy #modal-cross-review must NOT open while inside #modal-epic-history');
+
+        // Switching back to Round 1 must hit client reviewCache with 0 extra network requests
+        const reviewCountBeforeRound1 = reviewCalls.length;
+        const round1Btn = findAllByPredicate(bodyEl, (el) => el.getAttribute('data-review-round') === '1')[0];
+        assert.ok(round1Btn, 'In-modal Round 1 button must exist');
+        simulateDomClick(round1Btn, sandbox);
+        await flushMicrotasks();
+        assert.equal(reviewCalls.length, reviewCountBeforeRound1, 'Switching back to cached Round 1 must not re-fetch /api/review');
+        assert.ok(getAllText(bodyEl).includes('CR-1'), 'Cached Round 1 finding CR-1 must render');
 
         // 8. Verify legacy openReviewModal still works with shared helpers
         sandbox.openReviewModal('ai-agent-tools', 'epic_done', 1, 'cross-model');
         await flushMicrotasks();
-        assert.equal(reviewCalls.length, 1, 'Legacy openReviewModal must call /api/review');
+        assert.equal(reviewCalls.length, reviewCountBeforeRound1 + 1, 'Legacy openReviewModal must call /api/review');
         assert.equal(doc.getElementById('modal-cross-review').style.display, 'flex', 'Legacy #modal-cross-review must still open cleanly');
         assert.ok(getAllText(doc.getElementById('review-findings-body')).includes('RV-9'), 'Legacy #modal-cross-review must render findings via shared helper');
 

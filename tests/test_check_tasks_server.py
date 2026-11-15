@@ -255,6 +255,52 @@ class TestCheckTasksServer_Integration(unittest.TestCase):
         self.assertEqual(data.get("available_rounds"), [1])
         self.assertEqual(len(data.get("findings", [])), 1)
 
+    def test_api_review_include_raw_false_and_mtime_cache(self) -> None:
+        """Test include_raw=False omits raw_output and mtime cache invalidates on edit."""
+        from tasks_server import parse_review_results
+
+        repo_dir = self.workspace_root / "lyrics-repo"
+        epic_dir = repo_dir / ".devtool" / "epic" / "cached_feature"
+        epic_dir.mkdir(parents=True, exist_ok=True)
+        review_file = epic_dir / "review_results_round_1.md"
+        review_file.write_text(
+            "# Cross-Model Review: cached_feature\n\n"
+            "- **Verdict**: CHANGES REQUIRED\n\n"
+            "| # | Severity | Location | Problem | Decision |\n"
+            "|---|---|---|---|---|\n"
+            "| 1 | Minor | a.py:1 | First issue | Pending |\n\n"
+            "Raw output:\n\n```text\nHuge raw output line\n```\n",
+            encoding="utf-8",
+        )
+
+        slim = parse_review_results(
+            repo_dir, "cached_feature", target_round=1, include_raw=False
+        )
+        self.assertEqual(slim.get("raw_output"), "")
+        self.assertTrue(slim.get("has_raw_output"))
+        self.assertGreater(slim.get("raw_output_bytes", 0), 0)
+
+        full_cached = parse_review_results(
+            repo_dir, "cached_feature", target_round=1, include_raw=True
+        )
+        self.assertEqual(full_cached.get("raw_output"), "Huge raw output line")
+
+        # Update file and verify cache invalidates immediately
+        review_file.write_text(
+            "# Cross-Model Review: cached_feature\n\n"
+            "- **Verdict**: CONVERGED (PASS)\n\n"
+            "| # | Severity | Location | Problem | Decision |\n"
+            "|---|---|---|---|---|\n"
+            "| 1 | Minor | a.py:1 | First issue | Fixed |\n\n"
+            "Raw output:\n\n```text\nUpdated raw output\n```\n",
+            encoding="utf-8",
+        )
+        updated = parse_review_results(
+            repo_dir, "cached_feature", target_round=1, include_raw=True
+        )
+        self.assertEqual(updated.get("verdict"), "CONVERGED (PASS)")
+        self.assertEqual(updated.get("raw_output"), "Updated raw output")
+
     def test_assign_epic_pic_and_endpoint(self) -> None:
         """Test assigning PIC updates epic HLD, handoff, tasks, and settings."""
         from tasks_server import assign_epic_pic

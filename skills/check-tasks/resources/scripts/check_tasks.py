@@ -6,6 +6,7 @@ Provides high-performance multi-repo discovery, git worktree parsing,
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 import concurrent.futures
 import contextlib
 from dataclasses import dataclass, field
@@ -4043,6 +4044,11 @@ def _compute_last_updated_iso(
 
 def harvest_epic_history(repo_path: Path, epic_slug: str) -> dict[str, Any]:
     """Harvest full per-epic history payload for `/api/epic/history` without mutating `/api/tasks`."""
+    with _scan_cache_scope():
+        return _harvest_epic_history_impl(repo_path, epic_slug)
+
+
+def _harvest_epic_history_impl(repo_path: Path, epic_slug: str) -> dict[str, Any]:
     variants = _collect_slug_variants(epic_slug)
     matching_wts = _collect_matching_worktrees(repo_path, epic_slug)
     epic_dirs: list[Path] = []
@@ -4181,18 +4187,25 @@ def harvest_epic_history(repo_path: Path, epic_slug: str) -> dict[str, Any]:
     }
 
 
-def scan_repo(repo_path: Path) -> RepoMetadata:
-    """Harvest complete metadata and telemetry for a single repository."""
+@contextlib.contextmanager
+def _scan_cache_scope() -> Iterator[None]:
+    """Enable per-request `_SCAN_CTX.cache` across nested repository/epic scans."""
     depth = getattr(_SCAN_CTX, "depth", 0)
     if depth == 0:
         _SCAN_CTX.cache = {}
     _SCAN_CTX.depth = depth + 1
     try:
-        return _scan_repo_impl(repo_path)
+        yield
     finally:
         _SCAN_CTX.depth = max(0, getattr(_SCAN_CTX, "depth", 1) - 1)
         if _SCAN_CTX.depth == 0:
             _SCAN_CTX.cache = None
+
+
+def scan_repo(repo_path: Path) -> RepoMetadata:
+    """Harvest complete metadata and telemetry for a single repository."""
+    with _scan_cache_scope():
+        return _scan_repo_impl(repo_path)
 
 
 def _scan_repo_impl(repo_path: Path) -> RepoMetadata:

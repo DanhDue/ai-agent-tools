@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import copy
 import dataclasses
 from datetime import datetime, timezone
 import hashlib
@@ -504,6 +505,23 @@ def _scan_round_headings(content: str) -> list[tuple[int, list[str]]]:
     return parsed_rounds
 
 
+_REVIEW_PARSE_CACHE_LOCK = threading.Lock()
+_REVIEW_PARSE_CACHE: dict[
+    tuple[str, str | None, int | None, str | None, bool, bool],
+    tuple[tuple[tuple[Path, tuple[int, int] | None], ...], dict[str, Any]],
+] = {}
+_REVIEW_PARSE_CACHE_MAX = 128
+
+
+def _file_stat_sig(path: Path) -> tuple[int, int] | None:
+    """Return `(st_mtime_ns, st_size)` for cache invalidation, or None if missing."""
+    try:
+        st = path.stat()
+        return (st.st_mtime_ns, st.st_size)
+    except OSError:
+        return None
+
+
 def parse_review_results(
     repo_dir: Path,
     active_epic: str | None = None,
@@ -511,8 +529,24 @@ def parse_review_results(
     kind: str | None = None,
     *,
     strict_epic: bool = False,
+    include_raw: bool = True,
 ) -> dict[str, Any]:
     """Parse persisted review findings and triage table for a repository and round."""
+    cache_key = (
+        str(repo_dir),
+        active_epic,
+        target_round,
+        kind,
+        strict_epic,
+        include_raw,
+    )
+    with _REVIEW_PARSE_CACHE_LOCK:
+        cached_entry = _REVIEW_PARSE_CACHE.get(cache_key)
+    if cached_entry is not None:
+        watch_sigs, cached_result = cached_entry
+        if all(_file_stat_sig(p) == sig for p, sig in watch_sigs):
+            return copy.deepcopy(cached_result)
+
     result: dict[str, Any] = {
         "repo": repo_dir.name,
         "epic": active_epic,
@@ -528,6 +562,8 @@ def parse_review_results(
         "theme_color": None,
         "findings": [],
         "raw_output": "",
+        "has_raw_output": False,
+        "raw_output_bytes": 0,
     }
 
     # Extract repo theme color from .vscode/settings.json if present
@@ -726,7 +762,24 @@ def parse_review_results(
     if not m_raw:
         m_raw = re.search(r"```(?:text)?\s*\n(.*?)\n```", round_content, re.DOTALL)
     if m_raw:
-        result["raw_output"] = m_raw.group(1).strip()
+        raw_text = m_raw.group(1).strip()
+        result["has_raw_output"] = bool(raw_text)
+        result["raw_output_bytes"] = len(raw_text.encode("utf-8"))
+        result["raw_output"] = raw_text if include_raw else ""
+
+    watch_paths: list[Path] = [vscode_settings, review_file]
+    if m_file_round is not None:
+        sibling_name = (
+            "principal_review.md"
+            if result["kind"] == "principal"
+            else "review_results.md"
+        )
+        watch_paths.append(review_file.parent / sibling_name)
+    watch_sigs = tuple((p, _file_stat_sig(p)) for p in watch_paths)
+    with _REVIEW_PARSE_CACHE_LOCK:
+        if len(_REVIEW_PARSE_CACHE) >= _REVIEW_PARSE_CACHE_MAX:
+            _REVIEW_PARSE_CACHE.pop(next(iter(_REVIEW_PARSE_CACHE)), None)
+        _REVIEW_PARSE_CACHE[cache_key] = (watch_sigs, copy.deepcopy(result))
 
     return result
 
@@ -1395,6 +1448,12 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
             )
             return
 
+        include_raw = query.get("include_raw", ["1"])[0].strip().lower() not in (
+            "0",
+            "false",
+            "no",
+        )
+
         try:
             principal_rev = parse_review_results(
                 repo_dir,
@@ -1402,6 +1461,7 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
                 target_round=round_principal,
                 kind="principal",
                 strict_epic=True,
+                include_raw=include_raw,
             )
         except Exception:
             principal_rev = {
@@ -1419,6 +1479,8 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
                 "theme_color": None,
                 "findings": [],
                 "raw_output": "",
+                "has_raw_output": False,
+                "raw_output_bytes": 0,
             }
 
         try:
@@ -1428,6 +1490,7 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
                 target_round=round_cross,
                 kind="cross-model",
                 strict_epic=True,
+                include_raw=include_raw,
             )
         except Exception:
             cross_rev = {
@@ -1445,6 +1508,8 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
                 "theme_color": None,
                 "findings": [],
                 "raw_output": "",
+                "has_raw_output": False,
+                "raw_output_bytes": 0,
             }
         payload = {
             "success": True,
@@ -1484,13 +1549,23 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
                 "true",
                 "yes",
             )
+            include_raw = query.get("include_raw", ["1"])[0].strip().lower() not in (
+                "0",
+                "false",
+                "no",
+            )
             target_round_str = query.get("round", [None])[0]
             target_round: int | None = None
             if target_round_str:
                 with contextlib.suppress(ValueError):
                     target_round = int(target_round_str)
             data = parse_review_results(
-                repo_dir, active_epic, target_round, kind, strict_epic=strict_epic
+                repo_dir,
+                active_epic,
+                target_round,
+                kind,
+                strict_epic=strict_epic,
+                include_raw=include_raw,
             )
             self._send_json(200, sanitize_paths_to_tilde(data))
             return

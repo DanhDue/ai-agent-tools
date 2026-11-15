@@ -4167,8 +4167,11 @@ let currentReviewRepo = null;
       roundPrincipal: null,
       roundCross: null,
       expandedTasks: new Set(),
+      reviewCache: new Map(),
       requestToken: 0,
       abortController: null,
+      reviewRequestToken: 0,
+      reviewAbortController: null,
       data: null,
       loading: false,
       error: null,
@@ -4188,11 +4191,18 @@ let currentReviewRepo = null;
         } catch (e) {}
         epicHistoryState.abortController = null;
       }
+      if (epicHistoryState.reviewAbortController) {
+        try {
+          epicHistoryState.reviewAbortController.abort();
+        } catch (e) {}
+        epicHistoryState.reviewAbortController = null;
+      }
     }
 
     function abortEpicHistoryModalState() {
       epicHistoryState.isOpen = false;
       epicHistoryState.requestToken += 1;
+      epicHistoryState.reviewRequestToken += 1;
       epicHistoryState.data = null;
       epicHistoryState.status = '';
       epicHistoryState.loading = false;
@@ -4202,6 +4212,7 @@ let currentReviewRepo = null;
       epicHistoryState.roundPrincipal = null;
       epicHistoryState.roundCross = null;
       epicHistoryState.expandedTasks = new Set();
+      epicHistoryState.reviewCache.clear();
       abortEpicHistoryInFlight();
     }
 
@@ -4248,6 +4259,7 @@ let currentReviewRepo = null;
         epicHistoryState.roundPrincipal = null;
         epicHistoryState.roundCross = null;
         epicHistoryState.expandedTasks = new Set();
+        epicHistoryState.reviewCache.clear();
         epicHistoryState.data = null;
         epicHistoryState.status = '';
       }
@@ -4291,12 +4303,17 @@ let currentReviewRepo = null;
 
     function refreshEpicHistoryModal(options) {
       if (!epicHistoryState.repoName || !epicHistoryState.epicSlug) return Promise.resolve();
-      return loadEpicHistoryData(options || {});
+      const opts = options || {};
+      if (!opts.silent) {
+        epicHistoryState.reviewCache.clear();
+      }
+      return loadEpicHistoryData(opts);
     }
 
     function buildEpicHistoryUrl() {
       let url = '/api/epic/history?repo=' + encodeURIComponent(epicHistoryState.repoName) +
-        '&epic=' + encodeURIComponent(epicHistoryState.epicSlug);
+        '&epic=' + encodeURIComponent(epicHistoryState.epicSlug) +
+        '&include_raw=0';
       if (epicHistoryState.roundPrincipal !== null) {
         url += '&round_principal=' + encodeURIComponent(String(epicHistoryState.roundPrincipal));
       }
@@ -4304,6 +4321,30 @@ let currentReviewRepo = null;
         url += '&round_cross=' + encodeURIComponent(String(epicHistoryState.roundCross));
       }
       return url;
+    }
+
+    function buildEpicReviewUrl(reviewKey, roundNum, includeRaw) {
+      const apiKind = reviewKey === 'principal' ? 'principal' : 'cross-model';
+      return '/api/review?repo=' + encodeURIComponent(epicHistoryState.repoName) +
+        '&epic=' + encodeURIComponent(epicHistoryState.epicSlug) +
+        '&kind=' + encodeURIComponent(apiKind) +
+        '&round=' + encodeURIComponent(String(roundNum)) +
+        '&strict=1&include_raw=' + (includeRaw ? '1' : '0');
+    }
+
+    function seedEpicHistoryReviewCache(reviews) {
+      if (!reviews || typeof reviews !== 'object') return;
+      ['principal', 'cross_model'].forEach((reviewKey) => {
+        const rev = reviews[reviewKey];
+        if (!rev || !rev.present) return;
+        const roundNum = Number(rev.round || 1);
+        const cacheKey = `${reviewKey}:${roundNum}`;
+        const prev = epicHistoryState.reviewCache.get(cacheKey);
+        if (prev && prev.raw_output && !rev.raw_output && rev.has_raw_output) {
+          rev.raw_output = prev.raw_output;
+        }
+        epicHistoryState.reviewCache.set(cacheKey, rev);
+      });
     }
 
     function loadEpicHistoryData(options) {
@@ -4350,6 +4391,7 @@ let currentReviewRepo = null;
           if (epicHistoryState.roundCross === null && payload?.reviews?.cross_model?.present && payload?.reviews?.cross_model?.round) {
             epicHistoryState.roundCross = Number(payload.reviews.cross_model.round);
           }
+          seedEpicHistoryReviewCache(epicHistoryState.data.reviews);
 
           hideEpicHistoryErrorBanner();
           renderEpicHistoryHeaderAndChrome();
@@ -4477,7 +4519,56 @@ let currentReviewRepo = null;
       } else {
         epicHistoryState.roundCross = round;
       }
-      return refreshEpicHistoryModal({ silent: true });
+      if (!epicHistoryState.repoName || !epicHistoryState.epicSlug || !epicHistoryState.data) {
+        return refreshEpicHistoryModal({ silent: true });
+      }
+      const cacheKey = `${reviewKey}:${round}`;
+      if (epicHistoryState.reviewCache.has(cacheKey)) {
+        if (!epicHistoryState.data.reviews) epicHistoryState.data.reviews = {};
+        epicHistoryState.data.reviews[reviewKey] = epicHistoryState.reviewCache.get(cacheKey);
+        renderEpicHistoryActiveTab();
+        return Promise.resolve();
+      }
+
+      const token = ++epicHistoryState.reviewRequestToken;
+      if (epicHistoryState.reviewAbortController) {
+        try {
+          epicHistoryState.reviewAbortController.abort();
+        } catch (e) {}
+      }
+      const controller = typeof AbortController === 'function' ? new AbortController() : null;
+      epicHistoryState.reviewAbortController = controller;
+      const fetchOpts = controller ? { signal: controller.signal } : {};
+
+      return fetch(getApiUrl(buildEpicReviewUrl(reviewKey, round, false)), fetchOpts)
+        .then(async (res) => {
+          if (!epicHistoryState.isOpen || token !== epicHistoryState.reviewRequestToken) return;
+          let payload;
+          try {
+            payload = await res.json();
+          } catch (err) {
+            throw new Error(`Failed to parse review round JSON: ${err && err.message ? err.message : String(err)}`);
+          }
+          if (!epicHistoryState.isOpen || token !== epicHistoryState.reviewRequestToken) return;
+          const httpFailed = (res && typeof res.ok === 'boolean' && !res.ok) || (res && typeof res.status === 'number' && res.status >= 400);
+          if (httpFailed || !payload || payload.success === false) {
+            const msg = (payload && payload.error)
+              ? String(payload.error)
+              : `HTTP ${res && res.status ? res.status : 500} failed to load review round`;
+            throw new Error(msg);
+          }
+          epicHistoryState.reviewCache.set(cacheKey, payload);
+          if (!epicHistoryState.data.reviews) epicHistoryState.data.reviews = {};
+          epicHistoryState.data.reviews[reviewKey] = payload;
+          hideEpicHistoryErrorBanner();
+          renderEpicHistoryActiveTab();
+        })
+        .catch((err) => {
+          if (err && err.name === 'AbortError') return;
+          if (!epicHistoryState.isOpen || token !== epicHistoryState.reviewRequestToken) return;
+          const message = (err && err.message) ? String(err.message) : 'Failed to load review round.';
+          showEpicHistoryErrorBanner(message);
+        });
     }
 
     function renderEpicHistoryActiveTab() {
@@ -4662,6 +4753,50 @@ let currentReviewRepo = null;
       }).join('');
     }
 
+    function ensureEpicHistoryReviewRawOutput(detailsEl, reviewKey, roundNum) {
+      if (!detailsEl || !detailsEl.open) return Promise.resolve();
+      const preEl = detailsEl.querySelector('pre[data-raw-output-pre]');
+      if (!preEl) return Promise.resolve();
+      const round = Number(roundNum || 1);
+      const cacheKey = `${reviewKey}:${round}`;
+      const currentRev = (epicHistoryState.data && epicHistoryState.data.reviews)
+        ? epicHistoryState.data.reviews[reviewKey]
+        : null;
+      const cachedRev = epicHistoryState.reviewCache.get(cacheKey);
+      const existingRaw = (currentRev && Number(currentRev.round || 1) === round && currentRev.raw_output)
+        ? currentRev.raw_output
+        : ((cachedRev && cachedRev.raw_output) ? cachedRev.raw_output : '');
+      if (existingRaw) {
+        preEl.textContent = String(existingRaw);
+        return Promise.resolve();
+      }
+      if (detailsEl.dataset.rawLoading === '1' || !epicHistoryState.repoName || !epicHistoryState.epicSlug) {
+        return Promise.resolve();
+      }
+      detailsEl.dataset.rawLoading = '1';
+      preEl.textContent = 'Loading verbatim raw output...';
+      return fetch(getApiUrl(buildEpicReviewUrl(reviewKey, round, true)))
+        .then(async (res) => {
+          const payload = await res.json();
+          const rawText = (payload && payload.raw_output)
+            ? String(payload.raw_output)
+            : 'No verbatim raw output available for this round.';
+          if (currentRev && Number(currentRev.round || 1) === round) {
+            currentRev.raw_output = payload && payload.raw_output ? String(payload.raw_output) : '';
+          }
+          if (cachedRev) {
+            cachedRev.raw_output = payload && payload.raw_output ? String(payload.raw_output) : '';
+          }
+          preEl.textContent = rawText;
+        })
+        .catch(() => {
+          preEl.textContent = 'Failed to load verbatim raw output.';
+        })
+        .finally(() => {
+          delete detailsEl.dataset.rawLoading;
+        });
+    }
+
     function renderEpicHistoryReviewTab(data, reviewKey) {
       const reviewObj = (data && data.reviews && data.reviews[reviewKey]) ? data.reviews[reviewKey] : null;
       const titleLabel = reviewKey === 'principal' ? 'Principal Review' : 'Cross-Model Review';
@@ -4712,12 +4847,25 @@ let currentReviewRepo = null;
             </tbody>
           </table>
         </div>
-        <details style="background: #141720; border: 1px solid #282f40; border-radius: 8px; padding: 8px 12px;">
+        ${(() => {
+          const hasRawText = Boolean(reviewObj.raw_output);
+          const hasLazyRaw = !hasRawText && Boolean(reviewObj.has_raw_output);
+          const onToggleAttr = hasLazyRaw
+            ? ` ontoggle="ensureEpicHistoryReviewRawOutput(this, '${reviewKey}', ${selectedRound})"`
+            : '';
+          const preText = hasRawText
+            ? escapeHtml(String(reviewObj.raw_output))
+            : (hasLazyRaw
+                ? 'Loading verbatim raw output...'
+                : 'No verbatim raw output available for this round.');
+          return `
+        <details style="background: #141720; border: 1px solid #282f40; border-radius: 8px; padding: 8px 12px;"${onToggleAttr}>
           <summary style="font-size: 11px; font-weight: 700; color: #fde68a; cursor: pointer; user-select: none;">
             📄 Evidence / Raw Output (Verbatim Evidence)
           </summary>
-          <pre style="margin-top: 8px; font-size: 11px; color: #94a3b8; background: #0c0f17; padding: 10px; border-radius: 6px; overflow-x: auto; font-family: monospace; white-space: pre-wrap; max-height: 200px;">${escapeHtml(String(reviewObj.raw_output || 'No verbatim raw output available for this round.'))}</pre>
-        </details>
+          <pre data-raw-output-pre="1" style="margin-top: 8px; font-size: 11px; color: #94a3b8; background: #0c0f17; padding: 10px; border-radius: 6px; overflow-x: auto; font-family: monospace; white-space: pre-wrap; max-height: 200px;">${preText}</pre>
+        </details>`;
+        })()}
       `;
     }
 
