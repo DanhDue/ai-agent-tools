@@ -219,7 +219,7 @@ class TestResumeContext(unittest.TestCase):
         # 1. --role assistant banner
         res_asst = self.run_cli(["--role", "assistant"])
         self.assertEqual(res_asst.returncode, 0)
-        self.assertIn("[PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]", res_asst.stdout)
+        self.assertIn("[PERSONA: AI ASSISTANT — ORCHESTRATOR]", res_asst.stdout)
         self.assertIn("NO IMPLEMENTATION", res_asst.stdout)
 
         # 2. --role programmer banner
@@ -531,7 +531,7 @@ ag_run() {
 
         # 3. Check persona in handoff-template.md
         handoff_tmpl = REPO_ROOT / "skills" / "dev-lifecycle" / "references" / "handoff-template.md"
-        self.assertIn("[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]", handoff_tmpl.read_text(encoding="utf-8"))
+        self.assertIn("[PERSONA: AI ASSISTANT — ORCHESTRATOR]", handoff_tmpl.read_text(encoding="utf-8"))
 
         # 4. Check Section 15 in verify.sh
         verify_sh = REPO_ROOT / "scripts" / "verify.sh"

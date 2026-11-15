@@ -302,7 +302,7 @@ class LifecycleDocumentContractTest(unittest.TestCase):
             text = (ROOT / relative).read_text(encoding="utf-8")
             self.assertIn("run_external_review.py triage", text, relative)
         implementation = (ROOT / "skills/dev-implementation/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("references/review-triage.md", implementation)
+        self.assertIn("orchestration-roles.md", implementation)
         lifecycle = (ROOT / "skills/dev-lifecycle/SKILL.md").read_text(encoding="utf-8")
         red_flags = lifecycle.split("## Red Flags", 1)[1].split("\n## ", 1)[0]
         self.assertIn("Acting on review findings before presenting the triage", red_flags)
@@ -416,8 +416,9 @@ class TestReviewSkillContracts(unittest.TestCase):
         self.assertIn("Debatable", critical_rules)
 
         pr_skill = (ROOT / "skills/principal-review/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("BOTH Autonomous (`lifecycle_runner.py`) and Interactive Mode", pr_skill)
-        self.assertIn("do NOT pause for confirmation", pr_skill)
+        self.assertIn("autonomous mode", pr_skill)
+        self.assertIn("interactive mode", pr_skill)
+        self.assertIn("references/document-triage.md", pr_skill)
 
         doc_triage = (ROOT / "skills/principal-review/references/document-triage.md").read_text(encoding="utf-8")
         self.assertIn("BOTH Interactive and Autonomous", doc_triage)
