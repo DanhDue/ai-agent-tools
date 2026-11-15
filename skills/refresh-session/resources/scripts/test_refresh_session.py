@@ -249,11 +249,16 @@ class TestRefreshSession(unittest.TestCase):
         self.assertIn("<key>PATH</key>", plist)
         self.assertIn("refresh_session_daemon.log", plist)
 
+    @patch("pathlib.Path.glob", return_value=[])
     @patch("subprocess.run")
     @patch("pathlib.Path.mkdir")
     @patch("pathlib.Path.write_text")
     def test_schedule_install_darwin(
-        self, mock_write: MagicMock, mock_mkdir: MagicMock, mock_run: MagicMock
+        self,
+        mock_write: MagicMock,
+        mock_mkdir: MagicMock,
+        mock_run: MagicMock,
+        mock_glob: MagicMock,
     ) -> None:
         """Installs launchd plist and loads it via launchctl."""
         mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
@@ -263,11 +268,16 @@ class TestRefreshSession(unittest.TestCase):
         self.assertEqual(res["minute"], 0)
         self.assertEqual(mock_run.call_count, 2)  # unload and load
 
+    @patch("pathlib.Path.glob", return_value=[])
     @patch("pathlib.Path.exists", return_value=True)
     @patch("pathlib.Path.read_text", return_value="<integer>5</integer><integer>30</integer>")
     @patch("subprocess.run")
     def test_schedule_status_darwin_active(
-        self, mock_run: MagicMock, mock_read: MagicMock, mock_exists: MagicMock
+        self,
+        mock_run: MagicMock,
+        mock_read: MagicMock,
+        mock_exists: MagicMock,
+        mock_glob: MagicMock,
     ) -> None:
         """Reports active status when plist exists and daemon is loaded."""
         mock_run.return_value = subprocess.CompletedProcess(
@@ -279,10 +289,11 @@ class TestRefreshSession(unittest.TestCase):
         self.assertEqual(status["hour"], 5)
         self.assertEqual(status["minute"], 30)
 
+    @patch("pathlib.Path.glob", return_value=[])
     @patch("pathlib.Path.exists", return_value=False)
     @patch("subprocess.run")
     def test_schedule_status_darwin_inactive(
-        self, mock_run: MagicMock, mock_exists: MagicMock
+        self, mock_run: MagicMock, mock_exists: MagicMock, mock_glob: MagicMock
     ) -> None:
         """Reports inactive status when plist does not exist."""
         mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=1, stdout="")
@@ -290,11 +301,16 @@ class TestRefreshSession(unittest.TestCase):
         self.assertFalse(status["installed"])
         self.assertFalse(status["loaded"])
 
+    @patch("pathlib.Path.glob", return_value=[])
     @patch("pathlib.Path.exists", return_value=True)
     @patch("pathlib.Path.unlink")
     @patch("subprocess.run")
     def test_schedule_uninstall_darwin(
-        self, mock_run: MagicMock, mock_unlink: MagicMock, mock_exists: MagicMock
+        self,
+        mock_run: MagicMock,
+        mock_unlink: MagicMock,
+        mock_exists: MagicMock,
+        mock_glob: MagicMock,
     ) -> None:
         """Unloads launchd service and removes plist file."""
         mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)

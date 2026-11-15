@@ -264,8 +264,9 @@ def _discover_active_mirror_dirs(primary_root: Path, filename: str) -> list[Path
         if not wt_devtool.is_dir():
             continue
         state_file = wt_devtool / "state" / filename
+        branch_refs = {f"refs/heads/epic/{name}" for name in epic_names}
         is_matching_epic = epic_slug is not None and (
-            branch == f"refs/heads/epic/{epic_slug}" or wt_resolved.name in epic_names
+            branch in branch_refs or wt_resolved.name in epic_names
         )
         if state_file.is_file() or is_matching_epic:
             mirrors.append(wt_devtool)
@@ -391,6 +392,7 @@ def run_state_transaction(
     default: Mapping[str, Any] | None = None,
     *,
     extra_devtool_dirs: Sequence[Path] | None = None,
+    on_commit: Callable[[Sequence[Path], dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     """Execute a locked read-modify-write state transaction with monotonic generation mirrors."""
     safe_filename = _validate_state_filename(filename)
@@ -424,7 +426,72 @@ def run_state_transaction(
         for devtool_dir in target_dirs:
             _write_versioned_mirror(devtool_dir / "state" / safe_filename, next_state)
 
+        if on_commit is not None:
+            on_commit(target_dirs, next_state)
+
         return copy.deepcopy(next_state)
+
+
+def _review_transition_key(review_state: object) -> tuple[str, int, str]:
+    """Return `(kind, round, phase)` for detecting review_state transitions."""
+    if not isinstance(review_state, Mapping):
+        return ("", 0, "")
+    return (
+        str(review_state.get("kind") or ""),
+        _safe_int(review_state.get("round"), 0),
+        str(review_state.get("phase") or ""),
+    )
+
+
+def _trailing_event_message(state: Mapping[str, Any]) -> str:
+    """Return the stripped trailing event message from `state['events']`, or empty."""
+    raw_events = state.get("events")
+    if not isinstance(raw_events, list) or not raw_events:
+        return ""
+    tail = raw_events[-1]
+    if not isinstance(tail, Mapping):
+        return ""
+    return str(tail.get("message") or "").strip()
+
+
+def _build_event_stream_record(
+    ts: str,
+    state: Mapping[str, Any],
+    message: str,
+) -> dict[str, Any]:
+    """Build a compact JSONL event record from committed heartbeat state."""
+    review_val = state.get("review_state")
+    return {
+        "ts": ts,
+        "stage": str(state.get("stage") or ""),
+        "sub_step": str(state.get("sub_step") or ""),
+        "sub_step_detail": str(state.get("sub_step_detail") or ""),
+        "message": message,
+        "review_state": copy.deepcopy(dict(review_val))
+        if isinstance(review_val, Mapping)
+        else None,
+    }
+
+
+def _append_epic_event_stream(
+    target_dirs: Sequence[Path],
+    safe_slug: str,
+    event_record: Mapping[str, Any],
+) -> None:
+    """Append one compact JSONL event record to `.devtool/logs/events_<safe_slug>.jsonl` across mirrors."""
+    line = (
+        json.dumps(dict(event_record), ensure_ascii=False, separators=(",", ":")) + "\n"
+    )
+    for devtool_dir in target_dirs:
+        log_path = devtool_dir / "logs" / f"events_{safe_slug}.jsonl"
+        try:
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            with log_path.open("a", encoding="utf-8") as handle:
+                handle.write(line)
+                handle.flush()
+                os.fsync(handle.fileno())
+        except OSError:
+            continue
 
 
 def update_epic_heartbeat(
@@ -467,8 +534,15 @@ def update_epic_heartbeat(
         "events": [],
         "updated_at": _utc_now_iso(),
     }
+    pending_stream_record: list[dict[str, Any]] = []
 
     def _mutate(state: dict[str, Any]) -> None:
+        pending_stream_record.clear()
+        prev_stage = str(state.get("stage") or "")
+        prev_sub_step = str(state.get("sub_step") or "")
+        prev_review_key = _review_transition_key(state.get("review_state"))
+        prev_msg = _trailing_event_message(state)
+
         state["epic_slug"] = epic_slug
         if stage is not None:
             state["stage"] = stage
@@ -514,10 +588,10 @@ def update_epic_heartbeat(
             if isinstance(raw_events, list)
             else []
         )
-        if last_event and str(last_event).strip():
-            msg_str = str(last_event).strip()
-            curr_stage = str(state.get("stage") or "")
-            curr_sub_step = str(state.get("sub_step") or "")
+        curr_stage = str(state.get("stage") or "")
+        curr_sub_step = str(state.get("sub_step") or "")
+        msg_str = str(last_event).strip() if last_event is not None else ""
+        if msg_str:
             if events_list and events_list[-1].get("message") == msg_str:
                 events_list[-1]["ts"] = now_ts
                 if curr_stage:
@@ -535,6 +609,31 @@ def update_epic_heartbeat(
                 )
         cap = max(1, int(max_events))
         state["events"] = events_list[-cap:]
+
+        curr_review_key = _review_transition_key(state.get("review_state"))
+        has_new_message = bool(msg_str) and msg_str != prev_msg
+        has_state_transition = (
+            curr_stage != prev_stage
+            or curr_sub_step != prev_sub_step
+            or curr_review_key != prev_review_key
+        )
+        if has_new_message or has_state_transition:
+            review_label = (
+                f"{curr_review_key[0]}:{curr_review_key[2]}".strip(":")
+                if curr_review_key != prev_review_key
+                else ""
+            )
+            event_msg = (
+                msg_str
+                or str(state.get("sub_step_detail") or "").strip()
+                or curr_sub_step
+                or curr_stage
+                or review_label
+            )
+            if event_msg:
+                pending_stream_record.append(
+                    _build_event_stream_record(now_ts, state, event_msg)
+                )
 
         current_slots = state.get("slots")
         merged_slots = (
@@ -556,12 +655,19 @@ def update_epic_heartbeat(
                 merged_slots.pop(str(slot_key), None)
         state["slots"] = merged_slots
 
+    def _commit_stream(
+        target_dirs: Sequence[Path], _committed_state: dict[str, Any]
+    ) -> None:
+        if pending_stream_record:
+            _append_epic_event_stream(target_dirs, safe_slug, pending_stream_record[0])
+
     return run_state_transaction(
         start_path,
         filename,
         _mutate,
         default=default_payload,
         extra_devtool_dirs=extra_devtool_dirs,
+        on_commit=_commit_stream,
     )
 
 

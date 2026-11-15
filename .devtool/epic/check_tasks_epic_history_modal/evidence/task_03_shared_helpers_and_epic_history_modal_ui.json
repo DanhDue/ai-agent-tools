@@ -1,0 +1,203 @@
+{
+  "schema": 1,
+  "task": "task_03_shared_helpers_and_epic_history_modal_ui",
+  "runs": {
+    "red": {
+      "head": "061028d2e3240d81b8e2edd8d15efdfe470ad625",
+      "tree": "ccd81fab8bbf442339cff7f322ad1053354e24ca",
+      "patch_id": "fceac6741948326c7ad30899ecff7fb6be0ee21f",
+      "started": "2026-11-14T19:14:36Z",
+      "finished": "2026-11-14T19:14:37Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_cehm_dashboard_modal_ui.py::test_cehm_hp_04_roadmap_click_opens_modal_and_tabs",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T19:14:36Z",
+          "finished": "2026-11-14T19:14:37Z",
+          "output_tail": [
+            "E   AssertionError: Node script failed (rc=1):",
+            "E     STDOUT:",
+            "E     ",
+            "E     STDERR:",
+            "E     AssertionError [ERR_ASSERTION]: Expected element <div id=\"modal-epic-history\"> in tasks_dashboard.html",
+            "E         at extractModalMarkupById (file:///private/tmp/ag_phungthuy8901/tmpnoos_fji.mjs:323:10)",
+            "E         at createCehmDomHarness (file:///private/tmp/ag_phungthuy8901/tmpnoos_fji.mjs:376:29)",
+            "E         at file:///private/tmp/ag_phungthuy8901/tmpnoos_fji.mjs:683:34",
+            "E         at file:///private/tmp/ag_phungthuy8901/tmpnoos_fji.mjs:881:3",
+            "E         at ModuleJob.run (node:internal/modules/esm/module_job:430:25)",
+            "E         at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:655:26)",
+            "E         at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {",
+            "E       generatedMessage: false,",
+            "E       code: 'ERR_ASSERTION',",
+            "E       actual: -1,",
+            "E       expected: -1,",
+            "E       operator: 'notStrictEqual',",
+            "E       diff: 'simple'",
+            "E     }",
+            "E     ",
+            "E   assert 1 == 0",
+            "E    +  where 1 = CompletedProcess(args=['/opt/homebrew/bin/node', '/tmp/ag_phungthuy8901/tmpnoos_fji.mjs'], returncode=1, stdout='', st...n  code: \\'ERR_ASSERTION\\',\\n  actual: -1,\\n  expected: -1,\\n  operator: \\'notStrictEqual\\',\\n  diff: \\'simple\\'\\n}\\n').returncode",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_cehm_dashboard_modal_ui.py::test_cehm_hp_04_roadmap_click_opens_modal_and_tabs",
+            "1 failed in 0.09s"
+          ],
+          "output_sha256": "e854a4922e3a0d3dab5b434bd1f6a31550054e2db5e2180feeba5ea4b5d38107"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "061028d2e3240d81b8e2edd8d15efdfe470ad625",
+      "tree": "4308c03e31444d1ce0610f2ed9ed9c1afc4dc5de",
+      "patch_id": "ce1d0fcd2a0057ec2c94d929b02478dd1313e35b",
+      "started": "2026-11-14T19:25:27Z",
+      "finished": "2026-11-14T19:25:45Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_cehm_dashboard_modal_ui.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T19:25:27Z",
+          "finished": "2026-11-14T19:25:28Z",
+          "output_tail": [
+            "........                                                                 [100%]",
+            "8 passed in 1.37s"
+          ],
+          "output_sha256": "5842ce9ec3aa53661b679097a283513ad1bbe8679d6c25183608101a1c8b4e7e"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ltsp_dashboard_ui.py tests/test_rsdh_tasks_dashboard_ui.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T19:25:28Z",
+          "finished": "2026-11-14T19:25:35Z",
+          "output_tail": [
+            ".............                                                            [100%]",
+            "13 passed in 7.01s"
+          ],
+          "output_sha256": "d6746cc8bb1e45b01428ee5891ff8a59c4f2290c5cbda391f939cc87c547fa2d"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_cehm_dashboard_modal_ui.py tests/test_ltsp_dashboard_ui.py tests/test_rsdh_tasks_dashboard_ui.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T19:25:35Z",
+          "finished": "2026-11-14T19:25:35Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py && mypy tests/test_cehm_dashboard_modal_ui.py tests/test_ltsp_dashboard_ui.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T19:25:35Z",
+          "finished": "2026-11-14T19:25:36Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files",
+            "Success: no issues found in 2 source files"
+          ],
+          "output_sha256": "e309622c6eed5c8baa55d292d9ad8e4a4660ea1f16a998fd4bacec99d3c8b78c"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/cehm_task_03.xml tests/test_cehm_dashboard_modal_ui.py tests/test_ltsp_dashboard_ui.py tests/test_rsdh_tasks_dashboard_ui.py",
+          "expect": "exit 0; results build/test-results/cehm_task_03.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T19:25:36Z",
+          "finished": "2026-11-14T19:25:44Z",
+          "output_tail": [
+            ".....................                                                    [100%]",
+            "21 passed in 8.03s"
+          ],
+          "output_sha256": "82acd357ef9930e8ce524e51659205efc39eb048e0c5f9dc0bdb341267ee5b7b",
+          "results": {
+            "path": "build/test-results/cehm_task_03.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 6,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_cehm_hp_04_roadmap_click_opens_modal_and_tabs",
+                  "classname": "tests.test_cehm_dashboard_modal_ui",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_hp_04_integration_roadmap_modal_tabs_filters_reviews_and_xss",
+                  "classname": "tests.test_cehm_dashboard_modal_ui.TestCehmDashboardModalUi_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_ec_03_integration_pic_select_does_not_open_modal",
+                  "classname": "tests.test_cehm_dashboard_modal_ui.TestCehmDashboardModalUi_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_st_02_integration_worktree_precedence_and_tab_persistence_on_poll",
+                  "classname": "tests.test_cehm_dashboard_modal_ui.TestCehmDashboardModalUi_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_st_03_integration_close_controls_overflow_and_poll_stop",
+                  "classname": "tests.test_cehm_dashboard_modal_ui.TestCehmDashboardModalUi_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_ar_02_integration_race_guard_discards_stale_response",
+                  "classname": "tests.test_cehm_dashboard_modal_ui.TestCehmDashboardModalUi_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/check-tasks/resources/dashboard/tasks_dashboard.html",
+            "tests/test_cehm_dashboard_modal_ui.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

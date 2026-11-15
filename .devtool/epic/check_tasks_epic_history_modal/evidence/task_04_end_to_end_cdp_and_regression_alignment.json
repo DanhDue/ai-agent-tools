@@ -1,0 +1,228 @@
+{
+  "schema": 1,
+  "task": "task_04_end_to_end_cdp_and_regression_alignment",
+  "runs": {
+    "red": {
+      "head": "7bf7fc95c0f9c92c1fc08703010ba82fd89ed0c1",
+      "tree": "29d11220d66bae73eb5078d8e45bdb74167bac40",
+      "patch_id": "1b4ad8967ade666cd401a35b57c6ba9bc8d7674f",
+      "started": "2026-11-14T20:09:18Z",
+      "finished": "2026-11-14T20:09:26Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_cehm_e2e_cdp.py::test_cehm_fr_02_end_to_end_chrome_cdp_history_modal_workflow",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T20:09:18Z",
+          "finished": "2026-11-14T20:09:25Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "_________ test_cehm_fr_02_end_to_end_chrome_cdp_history_modal_workflow _________",
+            "tests/test_cehm_e2e_cdp.py:757: in test_cehm_fr_02_end_to_end_chrome_cdp_history_modal_workflow",
+            "    assert suite_path in registered, f\"Missing verify.sh registration: {suite_path}\"",
+            "E   AssertionError: Missing verify.sh registration: tests/test_cehm_telemetry_stream.py",
+            "E   assert 'tests/test_cehm_telemetry_stream.py' in {'skills/doc_quality_check/resources/scripts/test_check_document.py': ('11', 'unittest', True), 'scripts/test_lifecycl...', 'unittest', True), 'skills/dev-implementation/resources/scripts/test_audit_epic.py': ('11', 'unittest', False), ...}",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_cehm_e2e_cdp.py::test_cehm_fr_02_end_to_end_chrome_cdp_history_modal_workflow",
+            "1 failed in 6.92s"
+          ],
+          "output_sha256": "3e770acc0bc4c7712f6019c54ee430c39a5607e8e24d0c968929d9cff748d54c"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "7bf7fc95c0f9c92c1fc08703010ba82fd89ed0c1",
+      "tree": "28458628e23dfe9b423a8ed7e6964467390c9eac",
+      "patch_id": "bf859a4cf18e3420f35a965755fe406fa0f0731e",
+      "started": "2026-11-14T20:09:30Z",
+      "finished": "2026-11-14T20:10:45Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_cehm_e2e_cdp.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T20:09:30Z",
+          "finished": "2026-11-14T20:09:37Z",
+          "output_tail": [
+            ".                                                                        [100%]",
+            "1 passed in 6.86s"
+          ],
+          "output_sha256": "a7045e01e6d7d9e3c1f925aa2af90b2d5ae4090c448030c00a775cd170866afa"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_cehm_e2e_cdp.py tests/test_cehm_telemetry_stream.py tests/test_cehm_history_aggregator.py tests/test_cehm_dashboard_modal_ui.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T20:09:37Z",
+          "finished": "2026-11-14T20:09:37Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py && mypy tests/test_cehm_e2e_cdp.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T20:09:37Z",
+          "finished": "2026-11-14T20:09:37Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files",
+            "Success: no issues found in 1 source file"
+          ],
+          "output_sha256": "3093aa6c998bfbee60b0ac0ac5a93a0b8b8c32442e01bb5f1a07d160a0edb631"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/check-tasks-epic-history-modal.xml tests/test_cehm_telemetry_stream.py tests/test_cehm_history_aggregator.py tests/test_cehm_dashboard_modal_ui.py tests/test_cehm_e2e_cdp.py tests/test_check_tasks_server.py tests/test_check_tasks_fsm.py tests/test_ltsp_state_and_producers.py tests/test_ltsp_harvester_pipeline.py tests/test_ltsp_dashboard_ui.py tests/test_rsdh_state_envelope.py tests/test_rsdh_harvester_and_pic.py tests/test_rsdh_tasks_dashboard_ui.py tests/test_rsdh_orchestration.py",
+          "expect": "exit 0; results build/test-results/check-tasks-epic-history-modal.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T20:09:37Z",
+          "finished": "2026-11-14T20:10:45Z",
+          "output_tail": [
+            "........................................................................ [ 56%]",
+            "........................................................                 [100%]",
+            "128 passed in 67.22s (0:01:07)"
+          ],
+          "output_sha256": "933524500f05cf44e10151109d7b75aef0a9c074561d323ed714ba3c7a2306ce",
+          "results": {
+            "path": "build/test-results/check-tasks-epic-history-modal.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 17,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_cehm_hp_01_append_only_events_and_dual_archival",
+                  "classname": "tests.test_cehm_telemetry_stream",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_ar_01_concurrent_events_jsonl_writes",
+                  "classname": "tests.test_cehm_telemetry_stream",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_hp_02_stitch_legacy_done_epic",
+                  "classname": "tests.test_cehm_history_aggregator",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_hp_02_stitch_legacy_done_epic",
+                  "classname": "tests.test_cehm_history_aggregator.TestCehm_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_hp_03_history_endpoint_multi_round_reviews",
+                  "classname": "tests.test_cehm_history_aggregator.TestCehm_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_ar_03_history_endpoint_validation_and_traversal",
+                  "classname": "tests.test_cehm_history_aggregator.TestCehm_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_ec_01_draft_backlog_empty_history",
+                  "classname": "tests.test_cehm_history_aggregator",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_ec_02_strict_epic_review_isolation",
+                  "classname": "tests.test_cehm_history_aggregator",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_st_01_timeline_dedup_and_log_completeness",
+                  "classname": "tests.test_cehm_history_aggregator",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_fr_01_malformed_jsonl_and_corrupt_evidence",
+                  "classname": "tests.test_cehm_history_aggregator",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_hp_04_roadmap_click_opens_modal_and_tabs",
+                  "classname": "tests.test_cehm_dashboard_modal_ui",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_hp_04_integration_roadmap_modal_tabs_filters_reviews_and_xss",
+                  "classname": "tests.test_cehm_dashboard_modal_ui.TestCehmDashboardModalUi_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_ec_03_integration_pic_select_does_not_open_modal",
+                  "classname": "tests.test_cehm_dashboard_modal_ui.TestCehmDashboardModalUi_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_st_02_integration_worktree_precedence_and_tab_persistence_on_poll",
+                  "classname": "tests.test_cehm_dashboard_modal_ui.TestCehmDashboardModalUi_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_st_03_integration_close_controls_overflow_and_poll_stop",
+                  "classname": "tests.test_cehm_dashboard_modal_ui.TestCehmDashboardModalUi_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_ar_02_integration_race_guard_discards_stale_response",
+                  "classname": "tests.test_cehm_dashboard_modal_ui.TestCehmDashboardModalUi_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_fr_02_end_to_end_chrome_cdp_history_modal_workflow",
+                  "classname": "tests.test_cehm_e2e_cdp",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/verify.sh",
+            "tests/test_cehm_e2e_cdp.py",
+            "tests/test_rsdh_orchestration.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

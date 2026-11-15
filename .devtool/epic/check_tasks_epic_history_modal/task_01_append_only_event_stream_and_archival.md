@@ -1,13 +1,13 @@
 ---
 id: "task_01_append_only_event_stream_and_archival"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "check_tasks_epic_history_modal"
 dueDate: null
 created: "2026-11-15T01:00:00Z"
-modified: "2026-11-15T01:00:00Z"
-completedAt: null
+modified: "2026-11-14T18:30:56Z"
+completedAt: "2026-11-14T18:30:56Z"
 labels: ["telemetry", "state-envelope", "archival", "concurrency"]
 order: "a1"
 review_tier: "full"

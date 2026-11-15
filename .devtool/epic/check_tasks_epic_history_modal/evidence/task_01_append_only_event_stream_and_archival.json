@@ -1,0 +1,174 @@
+{
+  "schema": 1,
+  "task": "task_01_append_only_event_stream_and_archival",
+  "runs": {
+    "red": {
+      "head": "d999c81a9e81819036f6bc099c3eacfbef3ac005",
+      "tree": "e2c31a1675f9b8125d8c2ef028b825bb224a888d",
+      "patch_id": "c88850611ba3426250984bd9d4d6c5a462db2ae1",
+      "started": "2026-11-14T18:23:40Z",
+      "finished": "2026-11-14T18:23:41Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_cehm_telemetry_stream.py::test_cehm_hp_01_append_only_events_and_dual_archival",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T18:23:40Z",
+          "finished": "2026-11-14T18:23:41Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "_____________ test_cehm_hp_01_append_only_events_and_dual_archival _____________",
+            "tests/test_cehm_telemetry_stream.py:110: in test_cehm_hp_01_append_only_events_and_dual_archival",
+            "    assert stream_path.is_file(), f\"Missing append-only stream at {stream_path}\"",
+            "E   AssertionError: Missing append-only stream at /private/tmp/ag_phungthuy8901/pytest-of-danhdueexoictif/pytest-288/test_cehm_hp_01_append_only_ev0/repo/.devtool/logs/events_alpha-epic.jsonl",
+            "E   assert False",
+            "E    +  where False = is_file()",
+            "E    +    where is_file = PosixPath('/private/tmp/ag_phungthuy8901/pytest-of-danhdueexoictif/pytest-288/test_cehm_hp_01_append_only_ev0/repo/.devtool/logs/events_alpha-epic.jsonl').is_file",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_cehm_telemetry_stream.py::test_cehm_hp_01_append_only_events_and_dual_archival",
+            "1 failed in 0.83s"
+          ],
+          "output_sha256": "8b9acbed05413a248955217636c0cc427496e45cc5cce26c8aff3fd03b7d928f"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "d999c81a9e81819036f6bc099c3eacfbef3ac005",
+      "tree": "5cf47ec61219b2f4dff8bc74bc6dcb357155b032",
+      "patch_id": "730b9eedd5848c1f6ec0cbcc2223bf4d0b390c46",
+      "started": "2026-11-14T18:26:06Z",
+      "finished": "2026-11-14T18:26:28Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_cehm_telemetry_stream.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T18:26:06Z",
+          "finished": "2026-11-14T18:26:08Z",
+          "output_tail": [
+            "....                                                                     [100%]",
+            "4 passed in 1.87s"
+          ],
+          "output_sha256": "9ca2287a65bcf6f83b2db554390c3ee1993aeabef0fb049adf7c45a09f948314"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ltsp_state_and_producers.py tests/test_rsdh_state_envelope.py && python3 -m unittest scripts/test_resume_context.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T18:26:08Z",
+          "finished": "2026-11-14T18:26:20Z",
+          "output_tail": [
+            "...............................                                          [100%]",
+            "31 passed in 5.69s",
+            "..........................",
+            "----------------------------------------------------------------------",
+            "Ran 26 tests in 6.129s",
+            "OK"
+          ],
+          "output_sha256": "f29274bfcbdbe886912a2b8d9ac40a0696d098e4e454324a277e254a1dd86393"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py scripts/resume_context.py tests/test_cehm_telemetry_stream.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T18:26:20Z",
+          "finished": "2026-11-14T18:26:20Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py scripts/resume_context.py tests/test_cehm_telemetry_stream.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T18:26:20Z",
+          "finished": "2026-11-14T18:26:20Z",
+          "output_tail": [
+            "Success: no issues found in 9 source files"
+          ],
+          "output_sha256": "46984ca20bf69f7b14ec1fd9bd82101d56a4e109e68f016fd2a04f22481b09b3"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/cehm_task_01.xml tests/test_cehm_telemetry_stream.py tests/test_ltsp_state_and_producers.py tests/test_rsdh_state_envelope.py",
+          "expect": "exit 0; results build/test-results/cehm_task_01.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T18:26:20Z",
+          "finished": "2026-11-14T18:26:28Z",
+          "output_tail": [
+            "...................................                                      [100%]",
+            "35 passed in 7.56s"
+          ],
+          "output_sha256": "6b82d575896346ef75c9527945fbf22afffe9cfc052b595a67de95f7a1d60375",
+          "results": {
+            "path": "build/test-results/cehm_task_01.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 2,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_cehm_hp_01_append_only_events_and_dual_archival",
+                  "classname": "tests.test_cehm_telemetry_stream",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_ar_01_concurrent_events_jsonl_writes",
+                  "classname": "tests.test_cehm_telemetry_stream",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/_state_envelope.py",
+            "scripts/resume_context.py",
+            "tests/test_cehm_telemetry_stream.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

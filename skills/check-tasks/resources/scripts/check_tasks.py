@@ -925,7 +925,7 @@ def resolve_active_epic(repo_path: Path) -> str | None:
             wt_feat = d / ".devtool" / "features"
             if wt_feat.is_dir():
                 for tf in sorted(wt_feat.glob("task_*.md")):
-                    with contextlib.suppress(OSError):
+                    with contextlib.suppress(OSError, UnicodeDecodeError):
                         fm = parse_frontmatter(tf.read_text(encoding="utf-8"))
                         ep = fm.get("epic")
                         if ep and _is_epic_eligible_for_active(
@@ -985,6 +985,9 @@ def resolve_active_epic(repo_path: Path) -> str | None:
         canonical = _resolve_canonical_epic_slug(repo_path, ep)
         ep_dir = repo_path / ".devtool" / "epic" / canonical
         hld_st = extract_epic_hld_status(ep_dir, canonical) if ep_dir.is_dir() else None
+        gate_num = _safe_int_val(row.get("gate"), 0)
+        if hld_st == "packaged" and gate_num < 3:
+            continue
         if _is_epic_eligible_for_active(
             canonical, completed_slugs, abandoned_slugs, hld_st
         ):
@@ -1054,7 +1057,7 @@ def resolve_active_epic(repo_path: Path) -> str | None:
     features_dir = repo_path / ".devtool" / "features"
     if features_dir.is_dir():
         for tf in sorted(features_dir.glob("task_*.md")):
-            with contextlib.suppress(OSError):
+            with contextlib.suppress(OSError, UnicodeDecodeError):
                 fm = parse_frontmatter(tf.read_text(encoding="utf-8"))
                 ep = fm.get("epic")
                 if ep and _is_epic_eligible_for_active(
@@ -1109,6 +1112,71 @@ def find_epic_worktree_path(repo_path: Path, active_epic: str | None) -> Path:
     return repo_path
 
 
+def _has_epic_active_tasks(repo_path: Path, slug: str) -> bool:
+    """Return True if any task file for this epic has active status (in-progress, review, done)."""
+    variants = _collect_slug_variants(slug)
+    task_dirs = [repo_path / ".devtool" / "epic" / v for v in variants]
+    wt_root = repo_path / ".worktrees"
+    if wt_root.is_dir():
+        with contextlib.suppress(OSError):
+            for wt in wt_root.iterdir():
+                if wt.is_dir() and _normalize_slug(wt.name) == _normalize_slug(slug):
+                    task_dirs.extend(
+                        [
+                            wt / ".devtool" / "features",
+                            wt / ".devtool" / "features" / "done",
+                            *[wt / ".devtool" / "epic" / v for v in variants],
+                        ]
+                    )
+    for td in task_dirs:
+        if not td.is_dir():
+            continue
+        with contextlib.suppress(OSError):
+            for tf in td.glob("task_*.md"):
+                with contextlib.suppress(OSError, UnicodeDecodeError):
+                    fm = parse_frontmatter(tf.read_text(encoding="utf-8"))
+                    if fm.get("status") in ("in-progress", "review", "done"):
+                        return True
+    return False
+
+
+def _has_epic_stream_events(repo_path: Path, slug: str) -> bool:
+    """Return True if any append-only event stream file exists for this epic."""
+    variants = _collect_slug_variants(slug)
+    variants_set = set(variants)
+    norm_target = _normalize_slug(slug)
+    devtool_dirs = _collect_devtool_dirs(repo_path, active_epic=slug)
+    for dt_dir in devtool_dirs:
+        for subdir in ("logs", "archive"):
+            td = dt_dir / subdir
+            if not td.is_dir():
+                continue
+            with contextlib.suppress(OSError):
+                for entry in td.glob("events_*.jsonl"):
+                    if _matches_epic_artifact_filename(
+                        entry.name, "events_", ".jsonl", variants_set, norm_target
+                    ):
+                        return True
+    return False
+
+
+def _is_packaged_epic_promoted(
+    repo_path: Path,
+    slug: str,
+    *,
+    has_wt: bool = False,
+    has_gate3_or_more: bool = False,
+    has_active_telemetry: bool = False,
+    has_active_tasks: bool | None = None,
+) -> bool:
+    """Return True if a packaged epic has started implementation (Stage 3+)."""
+    if has_wt or has_gate3_or_more or has_active_telemetry:
+        return True
+    if has_active_tasks is None:
+        has_active_tasks = _has_epic_active_tasks(repo_path, slug)
+    return bool(has_active_tasks)
+
+
 def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
     """Harvest high-level project epics summary and status breakdown from the root repository."""
     epic_dir = repo_path / ".devtool" / "epic"
@@ -1129,6 +1197,11 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
                 or (repo_path / ".worktrees" / slug.replace("_", "-")).is_dir()
             )
             norm_slug = _normalize_slug(slug)
+            has_gate3_or_more = any(
+                _normalize_slug(str(g.get("epic", ""))) == norm_slug
+                and int(g.get("gate", 0)) >= 3
+                for g in all_gates
+            )
             has_gate1_or_more = any(
                 _normalize_slug(str(g.get("epic", ""))) == norm_slug
                 and int(g.get("gate", 0)) >= 1
@@ -1137,6 +1210,9 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
             has_active_hb = (
                 _read_epic_heartbeat(repo_path, slug) is not None
                 or (repo_path / ".devtool" / "state" / f"{slug}.md").is_file()
+            )
+            has_active_telemetry = has_active_hb or _has_epic_stream_events(
+                repo_path, slug
             )
 
             # Status determination (HLD status is SSOT for Done/Abandon)
@@ -1150,6 +1226,17 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
                     if hld_status in ("abandon", "abandoned")
                     else "abandoned"
                 )
+            elif hld_status == "packaged":
+                if _is_packaged_epic_promoted(
+                    repo_path,
+                    slug,
+                    has_wt=has_wt,
+                    has_gate3_or_more=has_gate3_or_more,
+                    has_active_telemetry=has_active_telemetry,
+                ):
+                    status = "in_progress"
+                else:
+                    status = "packaged"
             elif (
                 has_wt
                 or hld_status == "in_progress"
@@ -1157,12 +1244,10 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
                     _is_epic_eligible_for_active(
                         slug, completed_slugs, abandoned_slugs, hld_status
                     )
-                    and (has_gate1_or_more or has_active_hb)
+                    and (has_gate1_or_more or has_active_telemetry)
                 )
             ):
                 status = "in_progress"
-            elif hld_status == "packaged":
-                status = "packaged"
             else:
                 status = "unstarted"
 
@@ -1466,7 +1551,7 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
                     task_id = tf.stem
                     if task_id in seen_tasks:
                         continue
-                    with contextlib.suppress(OSError):
+                    with contextlib.suppress(OSError, UnicodeDecodeError):
                         content = tf.read_text(encoding="utf-8")
                         fm = parse_frontmatter(content)
                         task_epic = fm.get("epic")
@@ -1528,7 +1613,7 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
             task_id = tf.stem
             if task_id in seen_tasks:
                 continue
-            with contextlib.suppress(OSError):
+            with contextlib.suppress(OSError, UnicodeDecodeError):
                 content = tf.read_text(encoding="utf-8")
                 fm = parse_frontmatter(content)
                 task_epic = fm.get("epic") or "backlog"
@@ -3189,6 +3274,910 @@ def build_epic_pipeline_telemetry(
         "active_sub_step_summary": active_sub_summary,
         "stages": stages,
         "events": events,
+    }
+
+
+MAX_EVIDENCE_TAIL_LINES = 8
+_ARCHIVE_SUFFIX_RE = re.compile(
+    r"^(.+?)_(\d{8}_\d{4}(?:_\d+)?|\d{4}-\d{2}-\d{2}"
+    r"(?:[T_]\d{2}[:_-]?\d{2}(?:[:_-]?\d{2})?)?)$"
+)
+_BRACKET_TS_RE = re.compile(r"^\s*(?:[-*]\s+)?\[([^\]]+)\]\s*(.+?)\s*$")
+_GATE_STAGE_MAP: dict[int, str] = {
+    1: "spec",
+    2: "hld_principal",
+    3: "tasks",
+    4: "gate4_quality",
+    5: "finish",
+}
+
+
+def _collect_slug_variants(epic_slug: str) -> list[str]:
+    """Return ordered unique slug variants across hyphen and underscore forms."""
+    raw = epic_slug.strip()
+    if not raw:
+        return []
+    candidates = [raw, raw.replace("_", "-"), raw.replace("-", "_")]
+    if not re.fullmatch(r"[a-zA-Z0-9_\-]+", raw):
+        state_env = _load_state_envelope()
+        if state_env is not None:
+            with contextlib.suppress(Exception):
+                sanitized = str(state_env._sanitize_epic_slug(raw)).strip()
+                if sanitized:
+                    candidates.append(sanitized)
+    return list(dict.fromkeys(c for c in candidates if c))
+
+
+def _parse_utc_datetime(raw_ts: Any) -> datetime | None:
+    """Parse an ISO-8601 or bracketed log timestamp into a UTC-aware datetime."""
+    text = str(raw_ts or "").strip()
+    if not text:
+        return None
+    normalized = f"{text[:-1]}+00:00" if text.endswith("Z") else text
+    with contextlib.suppress(ValueError):
+        dt = datetime.fromisoformat(normalized)
+        return (
+            dt.astimezone(timezone.utc)
+            if dt.tzinfo is not None
+            else dt.replace(tzinfo=timezone.utc)
+        )
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+        with contextlib.suppress(ValueError):
+            return datetime.strptime(text, fmt).replace(tzinfo=timezone.utc)
+    return None
+
+
+def _normalize_utc_iso(raw_ts: Any) -> str:
+    """Normalize parseable timestamps to UTC ISO-8601 `Z` form for timeline ordering."""
+    dt = _parse_utc_datetime(raw_ts)
+    if dt is None:
+        return str(raw_ts or "").strip()
+    iso = dt.isoformat()
+    return f"{iso[:-6]}Z" if iso.endswith("+00:00") else iso
+
+
+def _timestamp_sort_key(raw_ts: Any) -> tuple[int, float, str]:
+    """Build deterministic chronological sort key handling mixed fractional seconds."""
+    dt = _parse_utc_datetime(raw_ts)
+    if dt is None:
+        return (1, 0.0, str(raw_ts or ""))
+    return (0, dt.timestamp(), _normalize_utc_iso(dt.isoformat()))
+
+
+def _matches_epic_artifact_filename(
+    filename: str,
+    prefix: str,
+    ext: str,
+    variants: set[str],
+    norm_target: str,
+) -> bool:
+    """Match active or timestamp-archived artifact names without prefix collisions."""
+    if not (filename.startswith(prefix) and filename.endswith(ext)):
+        return False
+    body = filename[len(prefix) : len(filename) - len(ext)]
+    if not body:
+        return False
+    if body in variants or _normalize_slug(body) == norm_target:
+        return True
+    m_arch = _ARCHIVE_SUFFIX_RE.match(body)
+    if not m_arch:
+        return False
+    candidate = m_arch.group(1)
+    return candidate in variants or _normalize_slug(candidate) == norm_target
+
+
+def _read_json_dict(path: Path) -> dict[str, Any] | None:
+    """Read a JSON object from disk, returning None on IO or parse failure."""
+    if not path.is_file():
+        return None
+    with contextlib.suppress(OSError, json.JSONDecodeError, UnicodeDecodeError):
+        parsed = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(parsed, dict):
+            return parsed
+    return None
+
+
+def _extract_event_epic(record: dict[str, Any]) -> str:
+    return str(record.get("epic") or record.get("epic_slug") or "").strip()
+
+
+def _review_state_key(rev: Any) -> str:
+    """Deterministic string key representing review_state identity for deduplication."""
+    if not rev:
+        return ""
+    if isinstance(rev, dict):
+        return json.dumps(rev, sort_keys=True, separators=(",", ":"))
+    return str(rev)
+
+
+def _normalize_step_event(record: dict[str, Any], source: str) -> dict[str, Any] | None:
+    """Normalize a JSONL or heartbeat event dict into a timeline step item."""
+    message = str(
+        record.get("message")
+        or record.get("last_event")
+        or record.get("sub_step_detail")
+        or record.get("sub_step")
+        or ""
+    ).strip()
+    if not message:
+        return None
+    normalized: dict[str, Any] = {
+        "ts": _normalize_utc_iso(record.get("ts") or record.get("timestamp")),
+        "category": "step",
+        "stage": str(record.get("stage") or "").strip(),
+        "sub_step": str(record.get("sub_step") or "").strip(),
+        "detail": str(record.get("sub_step_detail") or "").strip(),
+        "message": message,
+        "source": source,
+    }
+    if record.get("review_state") is not None:
+        normalized["review_state"] = record.get("review_state")
+    return normalized
+
+
+def _read_stream_events(
+    stream_path: Path, norm_target: str, source: str
+) -> list[dict[str, Any]]:
+    """Parse append-only JSONL stream events safely, skipping corrupt lines."""
+    items: list[dict[str, Any]] = []
+    if not stream_path.is_file():
+        return items
+    with contextlib.suppress(OSError, UnicodeDecodeError):
+        for raw_line in stream_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            with contextlib.suppress(json.JSONDecodeError):
+                parsed = json.loads(line)
+                if not isinstance(parsed, dict):
+                    continue
+                ev_epic = _extract_event_epic(parsed)
+                if ev_epic and _normalize_slug(ev_epic) != norm_target:
+                    continue
+                normalized = _normalize_step_event(parsed, source)
+                if normalized is not None:
+                    items.append(normalized)
+    return items
+
+
+def _collect_matching_epic_files(
+    devtool_dirs: list[Path],
+    subdir: str,
+    prefix: str,
+    ext: str,
+    variants: set[str],
+    norm_target: str,
+) -> list[Path]:
+    """Collect unique files inside `dt/<subdir>` matching epic slug variants."""
+    found: list[Path] = []
+    seen_paths: set[Path] = set()
+    for dt_dir in devtool_dirs:
+        target_dir = dt_dir / subdir
+        if not target_dir.is_dir():
+            continue
+        with contextlib.suppress(OSError):
+            for entry in sorted(target_dir.iterdir()):
+                if not entry.is_file():
+                    continue
+                if not _matches_epic_artifact_filename(
+                    entry.name, prefix, ext, variants, norm_target
+                ):
+                    continue
+                resolved = entry.resolve()
+                if resolved not in seen_paths:
+                    seen_paths.add(resolved)
+                    found.append(entry)
+    return found
+
+
+def _merge_epic_heartbeats(repo_path: Path, epic_slug: str) -> dict[str, Any]:
+    """Stitch active and archived heartbeats plus append-only event streams."""
+    variants = _collect_slug_variants(epic_slug)
+    variants_set = set(variants)
+    norm_target = _normalize_slug(epic_slug)
+    devtool_dirs = _collect_devtool_dirs(repo_path, active_epic=epic_slug)
+
+    stream_files = [
+        *_collect_matching_epic_files(
+            devtool_dirs, "archive", "events_", ".jsonl", variants_set, norm_target
+        ),
+        *_collect_matching_epic_files(
+            devtool_dirs, "logs", "events_", ".jsonl", variants_set, norm_target
+        ),
+    ]
+    hb_files = [
+        *_collect_matching_epic_files(
+            devtool_dirs, "archive", "heartbeat_", ".json", variants_set, norm_target
+        ),
+        *_collect_matching_epic_files(
+            devtool_dirs, "state", "", ".heartbeat.json", variants_set, norm_target
+        ),
+    ]
+
+    step_events: list[dict[str, Any]] = []
+    seen_exact: set[tuple[str, str, str, str, str]] = set()
+    stream_msg_keys: set[tuple[str, str, str, str]] = set()
+    stream_base_msg_keys: set[tuple[str, str, str]] = set()
+    stream_base_exact_keys: set[tuple[str, str, str, str]] = set()
+    has_stream = False
+
+    for s_path in stream_files:
+        src = "archive_stream" if s_path.parent.name == "archive" else "stream"
+        for ev in _read_stream_events(s_path, norm_target, src):
+            has_stream = True
+            rev_key = _review_state_key(ev.get("review_state"))
+            exact_key = (ev["ts"], ev["stage"], ev["sub_step"], ev["message"], rev_key)
+            if exact_key in seen_exact:
+                continue
+            seen_exact.add(exact_key)
+            stream_msg_keys.add((ev["stage"], ev["sub_step"], ev["message"], rev_key))
+            stream_base_msg_keys.add((ev["stage"], ev["sub_step"], ev["message"]))
+            stream_base_exact_keys.add(
+                (ev["ts"], ev["stage"], ev["sub_step"], ev["message"])
+            )
+            step_events.append(ev)
+
+    best_hb: dict[str, Any] | None = None
+    best_rank: tuple[int, float, int] = (-1, -1.0, -1)
+    snapshots_found = 0
+
+    for hb_path in hb_files:
+        snap = _read_json_dict(hb_path)
+        if not snap:
+            continue
+        snap_epic = _extract_event_epic(snap)
+        if snap_epic and _normalize_slug(snap_epic) != norm_target:
+            continue
+        snapshots_found += 1
+        is_live = 1 if hb_path.parent.name == "state" else 0
+        gen = _safe_int_val(snap.get("generation"), 0)
+        upd = _timestamp_sort_key(snap.get("updated_at"))[1]
+        rank = (gen, upd, is_live)
+        if rank > best_rank:
+            best_rank = rank
+            best_hb = dict(snap)
+
+        src = "archive_heartbeat" if not is_live else "heartbeat"
+        raw_events = snap.get("events")
+        if not isinstance(raw_events, list):
+            continue
+        for item in raw_events:
+            if not isinstance(item, dict):
+                continue
+            hb_ev = _normalize_step_event(item, src)
+            if hb_ev is None:
+                continue
+            rev_key = _review_state_key(hb_ev.get("review_state"))
+            exact_key = (
+                hb_ev["ts"],
+                hb_ev["stage"],
+                hb_ev["sub_step"],
+                hb_ev["message"],
+                rev_key,
+            )
+            msg_key = (
+                hb_ev["stage"],
+                hb_ev["sub_step"],
+                hb_ev["message"],
+                rev_key,
+            )
+            base_exact = (
+                hb_ev["ts"],
+                hb_ev["stage"],
+                hb_ev["sub_step"],
+                hb_ev["message"],
+            )
+            base_msg = (
+                hb_ev["stage"],
+                hb_ev["sub_step"],
+                hb_ev["message"],
+            )
+            # If heartbeat event omits review_state and stream already contains this event, drop it as duplicate
+            if (
+                not rev_key
+                and has_stream
+                and (
+                    base_exact in stream_base_exact_keys
+                    or base_msg in stream_base_msg_keys
+                )
+            ):
+                continue
+
+            if exact_key in seen_exact or msg_key in stream_msg_keys:
+                continue
+            seen_exact.add(exact_key)
+            step_events.append(hb_ev)
+
+    step_events.sort(key=lambda e: _timestamp_sort_key(e.get("ts")))
+    if best_hb is not None:
+        best_hb["events"] = [
+            {
+                "ts": ev["ts"],
+                "stage": ev["stage"],
+                "sub_step": ev["sub_step"],
+                "message": ev["message"],
+                **(
+                    {"review_state": ev["review_state"]}
+                    if ev.get("review_state") is not None
+                    else {}
+                ),
+            }
+            for ev in step_events
+        ]
+
+    return {
+        "heartbeat": best_hb,
+        "step_events": step_events,
+        "has_stream": has_stream,
+        "has_heartbeat": snapshots_found > 0 or bool(step_events),
+    }
+
+
+def _parse_activity_log_events(
+    log_path: Path, variants: set[str] | None = None, *, shared_log: bool = False
+) -> list[dict[str, Any]]:
+    """Extract normalized timestamped entries from an activity log file."""
+    events: list[dict[str, Any]] = []
+    if not log_path.is_file():
+        return events
+    shared_re: re.Pattern[str] | None = None
+    if shared_log and variants:
+        pattern = "|".join(
+            re.escape(v) for v in sorted(variants, key=len, reverse=True)
+        )
+        shared_re = re.compile(
+            rf"(?<![a-zA-Z0-9_-])(?:{pattern})(?![a-zA-Z0-9_-])",
+            re.IGNORECASE,
+        )
+    with contextlib.suppress(OSError, UnicodeDecodeError):
+        for raw_line in log_path.read_text(encoding="utf-8").splitlines():
+            m = _BRACKET_TS_RE.match(raw_line)
+            if not m:
+                continue
+            ts_str, msg = m.group(1).strip(), m.group(2).strip()
+            if not msg:
+                continue
+            if shared_re is not None and not shared_re.search(raw_line):
+                continue
+            events.append(
+                {
+                    "ts": _normalize_utc_iso(ts_str),
+                    "category": "activity",
+                    "stage": "",
+                    "sub_step": "",
+                    "detail": log_path.name,
+                    "message": msg,
+                    "source": "activity_log",
+                }
+            )
+    return events
+
+
+def _collect_epic_activity_events(
+    repo_path: Path, epic_slug: str
+) -> tuple[list[dict[str, Any]], bool]:
+    """Collect archived and active activity log events scoped to `epic_slug`."""
+    variants = _collect_slug_variants(epic_slug)
+    variants_set = set(variants)
+    norm_target = _normalize_slug(epic_slug)
+    devtool_dirs = _collect_devtool_dirs(repo_path, active_epic=epic_slug)
+
+    log_files = [
+        *_collect_matching_epic_files(
+            devtool_dirs, "archive", "activity_", ".log", variants_set, norm_target
+        ),
+        *_collect_matching_epic_files(
+            devtool_dirs, "logs", "activity_", ".log", variants_set, norm_target
+        ),
+    ]
+    has_epic_activity_file = bool(log_files)
+    events: list[dict[str, Any]] = []
+    for path_obj in log_files:
+        events.extend(_parse_activity_log_events(path_obj))
+
+    seen_shared: set[Path] = set()
+    for dt_dir in devtool_dirs:
+        shared = dt_dir / "logs" / "activity.log"
+        if shared.is_file() and shared.resolve() not in seen_shared:
+            seen_shared.add(shared.resolve())
+            events.extend(
+                _parse_activity_log_events(
+                    shared, variants=variants_set, shared_log=True
+                )
+            )
+    return events, has_epic_activity_file or bool(events)
+
+
+def _select_evidence_run(runs: dict[str, Any]) -> tuple[str, dict[str, Any]] | None:
+    """Select the primary verification run (`verify` > `red` > latest timestamp)."""
+    for preferred in ("verify", "red"):
+        cand = runs.get(preferred)
+        if isinstance(cand, dict):
+            return preferred, cand
+    best: tuple[str, dict[str, Any]] | None = None
+    best_ts: tuple[int, float, str] = (-1, 0.0, "")
+    for key, cand in runs.items():
+        if not isinstance(cand, dict):
+            continue
+        ts_key = _timestamp_sort_key(cand.get("finished") or cand.get("started"))
+        if best is None or ts_key > best_ts:
+            best_ts = ts_key
+            best = (str(key), cand)
+    return best
+
+
+def _load_task_evidence_summary(evidence_path: Path) -> dict[str, Any] | None:
+    """Read task verification evidence JSON with `output_tail` bounded to <= 8 lines."""
+    data = _read_json_dict(evidence_path)
+    if not data:
+        return None
+    runs = data.get("runs")
+    if not isinstance(runs, dict) or not runs:
+        return None
+    selected = _select_evidence_run(runs)
+    if selected is None:
+        return None
+    run_phase, run_obj = selected
+    raw_rows = run_obj.get("rows")
+    rows: list[dict[str, Any]] = []
+    if isinstance(raw_rows, list):
+        for row in raw_rows:
+            if not isinstance(row, dict):
+                continue
+            raw_tail = row.get("output_tail")
+            if isinstance(raw_tail, list):
+                tail = [str(line) for line in raw_tail[-MAX_EVIDENCE_TAIL_LINES:]]
+            elif isinstance(raw_tail, str):
+                tail = raw_tail.splitlines()[-MAX_EVIDENCE_TAIL_LINES:]
+            else:
+                tail = []
+            rows.append(
+                {
+                    "id": str(row.get("id") or ""),
+                    "phase": str(row.get("phase") or run_phase),
+                    "command": str(row.get("command") or ""),
+                    "outcome": str(row.get("outcome") or ""),
+                    "reason": str(row.get("reason") or ""),
+                    "started": _normalize_utc_iso(row.get("started")),
+                    "finished": _normalize_utc_iso(row.get("finished")),
+                    "output_tail": tail,
+                }
+            )
+    passed = sum(1 for r in rows if r["outcome"].upper() == "PASS")
+    return {
+        "phase": run_phase,
+        "status": str(data.get("status") or ""),
+        "head": str(run_obj.get("head") or ""),
+        "started": _normalize_utc_iso(run_obj.get("started")),
+        "finished": _normalize_utc_iso(run_obj.get("finished")),
+        "passed_rows": passed,
+        "total_rows": len(rows),
+        "rows": rows,
+    }
+
+
+def _find_task_evidence(
+    task_id: str, checkouts: list[Path], variants: list[str]
+) -> dict[str, Any] | None:
+    """Locate `<task_id>.json` across candidate checkouts; return None if corrupt."""
+    candidates: list[Path] = []
+    for co in checkouts:
+        for variant in variants:
+            candidates.append(
+                co / ".devtool" / "epic" / variant / "evidence" / f"{task_id}.json"
+            )
+        candidates.append(co / ".devtool" / "evidence" / f"{task_id}.json")
+    for cand in candidates:
+        if cand.is_file():
+            return _load_task_evidence_summary(cand)
+    return None
+
+
+def _parse_task_card(
+    tf: Path, epic_slug: str, variants: set[str], norm_target: str, source: str
+) -> dict[str, Any] | None:
+    """Parse a single `task_*.md` card if it belongs to `epic_slug`."""
+    with contextlib.suppress(OSError, UnicodeDecodeError):
+        content = tf.read_text(encoding="utf-8")
+        fm = parse_frontmatter(content)
+        task_epic = str(fm.get("epic") or "").strip()
+        dir_match = (
+            tf.parent.name in variants or _normalize_slug(tf.parent.name) == norm_target
+        )
+        if task_epic:
+            if _normalize_slug(task_epic) != norm_target:
+                return None
+        elif not dir_match:
+            return None
+
+        title = tf.stem
+        for line in content.splitlines():
+            if line.strip().startswith("# "):
+                title = line.strip().lstrip("# ").strip()
+                break
+
+        raw_labels = fm.get("labels", [])
+        if isinstance(raw_labels, str):
+            try:
+                parsed_labels = json.loads(raw_labels)
+                labels = (
+                    [str(x) for x in parsed_labels]
+                    if isinstance(parsed_labels, list)
+                    else [raw_labels]
+                )
+            except Exception:
+                labels = [raw_labels]
+        elif isinstance(raw_labels, list):
+            labels = [str(x) for x in raw_labels]
+        else:
+            labels = []
+
+        return {
+            "id": tf.stem,
+            "title": title,
+            "status": normalize_task_status(fm.get("status")),
+            "priority": str(fm.get("priority") or "medium"),
+            "epic": task_epic or epic_slug,
+            "labels": labels,
+            "time": format_relative_time(
+                fm.get("completedAt") or fm.get("modified") or fm.get("created")
+            ),
+            "source": source,
+        }
+    return None
+
+
+def _collect_epic_tasks_with_evidence(
+    repo_path: Path, epic_slug: str, status: str, matching_wts: list[Path]
+) -> list[dict[str, Any]]:
+    """Harvest epic tasks (worktree-first when in_progress) and attach evidence."""
+    variants = _collect_slug_variants(epic_slug)
+    variants_set = set(variants)
+    norm_target = _normalize_slug(epic_slug)
+
+    wt_sources: list[tuple[Path, str]] = []
+    for wt in matching_wts:
+        wt_sources.extend(
+            [
+                (wt / ".devtool" / "features", "worktree"),
+                (wt / ".devtool" / "features" / "done", "worktree"),
+                *[(wt / ".devtool" / "epic" / v, "worktree") for v in variants],
+            ]
+        )
+    root_sources: list[tuple[Path, str]] = [
+        *[(repo_path / ".devtool" / "epic" / v, "root") for v in variants],
+        (repo_path / ".devtool" / "features", "root"),
+        (repo_path / ".devtool" / "features" / "done", "root"),
+    ]
+    ordered_dirs = (
+        [*wt_sources, *root_sources]
+        if status == "in_progress" and matching_wts
+        else [*root_sources, *wt_sources]
+    )
+    evidence_checkouts = (
+        [*matching_wts, repo_path]
+        if status == "in_progress" and matching_wts
+        else [repo_path, *matching_wts]
+    )
+
+    seen_ids: set[str] = set()
+    tasks: list[dict[str, Any]] = []
+    for task_dir, source in ordered_dirs:
+        if not task_dir.is_dir():
+            continue
+        for tf in sorted(task_dir.glob("task_*.md"), key=natural_sort_key):
+            if tf.stem in seen_ids:
+                continue
+            card = _parse_task_card(tf, epic_slug, variants_set, norm_target, source)
+            if card is None:
+                continue
+            seen_ids.add(tf.stem)
+            card["evidence"] = _find_task_evidence(
+                tf.stem, evidence_checkouts, variants
+            )
+            tasks.append(card)
+
+    tasks.sort(key=lambda t: natural_sort_key(t.get("id", "")))
+    return tasks
+
+
+def _build_unified_timeline(
+    repo_path: Path,
+    epic_slug: str,
+    step_events: list[dict[str, Any]],
+    gate_entries: list[dict[str, Any]],
+    tasks: list[dict[str, Any]],
+    activity_events: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Combine step, gate, activity, and evidence events into sorted UTC order."""
+    if activity_events is None:
+        activity_events, _ = _collect_epic_activity_events(repo_path, epic_slug)
+
+    raw_items: list[dict[str, Any]] = [*step_events, *activity_events]
+
+    for g in gate_entries:
+        gate_num = _safe_int_val(g.get("gate"), 0)
+        summary = str(g.get("summary") or g.get("approved") or "").strip()
+        approver = str(g.get("approver") or g.get("by") or "").strip()
+        commit = str(g.get("commit") or "").strip()
+        detail = (
+            f"{approver} ({commit})" if approver and commit else (approver or commit)
+        )
+        msg = f"Gate {gate_num}: {summary}" if summary else f"Gate {gate_num} approved"
+        raw_items.append(
+            {
+                "ts": _normalize_utc_iso(g.get("timestamp")),
+                "category": "gate",
+                "stage": _GATE_STAGE_MAP.get(gate_num, ""),
+                "sub_step": f"gate_{gate_num}" if gate_num else "gate",
+                "detail": detail,
+                "message": msg,
+                "source": "gate_ledger",
+            }
+        )
+
+    for task in tasks:
+        ev = task.get("evidence")
+        if not isinstance(ev, dict):
+            continue
+        ts_val = str(ev.get("finished") or ev.get("started") or "").strip()
+        if not ts_val:
+            continue
+        phase = str(ev.get("phase") or "verify")
+        passed = _safe_int_val(ev.get("passed_rows"), 0)
+        total = _safe_int_val(ev.get("total_rows"), 0)
+        raw_items.append(
+            {
+                "ts": ts_val,
+                "category": "evidence",
+                "stage": "tasks",
+                "sub_step": str(task.get("id") or ""),
+                "detail": str(ev.get("head") or ""),
+                "message": f"{task.get('id')} ({phase}): {passed}/{total} rows PASS",
+                "source": "evidence",
+            }
+        )
+
+    # First pass: collect which (ts, category, sub_step, message) tuples have at least one non-empty review_state
+    has_nonempty_rev: set[tuple[str, str, str, str]] = set()
+    for item in raw_items:
+        rev_k = _review_state_key(item.get("review_state"))
+        if rev_k:
+            b_key = (
+                str(item.get("ts") or ""),
+                str(item.get("category") or ""),
+                str(item.get("sub_step") or ""),
+                str(item.get("message") or ""),
+            )
+            has_nonempty_rev.add(b_key)
+
+    deduped: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str, str, str]] = set()
+    for item in raw_items:
+        rev_key = _review_state_key(item.get("review_state"))
+        base_key = (
+            str(item.get("ts") or ""),
+            str(item.get("category") or ""),
+            str(item.get("sub_step") or ""),
+            str(item.get("message") or ""),
+        )
+        if not rev_key and base_key in has_nonempty_rev:
+            continue
+        key = (*base_key, rev_key)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(item)
+
+    deduped.sort(
+        key=lambda item: (
+            _timestamp_sort_key(item.get("ts")),
+            str(item.get("category") or ""),
+            str(item.get("message") or ""),
+        )
+    )
+    return deduped
+
+
+def _extract_epic_title(
+    epic_dirs: list[Path], epic_slug: str, variants: list[str]
+) -> str:
+    """Extract display title from HLD or design markdown headings."""
+    candidates: list[Path] = []
+    for ed in epic_dirs:
+        for v in variants:
+            candidates.extend([ed / f"{v}.vi.md", ed / f"{v}.en.md"])
+        with contextlib.suppress(OSError):
+            for doc in sorted(ed.glob("*.md")):
+                if (
+                    doc not in candidates
+                    and not doc.name.startswith("task_")
+                    and doc.name != "handoff.md"
+                ):
+                    candidates.append(doc)
+    for doc in candidates:
+        if not doc.is_file():
+            continue
+        with contextlib.suppress(OSError, UnicodeDecodeError):
+            for line in doc.read_text(encoding="utf-8").splitlines():
+                if line.startswith("# "):
+                    raw = line.lstrip("#").strip()
+                    if raw.lower().startswith("epic:"):
+                        raw = raw[5:].strip()
+                    if raw:
+                        return raw
+    return epic_slug
+
+
+def _compute_last_updated_iso(
+    timeline: list[dict[str, Any]],
+    heartbeat: dict[str, Any] | None,
+    epic_dirs: list[Path],
+) -> str:
+    """Resolve most recent UTC ISO timestamp across timeline, heartbeat, and files."""
+    candidates: list[str] = []
+    if timeline and timeline[-1].get("ts"):
+        candidates.append(str(timeline[-1]["ts"]))
+    if heartbeat and heartbeat.get("updated_at"):
+        candidates.append(_normalize_utc_iso(heartbeat.get("updated_at")))
+    mtimes: list[float] = []
+    for ed in epic_dirs:
+        if ed.is_dir():
+            with contextlib.suppress(OSError):
+                mtimes.append(ed.stat().st_mtime)
+                for child in ed.iterdir():
+                    if child.is_file():
+                        mtimes.append(child.stat().st_mtime)
+    if mtimes:
+        candidates.append(
+            _normalize_utc_iso(
+                datetime.fromtimestamp(max(mtimes), tz=timezone.utc).isoformat()
+            )
+        )
+    valid = [c for c in candidates if _parse_utc_datetime(c) is not None]
+    if not valid:
+        return ""
+    valid.sort(key=_timestamp_sort_key)
+    return valid[-1]
+
+
+def harvest_epic_history(repo_path: Path, epic_slug: str) -> dict[str, Any]:
+    """Harvest full per-epic history payload for `/api/epic/history` without mutating `/api/tasks`."""
+    variants = _collect_slug_variants(epic_slug)
+    matching_wts = _collect_matching_worktrees(repo_path, epic_slug)
+    epic_dirs: list[Path] = []
+    for checkout in [*matching_wts, repo_path]:
+        epic_dirs.extend(_find_epic_dirs_for_checkout(checkout, epic_slug))
+
+    completed_slugs = get_completed_epic_slugs(repo_path)
+    abandoned_slugs = get_abandoned_epic_slugs(repo_path)
+    gate_entries = parse_gate_ledger_entries(repo_path, epic_slug)
+    merged_hb = _merge_epic_heartbeats(repo_path, epic_slug)
+    activity_events, has_activity = _collect_epic_activity_events(repo_path, epic_slug)
+
+    hld_status: str | None = None
+    for ed in epic_dirs:
+        hld_status = extract_epic_hld_status(ed, ed.name) or extract_epic_hld_status(
+            ed, epic_slug
+        )
+        if hld_status is not None:
+            break
+
+    has_gate5 = any(_safe_int_val(g.get("gate"), 0) == 5 for g in gate_entries)
+    has_gate3_or_more = any(_safe_int_val(g.get("gate"), 0) >= 3 for g in gate_entries)
+    if (
+        hld_status == "done"
+        or _is_completed_epic(epic_slug, completed_slugs)
+        or has_gate5
+    ):
+        status = "done"
+    elif hld_status in ("abandon", "abandoned") or _is_completed_epic(
+        epic_slug, abandoned_slugs
+    ):
+        status = hld_status if hld_status in ("abandon", "abandoned") else "abandoned"
+    elif hld_status == "packaged":
+        if _is_packaged_epic_promoted(
+            repo_path,
+            epic_slug,
+            has_wt=bool(matching_wts),
+            has_gate3_or_more=has_gate3_or_more,
+            has_active_telemetry=merged_hb["has_heartbeat"] or merged_hb["has_stream"],
+            has_active_tasks=False,  # Checked below when tasks are collected
+        ):
+            status = "in_progress"
+        else:
+            status = "packaged"
+    elif (
+        matching_wts
+        or hld_status == "in_progress"
+        or gate_entries
+        or merged_hb["has_heartbeat"]
+        or merged_hb["has_stream"]
+    ):
+        status = "in_progress"
+    else:
+        status = "unstarted"
+
+    tasks = _collect_epic_tasks_with_evidence(
+        repo_path, epic_slug, status, matching_wts
+    )
+    if status in ("unstarted", "packaged") and any(
+        t.get("status") in ("in-progress", "review", "done") for t in tasks
+    ):
+        status = "in_progress"
+
+    exists = bool(
+        epic_dirs
+        or matching_wts
+        or _is_completed_epic(epic_slug, completed_slugs)
+        or _is_completed_epic(epic_slug, abandoned_slugs)
+        or gate_entries
+        or merged_hb["has_stream"]
+        or merged_hb["has_heartbeat"]
+        or tasks
+        or has_activity
+    )
+
+    timeline = _build_unified_timeline(
+        repo_path,
+        epic_slug,
+        list(merged_hb["step_events"]),
+        gate_entries,
+        tasks,
+        activity_events=activity_events,
+    )
+    if merged_hb["has_stream"]:
+        log_completeness = "full_stream"
+    elif timeline or merged_hb["has_heartbeat"] or gate_entries:
+        log_completeness = "snapshot_and_ledger"
+    else:
+        log_completeness = "none"
+
+    is_completed = status == "done"
+    done_tasks = sum(1 for t in tasks if t.get("status") == "done")
+    total_tasks = len(tasks)
+    pending_snap = _read_state_snapshot(
+        repo_path, "pending_decision.json", {}, active_epic=epic_slug
+    )
+    pending_decision = _match_pending_decision_for_epic(pending_snap, epic_slug)
+    pipeline_telemetry = build_epic_pipeline_telemetry(
+        repo_path,
+        epic_slug,
+        done_tasks=done_tasks,
+        total_tasks=total_tasks,
+        heartbeat=merged_hb["heartbeat"],
+        pending_decision=pending_decision,
+        is_completed=is_completed,
+    )
+
+    hb_dict = merged_hb["heartbeat"]
+    pic = extract_epic_pic(repo_path, epic_slug) or (
+        str(hb_dict.get("pic")).strip()
+        if isinstance(hb_dict, dict) and hb_dict.get("pic")
+        else None
+    )
+    last_updated_iso = _compute_last_updated_iso(timeline, hb_dict, epic_dirs)
+
+    return {
+        "exists": exists,
+        "epic": {
+            "slug": epic_slug,
+            "title": _extract_epic_title(epic_dirs, epic_slug, variants),
+            "status": status,
+            "pic": pic,
+            "has_worktree": bool(matching_wts),
+            "worktree_path": str(matching_wts[0]) if matching_wts else None,
+            "done_tasks": done_tasks,
+            "total_tasks": total_tasks,
+            "last_updated": last_updated_iso,
+            "last_updated_human": (
+                format_relative_time(last_updated_iso) if last_updated_iso else ""
+            ),
+        },
+        "pipeline_telemetry": pipeline_telemetry,
+        "tasks": tasks,
+        "timeline": timeline,
+        "log_completeness": log_completeness,
     }
 
 
