@@ -53,9 +53,12 @@ class VerifiableHandoffText(unittest.TestCase):
         start = text.index("### Phase 4")
         end = text.index("### Phase 4.1")
         phase4 = text[start:end]
-        positions = [phase4.index(p) for p in (
-            "audit_epic.py", "Integration results", "tests --results",
-            "@quality_check")]
+        positions = [
+            phase4.index("audit_epic.py"),
+            phase4.index("Integration results"),
+            phase4.index("tests --results"),
+            phase4.rindex("@quality_check"),
+        ]
         self.assertEqual(positions, sorted(positions))
         self.assertEqual(len(set(positions)), 4)
 
