@@ -61,6 +61,7 @@ Validating the complete producer -> harvester -> HTTP `/api/epic/history` -> bro
 - **Target Files & Symbols**:
   - `tests/test_cehm_e2e_cdp.py`: new end-to-end headless Chrome CDP integration suite
   - `scripts/verify.sh`: `SUITES` (L362-L435)
+  - `tests/test_rsdh_orchestration.py`: `test_rsdh_fr_03_end_to_end_single_terminal_flow` (L1265-L1285)
 - **Downstream Callers**: `scripts/verify.sh` release verification and Gate 4 acceptance checks.
 - **Cross-Platform Bridges**: End-to-end browser HTTP/DOM/JS bridge between `tasks_dashboard.html` and `tasks_server.py`.
 - **Target Test Coverage Threshold**: 100% of all 15 `CEHM-*` BDD scenarios verified across Tasks 1..4 and passing full regression.

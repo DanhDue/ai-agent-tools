@@ -163,3 +163,6 @@ Trong `skills/check-tasks/resources/dashboard/tasks_dashboard.html`:
 | Dung lượng log & evidence ở epic lớn | Rủi ro hiệu năng | Epic nhiều task/evidence có thể làm JSON nặng; chỉ fetch khi bấm mở epic qua `/api/epic/history`, rút gọn mặc định `output_tail` và thu gọn `raw_output`. |
 | Bản snapshot plugin tại `~/.gemini/config/plugins/d3nexus/` | Giả định môi trường | Các profile chạy bằng bản plugin cài sẵn sẽ nhận luồng event mới và giao diện Modal sau khi đồng bộ lại plugin từ repo này. |
 | Epic cũ hoàn thành trước khi có `events_*.jsonl` | Giới hạn dữ liệu lịch sử | Các epic trước đây chỉ còn `gate_ledger`, `activity_*.log` (nếu có), `evidence/*.json`, reviews và snapshot heartbeat cuối; UI gắn nhãn rõ ràng để tránh hiểu nhầm. |
+
+<!-- sync-en-sha256: 92d5d222a08d1817 -->
+
