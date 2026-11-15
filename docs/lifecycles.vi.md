@@ -155,6 +155,30 @@ Các sơ đồ và giải thích này mô tả vòng đời cho con người; c�
      3. `CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)`: Sau 3 rounds vẫn còn bất kỳ lỗi `Critical` nào (ngược lại nếu Round 3 đạt `0 Critical` thì `AUTO_PASS_FINAL_SWEEP` sửa nốt `Important`/`Minor` 1 lượt rồi hoàn tất).
    - **Tháp Kiểm Thử 3 Tầng**: Tầng 1 (`Task-Scoped` `< 5s` mỗi task) -> Tầng 2 (`Blast-Radius Scoped` `< 30s` tại Cổng 4) -> Tầng 3 (`Test All` toàn bộ repo đúng 1 lần tại `finishing-a-development-branch` trước khi merge vào `develop`).
 
+### Ma trận Role và Model
+
+Các role trong `dev-lifecycle` được phân tách theo chức năng, không gắn cứng theo tên model (xem [orchestration-roles.md](../skills/dev-lifecycle/references/orchestration-roles.md) và `.devtool/review_config.json`):
+
+1. **Tri-Role Governance & Subagents**:
+
+   | Role / Subagent | Model cấu hình | Vai trò & Phạm vi quyền hạn |
+   |---|---|---|
+   | **Role 2.1 — Human Architect** | Con người (không dùng LLM) | Quyết định chiến lược, duyệt **Cổng 1, 2, 5**, xử lý escalation / Circuit Breaker (`SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, `MAX_ROUNDS_CRITICAL_REMAINING`), chọn phương án Finish/Merge ở Stage 4. |
+   | **Role 2.2 — AI Assistant / Orchestrator** *(main session)* | **Interactive**: model hiện tại của main session.<br>**Autonomous (`lifecycle_runner.py`)**: `.devtool/review_config.json["providers"]["assistant"]` (hiện là `claude-opus-5-5-high`, `thinking_level: "high"`) hoặc `--assistant-model`. | Thiết kế Spec/HLD/BDD, đánh giá `fix_plan_round<N>.md` (`APPROVED`/`ADJUSTED`/`CRITICAL_CONFLICT`), điều phối wave/pool (`manage_worker_pool.py`), chạy `run_external_review.py` và kiểm tra diff scope. **Cấm**: đọc/sửa `src/` hoặc `tests/`, chạy test/linter/type-checker trực tiếp ở main session. |
+   | **Role 2.2 — `principal-reviser`** *(subagent)* | Kế thừa model của Orchestrator (`invoke_subagent` `Model="inherit"` hoặc `Task`) | Sửa tài liệu `.devtool/epic/<epic_dir>/` và prose trong `task_*.md` khi `/principal-review` (Stage 2) có findings. Read-only trên `src/` và `tests/`. |
+   | **Role 2.3 — AI Programmer** (`task-implementer`, `task-reviewer`, `review-fixer`, `gate4-verifier`) | `.devtool/review_config.json["providers"]["programmer"]` — mặc định **`gemini-4-hydrogen-xhigh`**, effort **`xhigh`** (`agy --model <model> --effort xhigh --mode auto`, hoặc `--programmer-model` / `--programmer-effort`). **Cấm** thay thế bằng `Model="flash"` hoặc `"inherit"`. | - `task-implementer`: code TDD (`RED -> GREEN`), chạy `check_code_impact.py` & `run_task_checks.py verify` trong phạm vi `Allowed files`.<br>- `task-reviewer`: audit diff/AST, xác minh `done gate: PASS`, mark `done` và commit.<br>- `review-fixer`: sửa code/test cho `/cross-model-review` (`fast-track` hoặc `plan-first` -> `apply-plan`) kèm Tier 1 scoped tests.<br>- `gate4-verifier`: chạy độc lập `audit_epic.py`, BDD traceability và `@quality_check`. |
+
+2. **External Reviewer CLIs (Stage 2 `/principal-review` & Stage 3 `/cross-model-review`)**:
+   Độc lập với model của Orchestrator/Programmer và được chọn theo `--auto-quota` (ưu tiên mặc định trong docs là `Claude -> Codex -> Kiro -> Argon`; `.devtool/review_config.json` hiện đặt `["codex", "kiro", "claude", "agy"]`):
+
+   | Provider CLI | Model cấu hình | Thinking Level | Vai trò |
+   |---|---|---|---|
+   | `claude` | `opus` | `high` | Audit kiến trúc/task (Stage 2) & review code/delta (Stage 3), tối đa 3 vòng |
+   | `codex` | `gpt-6.1-sol` | `high` | Audit kiến trúc/task (Stage 2) & review code/delta (Stage 3), tối đa 3 vòng |
+   | `kiro` | `claude-opus-5.5` | `high` | Audit kiến trúc/task (Stage 2) & review code/delta (Stage 3), tối đa 3 vòng |
+   | `agy` (Argon) | `gemini-4-argon-high` | `high` | Fallback review CLI khi các provider ưu tiên hơn thiếu quota |
+   | `ollama` *(tuỳ chọn local)* | `gemma4:31b-it-qat` | `high` | Review offline trên máy local khi chạy `--cli ollama` |
+
 ## doc-lifecycle
 
 **Mục đích.** Điều phối công việc mà sản phẩm cuối là **tài liệu**, không phải code

@@ -152,6 +152,30 @@ These diagrams and explanations describe the lifecycle for humans; runtime skill
      3. `CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)`: Any `Critical` finding surviving after Round 3 (whereas Round 3 with `0 Critical` findings triggers `AUTO_PASS_FINAL_SWEEP`).
    - **3-Level Test Scope Pyramid**: Level 1 (`Task-Scoped` `< 5s` per task) -> Level 2 (`Blast-Radius Scoped` `< 30s` at Gate 4) -> Level 3 (`Test All` full workspace suite once in `finishing-a-development-branch` before merging to `develop`).
 
+### Role and Model Matrix
+
+Roles in `dev-lifecycle` are separated by function, not by model (see [orchestration-roles.md](../skills/dev-lifecycle/references/orchestration-roles.md) and `.devtool/review_config.json`):
+
+1. **Tri-Role Governance & Subagents**:
+
+   | Role / Subagent | Configured Model | Responsibilities & Boundaries |
+   |---|---|---|
+   | **Role 2.1 — Human Architect** | Human (non-LLM) | Owns Gates 1, 2, and 5, Circuit Breaker escalations (`SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, `MAX_ROUNDS_CRITICAL_REMAINING`), and Stage 4 Finish/Merge strategy. |
+   | **Role 2.2 — AI Assistant / Orchestrator** *(main session)* | **Interactive**: current main-session model.<br>**Autonomous (`lifecycle_runner.py`)**: `.devtool/review_config.json["providers"]["assistant"]` (currently `claude-opus-5-5-high`, `thinking_level: "high"`) or `--assistant-model`. | Authors Spec/HLD/BDD, evaluates `fix_plan_round<N>.md` (`APPROVED`/`ADJUSTED`/`CRITICAL_CONFLICT`), orchestrates wave/pool state (`manage_worker_pool.py`), runs `run_external_review.py`, and verifies post-fix diff scope. **Forbidden**: reading/editing `src/` or `tests/`, or running tests/linters/type-checkers directly in main session. |
+   | **Role 2.2 — `principal-reviser`** *(subagent)* | Inherits Orchestrator model (`invoke_subagent` `Model="inherit"` or `Task`) | Revises `.devtool/epic/<epic_dir>/` docs and task prose during Stage 2 `/principal-review`. Read-only on `src/` and `tests/`. |
+   | **Role 2.3 — AI Programmer** (`task-implementer`, `task-reviewer`, `review-fixer`, `gate4-verifier`) | `.devtool/review_config.json["providers"]["programmer"]` — default **`gemini-4-hydrogen-xhigh`**, effort **`xhigh`** (`agy --model <model> --effort xhigh --mode auto`, or `--programmer-model` / `--programmer-effort`). **Never** substitute `Model="flash"` or `"inherit"`. | - `task-implementer`: TDD (`RED -> GREEN`), `check_code_impact.py`, `run_task_checks.py verify` within `Allowed files`.<br>- `task-reviewer`: audits diff/AST, verifies `done gate: PASS`, marks `done` and commits.<br>- `review-fixer`: fixes code/tests for `/cross-model-review` (`fast-track` or `plan-first` -> `apply-plan`) with Tier 1 scoped tests.<br>- `gate4-verifier`: independently runs `audit_epic.py`, BDD traceability, and `@quality_check`. |
+
+2. **External Reviewer CLIs (Stage 2 `/principal-review` & Stage 3 `/cross-model-review`)**:
+   Independent of Orchestrator/Programmer models and selected via `--auto-quota` (default priority `Claude -> Codex -> Kiro -> Argon`; `.devtool/review_config.json` currently sets `["codex", "kiro", "claude", "agy"]`):
+
+   | Provider CLI | Configured Model | Thinking Level | Role |
+   |---|---|---|---|
+   | `claude` | `opus` | `high` | Stage 2 architecture/task audit & Stage 3 code/delta review (max 3 rounds) |
+   | `codex` | `gpt-6.1-sol` | `high` | Stage 2 architecture/task audit & Stage 3 code/delta review (max 3 rounds) |
+   | `kiro` | `claude-opus-5.5` | `high` | Stage 2 architecture/task audit & Stage 3 code/delta review (max 3 rounds) |
+   | `agy` (Argon) | `gemini-4-argon-high` | `high` | Fallback review CLI when higher-priority providers lack quota |
+   | `ollama` *(optional local)* | `gemma4:31b-it-qat` | `high` | Offline local review via `--cli ollama` |
+
 ## doc-lifecycle
 
 **Purpose.** Orchestrate work whose deliverable is a document rather than code
