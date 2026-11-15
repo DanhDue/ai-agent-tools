@@ -1117,3 +1117,57 @@ def test_cehm_regression_round2_packaged_hld_roadmap_and_history_parity(
     assert matching[0]["status"] == expected_status, (
         f"Roadmap status mismatch for {variant_name}: expected {expected_status}, got {matching[0]['status']}"
     )
+
+
+def test_cehm_regression_round3_unreadable_task_file_in_packaged_epic(
+    tmp_path: Path,
+) -> None:
+    """Regression #1 (Round 3): Corrupt or non-UTF-8 task_*.md in unpromoted Packaged epic.
+
+    Verifies that a non-UTF-8 task file does not raise UnicodeDecodeError out of
+    _has_epic_active_tasks, scan_repo (Roadmap overview), or harvest_epic_history (Epic History modal),
+    and preserves the unpromoted 'packaged' status when no active tasks exist.
+    """
+    repo = tmp_path / "corrupt_task_repo"
+    epic_slug = "corrupt_task_epic"
+    epic_dir = repo / ".devtool" / "epic" / epic_slug
+    _write_text(
+        epic_dir / f"{epic_slug}.en.md",
+        f"---\nstatus: packaged\n---\n\n# Epic: Corrupt Task {epic_slug}\n\n- **Status**: Packaged\n",
+    )
+
+    # Base ledger: Gate 1 and Gate 2 (unpromoted packaged epic)
+    ledger_lines = [
+        "# Gate Ledger\n",
+        f"| 2026-11-15T00:00:00Z | {epic_slug} | 1 | Architect | a1b2c3d | Gate 1 Inception |",
+        f"| 2026-11-15T01:00:00Z | {epic_slug} | 2 | Architect | d4e5f6a | Gate 2 Packaging |",
+    ]
+    _write_text(repo / ".devtool" / "GATE_LEDGER.md", "\n".join(ledger_lines) + "\n")
+
+    # Corrupt task file containing invalid UTF-8 bytes (\xff\xfe\x80)
+    corrupt_task_file = epic_dir / "task_01_corrupt.md"
+    corrupt_task_file.parent.mkdir(parents=True, exist_ok=True)
+    corrupt_task_file.write_bytes(
+        b"---\nepic: corrupt_task_epic\nstatus: in-progress\xff\xfe\x80\n# Corrupt Task\n"
+    )
+
+    # Coexisting valid todo task
+    _write_text(
+        epic_dir / "task_02_valid.md",
+        f"---\nepic: {epic_slug}\nstatus: todo\n---\n\n# Valid Todo Task\n",
+    )
+
+    # 1. harvest_epic_history must succeed without UnicodeDecodeError and preserve 'packaged'
+    history = check_tasks.harvest_epic_history(repo, epic_slug)
+    assert history["epic"]["status"] == "packaged"
+    assert history["epic"]["slug"] == epic_slug
+    task_ids = [t["id"] for t in history["tasks"]]
+    assert "task_02_valid" in task_ids
+    assert "task_01_corrupt" not in task_ids
+
+    # 2. scan_repo (Roadmap overview) must succeed without UnicodeDecodeError and preserve 'packaged'
+    meta = check_tasks.scan_repo(repo)
+    assert meta.epics_summary is not None
+    matching = [e for e in meta.epics_summary.epics if e.get("slug") == epic_slug]
+    assert len(matching) == 1
+    assert matching[0]["status"] == "packaged"

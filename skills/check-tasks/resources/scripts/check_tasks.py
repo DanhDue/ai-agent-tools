@@ -925,7 +925,7 @@ def resolve_active_epic(repo_path: Path) -> str | None:
             wt_feat = d / ".devtool" / "features"
             if wt_feat.is_dir():
                 for tf in sorted(wt_feat.glob("task_*.md")):
-                    with contextlib.suppress(OSError):
+                    with contextlib.suppress(OSError, UnicodeDecodeError):
                         fm = parse_frontmatter(tf.read_text(encoding="utf-8"))
                         ep = fm.get("epic")
                         if ep and _is_epic_eligible_for_active(
@@ -1057,7 +1057,7 @@ def resolve_active_epic(repo_path: Path) -> str | None:
     features_dir = repo_path / ".devtool" / "features"
     if features_dir.is_dir():
         for tf in sorted(features_dir.glob("task_*.md")):
-            with contextlib.suppress(OSError):
+            with contextlib.suppress(OSError, UnicodeDecodeError):
                 fm = parse_frontmatter(tf.read_text(encoding="utf-8"))
                 ep = fm.get("epic")
                 if ep and _is_epic_eligible_for_active(
@@ -1133,9 +1133,10 @@ def _has_epic_active_tasks(repo_path: Path, slug: str) -> bool:
             continue
         with contextlib.suppress(OSError):
             for tf in td.glob("task_*.md"):
-                fm = parse_frontmatter(tf.read_text(encoding="utf-8"))
-                if fm.get("status") in ("in-progress", "review", "done"):
-                    return True
+                with contextlib.suppress(OSError, UnicodeDecodeError):
+                    fm = parse_frontmatter(tf.read_text(encoding="utf-8"))
+                    if fm.get("status") in ("in-progress", "review", "done"):
+                        return True
     return False
 
 
@@ -1550,7 +1551,7 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
                     task_id = tf.stem
                     if task_id in seen_tasks:
                         continue
-                    with contextlib.suppress(OSError):
+                    with contextlib.suppress(OSError, UnicodeDecodeError):
                         content = tf.read_text(encoding="utf-8")
                         fm = parse_frontmatter(content)
                         task_epic = fm.get("epic")
@@ -1612,7 +1613,7 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
             task_id = tf.stem
             if task_id in seen_tasks:
                 continue
-            with contextlib.suppress(OSError):
+            with contextlib.suppress(OSError, UnicodeDecodeError):
                 content = tf.read_text(encoding="utf-8")
                 fm = parse_frontmatter(content)
                 task_epic = fm.get("epic") or "backlog"
