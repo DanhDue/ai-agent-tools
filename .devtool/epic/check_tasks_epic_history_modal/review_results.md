@@ -49,3 +49,26 @@ Raw output:
 ```text
 Verdict: CHANGES REQUIRED
 ```
+
+## Round 3
+
+- **Date**: 2026-11-15T01:32:21Z
+- **SHA**: 4652f0fcacba31730abac0780cbf8d70a834acde
+- **Base**: main
+- **CLI**: claude
+- **Model**: Opus 5.5
+- **Thinking**: high
+- **Status**: completed
+- **Verdict**: CHANGES REQUIRED
+- **Scope**: convergence from round 2 (e8c78f6)
+- **Raw log**: `build/reviews/check_tasks_epic_history_modal_code_round3_4652f0f.raw.log`
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Important | skills/check-tasks/resources/scripts/check_tasks.py:1136 | [NEW_REGRESSION] _has_epic_active_tasks only suppresses OSError around tf.read_text(encoding="utf-8"); a non-UTF-8 or partially written task_*.md in an otherwise unpromoted Packaged epic raises UnicodeDecodeError out of harvest_epics_overview/scan_repo and aborts the whole Roadmap overview (probe: same fixture is OK at e8c78f6 and raises at 4652f0f); suppress UnicodeDecodeError per file |  |
+
+Raw output:
+
+```text
+Verdict: CHANGES REQUIRED
+```
