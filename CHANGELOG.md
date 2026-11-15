@@ -8,6 +8,31 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.31.0 — 2026-11-15
+
+Delivers the **Epic History Modal** with append-only event stream archival, review tab performance optimizations, **Action Alerts & English UI** unification in `/check-tasks`, **Dynamic Claude Quota Buckets** & macOS multi-schedule hardening in `/check-quota`, and the **Argon Orchestrator / Hydrogen Subagent Role Matrix** across `dev-lifecycle`.
+
+### Added
+
+- **Epic History Modal & Append-Only Event Stream (`skills/check-tasks/`, `scripts/_state_envelope.py`)**:
+  - Adds `/api/epic/history` backed by `harvest_epic_history`, append-only event stream logging, and dual archival for completed/abandoned epics.
+  - Renders a 4-tab modal (`Timeline`, `Tasks`, `Principal Review`, `Cross-Model Review`) directly from Project Epics Roadmap items with shared pipeline stepper, task evidence expanders, and Chrome CDP E2E coverage (`tests/test_cehm_*`).
+- **Action Alerts & English UI Unification (`skills/check-tasks/`)**:
+  - Unifies 4-location confirmation alerts and English dashboard UI, with active epic priority and multi-epic blocker aggregation.
+- **Dynamic Claude Quota Buckets & Schedule Hardening (`skills/check-quota/`)**:
+  - Supports dynamic Claude quota buckets in CLI and Web UI, 3-bucket activation, FREE gating, macOS multi-schedule support, Argon expired reset & live 5H session detection, and fallback CLI OAuth token file checks.
+- **Argon Orchestrator & Hydrogen Subagent Role Matrix (`skills/dev-lifecycle/`, `docs/lifecycles.{en,vi}.md`)**:
+  - Unifies AI Assistant (Role 2.2) as Argon Orchestrator and Role 2.3 subagent as Hydrogen (`xhigh`) across handoff prompts, skills, and bilingual lifecycle documentation.
+
+### Changed
+
+- **Epic History Modal & Review Tab Performance (`skills/check-tasks/resources/dashboard/tasks_dashboard.html`, `tasks_server.py`, `check_tasks.py`)**:
+  - Routes `switchEpicHistoryReviewRound` through `/api/review` with a client-side `reviewCache` instead of re-fetching `/api/epic/history` on every round switch.
+  - Lazy-loads verbatim `raw_output` on `<details>` expand (`include_raw=0` by default in modal fetches), reducing JSON payload size and DOM rendering overhead.
+  - Adds a thread-safe `(st_mtime_ns, st_size)` cache (`_REVIEW_PARSE_CACHE`) in `parse_review_results` and wraps `harvest_epic_history` in `_scan_cache_scope()`.
+- **Test Isolation (`skills/refresh-session/`)**:
+  - Isolates `refresh-session` Darwin schedule tests from host LaunchAgents.
+
 ## 1.30.0 — 2026-11-14
 
 Delivers real-time **Lifecycle Stage Telemetry & Stage Progress UI** across the `/check-tasks` dashboard and terminal monitor, enabling early Stage 1 activation right after brainstorming, a 6-stage interactive stepper with detailed sub-step descriptions, dynamic event logging, weighted stage progress allocation, and an overview stage badge on the Kanban Epics card.
