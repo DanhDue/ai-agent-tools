@@ -8,7 +8,7 @@ Covers BDD scenarios:
 from __future__ import annotations
 
 import ast
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 import contextlib
 import importlib.util
 import io
@@ -811,6 +811,58 @@ class TestFpgAcceptance_Integration(unittest.TestCase):
         _run_fpg_hp_08_epic_flow()
 
 
+def _assert_guide_profile_order(
+    commands: Sequence[str],
+    parser: Any,
+    *,
+    target_action: str,
+    doc_name: str,
+) -> None:
+    """Enforce SE-16 ordering: remove/release/set --profile follow add; probe follows discover or add."""
+    active_pool: set[str] = set()
+    discovered_seen = False
+    found = 0
+    for cmd_line in commands:
+        args = parser.parse_args(_dev_config_argv(cmd_line))
+        cmd = getattr(args, "command", None)
+        if cmd == "profiles":
+            p_action = getattr(args, "profiles_action", None)
+            p_name = getattr(args, "name", None)
+            if p_action == "discover":
+                discovered_seen = True
+            elif p_action == "add" and p_name:
+                active_pool.add(str(p_name))
+            if target_action == "probe" and p_action == "probe" and p_name:
+                found += 1
+                assert discovered_seen or str(p_name) in active_pool, (
+                    f"Command {cmd_line!r} runs 'profiles probe {p_name}' "
+                    f"before 'profiles discover' or 'profiles add {p_name}' in {doc_name}"
+                )
+            elif (
+                target_action in ("remove", "release")
+                and p_action == target_action
+                and p_name
+            ):
+                found += 1
+                assert str(p_name) in active_pool, (
+                    f"Command {cmd_line!r} runs 'profiles {target_action} {p_name}' "
+                    f"before 'profiles add {p_name}' in {doc_name}"
+                )
+            if p_action == "remove" and p_name:
+                active_pool.discard(str(p_name))
+        elif cmd == "set" and target_action == "set_profile":
+            set_profile = getattr(args, "set_profile", None)
+            if set_profile and str(set_profile) != "auto":
+                found += 1
+                assert str(set_profile) in active_pool, (
+                    f"Command {cmd_line!r} runs 'set ... --profile {set_profile}' "
+                    f"before 'profiles add {set_profile}' in {doc_name}"
+                )
+    assert found > 0, (
+        f"Expected at least one {target_action!r} profile command in {doc_name}"
+    )
+
+
 class TestFpgAcceptance_GuideAndRegistry(unittest.TestCase):
     """Guide CLI-parsing and verify.sh registration checks runnable under pytest and unittest."""
 
@@ -823,7 +875,7 @@ class TestFpgAcceptance_GuideAndRegistry(unittest.TestCase):
         _run_verify_registration_check()
 
     def test_dev_config_guide_profile_actions_follow_add(self) -> None:
-        """Every fenced `profiles probe|remove|release <name>` command follows `profiles add <name>`."""
+        """Every fenced remove/release/set --profile follows add <name>, and probe <name> follows discover or add <name>."""
         en_path = REPO_ROOT / "docs" / "dev-config-quick-guide.en.md"
         en_commands = _extract_fenced_commands(en_path.read_text(encoding="utf-8"))
         with _isolated_host_env():
@@ -833,29 +885,13 @@ class TestFpgAcceptance_GuideAndRegistry(unittest.TestCase):
                 extra_sys_path=SCRIPTS_DIR,
             )
             parser = dc._build_parser()
-            for target_action in ("probe", "remove", "release"):
+            for target_action in ("probe", "remove", "release", "set_profile"):
                 with self.subTest(action=target_action):
-                    active_pool: set[str] = set()
-                    found = 0
-                    for cmd_line in en_commands:
-                        args = parser.parse_args(_dev_config_argv(cmd_line))
-                        if getattr(args, "command", None) != "profiles":
-                            continue
-                        p_action = getattr(args, "profiles_action", None)
-                        p_name = getattr(args, "name", None)
-                        if p_action == "add" and p_name:
-                            active_pool.add(str(p_name))
-                        elif p_action == target_action and p_name:
-                            found += 1
-                            assert str(p_name) in active_pool, (
-                                f"Command {cmd_line!r} runs 'profiles {target_action} {p_name}' "
-                                f"before 'profiles add {p_name}' in {en_path.name}"
-                            )
-                        if p_action == "remove" and p_name:
-                            active_pool.discard(str(p_name))
-                    assert found > 0, (
-                        f"Expected at least one 'profiles {target_action} <name>' "
-                        f"command in {en_path.name}"
+                    _assert_guide_profile_order(
+                        en_commands,
+                        parser,
+                        target_action=target_action,
+                        doc_name=en_path.name,
                     )
 
     def test_docs_run_external_review_commands_carry_required_options(self) -> None:

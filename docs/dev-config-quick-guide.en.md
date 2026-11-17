@@ -31,9 +31,9 @@
 | Bind all three personas to Codex (project) | `/d3nexus:dev-config --provider codex --scope project` |
 | Switch Programmer to Kiro Sonnet (`claude-sonnet-5.5`, `high`) | `/d3nexus:dev-config set programmer kiro-sonnet high` |
 | Switch Programmer to Codex in project scope | `/d3nexus:dev-config set programmer codex-gpt xhigh --scope project` |
-| Prefer `profile_a` for `agy` Programmer and rotate if busy/empty | `/d3nexus:dev-config set programmer --provider agy --profile profile_a --model hydrogen --effort xhigh` |
 | Discover unpooled Antigravity profiles on this host | `/d3nexus:dev-config profiles discover` |
 | Add your profile to the global `agy` pool | `/d3nexus:dev-config profiles add profile_a --priority 1 --max-concurrent 1` |
+| Prefer `profile_a` for `agy` Programmer and rotate if busy/empty | `/d3nexus:dev-config set programmer --provider agy --profile profile_a --model hydrogen --effort xhigh` |
 | Inspect pool leases, exhaustion timers, and cached quota | `/d3nexus:dev-config profiles list` |
 | Enable profile-scoped low-quota mode (5h default, halves turns) | `/d3nexus:dev-config low-quota on` |
 | Run the pre-wave quota gate for all personas | `/d3nexus:dev-config quota-check` |
@@ -75,10 +75,12 @@ Use `set` to override one persona (`ai_architect_reviewer`, `orchestrator`, or `
 /d3nexus:dev-config set programmer hydrogen xhigh --fallback claude-sonnet --scope global
 /d3nexus:dev-config reset programmer --scope project
 /d3nexus:dev-config reset --scope global
+/d3nexus:dev-config preset default --scope project
 ```
 
 - **Positional vs. flag form**: `set PERSONA MODEL EFFORT` accepts a catalogue alias (`kiro-sonnet`, `codex-gpt`, `hydrogen`). The flag form accepts `--provider` (`agy`, `claude`, `codex`, `kiro`), `--model` (a catalogue alias or a catalogue entry's `id`, such as `claude-sonnet-5.5`), `--effort`, and `--profile`. Both `--model` and `--effort` are required in flag form, and mixing positional arguments with `--model` or `--effort` exits `1`.
 - **`--provider` shortcut**: Top-level `--provider agy|claude|codex` writes `active_preset` (`default`, `all-claude`, or `all-codex`) without clearing existing `overrides`, and warns on `stderr` if an override or project layer masks a persona. `kiro` is not a top-level `--provider` shortcut; use `set` or `preset codex-kiro`.
+- **Returning a project preset to `default`**: `reset` clears only `overrides` and leaves `active_preset` active for the other personas, so after `--provider codex --scope project` and `reset programmer --scope project`, run `/d3nexus:dev-config preset default --scope project` to return the project layer's preset to `default`.
 - **Interactive picker**: In chat, `/d3nexus:dev-config --models` (or `--models --persona programmer`) presents the catalogue table and walks through picking a model and effort per persona.
 
 ### Shipped Presets, Effort Rules, and `--profile` Inheritance
@@ -112,20 +114,31 @@ Configure an explicit priority-ordered pool in `$REAL_HOME/.d3nexus/agy_profiles
 ```bash
 /d3nexus:dev-config profiles discover
 /d3nexus:dev-config profiles discover --json
+/d3nexus:dev-config profiles probe profile_a
 /d3nexus:dev-config profiles add profile_a --priority 1 --max-concurrent 1
 /d3nexus:dev-config profiles add profile_b --priority 2 --max-concurrent 1
-/d3nexus:dev-config profiles probe profile_a
 /d3nexus:dev-config set programmer --provider agy --profile profile_a --model hydrogen --effort xhigh
 /d3nexus:dev-config set programmer --provider agy --model hydrogen --effort xhigh --profile auto
 /d3nexus:dev-config profiles list
 /d3nexus:dev-config profiles list --json
+/d3nexus:dev-config profiles probe
 /d3nexus:dev-config profiles release profile_a --force
 /d3nexus:dev-config profiles remove profile_b
 /d3nexus:dev-config profiles clear profile_a
 /d3nexus:dev-config profiles clear
 ```
 
-- **Discover and add only profiles you own**: `profiles discover` reads existing non-symlink Antigravity directories not yet in the pool without fetching quota or unlocking keychains, and prints next-step hints (`profiles probe <name>` then `profiles add <name>`). Add **only profiles you own** (`profile_a`, `profile_b`) and probe them after adding. `profiles probe` works only on profiles already in the pool, so the `profiles probe <name>` hint printed by `profiles discover` applies only after you run `profiles add`.
+- **Discover, probe before adding, and add only profiles you own**: `profiles discover` lists existing non-symlink Antigravity candidates from `check-quota` (`agy_quota.get_all_profiles()`) not yet in the pool without fetching quota or unlocking keychains, and prints next-step hints (`profiles probe <name>` then `profiles add <name>`). `profiles probe NAME` works **before** a profile is added: it fetches the quota of **only** that one profile, prints the 5-hour and weekly windows with their verdict against `quota_thresholds`, checks whether a resident process holds it, suggests `/d3nexus:dev-config profiles add NAME` when usable, and writes nothing to `agy_profiles.json` or `agy_profile_leases.json`. `probe` uses the login of only the profile you name, never of the others. For a usable non-pool profile, it prints:
+
+```text
+Probed 'profile_a' (not in the pool): status=ACTIVE
+  Quota: 5H=85.0% (>= 15.0%), 7D=65.0% (> 2.0%) -> pass
+  Resident process: no
+  Verdict: usable
+  Next step: /d3nexus:dev-config profiles add profile_a
+```
+
+  If a window fails, it prints `-> fail (5h ... vs 15.0%)` or `-> fail (weekly ... vs 2.0%)` and `Verdict: not usable (5h below floor)` / `Verdict: not usable (weekly below floor)`. A profile with a resident process (an open IDE or CLI of that profile) reports `Resident process: yes (held by a running process)` and `Verdict: not usable (held by resident process)` *(or `yes (host profile)` for the active host profile)* — it is not launched on by non-host dispatch and must be closed first. Add **only profiles you own** (`profile_a`, `profile_b`), and keep every command that requires pool state (`set --profile`, `release`, `remove`, `clear`, `dispatch`) after `profiles add`. Calling `profiles probe` on a pool profile or without a name refreshes the cached quota in `agy_profile_leases.json` and prints `Probed '<name>': status=<status>`.
 - **Prefer-then-rotate**: Setting `--profile profile_a` on an `agy` persona tells `dispatch` to try `profile_a` first and rotate across remaining pool profiles in `--priority` order if `profile_a` is leased, busy, or exhausted.
 - **Leases and isolation**: Non-host profiles allow one `ag_run` lease at a time (`zsh -ic 'ag_run ...'`, verified by preflight); the profile hosting the active session allows up to `--max-concurrent` (default `2`) direct leases. Stale leases expire automatically when their heartbeat passes `lease_ttl_seconds` (`180s`) or their local PID exits.
 - **5-hour and weekly quota windows**: For `gemini5h` models (`hydrogen`), `acquire` and `quota-check` require **both** `5h >= 15%` (`5h_min_fraction = 0.15`) **and** `weekly > 2%` (`7d_min_fraction = 0.02`). For `argonWeekly` models (`argon`), they check `argonWeekly >= 10%` (`agy_argon_min_fraction = 0.10`). A profile failing either window during `acquire` (dispatch) is marked exhausted until its reset time (and fails `quota-check` with exit `2`).
@@ -154,7 +167,8 @@ Use profile-scoped low-quota mode (`low-quota`, alias `--low-quota`) when you sp
 | Ran `set programmer codex-gpt xhigh --scope project` after a global `--profile` | Higher-layer non-`agy` model inherits a lower-layer `profile`: the lower-layer `profile` is ignored automatically (SE-15); errors happen only if `--profile` is in the **same** layer or command as a non-`agy` model | `/d3nexus:dev-config set programmer codex-gpt xhigh --scope project` *(works directly; or clear global with `/d3nexus:dev-config reset programmer --scope global`)* |
 | `Error: --profile applies only to agy models` | Passed `--profile` in the same command/layer as a `claude`, `codex`, or `kiro` model | `/d3nexus:dev-config set programmer kiro-sonnet high` |
 | `warning: programmer is still bound to ... by the project layer` after `--provider` or `preset` | A higher-precedence override or `project` preset masks your global change | `/d3nexus:dev-config reset programmer --scope project` |
-| `Error: Profile 'profile_a' is not in the agy pool` (or `is not in the pool`) | `--profile` or `profiles probe`/`remove`/`release`/`clear` must reference a profile already registered in `$REAL_HOME/.d3nexus/agy_profiles.json` | `/d3nexus:dev-config profiles add profile_a --priority 1 --max-concurrent 1` |
+| `Error: Profile 'profile_a' is not in the agy pool` (or `is not in the pool`) | `--profile` or `profiles remove`/`release`/`clear` must reference a profile already registered in `$REAL_HOME/.d3nexus/agy_profiles.json` | `/d3nexus:dev-config profiles add profile_a --priority 1 --max-concurrent 1` |
+| `profiles probe profile_a` fails with `neither in the pool (...) nor in discovered profiles (...)` | `profile_a` is not in the pool and is not a profile folder that `check-quota` lists | `/d3nexus:dev-config profiles discover` |
 | `profiles remove` refused because of live leases | Active or recently started orchestrator holds a lease in `agy_profile_leases.json` | `/d3nexus:dev-config profiles release profile_a --force` |
 | `Stopped: all agy profiles are out of quota.` (`no_profile`, exit `2`) | Every pool profile failed the 5-hour or weekly threshold | Wait/top up then `/d3nexus:dev-config profiles clear`, or `/d3nexus:dev-config set programmer kiro-sonnet high` |
 | `MODEL_UNAVAILABLE` halt or `(!)` next to CLI in `status` | Bound CLI binary is missing from `PATH` or unauthenticated | Install/authenticate CLI or switch with `/d3nexus:dev-config set programmer claude-sonnet high` |
@@ -168,13 +182,18 @@ All subcommands also run directly via `python3 scripts/dev_config.py ...` (`disp
 ```bash
 python3 scripts/dev_config.py status
 python3 scripts/dev_config.py models
+python3 scripts/dev_config.py profiles discover
+python3 scripts/dev_config.py profiles probe profile_a
+python3 scripts/dev_config.py profiles probe
 python3 scripts/dev_config.py resolve programmer --format json --mode write
 python3 scripts/dev_config.py resolve ai_architect_reviewer --format argv --mode read-only
 python3 scripts/dev_config.py dispatch --persona programmer --mode write --prompt-file .devtool/prompt.md --cwd . --log .devtool/dispatch.log --epic demo --task task_01 --slot 1 --role orchestrator --wait 30
 ```
 
+- **`profiles probe [NAME]`**: When `NAME` is a non-pool profile returned by `profiles discover`, fetches only `NAME`'s quota, prints the 5H/7D threshold check, resident-process check, and `Verdict: usable` / `not usable (...)` without writing `agy_profiles.json` or `agy_profile_leases.json` (exits `0`); when `NAME` is in the pool or omitted, refreshes cached quota in `agy_profile_leases.json` and prints `Probed '<name>': status=<status>`; exits `1` when `NAME` is neither in the pool nor discoverable.
+
 | Exit Code | Meaning |
 | :--- | :--- |
-| `0` | Success; or `quota-check` is sufficient / `quota_unknown` |
-| `1` | Validation error, CLI usage error, `task_failure`, `model_unavailable`, or `preflight_failed` |
+| `0` | Success (including `profiles probe NAME` even when verdict is `not usable`); or `quota-check` is sufficient / `quota_unknown` |
+| `1` | Validation error, CLI usage error, unknown `profiles probe` name, `task_failure`, `model_unavailable`, or `preflight_failed` |
 | `2` | Quota gate insufficient (`quota-check`), `no_profile` (pool exhausted/busy), or `quota_midrun` |
