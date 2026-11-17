@@ -857,6 +857,7 @@ def _check_agy_pool_quota(
         resident_probe=resident_probe,
         wait_seconds=0,
         dry_run=True,
+        preferred_profile=binding.profile,
     )
     if acq.profile is not None:
         chosen = fetched_by_profile.get(acq.profile)

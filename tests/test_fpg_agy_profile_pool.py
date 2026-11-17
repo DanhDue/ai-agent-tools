@@ -1737,3 +1737,101 @@ def test_quota_check_pool_empty_payload_propagates_quota_unknown(
     assert entry["sufficient"] is True
     assert entry["quota_line"] == "profile=p1"
     assert entry["warning"] == "quota_unknown"
+
+
+@pytest.mark.parametrize(
+    ("scenario", "expected_prefix", "expected_fetched"),
+    [
+        ("preferred_usable", "profile=p3", ["p3"]),
+        ("preferred_exhausted", "profile=p1", ["p3", "p1"]),
+        ("preferred_leased", "profile=p1", ["p1"]),
+    ],
+)
+def test_fpg_hp_15_quota_check_dry_run_names_preferred_profile(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    scenario: str,
+    expected_prefix: str,
+    expected_fetched: list[str],
+) -> None:
+    """FPG-HP-15 / SE-10: quota-check probes the persona's preferred profile first and falls back to p1."""
+    pool_mod = _pool_mod()
+    dev_config_mod = _dev_config_mod()
+    real_home = tmp_path / "real_home"
+    project = tmp_path / "project"
+    monkeypatch.setenv("HOME", str(real_home))
+    monkeypatch.setenv("REAL_HOME", str(real_home))
+    monkeypatch.delenv("AGY_PROFILE", raising=False)
+    monkeypatch.delenv("ANTIGRAVITY_PROFILE", raising=False)
+    _make_profile_dirs(real_home, ("p1", "p2", "p3"))
+    _write_json(
+        project / ".agents" / "config" / "personas.json",
+        {
+            "overrides": {
+                "programmer": {
+                    "model": "hydrogen",
+                    "effort": "xhigh",
+                    "profile": "p3",
+                }
+            }
+        },
+    )
+    _write_json(
+        real_home / ".d3nexus" / "agy_profiles.json",
+        {
+            "schema_version": 1,
+            "pool": [
+                {"profile": "p1", "priority": 1},
+                {"profile": "p2", "priority": 2},
+                {"profile": "p3", "priority": 3},
+            ],
+        },
+    )
+
+    if scenario == "preferred_leased":
+        leased = pool_mod.acquire(
+            {"repo": "other", "epic": "e0", "task": "t0", "role": "runner"},
+            real_home=real_home,
+            host_profile="px",
+            preferred_profile="p3",
+            fetcher=lambda _p: {
+                "status": "ACTIVE",
+                "gemini5h": {"fraction": 0.90},
+                "geminiWeekly": {"fraction": 0.80},
+            },
+            resident_probe=lambda _p: False,
+        )
+        assert leased.profile == "p3"
+
+    fetched: list[str] = []
+
+    def recording_fetcher(profile: str) -> dict[str, Any]:
+        fetched.append(profile)
+        if scenario == "preferred_exhausted" and profile == "p3":
+            return {
+                "status": "ACTIVE",
+                "gemini5h": {"fraction": 0.02, "resetTime": "2026-11-17T14:00:00Z"},
+                "geminiWeekly": {"fraction": 0.80, "resetTime": "2026-11-22T00:00:00Z"},
+            }
+        return {
+            "status": "ACTIVE",
+            "gemini5h": {"fraction": 0.90},
+            "geminiWeekly": {"fraction": 0.80},
+        }
+
+    rc = dev_config_mod.cmd_quota_check(
+        project,
+        personas=("programmer",),
+        json_output=True,
+        fetcher=recording_fetcher,
+        real_home=real_home,
+        resident_probe=lambda _p: False,
+    )
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["sufficient"] is True
+    entry = out["personas"][0]
+    assert entry["sufficient"] is True
+    assert entry["quota_line"].startswith(expected_prefix)
+    assert fetched == expected_fetched
