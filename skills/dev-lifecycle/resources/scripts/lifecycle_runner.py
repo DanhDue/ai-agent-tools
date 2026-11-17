@@ -1063,10 +1063,10 @@ class LifecycleRunner:
             )
 
             with self._checkpoint_lock:
-                if self._halted_by_stop or self.state.active_stage == StageName.HALTED.value:
-                    return exit_code, stdout, stderr, False
-
-                self._turns_since_budget_checkpoint += 1
+                already_halted = (
+                    self._halted_by_stop
+                    or self.state.active_stage == StageName.HALTED.value
+                )
                 res_status = (
                     str(getattr(dispatch_res, "status", ""))
                     if dispatch_res is not None
@@ -1077,8 +1077,22 @@ class LifecycleRunner:
                     if dispatch_res is not None
                     else None
                 )
+                is_no_profile = dispatch_res is not None and res_status == "no_profile"
+                is_model_unavail = (
+                    dispatch_res is not None
+                    and res_status in ("model_unavailable", "preflight_failed")
+                ) or (
+                    dispatch_res is None
+                    and pc.classify_dispatch_failure(exit_code, stdout, stderr)
+                    == "model_unavailable"
+                )
 
-                if dispatch_res is not None and res_status == "no_profile":
+                if already_halted and (is_no_profile or is_model_unavail):
+                    return exit_code, stdout, stderr, False
+
+                self._turns_since_budget_checkpoint += 1
+
+                if not already_halted and is_no_profile:
                     report_lines = list(getattr(dispatch_res, "report", []) or [])
                     reason_text = (
                         "\n".join(report_lines)
@@ -1097,15 +1111,7 @@ class LifecycleRunner:
                     )
                     return exit_code, stdout, stderr, False
 
-                is_model_unavail = (
-                    dispatch_res is not None
-                    and res_status in ("model_unavailable", "preflight_failed")
-                ) or (
-                    dispatch_res is None
-                    and pc.classify_dispatch_failure(exit_code, stdout, stderr)
-                    == "model_unavailable"
-                )
-                if is_model_unavail:
+                if not already_halted and is_model_unavail:
                     hint_cmd = self._fallback_command_hint(persona, binding)
                     detail = _tail_lines(stderr, 10) or f"exit={exit_code}"
                     reason_text = (
@@ -1144,6 +1150,14 @@ class LifecycleRunner:
                         turns_since_checkpoint=0,
                     )
                     self._turns_since_budget_checkpoint = 0
+
+                if already_halted:
+                    ret_code = (
+                        (exit_code or 1)
+                        if dispatch_res is not None and res_status == "quota_midrun"
+                        else exit_code
+                    )
+                    return ret_code, stdout, stderr, False
 
                 if dispatch_res is not None and res_status == "quota_midrun":
                     if attempt_idx == 0 and allow_quota_midrun_retry:

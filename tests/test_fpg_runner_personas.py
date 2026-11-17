@@ -2223,3 +2223,94 @@ def test_fpg_runner_config_rejects_unsupported_effort(
     ).resolve_binding("programmer", repo)
     assert raw_fallback.model_id == "custom-uncatalogued-model"
     assert raw_fallback.effort == "low"
+
+
+@pytest.mark.parametrize(
+    ("scenario", "initial_turns", "expected_events", "expected_turns"),
+    [
+        ("normal_return", 0, ["subagent_returned"], 1),
+        ("budget_reached", 7, ["subagent_returned", "turn_budget"], 0),
+        ("quota_midrun_no_retry", 0, ["subagent_returned"], 1),
+        ("secondary_no_profile_no_rehalt", 0, [], 0),
+    ],
+)
+def test_fpg_st_03_inflight_return_after_sibling_halt_writes_subagent_returned(
+    tmp_path: Path,
+    scenario: str,
+    initial_turns: int,
+    expected_events: list[str],
+    expected_turns: int,
+) -> None:
+    """[FPG-ST-03] In-flight slot returns after sibling halt write subagent_returned without re-halting or retrying."""
+    repo = tmp_path / f"repo_f8_{scenario}"
+    repo.mkdir(parents=True, exist_ok=True)
+    runner = lifecycle_runner.LifecycleRunner(root=repo, epic_slug="demo_epic")
+    runner.state.active_stage = lifecycle_runner.StageName.IMPLEMENTATION.value
+    runner._turns_since_budget_checkpoint = initial_turns
+    recorded_cps: list[dict[str, Any]] = []
+    runner.checkpoint_writer = lambda _r, _e, cp: recorded_cps.append(dict(cp)) or cp
+
+    disp = lifecycle_runner.ModelDispatcher(worktree_dir=repo)
+    dispatch_count = 0
+
+    def sibling_halts_during_dispatch(*_a: Any, **_kw: Any) -> Any:
+        nonlocal dispatch_count
+        dispatch_count += 1
+        runner._halted_by_stop = True
+        runner.state.active_stage = lifecycle_runner.StageName.HALTED.value
+        runner.state.halt_reason = "QUOTA_LOW"
+        if scenario == "quota_midrun_no_retry":
+            return agy_dispatch.DispatchResult(
+                status="quota_midrun",
+                profile_used="p1",
+                attempts=1,
+                exit_code=1,
+                reason="quota_midrun",
+                report=[],
+            )
+        if scenario == "secondary_no_profile_no_rehalt":
+            return agy_dispatch.DispatchResult(
+                status="no_profile",
+                profile_used=None,
+                attempts=1,
+                exit_code=2,
+                reason="pool_exhausted",
+                report=["pool empty"],
+            )
+        return agy_dispatch.DispatchResult(
+            status="ok",
+            profile_used="p1",
+            attempts=1,
+            exit_code=0,
+            reason=None,
+            report=[],
+        )
+
+    disp.pool_dispatcher = sibling_halts_during_dispatch
+    _write_json(
+        tmp_path / "_isolated_home" / ".d3nexus" / "agy_profiles.json",
+        {"schema_version": 1, "pool": [{"profile": "p1", "priority": 1}]},
+    )
+
+    with patch.object(
+        runner, "_halt_with_decision", wraps=runner._halt_with_decision
+    ) as spy_halt:
+        exit_code, _out, _err, disp_ok = runner._dispatch_persona(
+            "programmer",
+            "write",
+            "probe",
+            brief_role="task-implementer",
+            task_id="task_02",
+            wave=1,
+            dispatcher=disp,
+        )
+
+    assert disp_ok is False
+    assert dispatch_count == 1
+    assert runner.state.halt_reason == "QUOTA_LOW"
+    spy_halt.assert_not_called()
+    assert [cp["event"] for cp in recorded_cps] == expected_events
+    if expected_events:
+        assert recorded_cps[0]["tasks_in_flight"] == ["task_02"]
+        assert exit_code == (1 if scenario == "quota_midrun_no_retry" else 0)
+    assert runner._turns_since_budget_checkpoint == expected_turns
