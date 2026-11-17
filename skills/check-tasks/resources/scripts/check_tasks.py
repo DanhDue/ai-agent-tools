@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from enum import Enum
 import hashlib
 import importlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -72,6 +73,71 @@ def _real_home() -> Path:
 
 
 get_real_home = _real_home
+
+_KIT_LOAD_LOCK = threading.Lock()
+_EPIC_DOCS_REL = (
+    "skills",
+    "dev-implementation",
+    "resources",
+    "scripts",
+    "_epic_docs.py",
+)
+_PERSONA_CONFIG_REL = ("scripts", "persona_config.py")
+_AGY_POOL_REL = ("scripts", "agy_profile_pool.py")
+
+
+def _load_kit_module(name: str, *rel_parts: str) -> Any:
+    """Load a kit module by file path (never via sys.path); raise RuntimeError when absent."""
+    with _KIT_LOAD_LOCK:
+        cached = sys.modules.get(name)
+        if cached is not None:
+            return cached
+        for parent in [SCRIPT_DIR, *SCRIPT_DIR.parents]:
+            candidate = parent.joinpath(*rel_parts)
+            if not candidate.is_file():
+                continue
+            spec = importlib.util.spec_from_file_location(name, str(candidate))
+            if spec is None or spec.loader is None:
+                raise RuntimeError(f"Failed to create module spec for {candidate}")
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[name] = module
+            try:
+                spec.loader.exec_module(module)
+            except Exception:
+                sys.modules.pop(name, None)
+                raise
+            return module
+    raise RuntimeError(f"Required kit module not found: {'/'.join(rel_parts)}")
+
+
+def epic_doc_path(directory: Path, stem: str) -> Path | None:
+    """Resolve `<stem>.md`, else legacy `<stem>.en.md`; never a `.vi.md` mirror."""
+    try:
+        return _load_kit_module("_epic_docs", *_EPIC_DOCS_REL).resolve_epic_doc(
+            directory, stem
+        )
+    except (RuntimeError, ImportError, SyntaxError):
+        for ext in (".md", ".en.md"):
+            candidate = Path(directory) / f"{stem}{ext}"
+            if candidate.is_file():
+                return candidate
+        return None
+
+
+def design_spec_paths(directory: Path) -> list[Path]:
+    """Return `*-design.md` then legacy `*-design.en.md` specs in `directory`, never `.vi.md`."""
+    try:
+        return list(
+            _load_kit_module("_epic_docs", *_EPIC_DOCS_REL).resolve_design_specs(
+                directory
+            )
+        )
+    except (RuntimeError, ImportError, SyntaxError):
+        found: list[Path] = []
+        if Path(directory).is_dir():
+            for pattern in ("*-design.md", "*-design.en.md"):
+                found.extend(sorted(Path(directory).glob(pattern)))
+        return found
 
 
 def discover_antigravity_profiles(real_home: str | Path | None = None) -> list[str]:
@@ -286,6 +352,13 @@ class RepoMetadata:
     quality_runs: list[dict[str, Any]] = field(default_factory=list)
     pipeline_telemetry: dict[str, Any] | None = None
     action_blockers: list[dict[str, str]] = field(default_factory=list)
+    persona_bindings: list[dict[str, Any]] = field(default_factory=list)
+    persona_config_error: str | None = None
+    checkpoint: dict[str, Any] | None = None
+    low_quota: dict[str, Any] | None = None
+    agy_pool: dict[str, Any] | None = None
+    agy_profiles: list[dict[str, Any]] = field(default_factory=list)
+    notices: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -459,19 +532,19 @@ def scan_worktrees(repo_path: Path) -> list[WorktreeMetadata]:
 
 _HLD_STATUS_PATTERNS = (
     re.compile(
-        r"^(?:>\s*)?(?:-\s*)?\*\*(?:Status|Trạng\s*thái)(?:\*\*\s*:|\s*:\*\*)\s*([^\n\r]+)$",
+        r"^(?:>\s*)?(?:-\s*)?\*\*Status(?:\*\*\s*:|\s*:\*\*)\s*([^\n\r]+)$",
         re.MULTILINE | re.IGNORECASE,
     ),
     re.compile(
-        r"^\|\s*\*{0,2}(?:Status|Trạng\s*thái)\*{0,2}\s*\|\s*([^|\n\r]+?)\s*\|",
+        r"^\|\s*\*{0,2}Status\*{0,2}\s*\|\s*([^|\n\r]+?)\s*\|",
         re.MULTILINE | re.IGNORECASE,
     ),
     re.compile(
-        r"^(?:Status|Trạng\s*thái)\s*:\s*([^\n\r]+)$",
+        r"^Status\s*:\s*([^\n\r]+)$",
         re.MULTILINE | re.IGNORECASE,
     ),
     re.compile(
-        r"^#{2,3}\s+(?:Status|Trạng\s*thái)\s*\n+\s*([^\n\r#|]+)$",
+        r"^#{2,3}\s+Status\s*\n+\s*([^\n\r#|]+)$",
         re.MULTILINE | re.IGNORECASE,
     ),
 )
@@ -526,12 +599,14 @@ def _classify_hld_status_value(raw: str) -> str | None:
 
 
 def extract_epic_hld_status(epic_dir: Path, slug: str) -> str | None:
-    """Extract epic lifecycle status from HLD design documents (.en.md, .vi.md, or *.md)."""
-    candidates = [epic_dir / f"{slug}.en.md", epic_dir / f"{slug}.vi.md"]
+    """Extract epic lifecycle status from the English HLD (`<slug>.md`, legacy `.en.md`) or other `*.md` files."""
+    primary = epic_doc_path(epic_dir, slug)
+    candidates: list[Path] = [primary] if primary is not None else []
     with contextlib.suppress(OSError):
         for f in sorted(epic_dir.glob("*.md")):
             if (
                 f not in candidates
+                and not f.name.endswith(".vi.md")
                 and not f.name.startswith("task_")
                 and f.name != "handoff.md"
             ):
@@ -1254,17 +1329,15 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
 
             # Title
             title = slug
-            for hld in [d / f"{slug}.vi.md", d / f"{slug}.en.md"]:
-                if hld.is_file():
-                    with contextlib.suppress(OSError):
-                        for line in hld.read_text(encoding="utf-8").splitlines():
-                            if line.startswith("# "):
-                                raw = line.lstrip("#").strip()
-                                if raw.lower().startswith("epic:"):
-                                    raw = raw[5:].strip()
-                                title = raw
-                                break
-                        if title != slug:
+            hld = epic_doc_path(d, slug)
+            if hld is not None:
+                with contextlib.suppress(OSError, UnicodeDecodeError):
+                    for line in hld.read_text(encoding="utf-8").splitlines():
+                        if line.startswith("# "):
+                            raw = line.lstrip("#").strip()
+                            if raw.lower().startswith("epic:"):
+                                raw = raw[5:].strip()
+                            title = raw
                             break
 
             task_count = len(list(d.glob("task_*.md")))
@@ -1710,6 +1783,9 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
     )
 
 
+_LEGACY_MEMORY_ROLES = {"assistant": "architect"}
+
+
 def extract_two_tier_memory(repo_path: Path) -> TwoTierMemory:
     """Inspect Two-Tier memory files (.devtool/PROJECT_LEDGER.md and assistant_state.md)."""
     ledger_file = repo_path / ".devtool" / "PROJECT_LEDGER.md"
@@ -1736,6 +1812,7 @@ def extract_two_tier_memory(repo_path: Path) -> TwoTierMemory:
             m_role = re.search(r"Role:\s*([a-zA-Z0-9_\-]+)", content)
             if m_role:
                 role = m_role.group(1).strip()
+                role = _LEGACY_MEMORY_ROLES.get(role.lower(), role)
 
             lines = content.splitlines()
             for i, line in enumerate(lines):
@@ -2360,14 +2437,18 @@ def extract_epic_pic(repo_path: Path, active_epic: str | None) -> str | None:
     for checkout in checkouts:
         for epic_dir in _find_epic_dirs_for_checkout(checkout, active_epic):
             _add_candidate(epic_dir / "handoff.md")
-            _add_candidate(epic_dir / f"{epic_dir.name}.en.md")
-            _add_candidate(epic_dir / f"{active_epic}.en.md")
-            _add_candidate(epic_dir / f"{epic_dir.name}.vi.md")
-            _add_candidate(epic_dir / f"{active_epic}.vi.md")
+            for stem in (epic_dir.name, active_epic):
+                hld_doc = epic_doc_path(epic_dir, stem)
+                if hld_doc is not None:
+                    _add_candidate(hld_doc)
+            for spec_doc in design_spec_paths(epic_dir):
+                _add_candidate(spec_doc)
             with contextlib.suppress(OSError):
                 for doc in sorted(epic_dir.glob("*.md")):
-                    if "design" in doc.name.lower() and not doc.name.startswith(
-                        "task_"
+                    if (
+                        "design" in doc.name.lower()
+                        and not doc.name.startswith("task_")
+                        and not doc.name.endswith(".vi.md")
                     ):
                         _add_candidate(doc)
 
@@ -2740,19 +2821,14 @@ def build_epic_pipeline_telemetry(
         if not ed.is_dir():
             continue
         with contextlib.suppress(OSError):
+            if any(epic_doc_path(ed, stem) for stem in (epic_slug, ed.name, "hld")):
+                has_hld = True
             for f in ed.iterdir():
-                if not f.is_file():
+                if not f.is_file() or f.name.endswith(".vi.md"):
                     continue
                 low = f.name.lower()
                 if "design" in low or "spec" in low:
                     has_spec = True
-                if f.name in (
-                    f"{epic_slug}.en.md",
-                    f"{epic_slug}.vi.md",
-                    f"{ed.name}.en.md",
-                    "hld.en.md",
-                ):
-                    has_hld = True
                 if low.startswith("bdd_scenarios"):
                     has_bdd = True
                 if f.name == "handoff.md":
@@ -3987,11 +4063,14 @@ def _extract_epic_title(
     candidates: list[Path] = []
     for ed in epic_dirs:
         for v in variants:
-            candidates.extend([ed / f"{v}.vi.md", ed / f"{v}.en.md"])
+            variant_doc = epic_doc_path(ed, v)
+            if variant_doc is not None and variant_doc not in candidates:
+                candidates.append(variant_doc)
         with contextlib.suppress(OSError):
             for doc in sorted(ed.glob("*.md")):
                 if (
                     doc not in candidates
+                    and not doc.name.endswith(".vi.md")
                     and not doc.name.startswith("task_")
                     and doc.name != "handoff.md"
                 ):
@@ -4202,6 +4281,324 @@ def _scan_cache_scope() -> Iterator[None]:
             _SCAN_CTX.cache = None
 
 
+_HUMAN_HALT_TOKENS: tuple[str, ...] = (
+    "MODEL_UNAVAILABLE",
+    "QUOTA_LOW",
+    "LOW_QUOTA_STOP",
+    "FIX_PLAN_ESCALATE",
+)
+_HALT_TOKEN_RE = re.compile(r"\b(" + "|".join(_HUMAN_HALT_TOKENS) + r")\b")
+_HUMAN_DECISION_KINDS = frozenset({"quota", "blocker"})
+
+
+@dataclass
+class _AgyPoolView:
+    """Dashboard view of the global agy profile pool for one scan."""
+
+    summary: dict[str, Any] | None = None
+    profiles: list[dict[str, Any]] = field(default_factory=list)
+    notices: list[str] = field(default_factory=list)
+    exhaustion_lines: list[str] = field(default_factory=list)
+
+
+@dataclass
+class _OrchestratorSignals:
+    """Persona, checkpoint, quota, halt and pool signals added to a repository payload."""
+
+    persona_bindings: list[dict[str, Any]] = field(default_factory=list)
+    persona_config_error: str | None = None
+    checkpoint: dict[str, Any] | None = None
+    low_quota: dict[str, Any] | None = None
+    pool: _AgyPoolView = field(default_factory=_AgyPoolView)
+    blockers: list[dict[str, str]] = field(default_factory=list)
+    notices: list[str] = field(default_factory=list)
+
+
+def _parse_utc_iso(raw: Any) -> datetime | None:
+    """Parse an ISO-8601 timestamp (with optional trailing Z) as aware UTC, else None."""
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    text = raw.strip()
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _dict_or_none(value: Any) -> dict[str, Any] | None:
+    return dict(value) if isinstance(value, dict) else None
+
+
+def _resolve_persona_bindings(
+    repo_path: Path,
+) -> tuple[list[dict[str, Any]], str | None]:
+    """Return the resolved persona bindings, or an empty list and the configuration error."""
+    try:
+        persona_mod = _load_kit_module("persona_config", *_PERSONA_CONFIG_REL)
+        resolved = persona_mod.resolve_all_personas(repo_path)
+        bindings = [
+            {
+                "persona": str(binding.persona),
+                "alias": str(binding.alias),
+                "cli": str(binding.cli),
+                "model_id": str(binding.model_id),
+                "effort": str(binding.effort),
+                "fallback_alias": binding.fallback_alias,
+                "sources": dict(binding.sources),
+            }
+            for binding in resolved.values()
+        ]
+    except Exception as exc:  # noqa: BLE001 - the dashboard degrades instead of raising
+        return [], str(exc) or exc.__class__.__name__
+    return bindings, None
+
+
+def _detect_dashboard_profile(account_id: str | None) -> str:
+    """Return the PIC profile, else the profile named by the environment, else `default`."""
+    if account_id:
+        return account_id
+    env_profile = (
+        os.environ.get("AGY_PROFILE", "") or os.environ.get("ANTIGRAVITY_PROFILE", "")
+    ).strip()
+    if env_profile.lstrip("@"):
+        return env_profile.lstrip("@")
+    home = os.environ.get("HOME", "")
+    if "/antigravity_homes/" in home:
+        candidate = home.split("/antigravity_homes/", 1)[1].split("/", 1)[0].strip()
+        if candidate:
+            return candidate
+    return "default"
+
+
+def _resolve_low_quota(repo_path: Path, profile: str) -> dict[str, Any] | None:
+    """Return the active low-quota state for `profile`, or None when off, expired or unreadable."""
+    try:
+        persona_mod = _load_kit_module("persona_config", *_PERSONA_CONFIG_REL)
+        return _dict_or_none(persona_mod.low_quota_state(repo_path, profile))
+    except Exception:  # noqa: BLE001 - invalid configuration is reported by the bindings
+        return None
+
+
+def _agy_holder_notice(profile: str, holder: dict[str, Any]) -> str:
+    owner_parts = [str(holder[key]) for key in ("epic", "task") if holder.get(key)]
+    if holder.get("slot") is not None:
+        owner_parts.append(f"slot {holder['slot']}")
+    detail = ", ".join(
+        f"{label} {holder[key]}"
+        for label, key in (("role", "role"), ("repository", "repo"))
+        if holder.get(key)
+    )
+    owner = "/".join(owner_parts) or "an unnamed owner"
+    return f"agy profile {profile} is in use by {owner}" + (
+        f" ({detail})" if detail else ""
+    )
+
+
+def _agy_profile_entry(entry: dict[str, Any], now: datetime) -> dict[str, Any]:
+    quota = _dict_or_none(entry.get("quota"))
+    exhausted_until = _parse_utc_iso(entry.get("exhausted_until"))
+    return {
+        "profile": str(entry.get("profile") or ""),
+        "priority": entry.get("priority"),
+        "max_concurrent": entry.get("max_concurrent"),
+        "leased_by": [
+            dict(holder)
+            for holder in entry.get("leased_by") or []
+            if isinstance(holder, dict)
+        ],
+        "exhausted_until": entry.get("exhausted_until"),
+        "exhausted_reason": entry.get("exhausted_reason"),
+        "is_exhausted": exhausted_until is not None and exhausted_until > now,
+        "quota": quota,
+        "quota_5h": _dict_or_none((quota or {}).get("gemini5h")),
+        "quota_weekly": _dict_or_none((quota or {}).get("geminiWeekly")),
+    }
+
+
+def _agy_exhaustion_lines(
+    pool_mod: Any, repo_path: Path, status: dict[str, Any]
+) -> list[str]:
+    """Print `agy_profile_pool.exhaustion_report` for the programmer binding of `repo_path`."""
+    persona_mod = _load_kit_module("persona_config", *_PERSONA_CONFIG_REL)
+    try:
+        catalogue = persona_mod.load_persona_config(repo_path)["models"]
+        binding = persona_mod.resolve_persona("programmer", repo_path)
+    except Exception:  # noqa: BLE001 - report without switch commands when invalid
+        catalogue = {}
+        binding = persona_mod.PersonaBinding(
+            persona="programmer",
+            alias="",
+            cli="",
+            model_id="",
+            effort="",
+            quota_pool="provider",
+            fallback_alias=None,
+            sources={},
+        )
+    return list(
+        pool_mod.exhaustion_report(
+            status, catalogue=catalogue, programmer_binding=binding, fetcher=None
+        )
+    )
+
+
+def _build_agy_pool_view(repo_path: Path) -> _AgyPoolView:
+    """Read the global agy profile pool; any failure becomes a notice, never an exception."""
+    try:
+        pool_mod = _load_kit_module("agy_profile_pool", *_AGY_POOL_REL)
+        status = pool_mod.pool_status()
+        now = datetime.now(timezone.utc)
+        state = str(status.get("state") or "")
+        view = _AgyPoolView(
+            summary={"state": state, "earliest_reset": status.get("earliest_reset")},
+            profiles=[
+                _agy_profile_entry(entry, now)
+                for entry in status.get("profiles") or []
+                if isinstance(entry, dict)
+            ],
+        )
+        for entry in view.profiles:
+            view.notices.extend(
+                _agy_holder_notice(entry["profile"], holder)
+                for holder in entry["leased_by"]
+            )
+        if state == "busy":
+            view.notices.append(
+                "agy profile pool is busy: every profile that still has quota is in use"
+            )
+        if state == "exhausted":
+            view.exhaustion_lines = _agy_exhaustion_lines(pool_mod, repo_path, status)
+        return view
+    except Exception as exc:  # noqa: BLE001 - missing or invalid pool files must not break a scan
+        return _AgyPoolView(
+            notices=[
+                f"agy profile pool unavailable: {str(exc) or exc.__class__.__name__}"
+            ]
+        )
+
+
+def _find_halt_tokens(heartbeat: dict[str, Any] | None, state_text: str) -> list[str]:
+    """Return recognised halt reasons (case-sensitive) from heartbeat `halt_reason` or state text."""
+    sources: list[Any] = [state_text]
+    if heartbeat:
+        sources.insert(0, heartbeat.get("halt_reason"))
+    found: list[str] = []
+    for source in sources:
+        if not isinstance(source, str):
+            continue
+        for token in _HALT_TOKEN_RE.findall(source):
+            if token not in found:
+                found.append(token)
+    return found
+
+
+def _checkpoint_warning_notices(checkpoint: dict[str, Any] | None) -> list[str]:
+    raw = (checkpoint or {}).get("warning")
+    items = raw if isinstance(raw, (list, tuple)) else [raw]
+    return [
+        f"Checkpoint warning: {item.strip()}"
+        for item in items
+        if isinstance(item, str) and item.strip()
+    ]
+
+
+def _iter_active_decisions(
+    snapshot: dict[str, Any],
+) -> Iterator[tuple[str, dict[str, Any]]]:
+    decisions = snapshot.get("decisions")
+    if isinstance(decisions, dict) and decisions:
+        for key, entry in decisions.items():
+            if isinstance(entry, dict) and entry.get("active", True) is True:
+                yield str(entry.get("epic") or key), entry
+    elif snapshot.get("active") is True and snapshot.get("epic"):
+        yield str(snapshot["epic"]), snapshot
+
+
+def _unseen_decision_blockers(
+    snapshot: dict[str, Any],
+    seen_blockers: set[str],
+    closed_slugs: set[str],
+) -> list[dict[str, str]]:
+    """Alert on active quota or blocker decisions for epics that have no blocker yet."""
+    blockers: list[dict[str, str]] = []
+    for epic, entry in _iter_active_decisions(snapshot):
+        norm = _normalize_slug(epic)
+        if (
+            str(entry.get("kind") or "").lower() not in _HUMAN_DECISION_KINDS
+            or not norm
+            or norm in seen_blockers
+            or _is_completed_epic(epic, closed_slugs)
+        ):
+            continue
+        seen_blockers.add(norm)
+        blockers.append(
+            {
+                "epic": epic,
+                "stage": str(entry.get("stage") or "Pending decision"),
+                "reason": str(entry.get("reason") or "Confirmation required"),
+            }
+        )
+    return blockers
+
+
+def _collect_orchestrator_signals(
+    repo_path: Path,
+    active_epic: str | None,
+    account_id: str | None,
+    heartbeat: dict[str, Any] | None,
+    *,
+    decisions_snapshot: dict[str, Any],
+    stage_name: str,
+    seen_blockers: set[str],
+    closed_slugs: set[str],
+) -> _OrchestratorSignals:
+    """Gather persona bindings, checkpoint, low-quota, halt and agy pool signals for one repo."""
+    signals = _OrchestratorSignals()
+    signals.persona_bindings, signals.persona_config_error = _resolve_persona_bindings(
+        repo_path
+    )
+    signals.low_quota = _resolve_low_quota(
+        repo_path, _detect_dashboard_profile(account_id)
+    )
+    signals.checkpoint = _dict_or_none((heartbeat or {}).get("checkpoint"))
+    signals.pool = _build_agy_pool_view(repo_path)
+    signals.notices = [
+        *signals.pool.notices,
+        *_checkpoint_warning_notices(signals.checkpoint),
+    ]
+
+    state_text = (
+        _read_combined_state_text(repo_path, active_epic) if active_epic else ""
+    )
+    signals.blockers.extend(
+        {
+            "epic": active_epic or repo_path.name,
+            "stage": stage_name,
+            "reason": f"Orchestrator halted: {token}",
+            "kind": "halt",
+        }
+        for token in _find_halt_tokens(heartbeat, state_text)
+    )
+    signals.blockers.extend(
+        _unseen_decision_blockers(decisions_snapshot, seen_blockers, closed_slugs)
+    )
+    if signals.pool.exhaustion_lines:
+        signals.blockers.append(
+            {
+                "epic": "agy profile pool",
+                "stage": "Out of quota",
+                "reason": "\n".join(signals.pool.exhaustion_lines),
+                "kind": "agy_pool",
+            }
+        )
+    return signals
+
+
 def scan_repo(repo_path: Path) -> RepoMetadata:
     """Harvest complete metadata and telemetry for a single repository."""
     with _scan_cache_scope():
@@ -4404,6 +4801,18 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
                 )
                 seen_blockers.add(norm_slug)
 
+    signals = _collect_orchestrator_signals(
+        repo_path,
+        active_epic,
+        account_id,
+        heartbeat,
+        decisions_snapshot=pd_snapshot,
+        stage_name=decision.stage_name,
+        seen_blockers=seen_blockers,
+        closed_slugs=completed_slugs | abandoned_slugs,
+    )
+    action_blockers.extend(signals.blockers)
+
     return RepoMetadata(
         name=repo_path.name,
         path=str(repo_path.resolve()),
@@ -4418,7 +4827,8 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
         quick_note=quick_note,
         prompt=decision.prompt,
         epics_summary=epics_summary,
-        is_human_action_required=decision.is_human_action_required,
+        is_human_action_required=decision.is_human_action_required
+        or bool(signals.blockers),
         is_blocked=decision.is_blocked,
         pending_decision=matched_pending,
         heartbeat=heartbeat,
@@ -4426,6 +4836,13 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
         quality_runs=quality_runs,
         pipeline_telemetry=pipeline_telemetry,
         action_blockers=action_blockers,
+        persona_bindings=signals.persona_bindings,
+        persona_config_error=signals.persona_config_error,
+        checkpoint=signals.checkpoint,
+        low_quota=signals.low_quota,
+        agy_pool=signals.pool.summary,
+        agy_profiles=signals.pool.profiles,
+        notices=signals.notices,
     )
 
 

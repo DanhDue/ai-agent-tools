@@ -417,6 +417,20 @@
       color: #fde68a;
     }
 
+    .low-quota-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      white-space: nowrap;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 9999px;
+      background: rgba(249, 115, 22, 0.2);
+      border: 1px solid rgba(251, 146, 60, 0.65);
+      color: #fed7aa;
+    }
+
     /* Mobile App Bottom Navigation Style Notification Badge */
     .tab-notification-badge {
       position: absolute;
@@ -1000,7 +1014,7 @@
         <div style="background: #141b2d; border-radius: 0 8px 8px 0; border-left: 3px solid #10b981; padding: 14px;">
           <h4 style="color: #34d399; font-size: 13px; margin-bottom: 8px;">Tier 1: PROJECT_LEDGER.md (Permanent)</h4>
           <pre id="context-ledger-content" style="font-size: 11px; color: #cbd5e1; background: #080a0f; padding: 10px; border-radius: 6px; overflow-x: auto; font-family: monospace;">
-- Invariant: Tri-Role Governance Model
+- Invariant: Four-Persona Governance Model (Human Architect + AI Architect &amp; Reviewer, Orchestrator, Programmer)
 - Milestone 2026-11-10: check-quota CLI & Web UI
 - Milestone 2026-11-11: check-tasks Specification
           </pre>
@@ -2107,6 +2121,146 @@ Loading evidence data...
       return String(a).replace(/[-_]/g, '') === String(b).replace(/[-_]/g, '');
     }
 
+    const PERSONA_ROLE_LABELS = {
+      human: 'Role 1.0 Human Architect',
+      architect: 'Role 2.1 AI Architect & Reviewer',
+      assistant: 'Role 2.1 AI Architect & Reviewer',
+      ai_architect_reviewer: 'Role 2.1 AI Architect & Reviewer',
+      orchestrator: 'Role 2.2 Orchestrator',
+      programmer: 'Role 2.3 Programmer',
+    };
+
+    function personaRoleLabel(role) {
+      const key = String(role || '').trim().toLowerCase();
+      return PERSONA_ROLE_LABELS[key] || (role ? String(role) : 'Not set');
+    }
+
+    function formatQuotaWindow(win) {
+      if (!win || typeof win !== 'object' || typeof win.fraction !== 'number') return '—';
+      const pct = `${Math.round(win.fraction * 1000) / 10}%`;
+      return win.resetTime ? `${pct} (resets ${win.resetTime})` : pct;
+    }
+
+    function buildPersonaBindingsHtml(repo) {
+      if (repo && repo.persona_config_error) {
+        return `<div style="font-size: 11px; color: #fcd34d; font-family: monospace; line-height: 1.4;">⚠ Persona configuration invalid: ${escapeHtml(repo.persona_config_error)}</div>`;
+      }
+      const bindings = Array.isArray(repo?.persona_bindings) ? repo.persona_bindings : [];
+      if (bindings.length === 0) {
+        return '<div style="font-size: 11px; color: #64748b;">No persona bindings resolved</div>';
+      }
+      const rows = bindings.map(b => {
+        const src = b && b.sources && typeof b.sources === 'object' ? (b.sources.model || '') : '';
+        const fallback = b && b.fallback_alias ? ` → ${escapeHtml(b.fallback_alias)}` : '';
+        return `
+          <tr>
+            <td style="padding: 3px 8px 3px 0; color: #f1f5f9; font-weight: 700;">${escapeHtml(personaRoleLabel(b.persona))}</td>
+            <td style="padding: 3px 8px; color: #7dd3fc;">${escapeHtml(b.alias || '')} <span style="color: #64748b;">(${escapeHtml(b.cli || '')})</span></td>
+            <td style="padding: 3px 8px; color: #cbd5e1;">${escapeHtml(b.model_id || '')}</td>
+            <td style="padding: 3px 8px; color: #fbbf24;">${escapeHtml(b.effort || '')}</td>
+            <td style="padding: 3px 0 3px 8px; color: #94a3b8;">${escapeHtml(src)}${fallback}</td>
+          </tr>`;
+      }).join('');
+      return `<table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: monospace;"><tbody>${rows}</tbody></table>`;
+    }
+
+    function renderPersonaBindings(repo) {
+      const name = escapeHtml(repo?.name || '');
+      return `
+        <div id="persona-bindings-${name}" style="background: #141722; border: 1px solid #1e2638; border-radius: 8px; padding: 12px 16px;">
+          <div style="font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">🎭 Persona Bindings</div>
+          ${buildPersonaBindingsHtml(repo)}
+        </div>`;
+    }
+
+    function buildLowQuotaBadgeHtml(lowQuota) {
+      if (!lowQuota || typeof lowQuota !== 'object' || lowQuota.enabled !== true) return '';
+      const until = lowQuota.expires_at ? `until ${escapeHtml(lowQuota.expires_at)}` : 'no expiry';
+      return `<span class="low-quota-badge" title="Low-quota mode is on: the turn budget is halved">🪫 Low-quota ${until}</span>`;
+    }
+
+    function buildCheckpointLineHtml(checkpoint) {
+      if (!checkpoint || typeof checkpoint !== 'object' || !checkpoint.event) return '';
+      const parts = [`<strong style="color: #f1f5f9;">${escapeHtml(checkpoint.event)}</strong>`];
+      if (checkpoint.persona) parts.push(escapeHtml(personaRoleLabel(checkpoint.persona)));
+      if (checkpoint.wave !== null && checkpoint.wave !== undefined) parts.push(`wave ${escapeHtml(checkpoint.wave)}`);
+      if (checkpoint.next_step) parts.push(`next: ${escapeHtml(checkpoint.next_step)}`);
+      if (checkpoint.at) parts.push(escapeHtml(checkpoint.at));
+      return `<span style="font-size: 11px; color: #94a3b8; font-family: monospace;">💾 Checkpoint: ${parts.join(' • ')}</span>`;
+    }
+
+    function buildCheckpointStatusHtml(repo) {
+      const line = buildCheckpointLineHtml(repo?.checkpoint);
+      const badge = buildLowQuotaBadgeHtml(repo?.low_quota);
+      if (!line && !badge) {
+        return '<div style="font-size: 11px; color: #64748b;">No checkpoint recorded yet</div>';
+      }
+      return `<div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start;">${line}${badge}</div>`;
+    }
+
+    function renderCheckpointStatus(repo) {
+      const name = escapeHtml(repo?.name || '');
+      return `
+        <div id="checkpoint-status-${name}" style="background: #141722; border: 1px solid #1e2638; border-radius: 8px; padding: 12px 16px;">
+          <div style="font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">💾 Orchestrator Checkpoint</div>
+          ${buildCheckpointStatusHtml(repo)}
+        </div>`;
+    }
+
+    function buildAgyProfilesHtml(repo) {
+      const profiles = Array.isArray(repo?.agy_profiles) ? repo.agy_profiles : [];
+      const rows = profiles.map(p => {
+        const holders = Array.isArray(p.leased_by) ? p.leased_by : [];
+        const holderText = holders.map(h => {
+          const bits = [h.epic, h.task, h.slot !== null && h.slot !== undefined ? `slot ${h.slot}` : '']
+            .filter(Boolean).join('/');
+          const where = [h.role, h.repo].filter(Boolean).join(', ');
+          return `${bits || 'unnamed'}${where ? ` (${where})` : ''}`;
+        }).join('; ');
+        let state = '<span style="color: #34d399;">✓ free</span>';
+        if (p.is_exhausted) {
+          state = `<span style="color: #f87171;">⛔ ${escapeHtml(p.exhausted_reason || 'exhausted')} until ${escapeHtml(p.exhausted_until || '?')}</span>`;
+        } else if (holders.length > 0) {
+          state = '<span style="color: #fbbf24;">🔒 in use</span>';
+        }
+        return `
+          <tr>
+            <td style="padding: 3px 8px 3px 0; color: #f1f5f9; font-weight: 700;">${escapeHtml(p.profile || '')}</td>
+            <td style="padding: 3px 8px;">${state}</td>
+            <td style="padding: 3px 8px; color: #cbd5e1;">${escapeHtml(holderText || '—')}</td>
+            <td style="padding: 3px 8px; color: #94a3b8;">5h ${escapeHtml(formatQuotaWindow(p.quota_5h))}</td>
+            <td style="padding: 3px 0 3px 8px; color: #94a3b8;">weekly ${escapeHtml(formatQuotaWindow(p.quota_weekly))}</td>
+          </tr>`;
+      }).join('');
+      return `<table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: monospace;"><tbody>${rows}</tbody></table>`;
+    }
+
+    function renderAgyProfiles(repo) {
+      if (!Array.isArray(repo?.agy_profiles) || repo.agy_profiles.length === 0) return '';
+      const name = escapeHtml(repo.name || '');
+      const poolState = repo.agy_pool && repo.agy_pool.state ? ` (${escapeHtml(repo.agy_pool.state)})` : '';
+      return `
+        <div id="agy-profiles-${name}" style="background: #141722; border: 1px solid #1e2638; border-radius: 8px; padding: 12px 16px; grid-column: 1 / -1;">
+          <div style="font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">🔑 Agy Profile Pool${poolState}</div>
+          ${buildAgyProfilesHtml(repo)}
+        </div>`;
+    }
+
+    function buildOrchestrationSig(repo) {
+      return JSON.stringify({
+        pb: repo?.persona_bindings || [],
+        pe: repo?.persona_config_error || null,
+        cp: repo?.checkpoint || null,
+        lq: repo?.low_quota || null,
+        pool: repo?.agy_pool || null,
+        ap: repo?.agy_profiles || [],
+      });
+    }
+
+    function renderOrchestrationPanel(repo) {
+      return `${renderPersonaBindings(repo)}${renderCheckpointStatus(repo)}${renderAgyProfiles(repo)}`;
+    }
+
     function collectRepoActionBlockers(repo) {
       if (!repo || typeof repo !== 'object') return [];
       const blockers = [];
@@ -2119,7 +2273,7 @@ Loading evidence data...
         return cat === 'done' || cat === 'abandon';
       };
 
-      const addBlocker = (epic, stage, reason) => {
+      const addBlocker = (epic, stage, reason, appendIfExisting = false) => {
         const epName = String(epic || '').trim();
         const stg = String(stage || '').trim();
         const rsn = String(reason || '').trim();
@@ -2129,7 +2283,11 @@ Loading evidence data...
         ));
         if (existing) {
           if (!existing.stage && stg) existing.stage = stg;
-          if (!existing.reason && rsn) existing.reason = rsn;
+          if (!existing.reason && rsn) {
+            existing.reason = rsn;
+          } else if (appendIfExisting && rsn && !existing.reason.includes(rsn)) {
+            existing.reason = `${existing.reason}\n${rsn}`;
+          }
           return;
         }
         blockers.push({ epic: epName, stage: stg, reason: rsn });
@@ -2140,7 +2298,7 @@ Loading evidence data...
           if (!b || typeof b !== 'object') return;
           const bEpic = String(b.epic || repo.active_epic || repo.name || '').trim();
           if (isEpicInactiveCategory(bEpic)) return;
-          addBlocker(bEpic, b.stage || '', b.reason || '');
+          addBlocker(bEpic, b.stage || '', b.reason || '', Boolean(b.kind));
         });
       }
 
@@ -2170,7 +2328,8 @@ Loading evidence data...
         }
       });
 
-      if (repo.is_human_action_required === true) {
+      const hasKindBlocker = Array.isArray(repo.action_blockers) && repo.action_blockers.some(b => b && b.kind);
+      if (repo.is_human_action_required === true && !hasKindBlocker) {
         const primaryEpic = String(repo.active_epic || repo.name || '').trim();
         const alreadyPresent = blockers.some(b => slugsMatch(b.epic, primaryEpic));
         if (!alreadyPresent && !isEpicInactiveCategory(primaryEpic)) {
@@ -2193,7 +2352,7 @@ Loading evidence data...
 
       const tabsSig = tabEntries.map(({ name, repo: r, blockers }) => {
         const blockerSig = blockers.map(b => `${b.epic}:${b.reason}`).join(',');
-        return [name, r?.epics_summary?.in_progress, r?.active_epic, r?.prompt, r?.is_human_action_required, blockerSig, activeFocusTab === name, getRepoNoteCount(getRepoNoteText(name))].join('~');
+        return [name, r?.epics_summary?.in_progress, r?.active_epic, r?.prompt, r?.is_human_action_required, blockerSig, r?.low_quota?.expires_at || (r?.low_quota ? 'on' : ''), (r?.notices || []).length, activeFocusTab === name, getRepoNoteCount(getRepoNoteText(name))].join('~');
       }).join('|');
 
       if (bar.dataset.sig === tabsSig) {
@@ -2220,6 +2379,7 @@ Loading evidence data...
               <span class="tab-badge-doing">⚡ ${inProgressEpics} Doing</span>
               <span class="tab-badge-notes" id="tab-note-count-${name}">📝 ${getRepoNoteCount(getRepoNoteText(name))} Notes</span>
               ${needsConfirm ? `<span class="tab-badge-confirm" title="Confirmation / approval required">⚠️ ${blockers.length} Confirm</span>` : ''}
+              ${buildLowQuotaBadgeHtml(r?.low_quota)}
             </span>
             ${needsConfirm ? `<span class="tab-notification-badge" title="Confirmation / approval required"></span>` : ''}
           </button>
@@ -2888,6 +3048,8 @@ Loading evidence data...
               </div>
             ` : ''}
 
+            ${isPrimaryActive && repo.checkpoint ? `<div style="margin-bottom: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">${buildCheckpointLineHtml(repo.checkpoint)}${buildLowQuotaBadgeHtml(repo.low_quota)}</div>` : ''}
+
             ${pipelineHtml}
 
             <!-- Row 2: Current task & Next step -->
@@ -3319,7 +3481,8 @@ Loading evidence data...
     function buildOverviewSig(repo) {
       const epicsSummary = repo.epics_summary || { total: 0, completed: 0, in_progress: 0, unstarted: 0, abandoned: 0 };
       const blockerSig = collectRepoActionBlockers(repo).map(b => `${b.epic}|${b.stage}|${b.reason}`).join(';');
-      return `${epicsSummary.in_progress}|${epicsSummary.unstarted}|${epicsSummary.completed}|${epicsSummary.abandoned || 0}|${epicsSummary.total}|${repo.prompt || ''}|${Boolean(repo.is_human_action_required)}|${blockerSig}`;
+      const noticeSig = (Array.isArray(repo.notices) ? repo.notices : []).join(';');
+      return `${epicsSummary.in_progress}|${epicsSummary.unstarted}|${epicsSummary.completed}|${epicsSummary.abandoned || 0}|${epicsSummary.total}|${repo.prompt || ''}|${Boolean(repo.is_human_action_required)}|${blockerSig}|${noticeSig}`;
     }
 
     function buildRoadmapSig(repo) {
@@ -3362,6 +3525,8 @@ Loading evidence data...
         qa: repo.quality_active || null,
         qr: repo.quality_runs || null,
         pt: repo.pipeline_telemetry || null,
+        cp: repo.checkpoint || null,
+        lq: repo.low_quota || null,
         wt: (repo.worktrees || []).map(w => [w.path, w.branch, w.is_dirty, w.dirty_file_count]),
         ep: (repo.epics_summary?.epics || []).map(e => [
           e.slug,
@@ -3439,6 +3604,7 @@ Loading evidence data...
       const epicsSummary = repo.epics_summary || { total: 0, completed: 0, in_progress: 0, unstarted: 0, abandoned: 0, epics: [] };
       const blockers = collectRepoActionBlockers(repo);
       const needsConfirm = blockers.length > 0;
+      const notices = Array.isArray(repo.notices) ? repo.notices : [];
 
       return `
         <!-- BLOCK 1: EPICS OVERVIEW -->
@@ -3499,7 +3665,7 @@ Loading evidence data...
             ${needsConfirm ? `
               <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px; max-height: 76px; overflow-y: auto;">
                 ${blockers.map(b => `
-                  <div style="font-size: 11px; color: #fecaca; line-height: 1.35; font-family: monospace; background: rgba(127, 29, 29, 0.35); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 4px; padding: 3px 6px;">
+                  <div style="font-size: 11px; color: #fecaca; line-height: 1.35; font-family: monospace; white-space: pre-line; background: rgba(127, 29, 29, 0.35); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 4px; padding: 3px 6px;">
                     <strong style="color: #fef2f2;">${escapeHtml(b.epic || repo.name || 'Epic')}</strong>${b.stage ? ` <span style="color: #fca5a5;">[${escapeHtml(b.stage)}]</span>` : ''}: ${escapeHtml(b.reason || 'Confirmation required')}
                   </div>
                 `).join('')}
@@ -3509,6 +3675,11 @@ Loading evidence data...
                 No blocking gates
               </div>
             `}
+            ${notices.length > 0 ? `
+              <div id="repo-notices-${escapeHtml(repo.name)}" style="display: flex; flex-direction: column; gap: 3px; margin-top: 6px;">
+                ${notices.map(n => `<div style="font-size: 10px; color: #fcd34d; font-family: monospace; line-height: 1.35;">ℹ ${escapeHtml(n)}</div>`).join('')}
+              </div>
+            ` : ''}
           </div>
         </div>
       `;
@@ -3656,6 +3827,16 @@ Loading evidence data...
           }
         }
 
+        // 2b. Persona bindings, checkpoint status & agy profile pool (Checked by signature)
+        const orchestrationPanel = document.getElementById('orchestration-panel-' + repo.name);
+        if (orchestrationPanel) {
+          const orchestrationSig = buildOrchestrationSig(repo);
+          if (orchestrationPanel.dataset.sig !== orchestrationSig) {
+            orchestrationPanel.innerHTML = renderOrchestrationPanel(repo);
+            orchestrationPanel.dataset.sig = orchestrationSig;
+          }
+        }
+
         // 3. Roadmap Table Body (Checked by signature, deferred while select-pic-roadmap has focus)
         const roadmapCountEl = document.getElementById('roadmap-count-' + repo.name);
         const newRoadmapCountText = `${epicsSummary.total} Epics`;
@@ -3727,6 +3908,7 @@ Loading evidence data...
 
       const initKanbanSig = buildKanbanSig(repo, selectedEpicFilter);
       const initOverviewSig = buildOverviewSig(repo);
+      const initOrchestrationSig = buildOrchestrationSig(repo);
       const initRoadmapSig = buildRoadmapSig(repo);
       const initTier2Sig = buildTier2Sig(repo);
 
@@ -3796,6 +3978,11 @@ Loading evidence data...
             <!-- EPICS OVERVIEW (4 STATUSES) & APPROVAL BLOCKERS -->
             <div id="epics-overview-counts-${escapeHtml(repo.name)}" data-sig="${escapeHtml(initOverviewSig)}" style="display: grid; grid-template-columns: 2.6fr 1.2fr; gap: 14px; margin-bottom: 18px;">
               ${renderEpicsOverviewAndApprovalGate(repo)}
+            </div>
+
+            <!-- PERSONA BINDINGS, CHECKPOINT STATUS & AGY PROFILE POOL -->
+            <div id="orchestration-panel-${escapeHtml(repo.name)}" data-sig="${escapeHtml(initOrchestrationSig)}" style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 14px; margin-bottom: 18px;">
+              ${renderOrchestrationPanel(repo)}
             </div>
 
             <!-- 2 COLUMNS: PROJECT EPICS ROADMAP & STRATEGIC NOTES -->
@@ -3882,6 +4069,10 @@ Loading evidence data...
       const mountedOverviewWrapper = document.getElementById('epics-overview-counts-' + repo.name);
       if (mountedOverviewWrapper) {
         mountedOverviewWrapper.dataset.sig = initOverviewSig;
+      }
+      const mountedOrchestrationPanel = document.getElementById('orchestration-panel-' + repo.name);
+      if (mountedOrchestrationPanel) {
+        mountedOrchestrationPanel.dataset.sig = initOrchestrationSig;
       }
       const mountedRoadmapTbody = document.getElementById('roadmap-tbody-' + repo.name);
       if (mountedRoadmapTbody) {
@@ -5093,7 +5284,7 @@ let currentReviewRepo = null;
           stateEl.textContent = 
             `Active Epic: ${repo.active_epic || 'None'}\n` +
             `Stage: ${repo.active_stage || 'Idle'}\n` +
-            `Role: ${mem.assistant_state_role || 'Not set'}\n` +
+            `Role: ${personaRoleLabel(mem.assistant_state_role)}\n` +
             `Account: @${repo.account_id || 'default'}\n` +
             `Status: ${mem.assistant_state_status || 'N/A'}\n\n` +
             `Next Step:\n${repo.prompt || 'No prompt yet'}`;

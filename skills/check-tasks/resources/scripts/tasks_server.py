@@ -44,7 +44,9 @@ if str(SCRIPT_DIR) not in sys.path:
 try:
     from check_tasks import (
         DashboardGraph,
+        design_spec_paths,
         discover_antigravity_profiles,
+        epic_doc_path,
         harvest_dashboard_graph,
         harvest_epic_history,
     )
@@ -1009,12 +1011,14 @@ def _update_task_frontmatter_pic(content: str, new_pic: str) -> str | None:
 def _is_pic_hld_or_spec(doc: Path, epic_slug: str) -> bool:
     """Return True if doc is the epic HLD or design spec (never review/BDD/smoke prose)."""
     lower_name = doc.name.lower()
+    if lower_name.endswith(".vi.md"):
+        return False
     if any(lower_name.startswith(prefix) for prefix in _PIC_SKIP_PREFIXES):
         return False
     if lower_name == "handoff.md" or "evidence" in lower_name:
         return False
     return (
-        lower_name in (f"{epic_slug.lower()}.en.md", f"{epic_slug.lower()}.vi.md")
+        lower_name in (f"{epic_slug.lower()}.md", f"{epic_slug.lower()}.en.md")
         or "design" in lower_name
     )
 
@@ -1142,10 +1146,15 @@ def assign_epic_pic(
         checkout_epic_dir = checkout / ".devtool" / "epic" / epic_slug
         if checkout_epic_dir.is_dir():
             # 1. HLD & design spec files (excluding BDD/review/fix-plan/smoke prose)
-            hld_candidates: list[Path] = [
-                checkout_epic_dir / f"{epic_slug}.en.md",
-                checkout_epic_dir / f"{epic_slug}.vi.md",
-            ]
+            hld_candidates: list[Path] = []
+            primary_hld = epic_doc_path(checkout_epic_dir, epic_slug)
+            if primary_hld is not None:
+                hld_candidates.append(primary_hld)
+            hld_candidates.extend(
+                spec
+                for spec in design_spec_paths(checkout_epic_dir)
+                if spec not in hld_candidates
+            )
             with contextlib.suppress(OSError):
                 for doc in sorted(checkout_epic_dir.glob("*.md")):
                     if doc not in hld_candidates and _is_pic_hld_or_spec(

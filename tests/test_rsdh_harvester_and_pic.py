@@ -37,6 +37,17 @@ import check_tasks  # type: ignore[import-not-found]
 import tasks_server  # type: ignore[import-not-found]
 
 
+@pytest.fixture(autouse=True)
+def _isolated_host_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Point HOME and REAL_HOME at a temporary directory and drop profile variables."""
+    home = tmp_path / "isolated_home"
+    home.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("REAL_HOME", str(home))
+    monkeypatch.delenv("AGY_PROFILE", raising=False)
+    monkeypatch.delenv("ANTIGRAVITY_PROFILE", raising=False)
+
+
 def _git(cwd: Path, *args: str) -> str:
     """Run git in cwd and return stripped stdout."""
     res = subprocess.run(
@@ -281,7 +292,10 @@ class TestRsdhHarvesterAndPic_Integration:
 
         for checkout_files in (root_files, wt_files):
             assert "`brother`" in checkout_files["en_hld"].read_text(encoding="utf-8")
-            assert "`brother`" in checkout_files["vi_hld"].read_text(encoding="utf-8")
+            # The Vietnamese mirror is no longer a PIC target and keeps its original PIC
+            vi_text = checkout_files["vi_hld"].read_text(encoding="utf-8")
+            assert "`mommy`" in vi_text
+            assert "`brother`" not in vi_text
             assert "- **PIC**: `brother`" in checkout_files["design_spec"].read_text(
                 encoding="utf-8"
             )
@@ -692,14 +706,15 @@ class TestRsdhHarvesterAndPic_Integration:
         # Remove optional state file to ensure missing optional state files do not fail or warn
         files["pipeline_json"].unlink()
 
-        readonly_vi = files["vi_hld"]
-        readonly_vi.chmod(0o444)
+        readonly_spec = files["design_spec"]
+        spec_before = readonly_spec.read_bytes()
+        readonly_spec.chmod(0o444)
         try:
             res = tasks_server.assign_epic_pic(
                 tmp_path, "fr04-repo", "demo_epic", "brother"
             )
         finally:
-            readonly_vi.chmod(0o644)
+            readonly_spec.chmod(0o644)
 
         assert res["status"] == "ok"
         assert "`brother`" in files["en_hld"].read_text(encoding="utf-8")
@@ -707,10 +722,14 @@ class TestRsdhHarvesterAndPic_Integration:
             encoding="utf-8"
         )
         assert 'pic: "brother"' in files["epic_task"].read_text(encoding="utf-8")
-        # Unwritable .vi.md kept original content and triggered a warning
-        assert "`mommy`" in readonly_vi.read_text(encoding="utf-8")
+        # Unwritable design spec kept original content and triggered a warning
+        assert readonly_spec.read_bytes() == spec_before
         warnings = res.get("warnings", [])
-        assert any("demo_epic.vi.md" in w for w in warnings)
+        assert any(readonly_spec.name in w for w in warnings)
+        assert all(readonly_spec.name not in p for p in res["updated_files"])
+        # The Vietnamese mirror is neither updated nor reported
+        assert "`mommy`" in files["vi_hld"].read_text(encoding="utf-8")
+        assert not any("demo_epic.vi.md" in w for w in warnings)
         assert all("demo_epic.vi.md" not in p for p in res["updated_files"])
         assert res["updated_count"] == len(res["updated_files"])
         assert res["updated_count"] > 0

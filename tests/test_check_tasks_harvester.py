@@ -8,11 +8,13 @@ Covers BDD Scenarios:
 """
 
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 # Ensure skills/check-tasks/resources/scripts is on sys.path
 SCRIPT_DIR = (
@@ -55,6 +57,15 @@ class TestCheckTasksHarvester_Integration(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
         self.workspace_root = Path(self.temp_dir.name)
+        home_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(home_dir.cleanup)
+        env_patch = mock.patch.dict(
+            os.environ, {"HOME": home_dir.name, "REAL_HOME": home_dir.name}
+        )
+        env_patch.start()
+        self.addCleanup(env_patch.stop)
+        for profile_var in ("AGY_PROFILE", "ANTIGRAVITY_PROFILE"):
+            os.environ.pop(profile_var, None)
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
@@ -330,16 +341,21 @@ class TestCheckTasksHarvester_Integration(unittest.TestCase):
                 "done",
             ),
             ("bold_value_done", "- **Status**: **Done** (2026-09-04)\n", "done"),
-            ("unbulleted_bold_vi", "**Trạng thái**: Hoàn tất — đã merge\n", "done"),
+            # Vietnamese labels only occurred in .vi.md mirrors, which are no longer read
+            (
+                "vi_label_unbulleted_ignored",
+                "**Trạng thái**: Hoàn tất — đã merge\n",
+                None,
+            ),
             (
                 "table_complete",
                 "| **Status** | Complete — all 15 tasks verified |\n",
                 "done",
             ),
             (
-                "table_completed_vi",
+                "vi_label_table_ignored",
                 "| Trạng thái | Đã hoàn thành (Completed) |\n",
-                "done",
+                None,
             ),
             ("yaml_done", "```yaml\nKind: document\nStatus: Done\n```\n", "done"),
             (
@@ -347,7 +363,7 @@ class TestCheckTasksHarvester_Integration(unittest.TestCase):
                 "```yaml\nKind: document\n```\n\n## Status\n\nDone\n",
                 "done",
             ),
-            ("capitalized_vi_todo", "- **Trạng Thái**: `todo`\n", "unstarted"),
+            ("vi_label_capitalized_ignored", "- **Trạng Thái**: `todo`\n", None),
             (
                 "table_ready",
                 "| Status | Ready for implementation — Gate 2 confirmed |\n",
