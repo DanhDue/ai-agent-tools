@@ -1,12 +1,13 @@
 ---
 id: "task_08_kit_guides_verify_registration_and_acceptance"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T14:49:59Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T14:49:59Z"
 labels: ["docs", "integration", "acceptance"]
 order: "a8"
 review_tier: "full"

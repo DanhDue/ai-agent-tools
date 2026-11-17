@@ -1,12 +1,13 @@
 ---
 id: "task_08_kit_guides_verify_registration_and_acceptance"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T14:49:59Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T14:49:59Z"
 labels: ["docs", "integration", "acceptance"]
 order: "a8"
 review_tier: "full"
@@ -14,7 +15,7 @@ review_tier: "full"
 
 # Task 8: Kit Guides, verify.sh Registration and End-to-End Acceptance
 
-Epic: [four_persona_governance](../epic/four_persona_governance/four_persona_governance.en.md)
+Epic: [four_persona_governance](../../epic/four_persona_governance/four_persona_governance.en.md)
 
 ## Requirement Analysis
 
@@ -26,7 +27,7 @@ Close the epic: human guides, suite registration and one end-to-end test across 
    `/d3nexus:dev-config` (including the `--provider` shortcut and the agy profile pool with its lease file, and `set` with `--provider`, `--model`, `--effort` and `--profile`),
    checkpoints, low-quota mode and the quota gate (5-hour and weekly windows). Both variants keep identical
    structure; English is written first.
-1a. **dev-config quick guide (bilingual, [SE-11](../epic/four_persona_governance/four_persona_governance.en.md#spec-errata))**: new
+1a. **dev-config quick guide (bilingual, [SE-11](../../epic/four_persona_governance/four_persona_governance.en.md#spec-errata))**: new
    `docs/dev-config-quick-guide.en.md` (written first) and `.vi.md`, in the shape of the existing quick guides: title, a
    Vietnamese-translation pointer, Table of Contents, a Meta Data block (Kind `document`, Audience Human Architect,
    Diátaxis `how-to`, Non-goals, Acceptance, Source Spec) and numbered sections: (1) a ten-second cheat sheet, a table
@@ -164,11 +165,11 @@ And neither variant contains an e-mail address or the word "password"
 
 ## Dependencies & Blockers
 
-Blocked by [Task 7](../epic/four_persona_governance/task_07_english_only_skill_text_and_mirror_isolation.md), [Task 9](../epic/four_persona_governance/task_09_provider_quick_setup.md), [Task 10](../epic/four_persona_governance/task_10_agy_profile_pool_and_leases.md) and [Task 11](../epic/four_persona_governance/task_11_set_provider_model_effort_profile.md).
+Blocked by [Task 7](../../epic/four_persona_governance/task_07_english_only_skill_text_and_mirror_isolation.md), [Task 9](../../epic/four_persona_governance/task_09_provider_quick_setup.md), [Task 10](../../epic/four_persona_governance/task_10_agy_profile_pool_and_leases.md) and [Task 11](../../epic/four_persona_governance/task_11_set_provider_model_effort_profile.md).
 
 Downstream dependents (blocked by Task 8): none.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/four_persona_governance/four_persona_governance.en.md)
+- [Epic HLD](../../epic/four_persona_governance/four_persona_governance.en.md)
 - **Rollback**: Revert the task commit.
