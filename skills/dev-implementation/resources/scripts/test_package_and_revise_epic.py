@@ -222,16 +222,16 @@ def test_MEO_FR_02_spec_errata_asymmetry_and_missing_reason(tmp_path: Path) -> N
     assert res_default.returncode == 0
     assert "R7 PASS" in res_default.stdout
 
-    # --strict-bilingual catches asymmetric Spec Errata on R7
+    # Deprecated --strict-bilingual prints warning and ignores .vi.md Spec Errata lag
     res_readiness = subprocess.run(
         [sys.executable, str(READINESS_SCRIPT), "demo_epic", "--strict-bilingual"],
         cwd=str(tmp_path),
         capture_output=True,
         text=True,
     )
-    assert res_readiness.returncode != 0
-    assert "R7" in res_readiness.stdout or "R7" in res_readiness.stderr
-    assert "SE-02" in res_readiness.stdout or "SE-02" in res_readiness.stderr
+    assert res_readiness.returncode == 0
+    assert "R7 PASS" in res_readiness.stdout
+    assert "warning: --strict-bilingual is deprecated and ignored" in res_readiness.stderr
 
     # 2. package_epic.py --revise without --reason exits 2
     res_no_reason = subprocess.run(

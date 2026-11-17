@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _epic_docs import is_task_markdown, resolve_epic_doc_at
 tc: Any = importlib.import_module("task_contract")
 cb: Any = importlib.import_module("check_bdd_traceability")
 rtc: Any = importlib.import_module("run_task_checks")
@@ -169,7 +170,8 @@ def audit_evidence(root: Path, epic_path: str, base: str, stem: str, text: str) 
 
 
 def audit_protected(root: Path, epic_path: str, commits: list[Commit], texts: dict[str, str]) -> tuple[list[str], bool]:
-    explicit = parse_protected_paths(show(root, "HEAD", f"{epic_path}/{Path(epic_path).name}.en.md") or "")
+    hld_at_head = resolve_epic_doc_at(root, "HEAD", epic_path, Path(epic_path).name)
+    explicit = parse_protected_paths((show(root, "HEAD", hld_at_head) if hld_at_head else None) or "")
     programs: set[str] = set()
     allowed: set[str] = set()
     for text in texts.values():
@@ -220,8 +222,10 @@ def audit_amendments(root: Path, epic_path: str, base: str, texts: dict[str, str
         since = git_lines(root, "log", "--format=%h %s", f"{created[-1]}..HEAD", "--", path)
         items.append("\n  ".join([f"{Path(path).stem}: amended since creation", *diff,
                                   *(f"changed by {entry}" for entry in since)]))
-    scenarios = f"{epic_path}/bdd_scenarios.en.md"
-    before, after = scenario_ids_at(root, base, scenarios), scenario_ids_at(root, "HEAD", scenarios)
+    before_scenarios = resolve_epic_doc_at(root, base, epic_path, "bdd_scenarios")
+    after_scenarios = resolve_epic_doc_at(root, "HEAD", epic_path, "bdd_scenarios")
+    before = scenario_ids_at(root, base, before_scenarios) if before_scenarios else set()
+    after = scenario_ids_at(root, "HEAD", after_scenarios) if after_scenarios else set()
     items += [f"scenario {i} added" for i in sorted(after - before)]
     items += [f"scenario {i} removed" for i in sorted(before - after)]
     return items + hld_amendments(root, epic_path, base)
@@ -229,16 +233,48 @@ def audit_amendments(root: Path, epic_path: str, base: str, texts: dict[str, str
 
 def hld_amendments(root: Path, epic_path: str, base: str) -> list[str]:
     """The HLD's Protected paths: and Integration results: lines, diffed between <base> and HEAD."""
-    hld = f"{epic_path}/{Path(epic_path).name}.en.md"
-    lines = {rev: [line for line in (show(root, rev, hld) or "").splitlines() if line.startswith(GRADER_LINES)]
-             for rev in (base, "HEAD")}
+    stem = Path(epic_path).name
+    hld_by_rev = {
+        rev: resolve_epic_doc_at(root, rev, epic_path, stem)
+        for rev in (base, "HEAD")
+    }
+    lines = {
+        rev: [
+            line
+            for line in ((show(root, rev, path) if path else None) or "").splitlines()
+            if line.startswith(GRADER_LINES)
+        ]
+        for rev, path in hld_by_rev.items()
+    }
     if lines[base] == lines["HEAD"]:
         return []
-    diff = difflib.unified_diff(lines[base], lines["HEAD"], f"{Path(hld).name} at base", f"{Path(hld).name} at HEAD",
-                                lineterm="", n=0)
-    since = git_lines(root, "log", "--format=%h %s", f"{base}..HEAD", "--", hld)
-    return ["\n  ".join([f"{Path(hld).name}: Protected paths or Integration results changed since base", *diff,
-                         *(f"changed by {entry}" for entry in since)])]
+    base_hld = hld_by_rev[base]
+    head_hld = hld_by_rev["HEAD"]
+    base_name = Path(base_hld).name if base_hld is not None else f"{stem}.md"
+    head_name = Path(head_hld).name if head_hld is not None else f"{stem}.md"
+    diff = difflib.unified_diff(
+        lines[base],
+        lines["HEAD"],
+        f"{base_name} at base",
+        f"{head_name} at HEAD",
+        lineterm="",
+        n=0,
+    )
+    paths_for_log = sorted({p for p in hld_by_rev.values() if p})
+    since = (
+        git_lines(root, "log", "--format=%h %s", f"{base}..HEAD", "--", *paths_for_log)
+        if paths_for_log
+        else []
+    )
+    return [
+        "\n  ".join(
+            [
+                f"{head_name}: Protected paths or Integration results changed since base",
+                *diff,
+                *(f"changed by {entry}" for entry in since),
+            ]
+        )
+    ]
 
 
 def audit_anti_stub(root: Path) -> tuple[list[str], bool]:
@@ -259,7 +295,7 @@ def audit_anti_stub(root: Path) -> tuple[list[str], bool]:
 def build_report(root: Path, epic_dir: str, base: str) -> tuple[list[tuple[str, list[str]]], bool]:
     epic_path = f".devtool/epic/{epic_dir}"
     mirrors = [p for p in git_lines(root, "ls-tree", "--name-only", "HEAD", "--", f"{epic_path}/")
-               if re.fullmatch(r"task_.*\.md", Path(p).name)]
+               if is_task_markdown(p)]
     if not mirrors:
         raise ContractError(f"no task mirrors for epic {epic_dir} at HEAD under {epic_path}/")
     texts = {path: show(root, "HEAD", path) or "" for path in mirrors}

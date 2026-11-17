@@ -68,6 +68,7 @@ except ImportError:
 else:
     _resume_context = _imported_resume_context
 
+from _epic_docs import resolve_epic_doc
 from slug_utils import parse_frontmatter, sanitize_slug
 import task_contract as tc
 
@@ -78,8 +79,12 @@ TASK_FILE_PATTERN = re.compile(r"^task_[0-9]+.*\.md$")
 
 def is_task_file(path: Path) -> bool:
     """Return True if path is a task file (e.g. task_01_name.md), excluding epic overview docs."""
-    return bool(TASK_FILE_PATTERN.match(path.name)) and not path.name.endswith(
+    if not TASK_FILE_PATTERN.match(path.name) or path.name.endswith(
         (".en.md", ".vi.md")
+    ):
+        return False
+    return not (
+        path.parent.parent.name == "epic" and path.name == f"{path.parent.name}.md"
     )
 
 
@@ -668,16 +673,17 @@ def find_epic_slug(root: Path, epic_dir: str) -> str | None:
     epic_path = root / ".devtool" / "epic" / epic_dir
     if not epic_path.is_dir():
         return None
-    for ext in (".en.md", ".vi.md"):
-        doc = epic_path / f"{epic_dir}{ext}"
-        if doc.is_file():
-            match = re.search(
-                r"^-\s*\*\*(?:Epic)\*\*:\s*(.+)$", doc.read_text(), re.MULTILINE
-            )
-            if match:
-                slug = sanitize_slug(match.group(1))
-                if slug:
-                    return slug
+    doc = resolve_epic_doc(epic_path, epic_dir)
+    if doc is not None:
+        match = re.search(
+            r"^-\s*\*\*(?:Epic)\*\*:\s*(.+)$",
+            doc.read_text(encoding="utf-8"),
+            re.MULTILINE,
+        )
+        if match:
+            slug = sanitize_slug(match.group(1))
+            if slug:
+                return slug
     for task_file in task_files_in(epic_path):
         slug = epic_of(task_file)
         if slug:
@@ -817,14 +823,13 @@ def archive_epic_tasks(
                 if task_file not in archived:
                     archived.append(task_file)
 
-        # 3. Fix Section 8 links in epic overview documents (.en.md and .vi.md)
-        for ext in (".en.md", ".vi.md"):
-            doc = dest_dir / f"{epic_dir}{ext}"
-            if doc.is_file():
-                doc_content = doc.read_text()
-                fixed_doc = fix_epic_overview_links(doc_content)
-                if fixed_doc != doc_content:
-                    doc.write_text(fixed_doc)
+        # 3. Fix Section 8 links in the resolved English epic overview document
+        doc = resolve_epic_doc(dest_dir, epic_dir)
+        if doc is not None:
+            doc_content = doc.read_text(encoding="utf-8")
+            fixed_doc = fix_epic_overview_links(doc_content)
+            if fixed_doc != doc_content:
+                doc.write_text(fixed_doc, encoding="utf-8")
 
         # 4. Relocate superpowers specs & plans if any exist for this epic
         archive_superpowers_docs(root, epic_dir, epic_slug)
@@ -842,7 +847,7 @@ def archive_epic_tasks(
 def sync_epic(
     roots: list[Path], epic_dir: str, new_status: str
 ) -> tuple[list[Path], list[Path]]:
-    """Update Status line in Meta Data for both .en.md and .vi.md across all checkouts.
+    """Update Status line in Meta Data for the resolved English HLD across all checkouts.
 
     Returns (matched_docs, written_docs).
     """
@@ -852,21 +857,21 @@ def sync_epic(
     status_patterns: tuple[tuple[re.Pattern[str], str], ...] = (
         (
             re.compile(
-                r"^((?:>\s*)?(?:-\s*)?\*\*(?:Status|Trạng\s*thái)(?:\*\*:\s*|:\*\*\s*)).*$",
+                r"^((?:>\s*)?(?:-\s*)?\*\*Status(?:\*\*:\s*|:\*\*\s*)).*$",
                 re.MULTILINE | re.IGNORECASE,
             ),
             rf"\g<1>{new_status}",
         ),
         (
             re.compile(
-                r"^(\|\s*\*{0,2}(?:Status|Trạng\s*thái)\*{0,2}\s*\|\s*)[^|\n\r]+?(\s*\|)\s*$",
+                r"^(\|\s*\*{0,2}Status\*{0,2}\s*\|\s*)[^|\n\r]+?(\s*\|)\s*$",
                 re.MULTILINE | re.IGNORECASE,
             ),
             rf"\g<1>{new_status}\g<2>",
         ),
         (
             re.compile(
-                r"^((?:Status|Trạng\s*thái):\s*)[^\n\r]+$",
+                r"^(Status:\s*)[^\n\r]+$",
                 re.MULTILINE | re.IGNORECASE,
             ),
             rf"\g<1>{new_status}",
@@ -876,25 +881,21 @@ def sync_epic(
         epic_path = root / ".devtool" / "epic" / epic_dir
         if not epic_path.is_dir():
             continue
-        root_matched = False
-        for ext in (".en.md", ".vi.md"):
-            doc = epic_path / f"{epic_dir}{ext}"
-            if not doc.is_file():
-                continue
-            matched.append(doc)
-            root_matched = True
-            text = doc.read_text(encoding="utf-8")
-            for status_re, repl in status_patterns:
-                if status_re.search(text):
-                    new_text = status_re.sub(repl, text, count=1)
-                    if new_text != text:
-                        doc.write_text(new_text, encoding="utf-8")
-                    written.append(doc)
-                    break
-        if root_matched:
-            touched_roots.append(root)
+        doc = resolve_epic_doc(epic_path, epic_dir)
+        if doc is None:
+            continue
+        matched.append(doc)
+        touched_roots.append(root)
+        text = doc.read_text(encoding="utf-8")
+        for status_re, repl in status_patterns:
+            if status_re.search(text):
+                new_text = status_re.sub(repl, text, count=1)
+                if new_text != text:
+                    doc.write_text(new_text, encoding="utf-8")
+                written.append(doc)
+                break
 
-    if new_status.strip().lower() in ("done", "hoàn thành"):
+    if new_status.strip().lower() == "done":
         archive_epic_tasks(roots, epic_dir)
 
     if matched and touched_roots:
@@ -909,14 +910,7 @@ def sync_epic(
                 epic_slug,
                 stage=new_status,
                 last_event=f"sync_epic {epic_dir} -> {new_status}",
-                clear_decision=norm_status
-                in (
-                    "in progress",
-                    "in-progress",
-                    "đang thực hiện",
-                    "done",
-                    "hoàn thành",
-                ),
+                clear_decision=norm_status in ("in progress", "in-progress", "done"),
             )
 
     return matched, written
@@ -958,10 +952,10 @@ def code_epic_dir(root: Path, task_id: str) -> str | None:
         if (features / f"{task_id}.md").is_file():
             slug = epic_of(features / f"{task_id}.md")
             epic_dir = find_epic_dir_for_slug(root, slug) if slug else None
-            if epic_dir and is_code_epic(
-                root / ".devtool" / "epic" / epic_dir / f"{epic_dir}.en.md"
-            ):
-                return epic_dir
+            if epic_dir:
+                hld_doc = resolve_epic_doc(root / ".devtool" / "epic" / epic_dir, epic_dir)
+                if hld_doc is not None and is_code_epic(hld_doc):
+                    return epic_dir
             return None
     return None
 
@@ -1198,10 +1192,8 @@ def rewrite_mirror_links(
 
 def check_epic_prerequisites(root: Path, epic_dir: str) -> list[str]:
     """Check whether all prerequisite epics declared in HLD are Done."""
-    hld_path = root / ".devtool" / "epic" / epic_dir / f"{epic_dir}.en.md"
-    if not hld_path.is_file():
-        hld_path = root / ".devtool" / "epic" / epic_dir / f"{epic_dir}.vi.md"
-    if not hld_path.is_file():
+    hld_path = resolve_epic_doc(root / ".devtool" / "epic" / epic_dir, epic_dir)
+    if hld_path is None:
         return [f"HLD overview not found for '{epic_dir}'"]
 
     hld_text = hld_path.read_text(encoding="utf-8")
@@ -1211,20 +1203,18 @@ def check_epic_prerequisites(root: Path, epic_dir: str) -> list[str]:
 
     blockers: list[str] = []
     for p_dir in prereq_dirs:
-        p_hld_path = root / ".devtool" / "epic" / p_dir / f"{p_dir}.en.md"
-        if not p_hld_path.is_file():
-            p_hld_path = root / ".devtool" / "epic" / p_dir / f"{p_dir}.vi.md"
+        p_hld_path = resolve_epic_doc(root / ".devtool" / "epic" / p_dir, p_dir)
         is_done = False
-        if p_hld_path.is_file():
+        if p_hld_path is not None and p_hld_path.is_file():
             p_hld_text = p_hld_path.read_text(encoding="utf-8")
             match = re.search(
-                r"^-\s*\*\*(?:Status|Trạng thái)\*\*:\s*(.+)$",
+                r"^-\s*\*\*Status\*\*:\s*(.+)$",
                 p_hld_text,
                 re.MULTILINE,
             )
             if match:
                 status_str = match.group(1).strip().strip("`").strip('"')
-                if status_str.lower().startswith(("done", "hoàn thành")):
+                if status_str.lower().startswith("done"):
                     is_done = True
         if not is_done:
             p_tasks = task_files_in(root / ".devtool" / "epic" / p_dir)
@@ -1305,12 +1295,10 @@ def promote_epic_tasks(
             promoted_paths.extend(written)
 
     # Check and update HLD status if queued/backlog
-    hld_file = epic_path / f"{epic_dir}.en.md"
-    if not hld_file.is_file():
-        hld_file = epic_path / f"{epic_dir}.vi.md"
-    if hld_file.is_file():
+    hld_file = resolve_epic_doc(epic_path, epic_dir)
+    if hld_file is not None and hld_file.is_file():
         m = re.search(
-            r"^-\s*\*\*(?:Status|Trạng thái)\*\*:\s*(.+)$",
+            r"^-\s*\*\*Status\*\*:\s*(.+)$",
             hld_file.read_text(encoding="utf-8"),
             re.MULTILINE,
         )
@@ -1332,9 +1320,9 @@ def render_epic_tasks(
         raise ValueError(f"Epic directory not found: {epic_path}")
 
     source_root = source_root or root
-    bdd_file = epic_path / "bdd_scenarios.en.md"
+    bdd_file = resolve_epic_doc(epic_path, "bdd_scenarios")
     canonical_blocks: dict[str, list[str]] = {}
-    if bdd_file.is_file():
+    if bdd_file is not None and bdd_file.is_file():
         canonical_blocks = extract_scenario_blocks(bdd_file.read_text(encoding="utf-8"))
 
     epic_slug = find_epic_slug(root, epic_dir) or sanitize_slug(epic_dir) or epic_dir

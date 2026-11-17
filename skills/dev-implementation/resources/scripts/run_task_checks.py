@@ -33,6 +33,15 @@ except ImportError:
 from pathlib import Path
 from typing import Any, cast
 
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+_ed: Any = importlib.import_module("_epic_docs")
+is_task_markdown: Any = _ed.is_task_markdown
+iter_task_files: Any = _ed.iter_task_files
+resolve_epic_doc: Any = _ed.resolve_epic_doc
+
 _tc: Any = importlib.import_module("task_contract")
 CONTROL_TOKENS: set[str] = _tc.CONTROL_TOKENS
 ContractError: type[Exception] = _tc.ContractError
@@ -280,10 +289,11 @@ def mismatch(row: Row, code: int, text: str) -> str | None:
 
 
 def epic_scenario_ids(layout: EpicLayout) -> list[str]:
+    bdd_doc = resolve_epic_doc(layout.epic_dir, "bdd_scenarios")
+    if bdd_doc is None:
+        return []
     try:
-        return cast(
-            list[str], load_scenarios(layout.epic_dir / "bdd_scenarios.en.md")[0]
-        )
+        return cast(list[str], load_scenarios(bdd_doc)[0])
     except UsageError:
         return []
 
@@ -370,10 +380,10 @@ def protected_patterns(layout: EpicLayout, root: Path) -> tuple[list[str], set[s
         .split("\0")
     )
     names = {Path(p).name for p in committed if p} | {
-        p.name for p in layout.epic_dir.glob("task_*.md")
+        p.name for p in iter_task_files(layout.epic_dir)
     }
     programs: set[str] = set()
-    for name in sorted(n for n in names if re.fullmatch(r"task_.*\.md", n)):
+    for name in sorted(n for n in names if is_task_markdown(n)):
         try:
             rows, _ = parse_verification(
                 committed_text(root, layout.epic_dir / name) or ""

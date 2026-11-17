@@ -336,9 +336,8 @@ def test_tto_st_02_handoff_excludes_vi_md() -> None:
 
 
 def test_tto_st_03_strict_bilingual_stage4_gate() -> None:
-    """[TTO-ST-03] --strict-bilingual detects stale Spec/HLD provenance digests and missing/drifted bdd_scenarios.vi.md."""
+    """[FPG-EC-04] Deprecated --strict-bilingual is a no-op with one warning and never fails on missing/stale .vi.md."""
     tcer: Any = importlib.import_module("test_check_epic_readiness")
-    cer: Any = importlib.import_module("check_epic_readiness")
     cer_script = SCRIPTS_DIR / "check_epic_readiness.py"
     cbt_script = SCRIPTS_DIR / "check_bdd_traceability.py"
 
@@ -349,75 +348,28 @@ def test_tto_st_03_strict_bilingual_stage4_gate() -> None:
         epic_dir = repo / ".devtool" / "epic" / "demo_epic"
         hld_en = epic_dir / "demo_epic.en.md"
         hld_vi = epic_dir / "demo_epic.vi.md"
-        spec_en = epic_dir / "2026-10-22-demo-epic-design.en.md"
-        spec_vi = epic_dir / "2026-10-22-demo-epic-design.vi.md"
         bdd_en = epic_dir / "bdd_scenarios.en.md"
         bdd_vi = epic_dir / "bdd_scenarios.vi.md"
         tasks = sorted(epic_dir.glob("task_*.md"))
 
-        digest_fn = getattr(cer, "compute_en_sync_digest", None)
-        assert digest_fn is not None, (
-            "compute_en_sync_digest must exist on check_epic_readiness"
-        )
-        en_digest = digest_fn(hld_en.read_text(encoding="utf-8"))
-        assert re.fullmatch(r"[0-9a-f]{16}", en_digest)
-        spec_digest = digest_fn(spec_en.read_text(encoding="utf-8"))
-
-        # Identical heading levels in HLD .vi.md, edited prose in HLD .en.md, stale digest in .vi.md
         hld_en.write_text(
             hld_en.read_text(encoding="utf-8")
             + "\nAdditional English sentence under identical heading.\n",
             encoding="utf-8",
         )
-        hld_vi.write_text(
-            hld_vi.read_text(encoding="utf-8")
-            + f"\n<!-- sync-en-sha256: {en_digest} -->\n",
-            encoding="utf-8",
-        )
-        spec_vi.write_text(
-            spec_vi.read_text(encoding="utf-8")
-            + f"\n<!-- sync-en-sha256: {spec_digest} -->\n",
-            encoding="utf-8",
-        )
-        _git(repo, "add", "-A")
-        _git(repo, "commit", "-q", "-m", "Stale provenance with same headings")
-
-        # Missing bdd_scenarios.vi.md + stale HLD digest -> strict fails both readiness & traceability
-        bdd_vi_saved = bdd_vi.read_text(encoding="utf-8")
+        hld_vi.write_text("# Stale VI\n", encoding="utf-8")
         bdd_vi.unlink()
-        strict_fail = _run_py(cer_script, repo, "demo_epic", "--strict-bilingual")
-        assert strict_fail.returncode != 0
-        tr_strict_fail = _run_py(
-            cbt_script,
-            repo,
-            "plan",
-            "--scenarios",
-            str(bdd_en),
-            "--tasks",
-            *(str(t) for t in tasks),
-            "--strict-bilingual",
-        )
-        assert tr_strict_fail.returncode != 0
-
-        # Refresh digest in HLD .vi.md + restore bdd_scenarios.vi.md -> both strict gates pass
-        fresh_hld_digest = digest_fn(hld_en.read_text(encoding="utf-8"))
-        assert fresh_hld_digest != en_digest
-        hld_vi.write_text(
-            hld_vi.read_text(encoding="utf-8").replace(en_digest, fresh_hld_digest),
-            encoding="utf-8",
-        )
-        bdd_vi.write_text(bdd_vi_saved, encoding="utf-8")
         _git(repo, "add", "-A")
-        _git(
-            repo,
-            "commit",
-            "-q",
-            "-m",
-            "Synced bilingual provenance and bdd_scenarios.vi.md",
-        )
+        _git(repo, "commit", "-q", "-m", "Stale vi mirror and missing bdd_scenarios.vi.md")
 
         strict_pass = _run_py(cer_script, repo, "demo_epic", "--strict-bilingual")
         assert strict_pass.returncode == 0, strict_pass.stdout + strict_pass.stderr
+        assert (
+            strict_pass.stderr.count(
+                "warning: --strict-bilingual is deprecated and ignored"
+            )
+            == 1
+        )
         tr_strict_pass = _run_py(
             cbt_script,
             repo,
@@ -431,8 +383,12 @@ def test_tto_st_03_strict_bilingual_stage4_gate() -> None:
         assert tr_strict_pass.returncode == 0, (
             tr_strict_pass.stdout + tr_strict_pass.stderr
         )
-
-        # Verify normalized sha helper stays unused-import clean via hashlib assertion
+        assert (
+            tr_strict_pass.stderr.count(
+                "warning: --strict-bilingual is deprecated and ignored"
+            )
+            == 1
+        )
         assert len(hashlib.sha256(b"x").hexdigest()[:16]) == 16
 
 

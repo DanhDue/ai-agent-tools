@@ -23,9 +23,11 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _epic_docs import resolve_epic_doc
 tc: Any = importlib.import_module("task_contract")
 cb: Any = importlib.import_module("check_bdd_traceability")
 sts: Any = importlib.import_module("sync_task_status")
+ceo: Any = importlib.import_module("compute_execution_order")
 UsageError: type[Exception] = cb.UsageError
 covers_of: Any = cb.covers_of
 read_text: Any = cb.read_text
@@ -226,6 +228,110 @@ def _normalize_rel_claim(pattern: str) -> str:
     while norm.startswith("./"):
         norm = norm[2:]
     return norm
+
+
+def _normalize_ownership_path(raw: str) -> str:
+    """Normalize an Allowed files entry by stripping annotations, symbols, backticks, and leading ./."""
+    item = raw.strip()
+    if item.startswith("`"):
+        m = re.match(r"^`([^`]+)`", item)
+        candidate = m.group(1) if m else item.replace("`", "")
+    else:
+        candidate = item.replace("`", "")
+    candidate = re.split(
+        r"\s+(?:::|—|–|-)\s+|:(?:\s+|(?=L\d+))", candidate, maxsplit=1
+    )[0]
+    candidate = re.sub(r"\s*\([^)]*\)\s*", " ", candidate).strip()
+    candidate = candidate.replace("`", "").strip()
+    if candidate:
+        candidate = candidate.split()[0]
+    while candidate.startswith("./"):
+        candidate = candidate[2:]
+    return candidate
+
+
+def _allowed_ownership_paths(text: str) -> list[str]:
+    body = tc.section(text, "Files") or ""
+    paths: list[str] = []
+    listing = False
+    for line in body.splitlines():
+        stripped = line.strip()
+        if not listing:
+            listing = stripped == "Allowed files:"
+            continue
+        if stripped.startswith(("- ", "* ")):
+            norm = _normalize_ownership_path(stripped[2:])
+            if norm and norm not in paths:
+                paths.append(norm)
+        elif stripped:
+            break
+    return paths
+
+
+def _task_id_map(tasks: dict[Path, str]) -> dict[str, str]:
+    mapping: dict[str, str] = {}
+    for path, text in tasks.items():
+        stem = path.stem
+        mapping[stem] = stem
+        if text.startswith("---"):
+            fm = text.split("\n---", 1)[0]
+            m = re.search(r'^id:\s*"?([^"\n]+)"?', fm, re.MULTILINE)
+            if m:
+                mapping.setdefault(m.group(1).strip(), stem)
+    return mapping
+
+
+def check_exclusive_ownership(check: Checker, tasks: dict[Path, str]) -> None:
+    """Fail with R-OWN when parallel tasks without a Blocked by path claim overlapping Allowed files."""
+    ordered_paths = sorted(tasks.keys(), key=lambda p: p.stem)
+    id_map = _task_id_map(tasks)
+    direct_blockers: dict[str, set[str]] = {}
+    owned_paths: dict[str, list[str]] = {}
+
+    for path in ordered_paths:
+        stem = path.stem
+        text = tasks[path]
+        owned_paths[stem] = _allowed_ownership_paths(text)
+        dep_section = ceo.parse_dependencies_section(text)
+        blockers = ceo.parse_blockers(dep_section)
+        direct_blockers[stem] = {id_map.get(b, b) for b in blockers}
+
+    ancestors: dict[str, set[str]] = {}
+    for stem, blockers_set in direct_blockers.items():
+        seen: set[str] = set()
+        stack = list(blockers_set)
+        while stack:
+            cur = stack.pop()
+            if cur in seen or cur == stem:
+                continue
+            seen.add(cur)
+            stack.extend(direct_blockers.get(cur, ()))
+        ancestors[stem] = seen
+
+    stems = [p.stem for p in ordered_paths]
+    for idx, task_a in enumerate(stems):
+        paths_a = owned_paths[task_a]
+        for task_b in stems[idx + 1 :]:
+            if task_b in ancestors[task_a] or task_a in ancestors[task_b]:
+                continue
+            shared: list[str] = []
+            for pa in paths_a:
+                for pb in owned_paths[task_b]:
+                    if pa == pb:
+                        overlap = pa
+                    elif GLOB_CHARS.search(pa) and tc.path_matches(pa, pb):
+                        overlap = pb
+                    elif GLOB_CHARS.search(pb) and tc.path_matches(pb, pa):
+                        overlap = pa
+                    else:
+                        continue
+                    if overlap not in shared:
+                        shared.append(overlap)
+            if shared:
+                check.problem(
+                    f"{task_a}:Ownership",
+                    f"R-OWN {task_a} and {task_b} both own {', '.join(shared)} with no Blocked by path between them",
+                )
 
 
 def check_duplicate_new_claims(check: Checker, tasks: dict[Path, str]) -> None:
@@ -772,7 +878,8 @@ def check_hld(check: Checker, hld_path: Path, text: str, tasks: dict[Path, str])
             for need in row.needs:
                 if need not in environment:
                     check.problem(f"{path.stem}:{row.id}", f"Needs {need} is not named in the Verification Environment section")
-    for bdd_path in sorted(hld_path.parent.glob("bdd_scenarios*.md")):
+    bdd_path = resolve_epic_doc(hld_path.parent, "bdd_scenarios")
+    if bdd_path is not None:
         try:
             content = read_file(bdd_path)
             check_weak_bdd(check, bdd_path.name, content)
@@ -782,9 +889,9 @@ def check_hld(check: Checker, hld_path: Path, text: str, tasks: dict[Path, str])
 
 def check_r2_r3_parity(check: Checker, hld_path: Path, tasks: dict[Path, str]) -> None:
     epic_dir = hld_path.parent.name
-    bdd_path = hld_path.parent / "bdd_scenarios.en.md"
+    bdd_path = resolve_epic_doc(hld_path.parent, "bdd_scenarios")
     canonical_blocks: dict[str, list[str]] = {}
-    if bdd_path.is_file():
+    if bdd_path is not None and bdd_path.is_file():
         try:
             canonical_blocks = sts.extract_scenario_blocks(read_file(bdd_path))
         except UsageError:
@@ -803,7 +910,8 @@ def check_r2_r3_parity(check: Checker, hld_path: Path, tasks: dict[Path, str]) -
             for cid in covers:
                 if cid in canonical_blocks:
                     if cid in task_blocks and task_blocks[cid] != canonical_blocks[cid]:
-                        check.problem(f"{stem}:BDD", f"scenario {cid} differs from bdd_scenarios.en.md (R3)")
+                        assert bdd_path is not None
+                        check.problem(f"{stem}:BDD", f"scenario {cid} differs from {bdd_path.name} (R3)")
 
         # R2: Mirror parity check if mirror exists
         features_dir = check.root / ".devtool" / "features"
@@ -867,6 +975,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         check_hld(check, args.hld, hld_text, tasks)
         if args.design:
+            check_exclusive_ownership(check, tasks)
             check_r2_r3_parity(check, args.hld, tasks)
     except UsageError as error:
         print(f"error: {error}", file=sys.stderr)

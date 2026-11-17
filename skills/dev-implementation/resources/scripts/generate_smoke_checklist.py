@@ -8,6 +8,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+from _epic_docs import resolve_epic_doc
+
 URL_REGEX = re.compile(r"https?://[^\s)`'\"]+")
 COMMAND_REGEX = re.compile(r"`([^`]+)`")
 CLI_ENTRYPOINT_REGEX = re.compile(
@@ -187,9 +193,15 @@ def generate_smoke_checklist(
     if not resolved_epic_dir.is_dir():
         raise FileNotFoundError(f"Epic directory not found at {resolved_epic_dir}")
 
-    source_bdd = (
-        Path(bdd_file) if bdd_file else (resolved_epic_dir / "bdd_scenarios.en.md")
-    )
+    if bdd_file:
+        source_bdd = Path(bdd_file)
+    else:
+        resolved_bdd = resolve_epic_doc(resolved_epic_dir, "bdd_scenarios")
+        if resolved_bdd is None:
+            raise FileNotFoundError(
+                f"BDD scenarios file not found at {resolved_epic_dir / 'bdd_scenarios.md'}"
+            )
+        source_bdd = resolved_bdd
     if not source_bdd.is_file():
         raise FileNotFoundError(f"BDD scenarios file not found at {source_bdd}")
 
@@ -231,7 +243,7 @@ def main(argv: list[str] | None = None) -> int:
         "--bdd-file",
         type=str,
         default=None,
-        help="Optional explicit path to bdd_scenarios.en.md file.",
+        help="Optional explicit path to bdd_scenarios markdown file.",
     )
     parser.add_argument(
         "--workspace-root",

@@ -380,6 +380,10 @@ Scenario: [DEMO-HP-02] [Tier C - Integration] Integration scenario description
 ## Definition of Done
 
 - All checks pass (V2, V3, V4, V5).
+
+## Dependencies & Blockers
+
+- Blocked by [Task 1](task_1.md)
 """
 
     (epic_dir / "task_1.md").write_text(task_1_epic, encoding="utf-8")
@@ -561,14 +565,15 @@ Scenario: [DEMO-EC-09] [Tier C - Integration] Uncovered scenario
             f"Expected R1 FAIL mentioning 'check_bdd_traceability.py plan', got:\n{stdout}",
         )
 
-        # Missing bilingual counterpart is tolerated in Option A default mode and fails R1 under --strict-bilingual
+        # Unpaired docs and --strict-bilingual are tolerated; --strict-bilingual prints one deprecation warning
         unpaired = self.root / ".devtool" / "epic" / "demo_epic" / "unpaired-doc.en.md"
         unpaired.write_text("# Unpaired\n\n## Table of Contents\n\n- [Section](#section)\n\n## Section\n\nText\n", encoding="utf-8")
         _code_default, stdout_default, _ = self.run_check("demo_epic")
         self.assertFalse(any("check_document.py" in line for line in stdout_default.splitlines()))
-        code_unpaired, stdout_unpaired, _ = self.run_check("demo_epic", "--strict-bilingual")
+        code_unpaired, stdout_unpaired, stderr_unpaired = self.run_check("demo_epic", "--strict-bilingual")
         self.assertEqual(code_unpaired, 1)
-        self.assertTrue(any("check_document.py" in line for line in stdout_unpaired.splitlines()))
+        self.assertEqual(stderr_unpaired.count("warning: --strict-bilingual is deprecated and ignored"), 1)
+        self.assertFalse(any("check_document.py" in line for line in stdout_unpaired.splitlines()))
         unpaired.unlink()
 
         # Missing directory exits 2
@@ -885,63 +890,35 @@ class ReadinessGroundingTest(unittest.TestCase):
             cer.verify_task_edit_anchors = orig
 
     def test_tto_same_heading_prose_drift_and_strict_bilingual_provenance(self) -> None:
-        """[TTO-ST-03] --strict-bilingual catches same-heading English prose changes and missing/stale digests."""
-        import re
-
-        assert check_epic_readiness is not None
-        cer: Any = check_epic_readiness
+        """[FPG-EC-04] --strict-bilingual is a deprecated no-op and stale/missing .vi.md files are ignored."""
         epic_dir = self.root / ".devtool" / "epic" / "demo_epic"
-        spec_en = epic_dir / "2026-10-22-demo-epic-design.en.md"
-        spec_vi = epic_dir / "2026-10-22-demo-epic-design.vi.md"
         hld_en = epic_dir / "demo_epic.en.md"
         hld_vi = epic_dir / "demo_epic.vi.md"
+        bdd_vi = epic_dir / "bdd_scenarios.vi.md"
         review_en = epic_dir / "review_report.en.md"
 
-        # CRLF/LF normalization produces identical 16-hex digest
-        en_text = hld_en.read_text(encoding="utf-8")
-        d_lf = cer.compute_en_sync_digest(en_text)
-        d_crlf = cer.compute_en_sync_digest(en_text.replace("\n", "\r\n") + "\n")
-        self.assertRegex(d_lf, r"^[0-9a-f]{16}$")
-        self.assertEqual(d_lf, d_crlf)
-
-        # Write matching provenance digests to Spec and HLD .vi.md
-        spec_digest = cer.compute_en_sync_digest(spec_en.read_text(encoding="utf-8"))
-        spec_vi.write_text(spec_vi.read_text(encoding="utf-8") + f"\n<!-- sync-en-sha256: {spec_digest} -->\n", encoding="utf-8")
-        hld_vi.write_text(hld_vi.read_text(encoding="utf-8") + f"\n<!-- sync-en-sha256: {d_lf} -->\n", encoding="utf-8")
-
-        # Unpaired review_report.en.md is tolerated in default mode, rejected in --strict-bilingual
+        # Unpaired English report passes in both default and --strict-bilingual modes
         review_en.write_text("# Review\n\n## Table of Contents\n\n- [Summary](#summary)\n\n## Summary\n\nClean.\n", encoding="utf-8")
         code_def, stdout_def, _ = self.run_check("demo_epic")
         self.assertEqual(code_def, 0, stdout_def)
 
-        code_rev_strict, stdout_rev_strict, _ = self.run_check("demo_epic", "--strict-bilingual")
-        self.assertEqual(code_rev_strict, 1, stdout_rev_strict)
-        self.assertTrue(any("review_report.vi.md" in ln for ln in stdout_rev_strict.splitlines()))
+        code_strict, stdout_strict, stderr_strict = self.run_check("demo_epic", "--strict-bilingual")
+        self.assertEqual(code_strict, 0, stdout_strict + stderr_strict)
+        self.assertEqual(stderr_strict.count("warning: --strict-bilingual is deprecated and ignored"), 1)
         review_en.unlink()
 
-        # Pass with synced Spec + HLD + bdd_scenarios.vi.md
-        code_ok, stdout_ok, _ = self.run_check("demo_epic", "--strict-bilingual")
-        self.assertEqual(code_ok, 0, stdout_ok)
-
-        # Edit English prose under an identical heading without refreshing HLD .vi.md digest
-        hld_en.write_text(en_text + "\nSame heading, updated English prose.\n", encoding="utf-8")
-        code_default_prose, stdout_default_prose, _ = self.run_check("demo_epic")
-        self.assertEqual(code_default_prose, 0, stdout_default_prose)
-        self.assertIn("R7 PASS", stdout_default_prose)
-
-        code_stale, stdout_stale, _ = self.run_check("demo_epic", "--strict-bilingual")
-        self.assertEqual(code_stale, 1, stdout_stale)
-        self.assertTrue(
-            any(ln.startswith("R7 FAIL") and "stale sync-en-sha256" in ln for ln in stdout_stale.splitlines()),
-            stdout_stale,
+        # Stale/missing .vi.md files and drifted HLD prose pass under --strict-bilingual
+        hld_en.write_text(
+            hld_en.read_text(encoding="utf-8") + "\nUpdated English prose.\n",
+            encoding="utf-8",
         )
-
-        # Refresh digest -> strict passes again
-        new_digest = cer.compute_en_sync_digest(hld_en.read_text(encoding="utf-8"))
-        self.assertNotEqual(new_digest, d_lf)
-        hld_vi.write_text(re.sub(d_lf, new_digest, hld_vi.read_text(encoding="utf-8")), encoding="utf-8")
-        code_resynced, stdout_resynced, _ = self.run_check("demo_epic", "--strict-bilingual")
-        self.assertEqual(code_resynced, 0, stdout_resynced)
+        hld_vi.write_text("# Broken stale VI\n", encoding="utf-8")
+        bdd_vi.unlink()
+        code_after, stdout_after, stderr_after = self.run_check("demo_epic", "--strict-bilingual")
+        self.assertEqual(code_after, 0, stdout_after + stderr_after)
+        self.assertIn("R3 PASS", stdout_after)
+        self.assertIn("R7 PASS", stdout_after)
+        self.assertEqual(stderr_after.count("warning: --strict-bilingual is deprecated and ignored"), 1)
 
 
 class Test_Check_Epic_Readiness_Integration(unittest.TestCase):
