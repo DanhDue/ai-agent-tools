@@ -604,3 +604,32 @@ def test_fpg_fix_planner_contract_matches_se04() -> None:
     ]
     assert len(role_21_rows) == 1
     assert "fix_plan_round" not in role_21_rows[0]
+
+
+@pytest.mark.parametrize(
+    "rel",
+    [
+        ROLES_REL,
+        "skills/cross-model-review/SKILL.md",
+    ],
+)
+def test_fpg_low_risk_clause_excludes_critical(rel: str) -> None:
+    """Low-risk routing clause allows only Important or Minor and keeps Critical in High risk."""
+    text = _read(rel)
+    assert "**Low risk**" in text and "**High risk**" in text
+    after_low = text.split("**Low risk**", 1)[1]
+    low_clause, high_rest = after_low.split("**High risk**", 1)
+    high_clause = high_rest.split("\n\n", 1)[0]
+    expected_phrase = (
+        "severity `Important` or `Minor` (a `Critical` finding is always high risk)"
+    )
+    stripped_low = low_clause.replace("(a `Critical` finding is always high risk)", "")
+    assert "`Critical`" not in stripped_low, (
+        f"{rel} lists Critical inside the Low risk clause: {low_clause!r}"
+    )
+    assert expected_phrase in low_clause, (
+        f"{rel} missing canonical low-risk severity phrase: {low_clause!r}"
+    )
+    assert "any `Critical`" in high_clause, (
+        f"{rel} missing 'any `Critical`' in High risk clause: {high_clause!r}"
+    )
