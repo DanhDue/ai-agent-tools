@@ -11,22 +11,48 @@ export type QuotaWindow = '5h' | 'weekly';
 
 export type StatusColor = 'green' | 'amber' | 'red' | 'gray';
 
-export type AccountStatus = 'ACTIVE' | 'EXHAUSTED' | 'AUTH NEEDED';
+export type AccountStatus = 'ACTIVE' | 'EXHAUSTED' | 'AUTH NEEDED' | 'DISABLED';
+
+export type ArgonMode = 'separate' | 'shared_gemini' | 'none';
+
+export interface ModelCatalogEntry {
+  id: string;
+  label?: string;
+  quotaFamily: 'gemini' | 'claude' | 'argon' | 'other';
+  tags: string[];
+}
+
+export interface ProfileCapabilities {
+  tier: string;
+  hasCarbon: boolean;
+  hasArgon: boolean;
+  argonMode: ArgonMode;
+  hasOrchestrator: boolean;
+  badges: string[];
+}
 
 export interface QuotaBucket {
-  id: string;
   name: string;
-  window: QuotaWindow;
-  remainingFraction: number; // 0.0 to 1.0
+  fraction: number;         // 0.0 to 1.0 remaining
+  countdown: string;
   resetTime: string;        // ISO 8601 UTC timestamp
+  resetTimeLocal?: string;
+  unavailable: boolean;
+  tags?: boolean | string[];
+  sharedPool?: boolean;
+  mode?: ArgonMode;
+  id?: string;
+  window?: QuotaWindow;
+  remainingFraction?: number; // Legacy alias (0.0 to 1.0)
   description?: string;
-  isAvailable?: boolean;    // false if model is inactive / unavailable (e.g. Argon on tess)
+  isAvailable?: boolean;    // Legacy alias: false if model is inactive / unavailable
 }
 
 export interface QuotaGroup {
   name: string;
   description: string;
   buckets: QuotaBucket[];
+  models?: string[];
 }
 
 export interface DynamicQuotaShareInfo {
@@ -57,9 +83,10 @@ export interface DynamicQuotaBucket {
 
 export interface ProfileQuotaState {
   profile: string;
-  tier: 'PRO' | 'DEV' | string;
+  email?: string;
+  tier: 'PRO' | 'FREE' | string;
   priority?: number;        // Default: 50
-  hasArgon?: boolean;       // Display ✣ Argon tag if present
+  hasArgon?: boolean;       // Display ✣ Argon tag if argonMode !== 'none'
   status: AccountStatus;
   gemini5h: QuotaBucket;
   geminiWeekly: QuotaBucket;
@@ -68,6 +95,12 @@ export interface ProfileQuotaState {
   argon5h?: QuotaBucket;
   argonWeekly: QuotaBucket;
   quotaBuckets?: DynamicQuotaBucket[];
+  availableModels?: string[];
+  modelCatalog?: ModelCatalogEntry[];
+  groupModels?: { gemini: string[]; claude: string[]; argon: string[] };
+  capabilities?: ProfileCapabilities;
+  modelsFetchedAt?: string;
+  groupDescSig?: string;
 }
 
 /**
