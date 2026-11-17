@@ -32,7 +32,10 @@ Rewrite the dev-lifecycle document contract to English-only (spec §6, [SE-01], 
    Spec Errata), `writing-plans` (Overview, Reviewing a Written Plan, Self-Review, Execution Handoff),
    `finishing-a-development-branch` (Pre-Finish Hook: drop bilingual sync, keep archival and Kanban clean-up),
    `dev-implementation` (Phase 0 context list, Phase 3 Doc Sync), `principal-review` (input list),
-   `sync-shared-contracts` (Stage 1 line).
+   `sync-shared-contracts` (Stage 1 line), and the two review-prompt references
+   `dev-implementation/references/external-review-prompt.md` and
+   `principal-review/references/principal-review-prompt.md`
+   ([SE-14](four_persona_governance.en.md#spec-errata)).
 4. **Tests**: create `tests/test_fpg_english_only_text.py` for FPG-AR-04; update contract tests that pin the
    bilingual wording.
 
@@ -50,6 +53,8 @@ Allowed files:
 - `skills/dev-implementation/SKILL.md`
 - `skills/principal-review/SKILL.md`
 - `skills/sync-shared-contracts/SKILL.md`
+- `skills/dev-implementation/references/external-review-prompt.md`
+- `skills/principal-review/references/principal-review-prompt.md`
 - `scripts/test_lifecycle_signals.py`
 - `scripts/test_lifecycle_document_contract.py`
 - `scripts/test_verifiable_handoff_text.py`
@@ -129,6 +134,11 @@ And the doc-lifecycle skills "doc-brainstorming", "doc-designer" and "doc-implem
   `finishing-a-development-branch`, `principal-review`, `cross-model-review`. In that set, `.vi.md` may
   appear only on a line that also contains `MUST NOT`, `never` or `not SSOT`; `--require-bilingual` and
   `--strict-bilingual` must not appear.
+- New contract ([SE-14](four_persona_governance.en.md#spec-errata)): `skills/dev-implementation/references/external-review-prompt.md` and `skills/principal-review/references/principal-review-prompt.md` belong to the
+  FPG-AR-04 scan set, and line 3 of each says "ignore `*.vi.md` mirrors", a line with none of `MUST NOT`, `never` or
+  `not SSOT`. Reword that one clause in both files to "never read `*.vi.md` mirrors" and change nothing else in them.
+  A repository search found no test that pins the old clause; if one appears, retarget that assertion to the new
+  clause and never weaken or delete it.
 - Source: `skills/doc-brainstorming/SKILL.md`, `skills/doc-designer/SKILL.md` and
   `skills/doc-implementation/SKILL.md` keep `--require-bilingual`; this task does not edit them.
 - Source: links from skills to the bilingual kit guides under `docs/` outside the scan set

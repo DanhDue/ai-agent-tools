@@ -31,7 +31,7 @@ Make the autonomous Orchestrator (`lifecycle_runner.py`) implement spec §4.3, �
    in `read-only` mode with the `fix-planner` brief and parses its fenced JSON summary (`status`,
    `halt_criteria`, `plan_markdown`). `PLANNED` → the runner writes `plan_markdown` to
    `fix_plan_round<N>.md`, commits it, then dispatches a `programmer` review-fixer in `apply-plan` mode;
-   `ESCALATE` → halt `FIX_PLAN_ESCALATE`. `FixPlanVerdict` (`L102-L108`) and `evaluate_programmer_fix_plan`
+   `ESCALATE` → halt `FIX_PLAN_ESCALATE`. FixPlanVerdict (`L102-L108`) and evaluate_programmer_fix_plan
    (`L2306-L2360`) are deleted.
 2a. **Per-task Architect review**: after a programmer `task-implementer` returns `DONE`, the runner recomputes
    selective gating (`review_tier == "full"`, high-risk labels, or more than two non-test modules in
@@ -103,7 +103,7 @@ skill text. Applicable skills: `d3nexus:test-driven-development`, `d3nexus:pytho
 ## Impact Analysis & Blast Radius
 
 - **Target Files & Symbols**:
-  - `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`: `FixPlanVerdict` (L102-L108), `RunnerConfig` (L111-L226), `ModelDispatcher` (L265-L361), `_build_task_prompt` (L692-L748), finalization path (L785-L820), `step_principal_review` (L1149-L1314), `_make_slot_dispatcher` (L1339-L1349), `step_implementation` (L1447-L1525), `_draft_fix_plan` (L1767-L1799), `_apply_code_fixes` (L1912-L2016), `_can_fast_track_code_findings` (L2228-L2304), `evaluate_programmer_fix_plan` (L2306-L2360), `step_cross_model_review` (L2362-L2529), `main` (L2653-L2740)
+  - `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`: FixPlanVerdict (L102-L108), `RunnerConfig` (L111-L226), `ModelDispatcher` (L265-L361), `_build_task_prompt` (L692-L748), finalization path (L785-L820), `step_principal_review` (L1149-L1314), `_make_slot_dispatcher` (L1339-L1349), `step_implementation` (L1447-L1525), `_draft_fix_plan` (L1767-L1799), `_apply_code_fixes` (L1912-L2016), `_can_fast_track_code_findings` (L2228-L2304), evaluate_programmer_fix_plan (L2306-L2360), `step_cross_model_review` (L2362-L2529), `main` (L2653-L2740)
   - `tests/test_lifecycle_runner.py`: `test_runner_config_assistant_model_precedence` (L132-L151), `test_alr_fr_04` (L440-L487), `test_alr_ec_03` (L489-L545), `test_alr_hp_04` (L547-L602), `test_scoped_tests_protocol_intermediate_rounds` (L694-L751), `test_tto_hp_04_runner_config_precedence` (L818-L1000), `test_tto_ec_04_effort_normalization_and_cli_args` (L1003-L1069), `test_tto_hp_07_streamlined_code_fix_and_real_executive_report` (L1166-L1285), `test_tto_st_04_cross_model_escalation_on_contract_or_ambiguity` (L1288-L1422)
   - `tests/test_token_throttling_acceptance.py`: `test_tto_hp_08_end_to_end_pipeline` (L202-L708), `test_tto_fr_04_quantitative_byte_caps_and_fail_loud` (L990-L1140)
 - **Downstream Callers**: `scripts/verify.sh` suite `tests/test_lifecycle_runner.py`; dashboard halt rendering (Task 5).
@@ -247,4 +247,4 @@ Downstream dependents (blocked by Task 3): `task_06`.
 ## References & Rollback
 
 - [Epic HLD](../../epic/four_persona_governance/four_persona_governance.en.md)
-- **Rollback**: Revert the task commit to restore `FixPlanVerdict` and the legacy resolution order.
+- **Rollback**: Revert the task commit to restore FixPlanVerdict and the legacy resolution order.

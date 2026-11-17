@@ -437,3 +437,10 @@ and Fault Resilience (`FR`).
   `scripts/test_lifecycle_signals.py::QueuedPackagingTest::test_lf_st_03_queued_epic_keeps_its_queue_and_the_grep_still_matches` has
   failed on the epic branch since Task 04 changed `sync_task_status.sync_epic` to English-only resolution, and no task owns that
   file; it is repaired by a Fix commit before Gate 4.
+- **[SE-14] Review-Prompt References in the FPG-AR-04 Scan Set**: While preparing Task 07 the Orchestrator listed the files of the
+  FPG-AR-04 scan set (the SKILL.md and `references/*.md` of eight dev skills) that mention `.vi.md` and compared them with the Allowed
+  files of Task 07. Two were missing: `skills/dev-implementation/references/external-review-prompt.md` and `skills/principal-review/references/principal-review-prompt.md`. Line 3 of each tells the reviewer to "ignore `*.vi.md` mirrors",
+  a line with none of `MUST NOT`, `never` or `not SSOT`, so the scan rule of SE-01 would fail on it and Task 07 could not turn green
+  without editing files it does not own. Both files are added to Task 07, which rewords that clause to "never read `*.vi.md`
+  mirrors" and changes nothing else. The prohibition keeps its meaning. No other task owns either file (exclusive-ownership check),
+  and a repository search found no test that pins the old clause. This was a gap in the original task breakdown.

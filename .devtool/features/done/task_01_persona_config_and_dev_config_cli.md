@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 1: Persona Config, Dispatch, Quota Gate and the dev-config Skill
 
-Epic: [four_persona_governance](four_persona_governance.en.md)
+Epic: [four_persona_governance](../../epic/four_persona_governance/four_persona_governance.en.md)
 
 ## Requirement Analysis
 
@@ -274,5 +274,5 @@ Downstream dependents (blocked by Task 1): `task_02`, `task_05`.
 
 ## References & Rollback
 
-- [Epic HLD](four_persona_governance.en.md)
+- [Epic HLD](../../epic/four_persona_governance/four_persona_governance.en.md)
 - **Rollback**: Delete `skills/dev-config/`, the three new `scripts/` files and the two test files.
