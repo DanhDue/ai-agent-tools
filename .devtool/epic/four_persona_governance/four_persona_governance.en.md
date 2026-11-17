@@ -185,6 +185,7 @@ flowchart TD
        cli: str
        model_id: str
        effort: str
+       quota_pool: str  # "argonWeekly" | "gemini5h" | "provider"
        fallback_alias: str | None
        sources: dict[str, str]  # field -> "kit" | "global" | "project" | "cli"
 
