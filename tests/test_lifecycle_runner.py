@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Tests for Autonomous Lifecycle Runner state machine, persistence, and probing."""
 
+import contextlib
 import fcntl
 import importlib.util
 import json
@@ -12,6 +13,7 @@ import tempfile
 import threading
 import time
 import unittest
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -45,40 +47,114 @@ from lifecycle_runner import (
 )
 
 
-@pytest.fixture(autouse=True)
-def _isolate_host_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Isolate HOME, REAL_HOME, profile env vars, and quota fetching from host stores."""
-    fake_home = tmp_path / "_isolated_home"
-    fake_home.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setenv("HOME", str(fake_home))
-    monkeypatch.setenv("REAL_HOME", str(fake_home))
-    for var in (
-        "AGY_PROFILE",
-        "ANTIGRAVITY_PROFILE",
-        "AGY_PROGRAMMER_MODEL",
-        "AGY_PROGRAMMER_EFFORT",
-        "AGY_ASSISTANT_MODEL",
-    ):
-        monkeypatch.delenv(var, raising=False)
+_PROFILE_ENV_VARS = (
+    "AGY_PROFILE",
+    "ANTIGRAVITY_PROFILE",
+    "AGY_PROGRAMMER_MODEL",
+    "AGY_PROGRAMMER_EFFORT",
+    "AGY_ASSISTANT_MODEL",
+)
+_HOST_HOME = os.environ.get("HOME")
+_active_isolations = 0
 
+
+def _load_run_external_review() -> Any:
+    """Return the shared ``run_external_review`` module, loading it once by path."""
     rer_path = DEV_IMPL_SCRIPTS / "run_external_review.py"
-    if rer_path.is_file():
-        rer_mod = sys.modules.get("run_external_review")
-        if rer_mod is None:
-            spec = importlib.util.spec_from_file_location("run_external_review", rer_path)
-            if spec is not None and spec.loader is not None:
-                rer_mod = importlib.util.module_from_spec(spec)
-                sys.modules["run_external_review"] = rer_mod
-                spec.loader.exec_module(rer_mod)
+    if not rer_path.is_file():
+        return None
+    rer_mod = sys.modules.get("run_external_review")
+    if rer_mod is None:
+        spec = importlib.util.spec_from_file_location("run_external_review", rer_path)
+        if spec is not None and spec.loader is not None:
+            rer_mod = importlib.util.module_from_spec(spec)
+            sys.modules["run_external_review"] = rer_mod
+            spec.loader.exec_module(rer_mod)
+    return rer_mod
+
+
+@contextlib.contextmanager
+def _isolated_host_env() -> Iterator[Path]:
+    """Isolate HOME, REAL_HOME, profile env vars, and quota fetching from host stores.
+
+    This is the single isolation mechanism for both runners. pytest reaches it through
+    the autouse fixture below (module-level tests), unittest and pytest both reach it
+    through ``_HostIsolatedTestCase.setUp`` (TestCase tests). Pytest fixtures do not run
+    under ``python3 -m unittest``, so a fixture alone would let the runner read the
+    machine's live quota and real HOME there.
+    """
+    global _active_isolations
+    with tempfile.TemporaryDirectory(
+        prefix="lifecycle_runner_home_", ignore_cleanup_errors=True
+    ) as tmp, contextlib.ExitStack() as stack:
+        fake_home = Path(tmp) / "_isolated_home"
+        fake_home.mkdir(parents=True, exist_ok=True)
+        stack.enter_context(
+            patch.dict(os.environ, {"HOME": str(fake_home), "REAL_HOME": str(fake_home)})
+        )
+        for var in _PROFILE_ENV_VARS:
+            os.environ.pop(var, None)
+        rer_mod = _load_run_external_review()
         if rer_mod is not None and hasattr(rer_mod, "_default_quota_fetcher"):
-            monkeypatch.setattr(rer_mod, "_default_quota_fetcher", lambda _cli: {})
-    return fake_home
+            stack.enter_context(
+                patch.object(rer_mod, "_default_quota_fetcher", lambda _cli: {})
+            )
+        _active_isolations += 1
+        try:
+            yield fake_home
+        finally:
+            _active_isolations -= 1
 
 
-class TestLifecycleRunner_Integration(unittest.TestCase):
+class _HostIsolatedTestCase(unittest.TestCase):
+    """Base class that applies the host isolation to every test under any runner."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        stack = contextlib.ExitStack()
+        self.addCleanup(stack.close)
+        self.isolated_home: Path = stack.enter_context(_isolated_host_env())
+
+
+@pytest.fixture(autouse=True)
+def _isolate_host_env(request: pytest.FixtureRequest) -> Iterator[Path | None]:
+    """Isolate module-level pytest tests; TestCase tests isolate themselves in setUp."""
+    if isinstance(request.instance, _HostIsolatedTestCase):
+        yield None
+        return
+    with _isolated_host_env() as fake_home:
+        yield fake_home
+
+
+class TestHostIsolation(_HostIsolatedTestCase):
+    """The isolation applies once, under both unittest and pytest."""
+
+    def test_home_and_profile_env_are_isolated(self) -> None:
+        self.assertEqual(os.environ["HOME"], str(self.isolated_home))
+        self.assertEqual(os.environ["REAL_HOME"], str(self.isolated_home))
+        self.assertNotEqual(os.environ["HOME"], _HOST_HOME)
+        for var in _PROFILE_ENV_VARS:
+            self.assertNotIn(var, os.environ)
+
+    def test_quota_fetcher_is_stubbed_and_isolation_applied_once(self) -> None:
+        rer_mod = _load_run_external_review()
+        self.assertEqual(rer_mod._default_quota_fetcher("agy"), {})
+        self.assertEqual(_active_isolations, 1)
+
+
+def test_module_level_tests_are_isolated_once(_isolate_host_env: Path | None) -> None:
+    assert _isolate_host_env is not None
+    assert os.environ["HOME"] == str(_isolate_host_env)
+    assert os.environ["HOME"] != _HOST_HOME
+    assert _active_isolations == 1
+    assert _load_run_external_review()._default_quota_fetcher("agy") == {}
+
+
+class TestLifecycleRunner_Integration(_HostIsolatedTestCase):
     """Test suite covering ALR-ST-03, ALR-AR-02, and Task 1 requirements."""
 
     def setUp(self) -> None:
+        super().setUp()
         self.temp_dir = tempfile.mkdtemp()
         self.root = Path(self.temp_dir)
         self.epic_slug = "autonomous_lifecycle_runner"
