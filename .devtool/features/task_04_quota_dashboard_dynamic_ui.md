@@ -71,7 +71,7 @@ And the Argon row inside "nguyenhieu000690" renders `"Shared w/ Gemini Pool"` al
 And `#profile-info-modal` displays the full dynamic model lists for `Gemini Models`, `Claude & GPT`, and `Argon / Orchestrator`
 
 Scenario: [CQRA-EC-02] [Tier A - Unit] Legacy cached payloads without new model fields and none-Argon accounts render safely on Web UI
-Given one legacy cached profile object missing `groupModels`, `capabilities`, and `argonWeekly.sharedPool`, plus a Free-tier profile `"free_acct"` with `argonMode == "none"` and `argonWeekly.available == false`
+Given one legacy cached profile object missing `groupModels`, `capabilities`, and `argonWeekly.sharedPool`, plus a Free-tier profile `"free_acct"` with `argonMode == "none"` and `argonWeekly.unavailable == true`
 When `renderProfileCard()` and `getProfileQuotaScore()` run against both profiles in a real browser DOM
 Then the legacy profile renders fallback group headers without throwing a `TypeError` or blank DOM node
 And `"free_acct"` does not display an active Argon badge or `"Shared w/ Gemini Pool"` indicator

@@ -26,7 +26,7 @@ Align external and local code review prompt contracts with Principal Review by e
      `[Critical|Important|Minor] <artefact>:<location> — <problem>. Proposed: <edit>`
 2. **Pre-Fill Proposals Without Breaking 5-Column `check()` (`skills/dev-implementation/resources/scripts/run_external_review.py`)**:
    - Keep `render_round()` (`L1310-L1342`), `check()` (`L2263-L2286`), and `finding_rows()` (`L2339-L2342`) enforcing strictly 5-column markdown tables (`| # | Severity | Location | Problem | Decision |`) in persisted `review_results.md`.
-   - Extract `. Proposed: <edit>` via shared helper `_extract_proposed_action()` using the pinned marker regex `re.compile(r"(?:^|(?:[.;—]|\n)\s*)\b(?:Proposed(?:\s+action)?|Fix|Suggestion|Đề xuất):\s*", re.IGNORECASE)` applied to the **last** `finditer()` match, and pre-fill the `Proposed action` column cell in `top_risk_findings_section()` (`L2440-L2466`) and `triage()` (`L2548-L2659`) stdout tables (`?` only when omitted; `triage()` prints only to stdout at `L2656` and never writes `fix_plan_round<N>.md`).
+   - Extract `. Proposed: <edit>` via shared helper `_extract_proposed_action()` using the pinned marker regex and inline backtick code-span masking rule specified in `## Decisions Already Made` (applied to the **last** match outside code spans), and pre-fill the `Proposed action` column cell in `top_risk_findings_section()` (`L2440-L2466`) and `triage()` (`L2548-L2659`) stdout tables (`?` only when omitted; `triage()` prints only to stdout at `L2656` and never writes `fix_plan_round<N>.md`).
    - Preserve `parse_findings()` (`L1251-L1264`) retaining full finding tuples so inline `. Proposed: <edit>` survives into the persisted 5-column `Problem` cell for downstream dashboard parsing.
 3. **Unit Suite (`tests/test_cqra_external_review_proposed.py`)**:
    - Cover scenarios `CQRA-HP-04` and `CQRA-EC-04`.
@@ -101,7 +101,7 @@ Then Finding #1 pre-fills `clamp negative fraction` in the `Proposed action` col
 - Persisted `review_results.md` tables keep strictly 5 columns (`#`, `Severity`, `Location`, `Problem`, `Decision`) as emitted by `render_round()` (`L1334`) so `check()` (`L2263-L2286`) continues passing unchanged.
 - `external-review-prompt.md` and `local-review-prompt.md` adopt the exact finding suffix `. Proposed: <edit>` used by `skills/principal-review/references/principal-review-prompt.md`.
 - `triage()` (`L2548-L2659`) prints the triage skeleton only to stdout (`L2656`) and never writes `fix_plan_round<N>.md`; `top_risk_findings_section()` and `triage()` extract inline proposal clauses into the `Proposed action` column cell in stdout tables and emit `?` only when no proposal suffix is present.
-- Shared proposal marker extraction regex (matching Task 05): `re.compile(r"(?:^|(?:[.;—]|\n)\s*)\b(?:Proposed(?:\s+action)?|Fix|Suggestion|Đề xuất):\s*", re.IGNORECASE)` applied to the **last** `finditer()` match (`problem_text = text[:m.start()].strip()`, `proposed_action = text[m.end():].strip()`).
+- Shared proposal marker extraction regex (matching Task 05): mask inline backtick code spans index-for-index (``masked = re.sub(r"`[^`]*`", lambda m: " " * len(m.group(0)), text)``), run `re.compile(r"(?:^|(?:[.;—]|\n)\s*)\b(?:Proposed(?:\s+action)?|Fix|Suggestion|Đề xuất):\s*", re.IGNORECASE).finditer(masked)` and take the **last** match outside code spans (`problem_text = text[:m.start()].strip()`, `proposed_action = text[m.end():].strip()`).
 
 ## Definition of Done
 
