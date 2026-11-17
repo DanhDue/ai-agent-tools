@@ -23,7 +23,8 @@ Make the dev-implementation scripts English-only (spec §6.2–§6.3, [SE-02]) a
 
 1. **Helper (`_epic_docs.py`, new)**: `resolve_epic_doc(directory, stem)` → `<stem>.md`, else
    `<stem>.en.md`, else `None`; never a `.vi.md`. Also `resolve_design_specs(directory)` returning
-   `*-design.md` then `*-design.en.md` files, never `.vi.md`.
+   `*-design.md` then `*-design.en.md` files, never `.vi.md`. Readers of git history use
+   `resolve_epic_doc_at(root, rev, epic_rel, stem)`, which applies the same order to the tree at `rev`.
 2. **Callers**: `check_epic_readiness.py` (`load_context` L77-L115, `check_preflight` L124-L229,
    `check_bdd_scenarios` L340-L374, `check_metadata` L744-L826), `package_epic.py`
    (`resolve_base_branch` L68-L82, `_sanitize_read_first_english_only` L92-L123,
@@ -37,6 +38,9 @@ Make the dev-implementation scripts English-only (spec §6.2–§6.3, [SE-02]) a
    L213-L256), `local_review.py` (`task_slice` L234-L249, `epic_slice` L252-L276), `run_task_checks.py`
    (`epic_scenario_ids` L282-L288), `task_contract.py` (`epic_layout` L403-L415, `_visit` L616-L651) and
    `integrate_branch.py` (`upstream_epics` L266-L276) resolve epic documents through the helper.
+   `audit_epic.py::hld_amendments` and `integrate_branch.py::upstream_epics` read git revisions, not the
+   working tree, so they use `resolve_epic_doc_at`: `upstream_epics` resolves `bdd_scenarios` at `until`;
+   `hld_amendments` resolves the HLD at `base` and at `HEAD` independently.
 3. **Status writes**: `sync_task_status.py epic` and `package_epic.py` update the Status line only in the
    resolved English file; `.vi.md` is neither read nor written.
 4. **`--strict-bilingual`**: accepted by `check_epic_readiness.py` and `check_bdd_traceability.py` as a
@@ -133,6 +137,8 @@ And the task status reports scenario "SOLO-HP-01" as covered
 And the audit reports the HLD amendment from "solo_epic.md"
 And the review slice includes "solo_epic.md" and "bdd_scenarios.md"
 And upstream epic detection names "solo_epic"
+And upstream epic detection reports "bdd_scenarios.md" for "solo_epic" when that file exists only at the upstream revision and not in the working tree
+And when the base revision holds "solo_epic.en.md" and HEAD holds the renamed "solo_epic.md" with a changed "Integration results" line, the audit reports exactly that line change
 
 Scenario: [FPG-EC-04] [Tier C - Integration] A legacy bilingual epic resolves the English file and never reads the mirror
 Given epic "legacy_epic" with "legacy_epic.en.md", a stale "legacy_epic.vi.md", "bdd_scenarios.en.md" and "bdd_scenarios.vi.md"
@@ -179,6 +185,13 @@ Then the same command exits 0
 - New contract: `resolve_epic_doc(directory: Path, stem: str) -> Path | None` and
   `resolve_design_specs(directory: Path) -> list[Path]` in `_epic_docs.py`; callers import it via the same
   `sys.path` pattern the dev-implementation scripts already use for siblings.
+- New contract: `resolve_epic_doc_at(root: Path, rev: str, epic_rel: str, stem: str) -> str | None` returns the
+  repo-relative path `<epic_rel>/<stem>.md` when `git -C <root> cat-file -e <rev>:<path>` exits 0, else
+  `<epic_rel>/<stem>.en.md` under the same test, else `None`; it never returns `.vi.md` and never reads the
+  working tree.
+- Source: `upstream_epics` (`integrate_branch.py` L266-L276) keeps `"bdd": None` when no candidate exists at
+  `until`; `hld_amendments` (`audit_epic.py` L230-L241) treats a revision with no resolved HLD as empty text,
+  as `show()` returning `None` does today, and labels the diff with each revision's own file name.
 - New contract: ownership finding text `R-OWN <task_a> and <task_b> both own <path>[, <path>...] with no
   Blocked by path between them`; paths normalised by stripping `(new)`, backticks, symbol names and
   `(L<start>-L<end>)` anchors and a leading `./`.

@@ -125,8 +125,9 @@ flowchart TD
    `ModelDispatcher.dispatch` passes it to `subprocess.Popen`. `classify_dispatch_failure` inspects stderr of
    non-zero exits only, including the runner's own spawn-failure message.
 3. **Quota gate (`dev_config.py quota-check`).** Loads `run_external_review.py` by path for
-   `_default_quota_fetcher(cli)` and judges the pool each binding consumes (`argonWeekly` for Argon,
-   `gemini5h` for other `agy` models, the provider rule for Claude, Codex and Kiro) against the existing
+   `_default_quota_fetcher(cli)` and judges the pool each binding consumes, taken from the catalogue entry's
+   `quota_pool` (derived from the model `id` when absent: `argonWeekly` for Argon models, `gemini5h` for other
+   `agy` models, the provider rule for Claude, Codex and Kiro; never from the alias) against the existing
    `quota_thresholds` ([SE-05]). Exit `0` sufficient, `2` insufficient, `0` with a `quota_unknown` warning
    when no data is available. JSON output lists each persona's CLI, verdict and quota line.
 4. **Checkpoints (`scripts/resume_context.py --checkpoint`, `scripts/_state_envelope.py`).** A new
@@ -144,7 +145,10 @@ flowchart TD
    dispatch counter writes a `turn_budget` checkpoint every N dispatches (N/2 in low-quota mode).
 6. **Document resolution (`skills/dev-implementation/resources/scripts/_epic_docs.py`).**
    `resolve_epic_doc(directory, stem)` returns `<stem>.md`, else `<stem>.en.md`, else `None`; it never
-   returns `.vi.md`. `--strict-bilingual` stays accepted by the dev scripts as a deprecated no-op that prints
+   returns `.vi.md`. Readers of git history use `resolve_epic_doc_at(root, rev, epic_rel, stem)`, which applies
+   the same order to the tree at `rev` (`git cat-file -e`); `audit_epic.py` resolves base and HEAD
+   independently, so an `.en.md` → `.md` rename between them still compares the right files.
+   `--strict-bilingual` stays accepted by the dev scripts as a deprecated no-op that prints
    one warning ([SE-02](#spec-errata)).
 7. **Ownership check (`check_task_contract.py --design`).** Builds the `Blocked by` reachability graph
    from task files; for each unordered pair with no path, intersects normalised `Allowed files` and fails
@@ -196,7 +200,7 @@ flowchart TD
    ```text
    dev_config.py status [--json]
    dev_config.py models [--persona P] [--json]
-   dev_config.py models add ALIAS --cli CLI --id ID --efforts E1,E2 [--scope global|project]
+   dev_config.py models add ALIAS --cli CLI --id ID --efforts E1,E2 [--quota-pool POOL] [--scope global|project]
    dev_config.py models remove ALIAS [--scope global|project]
    dev_config.py preset NAME [--scope global|project]
    dev_config.py set PERSONA MODEL EFFORT [--fallback MODEL] [--scope global|project]
@@ -217,6 +221,7 @@ flowchart TD
 5. **`_epic_docs.py::resolve_epic_doc`**:
    ```python
    def resolve_epic_doc(directory: Path, stem: str) -> Path | None: ...
+   def resolve_epic_doc_at(root: Path, rev: str, epic_rel: str, stem: str) -> str | None: ...
    ```
 
 ## Impact Analysis
@@ -319,7 +324,8 @@ and Fault Resilience (`FR`).
   and commits the plan file.
 - **[SE-05] §8.5 Automatic Quota Gate**: Spec §8.5 reuses `evaluate_provider_quota()`, which accepts an `agy`
   binding when either the Argon or the Gemini 5-hour pool is healthy. The gate judges the pool the bound
-  model consumes, with the same `quota_thresholds`.
+  model consumes, with the same `quota_thresholds`. The pool is catalogue metadata (`quota_pool`, derived from
+  the model `id` when absent), so a custom alias for an Argon model is judged on `argonWeekly`.
 - **[SE-06] §5.4 Dispatch**: Spec §5.4 reuses `run_external_review.py::cli_command` for read-only dispatch and
   claims the Kiro `HOME` handling with it. `cli_command` rewrites Claude model IDs and omits the `agy` effort,
   and the `HOME` rule lives in `execute`. `persona_config.py` owns its adapters and a `build_dispatch_env`

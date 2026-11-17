@@ -86,6 +86,8 @@ And the task status reports scenario "SOLO-HP-01" as covered
 And the audit reports the HLD amendment from "solo_epic.md"
 And the review slice includes "solo_epic.md" and "bdd_scenarios.md"
 And upstream epic detection names "solo_epic"
+And upstream epic detection reports "bdd_scenarios.md" for "solo_epic" when that file exists only at the upstream revision and not in the working tree
+And when the base revision holds "solo_epic.en.md" and HEAD holds the renamed "solo_epic.md" with a changed "Integration results" line, the audit reports exactly that line change
 ```
 
 ---
@@ -95,8 +97,8 @@ And upstream epic detection names "solo_epic"
 ```gherkin
 Scenario: [FPG-EC-01] [Tier A - Unit] Invalid writes are rejected and leave the configuration file unchanged
 Given a project configuration file whose SHA-256 is recorded
-When "dev_config.py set programmer argon xhigh", "dev_config.py set programmer nosuchmodel high", "dev_config.py set reviewer argon high" and "dev_config.py models add ollama-x --cli ollama --id gemma --efforts high" run with "--scope project"
-Then each exits 1 with a message naming the rejected value ("xhigh", "nosuchmodel", "reviewer", "ollama")
+When "dev_config.py set programmer argon xhigh", "dev_config.py set programmer nosuchmodel high", "dev_config.py set reviewer argon high", "dev_config.py models add ollama-x --cli ollama --id gemma --efforts high" and "dev_config.py models add fast --cli agy --id gemini-4-flash --efforts high --quota-pool provider" run with "--scope project"
+Then each exits 1 with a message naming the rejected value ("xhigh", "nosuchmodel", "reviewer", "ollama", "provider")
 And the project configuration file SHA-256 is unchanged
 
 Scenario: [FPG-EC-02] [Tier A - Unit] Legacy model settings are ignored and reported
@@ -233,6 +235,10 @@ When the fetcher returns agy {"status": "ACTIVE", "gemini5h": {"fraction": 0.12}
 Then "dev_config.py quota-check --json" exits 2 and lists "programmer" with "sufficient": false and quota line "5H=12.0%"
 When the fetcher returns agy {"status": "ACTIVE", "gemini5h": {"fraction": 0.0}, "argonWeekly": {"fraction": 0.9}} with "programmer" bound to "hydrogen" and "ai_architect_reviewer" bound to "argon"
 Then "programmer" is "sufficient": false with quota line "5H=0.0%" and "ai_architect_reviewer" is "sufficient": true with quota line "Argon=90.0%"
+When the same payload is judged with "programmer" bound to a custom catalogue alias "my-argon" {"cli": "agy", "id": "gemini-4-argon-{effort}", "efforts": ["high"]} that declares no "quota_pool"
+Then "programmer" is "sufficient": true with quota line "Argon=90.0%"
+When the project layer replaces built-in "hydrogen" with {"cli": "agy", "id": "gemini-4-hydrogen-{effort}", "efforts": ["high", "xhigh"], "quota_pool": "argonWeekly"} and "programmer" stays bound to "hydrogen"
+Then "programmer" is "sufficient": true with quota line "Argon=90.0%"
 When the fetcher returns {} for every CLI
 Then "dev_config.py quota-check --json" exits 0 and every persona carries "warning": "quota_unknown"
 

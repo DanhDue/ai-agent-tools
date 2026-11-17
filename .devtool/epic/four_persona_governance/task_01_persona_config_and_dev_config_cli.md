@@ -118,8 +118,8 @@ And "build_dispatch_env" for the kiro argv with HOME "/Users/x/antigravity_homes
 
 Scenario: [FPG-EC-01] [Tier A - Unit] Invalid writes are rejected and leave the configuration file unchanged
 Given a project configuration file whose SHA-256 is recorded
-When "dev_config.py set programmer argon xhigh", "dev_config.py set programmer nosuchmodel high", "dev_config.py set reviewer argon high" and "dev_config.py models add ollama-x --cli ollama --id gemma --efforts high" run with "--scope project"
-Then each exits 1 with a message naming the rejected value ("xhigh", "nosuchmodel", "reviewer", "ollama")
+When "dev_config.py set programmer argon xhigh", "dev_config.py set programmer nosuchmodel high", "dev_config.py set reviewer argon high", "dev_config.py models add ollama-x --cli ollama --id gemma --efforts high" and "dev_config.py models add fast --cli agy --id gemini-4-flash --efforts high --quota-pool provider" run with "--scope project"
+Then each exits 1 with a message naming the rejected value ("xhigh", "nosuchmodel", "reviewer", "ollama", "provider")
 And the project configuration file SHA-256 is unchanged
 
 Scenario: [FPG-EC-02] [Tier A - Unit] Legacy model settings are ignored and reported
@@ -143,6 +143,10 @@ When the fetcher returns agy {"status": "ACTIVE", "gemini5h": {"fraction": 0.12}
 Then "dev_config.py quota-check --json" exits 2 and lists "programmer" with "sufficient": false and quota line "5H=12.0%"
 When the fetcher returns agy {"status": "ACTIVE", "gemini5h": {"fraction": 0.0}, "argonWeekly": {"fraction": 0.9}} with "programmer" bound to "hydrogen" and "ai_architect_reviewer" bound to "argon"
 Then "programmer" is "sufficient": false with quota line "5H=0.0%" and "ai_architect_reviewer" is "sufficient": true with quota line "Argon=90.0%"
+When the same payload is judged with "programmer" bound to a custom catalogue alias "my-argon" {"cli": "agy", "id": "gemini-4-argon-{effort}", "efforts": ["high"]} that declares no "quota_pool"
+Then "programmer" is "sufficient": true with quota line "Argon=90.0%"
+When the project layer replaces built-in "hydrogen" with {"cli": "agy", "id": "gemini-4-hydrogen-{effort}", "efforts": ["high", "xhigh"], "quota_pool": "argonWeekly"} and "programmer" stays bound to "hydrogen"
+Then "programmer" is "sufficient": true with quota line "Argon=90.0%"
 When the fetcher returns {} for every CLI
 Then "dev_config.py quota-check --json" exits 0 and every persona carries "warning": "quota_unknown"
 
@@ -187,7 +191,7 @@ And the global file holds overrides for both "programmer" and "ai_architect_revi
 
 - New contract: `PERSONAS = ("ai_architect_reviewer", "orchestrator", "programmer")`;
   `ALLOWED_CLIS = frozenset({"agy", "claude", "codex", "kiro"})`; `SCHEMA_VERSION = 1`.
-- New contract: `PersonaBinding(persona, alias, cli, model_id, effort, fallback_alias, sources)` frozen
+- New contract: `PersonaBinding(persona, alias, cli, model_id, effort, quota_pool, fallback_alias, sources)` frozen
   dataclass; `sources` maps `"model"`, `"effort"`, `"fallback_model"` to `"kit" | "global" | "project" | "cli"`.
 - New contract: catalogue entries `argon` `{"cli": "agy", "id": "gemini-4-argon-{effort}", "efforts": ["low",
   "medium", "high"]}`, `hydrogen` `{"cli": "agy", "id": "gemini-4-hydrogen-{effort}", "efforts": ["low",
@@ -234,8 +238,14 @@ And the global file holds overrides for both "programmer" and "ai_architect_revi
   `usage limit`, `\b401\b.*unauthori[sz]ed`, `\b403\b.*forbidden`, `not authenticated`, `please (log|sign) in`,
   `login required`. Patterns are matched against stderr only; stdout never classifies as a model failure.
   Everything else is `"task_failure"`.
-- New contract: `quota_pool_for(binding) -> str` returns `"argonWeekly"` for alias `argon`, `"gemini5h"` for other
-  `agy` aliases, and `"provider"` for `claude`, `codex`, `kiro`. `argonWeekly` passes at
+- New contract: every catalogue entry may declare `"quota_pool"`, one of `"argonWeekly"`, `"gemini5h"` (both `agy`
+  only) or `"provider"` (non-`agy` only); validation rejects any other value or a pool that does not match the
+  entry's `cli`. When absent, the pool is derived from the entry, never from the alias: `agy` with `argon` in the
+  lowercased `id` template → `"argonWeekly"`, other `agy` → `"gemini5h"`, `claude`/`codex`/`kiro` → `"provider"`.
+  `PersonaBinding` carries the resolved value as a `quota_pool` field after `effort`. `models add` accepts
+  `--quota-pool POOL`, validated the same way.
+- New contract: `quota_pool_for(binding) -> str` returns `binding.quota_pool`; it never inspects the alias.
+  `argonWeekly` passes at
   `fraction >= quota_thresholds["agy_argon_min_fraction"]`; `gemini5h` at `>= quota_thresholds["5h_min_fraction"]`;
   `provider` applies the `evaluate_provider_quota` rule for that CLI. Quota lines name only the judged pool
   (`5H=12.0%`, `Argon=90.0%`).
