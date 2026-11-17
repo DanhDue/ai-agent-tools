@@ -558,7 +558,9 @@ ag_run() {
 
         # 3. Check persona in handoff-template.md
         handoff_tmpl = REPO_ROOT / "skills" / "dev-lifecycle" / "references" / "handoff-template.md"
-        self.assertIn("[PERSONA: AI ASSISTANT — ORCHESTRATOR]", handoff_tmpl.read_text(encoding="utf-8"))
+        tmpl_text = handoff_tmpl.read_text(encoding="utf-8")
+        self.assertIn("[PERSONA: Role 2.2 Orchestrator]", tmpl_text)
+        self.assertNotIn("[PERSONA: AI ASSISTANT — ORCHESTRATOR]", tmpl_text)
 
         # 4. Check Section 15 in verify.sh
         verify_sh = REPO_ROOT / "scripts" / "verify.sh"

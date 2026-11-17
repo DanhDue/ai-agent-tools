@@ -39,7 +39,7 @@ These are usually different strings. Never derive one from the other.
 ## Resume Prompt
 
 ```text
-[PERSONA: AI ASSISTANT — ORCHESTRATOR]
+[PERSONA: Role 2.2 Orchestrator]
 Use the d3nexus:dev-implementation skill for the `<epic_slug>` epic, following `skills/dev-lifecycle/references/orchestration-roles.md`.
 Read .devtool/epic/<epic_dir>/handoff.md first. Write all internal orchestration, plans, code comments, and commits strictly in English.
 You are the Role 2.2 Orchestrator (config key `orchestrator`; open this session on that model — see `python3 scripts/dev_config.py status`).

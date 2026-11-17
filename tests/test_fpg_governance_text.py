@@ -97,8 +97,10 @@ def _section(text: str, heading_prefix: str) -> str:
 
 def test_fpg_ar_03_governance_text_uses_four_personas() -> None:
     """[FPG-AR-03] [Tier A - Unit] Governance text uses the four-persona model everywhere."""
+    scanned_files = _tracked_governance_files()
+    assert len(scanned_files) > 0, "Expected governance files to scan"
     offenders: list[str] = []
-    for rel in _tracked_governance_files():
+    for rel in scanned_files:
         text = (REPO_ROOT / rel).read_text(encoding="utf-8", errors="ignore")
         skipped = _mapping_section_lines(text) if rel == ROLES_REL else set()
         for index, line in enumerate(text.splitlines()):

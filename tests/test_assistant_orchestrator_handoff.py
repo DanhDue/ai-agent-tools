@@ -152,7 +152,8 @@ def test_role_banners_declare_four_persona_roles(tmp_path: Path) -> None:
 def test_handoff_template_resume_prompt_binds_assistant_orchestrator() -> None:
     text = HANDOFF_TEMPLATE.read_text(encoding="utf-8")
     resume_block = text.split("## Resume Prompt", 1)[1].split("## Execution Guardrails", 1)[0]
-    assert ASSISTANT_BANNER in resume_block
+    assert ORCHESTRATOR_BANNER in resume_block
+    assert ASSISTANT_BANNER not in resume_block
     assert "Role 2.2 Orchestrator" in resume_block
     assert "--role orchestrator" in resume_block
     assert "--role assistant" not in resume_block
