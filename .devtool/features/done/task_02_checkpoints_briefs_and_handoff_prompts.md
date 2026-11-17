@@ -1,12 +1,13 @@
 ---
 id: "task_02_checkpoints_briefs_and_handoff_prompts"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T09:59:18Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T09:59:18Z"
 labels: ["state-envelope", "concurrency", "prompts", "architecture"]
 order: "a2"
 review_tier: "full"
@@ -14,7 +15,7 @@ review_tier: "full"
 
 # Task 2: Checkpoint Record, Persona Briefs and Handoff Prompts
 
-Epic: [four_persona_governance](../epic/four_persona_governance/four_persona_governance.en.md)
+Epic: [four_persona_governance](../../epic/four_persona_governance/four_persona_governance.en.md)
 
 ## Requirement Analysis
 
@@ -165,12 +166,12 @@ And "events_conc-epic.jsonl" in each mirror holds exactly 30 "checkpoint" lines 
 
 ## Dependencies & Blockers
 
-Blocked by [Task 1](../epic/four_persona_governance/task_01_persona_config_and_dev_config_cli.md) and [Task 4](../epic/four_persona_governance/task_04_english_only_resolution_and_ownership_check.md).
+Blocked by [Task 1](../../epic/four_persona_governance/task_01_persona_config_and_dev_config_cli.md) and [Task 4](../../epic/four_persona_governance/task_04_english_only_resolution_and_ownership_check.md).
 
 Downstream dependents (blocked by Task 2): `task_03`, `task_05`.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/four_persona_governance/four_persona_governance.en.md)
+- [Epic HLD](../../epic/four_persona_governance/four_persona_governance.en.md)
 - **Rollback**: Revert the task commit; heartbeats written with a `checkpoint` block remain readable because
   readers ignore unknown keys.

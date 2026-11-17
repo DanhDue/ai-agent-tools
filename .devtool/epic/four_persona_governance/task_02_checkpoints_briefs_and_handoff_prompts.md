@@ -1,12 +1,13 @@
 ---
 id: "task_02_checkpoints_briefs_and_handoff_prompts"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T09:59:18Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T09:59:18Z"
 labels: ["state-envelope", "concurrency", "prompts", "architecture"]
 order: "a2"
 review_tier: "full"
