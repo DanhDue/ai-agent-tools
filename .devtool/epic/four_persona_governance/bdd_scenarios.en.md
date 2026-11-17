@@ -102,6 +102,38 @@ When "dev_config.py --provider agy" runs
 Then "ai_architect_reviewer" resolves to model_id "gemini-4-argon-high", "orchestrator" to "gemini-4-hydrogen-high" and "programmer" to "gemini-4-hydrogen-xhigh", the same bindings as the "default" preset
 When "dev_config.py --provider claude --scope project" runs
 Then the project file holds "active_preset" "all-claude" and the global file still holds "active_preset" "default"
+
+Scenario: [FPG-HP-11] [Tier A - Unit] Pool acquisition picks the first usable profile by priority and records why the others were skipped
+Given a temporary REAL_HOME whose "agy_profiles.json" lists "p1", "p2", "p3", "p4", "p5" and "p6" with priorities 1 to 6, a 5-hour threshold of 0.15 and a weekly threshold of 0.02
+And an injected quota fetcher returning ACTIVE with these gemini5h and geminiWeekly fractions: "p1" 0.10 and 0.50, "p2" 0.50 and 0.50, "p3" 0.60 and 0.50, "p4" 0.70 and 0.50, "p5" 0.90 and 0.01, "p6" 0.90 and 0.50, each pool with its own reset time
+And "p2" holds a live lease owned by another orchestrator, "p3" has "exhausted_until" one hour in the future, and an injected resident-process probe returns true for "p4"
+When "acquire" runs for an orchestrator whose host profile is "px"
+Then it returns profile "p6" with via_ag_run true
+And the skipped map equals {"p1": "quota", "p2": "leased", "p3": "exhausted", "p4": "resident_process", "p5": "quota"}
+And "p1" now carries "exhausted_until" equal to its 5-hour reset time and exhausted_reason "5h"
+And "p5" now carries "exhausted_until" equal to its weekly reset time and exhausted_reason "weekly"
+When that orchestrator releases its lease and "acquire" runs again for an orchestrator whose host profile is "p6"
+Then it returns profile "p6" with via_ag_run false
+
+Scenario: [FPG-HP-12] [Tier C - Integration] The profiles CLI and dispatch drive stub CLIs through the pool
+Given a temporary REAL_HOME with directories "antigravity_homes/p1" and "antigravity_homes/p2", a temporary PATH holding stub "agy" and "zsh" executables that record their argv, HOME and AGY_PROFILE, a temporary git repository as the working directory, and an injected quota fetcher returning sufficient quota
+When "dev_config.py profiles add p1 --priority 1", "dev_config.py profiles add p2 --priority 2" and "dev_config.py profiles list --json" run
+Then the JSON lists "p1" then "p2" with no lease
+When "dev_config.py dispatch --persona programmer --prompt-file prompt.txt --cwd <repo> --log run.log --epic e1 --task t1" runs for host profile "host_x"
+Then the stub "zsh" recorded a preflight call and a launch call containing "ag_run", "p1", "--model", "gemini-4-hydrogen-xhigh" and "--effort", "xhigh"
+And "run.log" starts with "dispatch-profile: p1" and ends with "agy-exit=0"
+And "dev_config.py profiles list --json" shows no lease for "p1" after the command returns
+When the host profile is "p1" and the same dispatch runs again
+Then the stub "agy" was called directly, the stub "zsh" was not called, and HOME was left unchanged
+
+Scenario: [FPG-HP-13] [Tier A - Unit] The dashboard shows which profile each orchestrator holds and alerts when every agy profile is out of quota
+Given a global leases file under a temporary REAL_HOME holding "p1" leased by epic "e1", task "t1", slot 1 of repository "demo_repo" and "p2" with "exhausted_until" in the future and exhausted_reason "weekly", and a pool file listing "p1" and "p2"
+When "scan_repo" runs for "demo_repo"
+Then the payload's "agy_profiles" lists "p1" with leased_by epic "e1", task "t1", slot 1 and "p2" with its "exhausted_until"
+And "action_blockers" holds no pool entry and "notices" mentions that "p1" is in use
+When the lease of "p1" is released and "p1" also carries "exhausted_until" with exhausted_reason "5h"
+Then "is_human_action_required" is true
+And "action_blockers" holds an entry whose reason names "all agy profiles are out of quota", the lines "- p1: 5-hour limit reached" and "- p2: weekly limit reached", the earliest "exhausted_until" and the line "/d3nexus:dev-config set programmer codex-gpt xhigh"
 ```
 
 ---
@@ -150,6 +182,17 @@ When "dev_config.py --provider claude" runs
 Then it exits 0 and prints a warning that names "programmer" and the "project" layer
 And "resolve_persona('programmer', root)" still returns model_id "gemini-4-hydrogen-high" with sources["effort"] == "project"
 And "ai_architect_reviewer" resolves to model_id "opus"
+
+Scenario: [FPG-EC-07] [Tier A - Unit] Invalid pool changes are rejected and a launch without the ag_run helpers starts nothing
+Given a temporary REAL_HOME with "antigravity_homes/real_p" as a directory, "antigravity_homes/link_p" as a symlink and no "antigravity_homes/ghost"
+When "dev_config.py profiles add" runs for "ghost", "link_p", "bad name" and "real_p" with "--priority 0", then for "real_p" twice
+Then "ghost", "link_p", "bad name" and the priority 0 request each exit 1 with a message naming the rejected value
+And the second "real_p" add exits 1 with a message containing "already"
+And the pool file holds only "real_p"
+When "dev_config.py profiles remove real_p" runs while "real_p" holds a live lease
+Then it exits 1 naming the lease owner and the lease file is unchanged
+When a dispatch targets a non-host profile and the preflight command "zsh -ic 'typeset -f _ag_link_ok _ag_rel_link ag_run'" exits non-zero
+Then nothing is launched, the lease is released and the result status is "preflight_failed"
 ```
 
 ---
@@ -206,6 +249,17 @@ Then two distinct "gate4-verifier" dispatches on persona "programmer" in mode "w
 And Gate 4 is recorded as passed only after the second report
 When a gate4-verifier stub returns verdict "PASS" with a candidate_sha different from HEAD
 Then Gate 4 is not recorded and the runner dispatches a new gate4-verifier
+
+Scenario: [FPG-ST-07] [Tier A - Unit] A lease is kept alive by heartbeats and reclaimed when it goes stale
+Given orchestrator "o1" holding a lease on "p1" acquired at 10:00 UTC with a time-to-live of 180 seconds on a host named "h1"
+When "heartbeat" runs at 10:02 UTC and the lease is checked at 10:04:30 UTC
+Then the lease is live
+When the lease is checked at 10:05:30 UTC with no further heartbeat
+Then the lease is stale and "acquire" for orchestrator "o2" returns "p1"
+And a lease on host "h1" whose owner pid is not running is stale 5 seconds after its last heartbeat
+And a lease held on another host is stale only by heartbeat age
+When "release" runs for "o2" twice
+Then "p1" has no lease and the second call changes nothing
 ```
 
 ---
@@ -246,6 +300,20 @@ Given a temporary REAL_HOME with the kit default configuration
 When 4 processes run concurrently "dev_config.py set programmer hydrogen high", "dev_config.py set ai_architect_reviewer argon medium", "dev_config.py low-quota on" for profile "p1" and "dev_config.py low-quota on" for profile "p2"
 Then all four exit 0
 And the global file holds overrides for both "programmer" and "ai_architect_reviewer" and low_quota entries for both "p1" and "p2"
+
+Scenario: [FPG-AR-06] [Tier A - Unit] Concurrent orchestrators never share a profile and never lose lease-file updates
+Given a pool of "p1" and "p2" and a stub quota fetcher returning sufficient quota
+When 6 processes call "acquire" at the same time with distinct owners, a host profile "px" and a wait of 0 seconds, and keep their leases
+Then exactly 2 processes receive a profile, one "p1" and one "p2", and the other 4 receive profile None with reason "pool_busy"
+And the leases file holds exactly two leases with distinct owner ids and schema_version 1
+
+Scenario: [FPG-AR-07] [Tier A - Unit] Governance text routes agy dispatch through the pool and keeps ag_run out of agent shells
+Given the kit rules and skills after Task 06
+When the contract test reads "orchestration-roles.md", "dev-implementation/SKILL.md" and "CRITICAL_RULES.md"
+Then the Programmer dispatch instructions name "dev_config.py dispatch" and the lease file "agy_profile_leases.json"
+And they state that an exit code of 2 means "record a quota pending decision with the printed report and stop"
+And "CRITICAL_RULES.md" Rule 9 states that "ag_run" and any "<profile>-cli" alias are launched through "zsh -ic" and never from an agent runtime's own shell
+And no dev-lifecycle skill tells an agent to launch agy with a hand-built HOME or AGY_PROFILE
 ```
 
 ---
@@ -285,4 +353,40 @@ Given a runner with two waves and a quota gate stub that returns sufficient befo
 When the implementation step runs
 Then wave 1 tasks are dispatched and wave 2 tasks are not
 And a "quota_low" checkpoint and a pending decision of kind "quota" are recorded, and halt_reason is "QUOTA_LOW"
+
+Scenario: [FPG-FR-05] [Tier A - Unit] Dispatch rotates to the next profile only before any work started
+Given a pool of "p1" and "p2" with sufficient quota and a stub launcher
+When the launcher fails on "p1" with stderr "RESOURCE_EXHAUSTED: quota exceeded" and the working tree and HEAD are unchanged
+Then "p1" gets "exhausted_until", its lease is released, the dispatch retries on "p2", and the result is status "ok" with profile_used "p2" after 2 attempts
+When the launcher fails on "p1" with the same stderr after it created a commit in the working tree
+Then there is no retry, the result is status "quota_midrun" with profile_used "p1", and "p1" is marked exhausted and released
+When the launcher fails on every pool profile with the quota stderr and an unchanged tree
+Then the result is status "no_profile" with reason "pool_exhausted" after one attempt per profile, and no lease remains
+When the launcher exits 1 with stdout "3 failed, 10 passed"
+Then the result is status "task_failure", "p1" is not marked exhausted, and its lease is released
+
+Scenario: [FPG-FR-06] [Tier A - Unit] The runner halts and reports to the Human only when the whole agy pool is out of quota
+Given a runner whose pool dispatcher stub returns status "no_profile" with reason "pool_exhausted" and a printed report for the programmer persona
+When the implementation step dispatches a task
+Then a "quota_low" checkpoint and a pending decision of kind "quota" containing the report are recorded, halt_reason is "QUOTA_LOW", and nothing further is dispatched
+Given the same runner whose stub returns status "ok" with profile_used "p2" after one attempt on "p1"
+Then the implementation step continues and the "subagent_returned" checkpoint names profile "p2"
+Given the same runner whose stub returns status "quota_midrun" and then status "ok"
+Then the task is re-dispatched once and no halt_reason is set
+Given the same runner whose stub returns status "model_unavailable"
+Then halt_reason is "MODEL_UNAVAILABLE" and the pending decision kind is "blocker"
+
+Scenario: [FPG-FR-07] [Tier A - Unit] An exhausted pool yields a report that tells the Human how to continue, and a top-up recovers it
+Given a pool of "p1" and "p2" whose quota fetcher returns ACTIVE with gemini5h 0.02 and geminiWeekly 0.50 for "p1" (5-hour reset 2026-11-17T11:43:00Z) and gemini5h 0.60 and geminiWeekly 0.01 for "p2" (weekly reset 2026-11-21T00:54:00Z), a catalogue holding "codex-gpt" and "kiro-opus", a PATH holding "codex" but not "kiro", and "programmer" bound to "hydrogen" with effort "xhigh"
+When "acquire" runs at 10:00 UTC on 2026-11-17
+Then it returns profile None with reason "pool_exhausted"
+And "p1" carries exhausted_reason "5h" with "exhausted_until" 2026-11-17T11:43:00Z and "p2" carries exhausted_reason "weekly" with "exhausted_until" 2026-11-21T00:54:00Z
+And the report contains the lines "- p1: 5-hour limit reached (resets 2026-11-17T11:43:00Z)" and "- p2: weekly limit reached (resets 2026-11-21T00:54:00Z)"
+And the report states "Earliest reset: 2026-11-17T11:43:00Z."
+And the report offers "wait for the reset or top up the quota", "/d3nexus:dev-config set programmer codex-gpt xhigh" and "/d3nexus:dev-config set programmer kiro-opus high"
+And the "kiro-opus" line says the "kiro" CLI is not on PATH
+When the fetcher then returns gemini5h 0.60 and geminiWeekly 0.50 for "p1" and "acquire" runs at 10:11 UTC, more than 600 seconds after the last probe
+Then it returns profile "p1"
+When "p2" is marked exhausted again and "dev_config.py profiles clear p2" runs
+Then "p2" has no "exhausted_until", no exhausted_reason and no cached quota
 ```

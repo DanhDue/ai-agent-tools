@@ -56,6 +56,11 @@ The source spec describes four problems; this HLD maps them onto the code that c
   `status`, `models`, `preset`, `set`, `reset`, `low-quota`, `checkpoint`, `quota-check` and `resolve`.
 - A one-command provider shortcut, `/d3nexus:dev-config --provider agy|claude|codex`, that binds all three
   personas to one provider's models ([SE-07](#spec-errata)).
+- An agy profile pool with a global lease file, so several orchestrators share quota across Antigravity profiles
+  without using one profile at the same time. Quota is judged on both the 5-hour and the weekly Gemini window. When
+  every profile is out of quota the work stops with a report for Role 1.0 that offers waiting, topping up, or
+  switching the programmer to Codex, Kiro or Claude, and the same report appears on the dashboard
+  ([SE-09](#spec-errata)).
 - High-risk findings routed to a Role 2.1 `fix-planner`; the five halt criteria escalate to Role 1.0.
 - No automatic fallback: an unavailable model writes a checkpoint, records a blocker and stops.
 - Proactive checkpoints in the heartbeat, a turn budget, low-quota mode and an automatic quota gate.
@@ -158,6 +163,15 @@ flowchart TD
 8. **Dashboard (`check_tasks.py`, `tasks_server.py`, `tasks_dashboard.html`).** `RepoMetadata` gains
    `persona_bindings`, `checkpoint` and `low_quota`; `quota` and `blocker` pending decisions and the new halt
    reasons feed `action_blockers` and `is_human_action_required`.
+9. **Agy profile pool (`agy_profile_pool.py`, `agy_dispatch.py`).** Two global files under `$REAL_HOME/.d3nexus/`
+   (an explicit allow-list of profiles, and the lease file that marks which profile is in use). `acquire` claims a
+   profile under the lock and only then checks its quota, on the 5-hour and the weekly window, so two
+   orchestrators cannot pick the same profile. A profile that fails a window is recorded as exhausted until the
+   later failing reset. One lease per `ag_run` profile; a profile is entered only through `zsh -ic 'ag_run <profile>
+   cli'`, after a preflight that its helper functions exist, because `ag_run` edits the profile database at each
+   launch. When every profile is exhausted, `run_on_pool` returns `no_profile` with a report; the runner and the
+   Orchestrator record a `quota` pending decision and stop, and the dashboard shows the same report. The kit never
+   switches model by itself.
 
 ## Feature Maintenance Map
 
@@ -166,6 +180,8 @@ flowchart TD
 | Persona config resolution | `scripts/persona_config.py`, `scripts/personas.default.json` | `load_persona_config()`, `resolve_persona()`, `build_dispatch_argv()` |
 | dev-config CLI and skill | `skills/dev-config/SKILL.md` (agent instructions), `scripts/dev_config.py` | `main()` subcommands |
 | Provider quick-setup | `scripts/dev_config.py`, `scripts/personas.default.json` | `--provider`, presets `all-claude` and `all-codex` |
+| Agy profile pool and leases | `scripts/agy_profile_pool.py`, `$REAL_HOME/.d3nexus/agy_profiles.json`, `agy_profile_leases.json` | `acquire()`, `pool_status()`, `exhaustion_report()` |
+| Pooled dispatch | `scripts/agy_dispatch.py`, `scripts/dev_config.py` | `run_on_pool()`, `dev_config.py dispatch`, `profiles` |
 | Quota gate | `scripts/dev_config.py` | `cmd_quota_check()` |
 | Checkpoints and briefs | `scripts/resume_context.py`, `scripts/_state_envelope.py` | `--checkpoint`, `update_epic_checkpoint()`, `_BRIEF_ROLE_CONTRACTS`, `emit_handoff_prompt()` |
 | Autonomous runner | `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` | `RunnerConfig`, `_draft_fix_plan()`, `step_implementation()`, `step_cross_model_review()` |
@@ -208,6 +224,8 @@ flowchart TD
    dev_config.py models remove ALIAS [--scope global|project]
    dev_config.py preset NAME [--scope global|project]
    dev_config.py --provider agy|claude|codex [--scope global|project]   # the preset write for that provider's preset
+   dev_config.py profiles list [--json] | add NAME [--priority N] [--max-concurrent N] | remove NAME | release NAME [--force] | clear [NAME] | probe [NAME]
+   dev_config.py dispatch --persona P [--mode write|read-only] --prompt-file F --cwd D --log L [--epic E] [--task T] [--slot N] [--role R] [--wait S]
    dev_config.py set PERSONA MODEL EFFORT [--fallback MODEL] [--scope global|project]
    dev_config.py reset [PERSONA] [--scope global|project]
    dev_config.py low-quota on|off [--for HOURS]      # alias: --low-quota
@@ -227,6 +245,15 @@ flowchart TD
    ```python
    def resolve_epic_doc(directory: Path, stem: str) -> Path | None: ...
    def resolve_epic_doc_at(root: Path, rev: str, epic_rel: str, stem: str) -> str | None: ...
+   ```
+6. **`agy_profile_pool.py` and `agy_dispatch.py`**:
+   ```python
+   def acquire(owner, *, real_home, host_profile, quota_pool, thresholds, fetcher, resident_probe,
+               wait_seconds=0, poll_seconds=15, now=None) -> Acquisition: ...   # reason: pool_empty | pool_exhausted | pool_busy
+   def evaluate_agy_quota(payload, quota_pool, thresholds) -> QuotaVerdict: ...  # 5-hour and weekly windows
+   def pool_status(real_home, *, now=None) -> dict: ...                          # state: empty | ok | busy | exhausted
+   def exhaustion_report(status, *, catalogue, programmer_binding, which=..., fetcher=None) -> list[str]: ...
+   def run_on_pool(binding, mode, *, prompt_file, cwd, log, owner, real_home, **injected) -> DispatchResult: ...
    ```
 
 ## Impact Analysis
@@ -258,12 +285,13 @@ repository).
 
 Integration test roots: tests
 Protected paths: .agents/quality/**, .devtool/epic/four_persona_governance/bdd_scenarios.en.md
-Integration results: python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/four-persona-governance.xml tests/test_fpg_persona_config.py tests/test_fpg_dispatch_and_quota.py tests/test_fpg_provider_shortcut.py tests/test_fpg_checkpoint_and_briefs.py tests/test_fpg_runner_personas.py tests/test_fpg_english_only_and_ownership.py tests/test_fpg_dashboard_sync.py tests/test_fpg_governance_text.py tests/test_fpg_english_only_text.py tests/test_fpg_acceptance.py tests/test_lifecycle_runner.py tests/test_rsdh_state_envelope.py tests/test_check_tasks_fsm.py -> build/test-results/four-persona-governance.xml
+Integration results: python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/four-persona-governance.xml tests/test_fpg_persona_config.py tests/test_fpg_dispatch_and_quota.py tests/test_fpg_provider_shortcut.py tests/test_fpg_agy_profile_pool.py tests/test_fpg_agy_dispatch.py tests/test_fpg_checkpoint_and_briefs.py tests/test_fpg_runner_personas.py tests/test_fpg_english_only_and_ownership.py tests/test_fpg_dashboard_sync.py tests/test_fpg_governance_text.py tests/test_fpg_english_only_text.py tests/test_fpg_acceptance.py tests/test_lifecycle_runner.py tests/test_rsdh_state_envelope.py tests/test_check_tasks_fsm.py -> build/test-results/four-persona-governance.xml
 
 | Boundary | Producer | Consumer | Verification Tier |
 |---|---|---|---|
 | Persona config files and `resolve` output | `persona_config.py`, `dev_config.py` | `lifecycle_runner.py`, `resume_context.py`, `check_tasks.py` | Tier A Unit, Tier C CLI |
 | Quota JSON | `dev_config.py quota-check` | Orchestrator, runner | Tier A Unit with stub fetcher |
+| `agy_profiles.json`, `agy_profile_leases.json` | `agy_profile_pool.py`, `agy_dispatch.py`, `dev_config.py` | `lifecycle_runner.py`, Orchestrator, `check_tasks.py` | Tier A Unit and Concurrency, Tier C CLI with stub CLIs |
 | Heartbeat `checkpoint` block, `pending_decision.json` | `resume_context.py`, `_state_envelope.py`, runner | `check_tasks.py`, `resume_context.py` | Tier A Unit and Concurrency, Tier C |
 | `resolve_epic_doc` | `_epic_docs.py` | dev-implementation scripts, check-tasks | Tier A Unit, Tier C |
 | Dashboard payload | `check_tasks.py`, `tasks_server.py` | `tasks_dashboard.html` | Tier C HTTP and static UI |
@@ -280,7 +308,7 @@ Integration results: python3 -m pytest -q --tb=short --maxfail=3 --junitxml=buil
 
 ## Comprehensive BDD Scenario Coverage
 
-All 31 scenarios (`FPG-HP-01` to `FPG-FR-04`, including `FPG-HP-09`, `FPG-HP-10`, `FPG-EC-06`, `FPG-ST-05`, `FPG-ST-06` and `FPG-AR-05`) are defined in [bdd_scenarios.en.md](bdd_scenarios.en.md)
+All 41 scenarios (`FPG-HP-01` to `FPG-FR-07`, including `FPG-HP-09` to `FPG-HP-13`, `FPG-EC-06`, `FPG-EC-07`, `FPG-ST-05` to `FPG-ST-07`, `FPG-AR-05` to `FPG-AR-07` and `FPG-FR-05` to `FPG-FR-07`) are defined in [bdd_scenarios.en.md](bdd_scenarios.en.md)
 across Happy Path (`HP`), Edge Cases (`EC`), State Transitions (`ST`), Architecture and Concurrency (`AR`)
 and Fault Resilience (`FR`).
 
@@ -288,8 +316,9 @@ and Fault Resilience (`FR`).
 
 - Commit or stash the pending edits to `tasks_dashboard.html` and `quota_dashboard.html` on `main` before
   Gate 3, so Task 05 does not branch from a tree that conflicts at merge.
-- Waves: (1) Tasks 01, 04; (2) Tasks 02, 09; (3) Tasks 03, 05; (4) Task 06; (5) Task 07; (6) Task 08. Task 09 depends only on
-  Task 01, so it takes the first free slot while Task 02 waits for Task 04; Task 08 waits for both.
+- Waves: (1) Tasks 01, 04; (2) Tasks 02, 09, 10; (3) Tasks 03, 05; (4) Task 06; (5) Task 07; (6) Task 08. Task 09
+  depends only on Task 01 and Task 10 on Tasks 01 and 09 (both edit `dev_config.py`), so they take the first free slot;
+  Tasks 03 and 05 wait for Task 10; Task 08 waits for all.
 - Writes to the shared global `personas.json` take an exclusive file lock, so profiles and repositories that
   change bindings at the same time do not overwrite each other.
 - Legacy compatibility: `.en.md` resolution, the `assistant` role alias and the no-op `--strict-bilingual`
@@ -300,13 +329,14 @@ and Fault Resilience (`FR`).
 
 1. **[Task 01: Persona Config, Dispatch, Quota Gate and the dev-config Skill](task_01_persona_config_and_dev_config_cli.md)** (`review_tier: "full"`) — Covers: `FPG-HP-01`, `FPG-HP-02`, `FPG-HP-03`, `FPG-EC-01`, `FPG-EC-02`, `FPG-ST-01`, `FPG-FR-01`, `FPG-FR-02`, `FPG-AR-05`
 2. **[Task 02: Checkpoint Record, Persona Briefs and Handoff Prompts](task_02_checkpoints_briefs_and_handoff_prompts.md)** (`review_tier: "full"`) — Covers: `FPG-HP-04`, `FPG-HP-05`, `FPG-EC-03`, `FPG-AR-01`
-3. **[Task 03: Lifecycle Runner on Persona Bindings, Risk Routing, Checkpoints and Quota Stops](task_03_runner_personas_risk_routing_and_quota_stops.md)** (`review_tier: "full"`) — Covers: `FPG-ST-02`, `FPG-ST-03`, `FPG-ST-05`, `FPG-ST-06`, `FPG-FR-03`, `FPG-FR-04`
+3. **[Task 03: Lifecycle Runner on Persona Bindings, Risk Routing, Checkpoints and Quota Stops](task_03_runner_personas_risk_routing_and_quota_stops.md)** (`review_tier: "full"`) — Covers: `FPG-ST-02`, `FPG-ST-03`, `FPG-ST-05`, `FPG-ST-06`, `FPG-FR-03`, `FPG-FR-04`, `FPG-FR-06`
 4. **[Task 04: English-Only Document Resolution and Exclusive Ownership Check](task_04_english_only_resolution_and_ownership_check.md)** (`review_tier: "full"`) — Covers: `FPG-HP-06`, `FPG-HP-09`, `FPG-EC-04`, `FPG-AR-02`
-5. **[Task 05: check-tasks Dashboard Sync for Personas, Checkpoints and Quota Alerts](task_05_check_tasks_dashboard_persona_and_quota_sync.md)** (`review_tier: "full"`) — Covers: `FPG-HP-07`, `FPG-EC-05`, `FPG-ST-04`
-6. **[Task 06: Four-Persona Governance and Checkpoint Rules in Rules and Skills](task_06_four_persona_governance_text.md)** (`review_tier: "full"`) — Covers: `FPG-AR-03`
+5. **[Task 05: check-tasks Dashboard Sync for Personas, Checkpoints and Quota Alerts](task_05_check_tasks_dashboard_persona_and_quota_sync.md)** (`review_tier: "full"`) — Covers: `FPG-HP-07`, `FPG-EC-05`, `FPG-ST-04`, `FPG-HP-13`
+6. **[Task 06: Four-Persona Governance and Checkpoint Rules in Rules and Skills](task_06_four_persona_governance_text.md)** (`review_tier: "full"`) — Covers: `FPG-AR-03`, `FPG-AR-07`
 7. **[Task 07: English-Only Dev-Lifecycle Skill Text and Vietnamese Mirror Isolation](task_07_english_only_skill_text_and_mirror_isolation.md)** (`review_tier: "full"`) — Covers: `FPG-AR-04`
 8. **[Task 08: Kit Guides, verify.sh Registration and End-to-End Acceptance](task_08_kit_guides_verify_registration_and_acceptance.md)** (`review_tier: "full"`) — Covers: `FPG-HP-08`
 9. **[Task 09: Provider Quick-Setup Shortcut](task_09_provider_quick_setup.md)** (`review_tier: "full"`) — Covers: `FPG-HP-10`, `FPG-EC-06`
+10. **[Task 10: Agy Profile Pool, Lease File and Pooled Dispatch](task_10_agy_profile_pool_and_leases.md)** (`review_tier: "full"`) — Covers: `FPG-HP-11`, `FPG-HP-12`, `FPG-EC-07`, `FPG-ST-07`, `FPG-AR-06`, `FPG-FR-05`, `FPG-FR-07`
 
 ## Spec Errata
 
@@ -352,3 +382,19 @@ and Fault Resilience (`FR`).
   (for example the existing `Name "parser" is not defined` in `scripts/resume_context.py`, owned by Task 02) cannot fail
   an unrelated task; the four existing `arg-type` errors in `integrate_branch.py` are in a listed Allowed file, so
   Task 04 fixes them with typing-only changes.
+- **[SE-09] Agy Profile Pool, Lease File and Exhaustion Report**: Role 1.0 asked on 2026-11-17 that orchestrators use
+  several `agy` profiles when one runs out of quota, that a configuration file mark which profile is in use so
+  orchestrators of other epics and repositories do not conflict, that the work stop and report when every profile
+  is out of quota and show it on the check-tasks dashboard, that the Human can then top up quota or switch the
+  programmer to Codex, Kiro and others, and that both the weekly and the 5-hour limit are watched. Spec §5 and
+  §8.5 define none of this. Design: an explicit allow-list file and a global lease file under
+  `$REAL_HOME/.d3nexus/`; one `ag_run` lease per profile because `ag_run` edits the profile database at every
+  launch (profile isolation rule 2.1); a profile is entered only through `zsh -ic 'ag_run <profile> cli'` after a
+  helper-function preflight; a profile that hosts the session is used directly; stale leases expire by heartbeat
+  age or dead process; a busy pool waits and a fully exhausted pool stops. It extends [SE-05]: for `agy` bindings
+  the gate now judges both Gemini windows (5-hour `>=` `5h_min_fraction`, weekly `>` `7d_min_fraction`, as
+  `evaluate_provider_quota` already does for Claude and Codex), and a payload without the weekly figure behaves as
+  before. It is Task 10, blocked by Task 09 because both edit `scripts/dev_config.py` and `skills/dev-config/SKILL.md`, and it changes the contracts of Tasks 03, 05, 06 and 08, none of which had started. Choices
+  not stated by Role 1.0, to confirm: the pool is an explicit allow-list and empty by default, never derived from
+  `antigravity_homes/`; only `agy` bindings use it; the kit never switches model by itself and only prints the
+  commands; account-specific `agy` arguments such as `--dangerously-skip-permissions` come from `agy_extra_args`.

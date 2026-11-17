@@ -45,7 +45,7 @@ Make the dev-implementation scripts English-only (spec §6.2–§6.3, [SE-02]) a
 3. **Status writes**: `sync_task_status.py epic` and `package_epic.py` update the Status line only in the
    resolved English file; `.vi.md` is neither read nor written.
 4. **`--strict-bilingual`**: accepted by `check_epic_readiness.py` and `check_bdd_traceability.py` as a
-   no-op that prints `warning: --strict-bilingual is deprecated and ignored` once to stderr. `_check_vi_sync_metadata`
+   no-op that prints `warning: --strict-bilingual is deprecated and ignored` once to stderr. _check_vi_sync_metadata
    (`L676-L741`) and every `.vi.md` branch are removed.
 5. **Ownership (`check_task_contract.py`)**: new `check_exclusive_ownership(check, tasks)` called from `main`
    (`L828-L893`) under `--design`, using `Blocked by` links (same parsing as
@@ -93,7 +93,7 @@ from tooling is what makes the context-loading rule enforceable. Applicable skil
 ## Impact Analysis & Blast Radius
 
 - **Target Files & Symbols**:
-  - `skills/dev-implementation/resources/scripts/check_epic_readiness.py`: `Context` (L45-L57), `load_context` (L77-L115), `check_preflight` (L124-L229), `check_bdd_scenarios` (L340-L374), `_check_vi_sync_metadata` (L676-L741), `check_metadata` (L744-L826), `main` (L1030-L1118)
+  - `skills/dev-implementation/resources/scripts/check_epic_readiness.py`: `Context` (L45-L57), `load_context` (L77-L115), `check_preflight` (L124-L229), `check_bdd_scenarios` (L340-L374), _check_vi_sync_metadata (L676-L741), `check_metadata` (L744-L826), `main` (L1030-L1118)
   - `skills/dev-implementation/resources/scripts/package_epic.py`: `resolve_base_branch` (L68-L82), `_sanitize_read_first_english_only` (L92-L123), `update_epic_status_to_packaged` (L287-L309), S110 at (L436-L442)
   - `skills/dev-implementation/resources/scripts/sync_task_status.py`: `is_task_file` (L79-L83), `find_epic_slug` (L666-L685), `archive_epic_tasks` (L759-L839), `sync_epic` (L842-L922), `check_epic_prerequisites` (L1199-L1239), `render_epic_tasks` (L1326-L1400)
   - `skills/dev-implementation/resources/scripts/check_bdd_traceability.py`: `load_scenarios` (L83-L120), `main` (L231-L299)

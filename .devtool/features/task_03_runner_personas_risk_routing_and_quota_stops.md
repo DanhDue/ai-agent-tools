@@ -47,6 +47,18 @@ Make the autonomous Orchestrator (`lifecycle_runner.py`) implement spec §4.3, �
    `model_unavailable` the runner writes a `model_unavailable` checkpoint, records a `blocker` pending
    decision whose reason contains `/d3nexus:dev-config set <persona> <fallback_alias> <effort>`, sets
    halt `MODEL_UNAVAILABLE`, and dispatches nothing further (no retry, no fallback).
+3a. **Agy profile pool** ([SE-09](../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)): `ModelDispatcher.dispatch` sends every
+   `agy` dispatch through `agy_dispatch.run_on_pool` (Task 10; injectable as `self.pool_dispatcher`) when
+   `agy_profiles.json` lists at least one profile; with an empty pool the existing direct dispatch stays. Profile
+   rotation happens inside `run_on_pool` before the runner sees a result, so the no-retry, no-fallback rule of
+   item 3 applies to the result the pool returns: `ok` continues; `task_failure` follows the existing task-failure
+   path; `quota_midrun` re-dispatches the task once (the next dispatch acquires another profile);
+   `model_unavailable` and `preflight_failed` stop as in item 3; `no_profile` with reason `pool_exhausted` or
+   `pool_busy` writes a `quota_low` checkpoint, records a `quota` pending decision whose reason is the printed
+   report, sets halt `QUOTA_LOW` and dispatches nothing further. The report names each profile's 5-hour or weekly
+   limit and reset time, how to wait or top up the quota, and the exact `/d3nexus:dev-config set programmer
+   <alias> <effort>` commands for Codex, Kiro and Claude. The runner never switches model by itself. The quota
+   gate of item 5 uses the pool-aware `cmd_quota_check`.
 4. **Checkpoints and budget**: `subagent_returned` after each dispatch result, `wave_merged` after each
    wave merge, `turn_budget` every `effective_turn_budget` dispatches.
 5. **Quota gate and low-quota**: before Stage 3 starts and before each wave and each cross-model fix round,
@@ -75,6 +87,8 @@ Allowed files:
 Read-only context:
 - `scripts/persona_config.py` (new) — Task 1 contracts
 - `scripts/dev_config.py` (new) — `cmd_quota_check`
+- `scripts/agy_dispatch.py` (new) — `run_on_pool`, `DispatchResult` (Task 10)
+- `scripts/agy_profile_pool.py` (new) — `exhaustion_report` (Task 10)
 - `scripts/_state_envelope.py` — `update_epic_checkpoint` (Task 2), `record_pending_decision` (L699-L752)
 - `skills/dev-implementation/resources/scripts/_epic_docs.py` (new) — Task 4 resolver
 - `.devtool/epic/four_persona_governance/four_persona_governance.en.md` — Stage 3 Risk Routing diagram
@@ -97,7 +111,7 @@ skill text. Applicable skills: `d3nexus:test-driven-development`, `d3nexus:pytho
 
 ### BDD SCENARIOS
 
-Covers: FPG-ST-02, FPG-ST-03, FPG-ST-05, FPG-ST-06, FPG-FR-03, FPG-FR-04
+Covers: FPG-ST-02, FPG-ST-03, FPG-ST-05, FPG-ST-06, FPG-FR-03, FPG-FR-04, FPG-FR-06
 
 
 ```gherkin
@@ -147,6 +161,17 @@ Given a runner with two waves and a quota gate stub that returns sufficient befo
 When the implementation step runs
 Then wave 1 tasks are dispatched and wave 2 tasks are not
 And a "quota_low" checkpoint and a pending decision of kind "quota" are recorded, and halt_reason is "QUOTA_LOW"
+
+Scenario: [FPG-FR-06] [Tier A - Unit] The runner halts and reports to the Human only when the whole agy pool is out of quota
+Given a runner whose pool dispatcher stub returns status "no_profile" with reason "pool_exhausted" and a printed report for the programmer persona
+When the implementation step dispatches a task
+Then a "quota_low" checkpoint and a pending decision of kind "quota" containing the report are recorded, halt_reason is "QUOTA_LOW", and nothing further is dispatched
+Given the same runner whose stub returns status "ok" with profile_used "p2" after one attempt on "p1"
+Then the implementation step continues and the "subagent_returned" checkpoint names profile "p2"
+Given the same runner whose stub returns status "quota_midrun" and then status "ok"
+Then the task is re-dispatched once and no halt_reason is set
+Given the same runner whose stub returns status "model_unavailable"
+Then halt_reason is "MODEL_UNAVAILABLE" and the pending decision kind is "blocker"
 ```
 
 ```gherkin
@@ -188,6 +213,10 @@ And a "quota_low" checkpoint and a pending decision of kind "quota" are recorded
 - New contract: resolution precedence for each persona is CLI flag > `--config` JSON > `persona_config`
   (project > global > kit). `AGY_PROGRAMMER_MODEL`, `AGY_PROGRAMMER_EFFORT`, `AGY_ASSISTANT_MODEL` and
   `review_config.json` persona keys are no longer read.
+- New contract: `self.pool_dispatcher` defaults to `agy_dispatch.run_on_pool`, loaded by path. The lease owner is
+  `role="runner"` with the epic slug, task id and slot of the dispatch. The `subagent_returned` checkpoint
+  detail names `profile_used`. The `quota` pending decision reason for `pool_exhausted` and `pool_busy` is the
+  report lines joined with newlines, unchanged.
 - The quota gate and the checkpoint writer are injected attributes (`self.quota_gate`, `self.checkpoint_writer`)
   defaulting to `dev_config.cmd_quota_check` and `_state_envelope.update_epic_checkpoint`, so tests use stubs.
 - New contract: the fix-planner summary is the last fenced `json` block of its output; a missing or unparseable
@@ -205,7 +234,7 @@ And a "quota_low" checkpoint and a pending decision of kind "quota" are recorded
 
 ## Dependencies & Blockers
 
-Blocked by [Task 1](../epic/four_persona_governance/task_01_persona_config_and_dev_config_cli.md) and [Task 2](../epic/four_persona_governance/task_02_checkpoints_briefs_and_handoff_prompts.md).
+Blocked by [Task 1](../epic/four_persona_governance/task_01_persona_config_and_dev_config_cli.md), [Task 2](../epic/four_persona_governance/task_02_checkpoints_briefs_and_handoff_prompts.md) and [Task 10](../epic/four_persona_governance/task_10_agy_profile_pool_and_leases.md).
 
 Downstream dependents (blocked by Task 3): `task_06`.
 

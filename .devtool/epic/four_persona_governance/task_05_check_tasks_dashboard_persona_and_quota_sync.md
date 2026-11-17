@@ -26,19 +26,26 @@ Surface every new script output and state on `/d3nexus:check-tasks` (spec §9).
    `assign_epic_pic` L1022-L1340) resolve HLDs and specs through `_epic_docs.resolve_epic_doc` /
    `resolve_design_specs`; no code path opens a `.vi.md`.
 2. **Payload**: `RepoMetadata` (`L264-L288`) gains `persona_bindings: list[dict]`, `persona_config_error:
-   str | None`, `checkpoint: dict | None`, `low_quota: dict | None`, `notices: list[str]`, filled in
+   str | None`, `checkpoint: dict | None`, `low_quota: dict | None`, `agy_pool: dict | None`, `agy_profiles: list[dict]`, `notices: list[str]`, filled in
    `_scan_repo_impl` (`L4211-L4429`) via `persona_config` (loaded by path) and the heartbeat.
 3. **Human action**: pending decisions of kind `quota` and `blocker`, and heartbeat or state halts
    `MODEL_UNAVAILABLE`, `QUOTA_LOW`, `LOW_QUOTA_STOP`, `FIX_PLAN_ESCALATE`, set
    `is_human_action_required` and add an `action_blockers` entry carrying the reason text (quota lines
-   included); a checkpoint `warning: quota_unknown` adds a `notices` entry only.
+   included); a checkpoint `warning: quota_unknown` adds a `notices` entry only. The agy profile pool
+   ([SE-09](four_persona_governance.en.md#spec-errata)) is read from `agy_profile_pool.pool_status` (loaded by path):
+   `agy_profiles` lists each pool profile with its holders (epic, task, slot, role, repository), `exhausted_until`,
+   `exhausted_reason` and its cached 5-hour and weekly quota; a profile in use adds a `notices` entry naming the
+   holder; pool state `exhausted` (every profile out of quota) sets `is_human_action_required` and adds an
+   `action_blockers` entry whose reason is `agy_profile_pool.exhaustion_report` printed as lines, naming each
+   profile's limiting window and reset time and the `/d3nexus:dev-config set programmer ...` commands; state `busy`
+   adds a `notices` entry only.
 4. **Roles**: `extract_two_tier_memory` (`L1713-L1753`) maps `assistant` to `architect`; the dashboard memory
    panel shows the four-persona label.
-5. **UI (`tasks_dashboard.html`)**: new `renderPersonaBindings(repo)` and `renderCheckpointStatus(repo)`
+5. **UI (`tasks_dashboard.html`)**: new `renderPersonaBindings(repo)`, `renderCheckpointStatus(repo)` and `renderAgyProfiles(repo)`
    render hooks in the repository panel; `renderRepoTabs` (`L2184`), `buildOverviewSig` (`L3319`),
    `renderEpicsOverviewAndApprovalGate` (`L3438`) and `renderExecutionEpics` (`L2748`) include the new fields
    and alerts; the low-quota badge shows `expires_at`; the "Tri-Role" invariant text (`L1003`) is replaced.
-6. **Tests**: new `tests/test_fpg_dashboard_sync.py` (FPG-HP-07, FPG-EC-05, FPG-ST-04); update existing
+6. **Tests**: new `tests/test_fpg_dashboard_sync.py` (FPG-HP-07, FPG-HP-13, FPG-EC-05, FPG-ST-04); update existing
    harvester tests that assert `.vi.md` reads or the `Trạng thái` label.
 
 ## Files
@@ -54,6 +61,7 @@ Allowed files:
 Read-only context:
 - `skills/dev-implementation/resources/scripts/_epic_docs.py` (new) — Task 4 helper
 - `scripts/persona_config.py` (new) — Task 1 resolver
+- `scripts/agy_profile_pool.py` (new) — `pool_status`, `exhaustion_report` (Task 10)
 - `scripts/_state_envelope.py` — checkpoint block written by Task 2
 - `.devtool/epic/four_persona_governance/2026-11-17-four-persona-governance-design.en.md` — spec §9
 
@@ -77,7 +85,7 @@ does not render there is a silent stop. Applicable skills: `d3nexus:test-driven-
 
 ### BDD SCENARIOS
 
-Covers: FPG-HP-07, FPG-EC-05, FPG-ST-04
+Covers: FPG-HP-07, FPG-HP-13, FPG-EC-05, FPG-ST-04
 
 
 ```gherkin
@@ -88,6 +96,15 @@ Then the repository JSON has "persona_bindings" with three entries carrying "ali
 And "checkpoint" has "event" == "wave_merged" and "next_step" == "start wave 3"
 And "low_quota" has "enabled" == true and an "expires_at" timestamp
 And "tasks_dashboard.html" contains the render hooks "renderPersonaBindings" and "renderCheckpointStatus"
+
+Scenario: [FPG-HP-13] [Tier A - Unit] The dashboard shows which profile each orchestrator holds and alerts when every agy profile is out of quota
+Given a global leases file under a temporary REAL_HOME holding "p1" leased by epic "e1", task "t1", slot 1 of repository "demo_repo" and "p2" with "exhausted_until" in the future and exhausted_reason "weekly", and a pool file listing "p1" and "p2"
+When "scan_repo" runs for "demo_repo"
+Then the payload's "agy_profiles" lists "p1" with leased_by epic "e1", task "t1", slot 1 and "p2" with its "exhausted_until"
+And "action_blockers" holds no pool entry and "notices" mentions that "p1" is in use
+When the lease of "p1" is released and "p1" also carries "exhausted_until" with exhausted_reason "5h"
+Then "is_human_action_required" is true
+And "action_blockers" holds an entry whose reason names "all agy profiles are out of quota", the lines "- p1: 5-hour limit reached" and "- p2: weekly limit reached", the earliest "exhausted_until" and the line "/d3nexus:dev-config set programmer codex-gpt xhigh"
 
 Scenario: [FPG-EC-05] [Tier A - Unit] An invalid persona configuration degrades to a dashboard warning
 Given repository "demo_repo" whose ".agents/config/personas.json" contains {"schema_version": 99}
@@ -154,7 +171,7 @@ And the fourth has is_human_action_required false and a "notices" entry containi
 
 ## Dependencies & Blockers
 
-Blocked by [Task 1](task_01_persona_config_and_dev_config_cli.md), [Task 2](task_02_checkpoints_briefs_and_handoff_prompts.md) and [Task 4](task_04_english_only_resolution_and_ownership_check.md).
+Blocked by [Task 1](task_01_persona_config_and_dev_config_cli.md), [Task 2](task_02_checkpoints_briefs_and_handoff_prompts.md), [Task 4](task_04_english_only_resolution_and_ownership_check.md) and [Task 10](task_10_agy_profile_pool_and_leases.md).
 
 Downstream dependents (blocked by Task 5): `task_06`.
 
