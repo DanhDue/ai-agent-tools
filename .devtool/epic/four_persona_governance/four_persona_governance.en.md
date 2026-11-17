@@ -452,3 +452,15 @@ and Fault Resilience (`FR`).
   that is not an agy model; it is dropped from the resolved binding and from `sources`. A profile stored in the SAME layer as a non-agy
   model, and `--profile` given together with a non-agy model in one command, stay errors. Layer order is kit, global, project, CLI. This is
   delivered as a Fix commit; no scenario and no task text changes, and the quick guide of Task 08 states the rule.
+- **[SE-16] `profiles probe` for a Profile Outside the Pool**: The Task 08 reviewer found that the quick guide showed `profiles probe profile_a`
+  before `profiles add profile_a`, which fails because Task 10 made `probe` work on pool profiles only, while SE-12 and scenario FPG-HP-17
+  tell the reader to probe first (the hints of `discover` read `profiles probe <name>` then `profiles add <name>`). That was a
+  contradiction inside the epic. Role 1.0 decided on 2026-11-17 that `probe` accepts any profile that `profiles discover` lists, that is,
+  the profiles of the `check-quota` skill (`agy_quota.get_all_profiles()`, the same injectable `discoverer`), and not only pool profiles,
+  so a profile can be tried before it is added, and profiles can still be added later. New contract: for a name outside the pool,
+  `probe NAME` fetches the quota of that one profile through the same fetcher, prints the 5-hour and weekly windows with the verdict
+  against the thresholds, says whether a resident process holds the profile (the default `resident_probe` of Task 10), suggests
+  `profiles add NAME` when the profile is usable, and writes neither the pool file nor the lease file. A name that is neither in the pool
+  nor discoverable is an error (exit 1) that names both. `probe` without a name and `probe` of a pool profile are unchanged: they
+  refresh the quota cache. The command still uses the login of only the profile the user names. Delivered as a Fix commit; no scenario
+  text changes, and the quick guide of Task 08 states the rule after that task is merged.

@@ -82,6 +82,7 @@ contract. Applicable skills: `d3nexus:writing-skills`, `d3nexus:doc_quality_chec
   - `skills/dev-implementation/SKILL.md`: `#### Bounded Context Injection & Spec Fidelity` (L51-L75), `### Phase 3 — Doc Sync on Divergence` (L279-L288)
   - `scripts/test_lifecycle_document_contract.py`: `test_mvls_hp_05_lifecycle_docs_and_skill_word_limit` (L214-L229), `test_prv_st_03_diagram_loop_returns_to_package_and_done_repackages` (L368-L386)
   - `tests/test_tto_docs_and_slimming.py`: `test_tto_st_05_pre_finish_bilingual_sync_hook` (L224-L236), `test_tto_st_05_integration` (L251-L253)
+  - `scripts/test_lifecycle_signals.py`: `test_lf_st_03_queued_epic_keeps_its_queue_and_the_grep_still_matches` (L108-L127)
   - `tests/test_fpg_english_only_text.py`: new `test_fpg_ar_04_dev_skills_are_english_only_and_isolate_mirrors`
 - **Downstream Callers**: every runtime loading these skills; consuming repositories after plugin sync.
 - **Cross-Platform Bridges**: None.
