@@ -1973,3 +1973,199 @@ def test_fpg_st_02_rejects_incomplete_or_blank_fix_plan(
     assert criteria == ["UNPARSEABLE"]
     assert plan_md == ""
     assert not (repo / ".devtool" / "epic" / epic / "fix_plan_round1.md").exists()
+
+
+@pytest.mark.parametrize(
+    ("fm_body", "expected_tier", "expected_labels", "expected_requires"),
+    [
+        (
+            'review_tier: "full"     # optional: "full" for high-risk/multi-module tasks\nlabels: []\n',
+            "full",
+            set(),
+            True,
+        ),
+        (
+            "review_tier: 'full' # single-quoted\nlabels: []\n",
+            "full",
+            set(),
+            True,
+        ),
+        (
+            "review_tier: full # unquoted\nlabels: []\n",
+            "full",
+            set(),
+            True,
+        ),
+        (
+            "review_tier: standard # normal\nlabels: [security] # sec\n",
+            "standard",
+            {"security"},
+            True,
+        ),
+        (
+            "review_tier: standard\nlabels: # inline comment\n  # full-line comment\n  - concurrency # lock\n",
+            "standard",
+            {"concurrency"},
+            True,
+        ),
+        (
+            'review_tier: "#not-comment"\nlabels: ["#keep"]\n',
+            "#not-comment",
+            {"#keep"},
+            False,
+        ),
+    ],
+)
+def test_fpg_st_05_frontmatter_inline_comment_triggers_review(
+    tmp_path: Path,
+    fm_body: str,
+    expected_tier: str,
+    expected_labels: set[str],
+    expected_requires: bool,
+) -> None:
+    """[FPG-ST-05] Inline YAML comments are stripped from review_tier and labels before gating."""
+    repo = tmp_path / "repo_f3"
+    task_file = repo / ".devtool" / "features" / "task_comment.md"
+    task_file.parent.mkdir(parents=True, exist_ok=True)
+    task_file.write_text(f'---\nid: "task_comment"\n{fm_body}---\n', encoding="utf-8")
+
+    runner = lifecycle_runner.LifecycleRunner(root=repo, epic_slug="demo_epic")
+    tier, labels = lifecycle_runner._parse_task_frontmatter(task_file)
+    assert tier == expected_tier
+    assert labels == expected_labels
+    assert (
+        runner._task_requires_architect_review(task_file, repo, "", "", None)
+        is expected_requires
+    )
+
+
+@pytest.mark.parametrize(
+    ("hld_lines", "expected_substr", "forbidden_substr"),
+    [
+        (
+            "Integration results: pytest -q -> build/test-results/four-persona-governance.xml\n",
+            "--results build/test-results/four-persona-governance.xml",
+            "autonomous-lifecycle-runner.xml",
+        ),
+        (
+            "Integration results: pytest -q -> build/a.xml\n"
+            "Integration results: ruff check -> build/b.json\n"
+            "Integration results: echo ok -> PASS\n",
+            "--results build/a.xml build/b.json",
+            "autonomous-lifecycle-runner.xml",
+        ),
+        (
+            "Integration results: echo ok -> PASS\n",
+            "echo ok",
+            "--results",
+        ),
+    ],
+)
+def test_fpg_st_06_verifier_prompt_uses_hld_report_path(
+    tmp_path: Path,
+    hld_lines: str,
+    expected_substr: str,
+    forbidden_substr: str,
+) -> None:
+    """[FPG-ST-06] Gate 4 verifier prompt parses --results from HLD Integration results lines."""
+    repo = tmp_path / "repo_f4"
+    epic = "four_persona_governance"
+    epic_dir = repo / ".devtool" / "epic" / epic
+    epic_dir.mkdir(parents=True, exist_ok=True)
+    (epic_dir / f"{epic}.md").write_text(f"# HLD\n{hld_lines}", encoding="utf-8")
+    (epic_dir / "bdd_scenarios.md").write_text("# BDD\n", encoding="utf-8")
+
+    runner = lifecycle_runner.LifecycleRunner(root=repo, epic_slug=epic)
+    prompt = runner._build_gate4_verifier_prompt(1)
+    assert expected_substr in prompt
+    assert forbidden_substr not in prompt
+    assert "autonomous-lifecycle-runner.xml" not in prompt
+
+
+@pytest.mark.parametrize(
+    ("failures_seq", "expected_fix_modes", "expected_planner_calls"),
+    [
+        (
+            (["ruff: A"], ["ruff: A", "mypy: B"]),
+            ["fast-track", "apply-plan"],
+            1,
+        ),
+        (
+            (["ruff: A"], ["mypy: B"], ["mypy: C"]),
+            ["fast-track", "fast-track", "apply-plan"],
+            1,
+        ),
+    ],
+)
+def test_fpg_st_06_repeated_check_escalates_even_when_failure_list_grows(
+    tmp_path: Path,
+    failures_seq: tuple[list[str], ...],
+    expected_fix_modes: list[str],
+    expected_planner_calls: int,
+) -> None:
+    """[FPG-ST-06] Repeated consecutive check identity escalates to fix-planner even as failure list changes."""
+    repo = tmp_path / "repo_f5"
+    _init_git_repo(repo)
+    epic = "demo_epic"
+    (repo / ".devtool" / "epic" / epic).mkdir(parents=True, exist_ok=True)
+    (repo / "src").mkdir(parents=True, exist_ok=True)
+    (repo / "src" / "a.py").write_text("A = 1\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "[DEMO] Seed F5")
+    head_sha = _git(repo, "rev-parse", "HEAD")
+
+    runner = lifecycle_runner.LifecycleRunner(root=repo, epic_slug=epic)
+    dispatches: list[dict[str, str]] = []
+    fix_modes: list[str] = []
+    attempt_idx = 0
+
+    def dispatch_stub(cli: str, args: list[str], prompt: str) -> tuple[int, str, str]:
+        nonlocal attempt_idx
+        persona, mode = _persona_from_cli_args(cli, args)
+        dispatches.append({"persona": persona, "mode": mode, "prompt": prompt})
+        if persona == "ai_architect_reviewer":
+            plan = {
+                "round": 2,
+                "status": "PLANNED",
+                "halt_criteria": [],
+                "plan_markdown": "# Fix repeated check\n",
+            }
+            return 0, f"```json\n{json.dumps(plan)}\n```\n", ""
+        if "review-fixer" in prompt:
+            fix_modes.append("apply-plan" if "apply-plan" in prompt else "fast-track")
+            return 0, '{"status": "FIXED"}', ""
+        if attempt_idx < len(failures_seq):
+            fails = failures_seq[attempt_idx]
+            attempt_idx += 1
+            rep = {
+                "candidate_sha": head_sha,
+                "verdict": "FAIL",
+                "audit_exit": 1,
+                "quality_check_report": "fail",
+                "failures": fails,
+            }
+            return 0, f"```json\n{json.dumps(rep)}\n```\n", ""
+        rep_ok = {
+            "candidate_sha": _git(repo, "rev-parse", "HEAD"),
+            "verdict": "PASS",
+            "audit_exit": 0,
+            "quality_check_report": "ok",
+            "failures": [],
+        }
+        return 0, f"```json\n{json.dumps(rep_ok)}\n```\n", ""
+
+    with (
+        patch.object(runner.dispatcher, "dispatch", side_effect=dispatch_stub),
+        patch.object(runner, "sync_gate_ledger", return_value=True),
+        patch.object(runner, "_run_scoped_tests", return_value=(True, "ok")),
+    ):
+        ok, _ = runner.run_gate4()
+
+    assert ok
+    assert fix_modes == expected_fix_modes
+    planner_calls = [
+        d
+        for d in dispatches
+        if d["persona"] == "ai_architect_reviewer" and "fix-planner" in d["prompt"]
+    ]
+    assert len(planner_calls) == expected_planner_calls

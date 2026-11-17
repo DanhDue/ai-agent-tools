@@ -144,6 +144,34 @@ def _extract_last_fenced_json(text: str) -> dict[str, Any] | None:
     return parsed if isinstance(parsed, dict) else None
 
 
+def _strip_yaml_inline_comment(value: str) -> str:
+    """Strip an unquoted trailing `# ...` YAML comment while preserving quoted `#` characters."""
+    in_single = False
+    in_double = False
+    escaped = False
+    for idx, ch in enumerate(value):
+        if escaped:
+            escaped = False
+            continue
+        if in_double:
+            if ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_double = False
+            continue
+        if in_single:
+            if ch == "'":
+                in_single = False
+            continue
+        if ch == '"':
+            in_double = True
+        elif ch == "'":
+            in_single = True
+        elif ch == "#":
+            return value[:idx].strip()
+    return value.strip()
+
+
 def _parse_task_frontmatter(task_file: Path | None) -> tuple[str, set[str]]:
     """Extract (review_tier, labels) from task markdown YAML frontmatter."""
     if task_file is None or not task_file.is_file():
@@ -165,12 +193,15 @@ def _parse_task_frontmatter(task_file: Path | None) -> tuple[str, set[str]]:
     in_labels = False
     for raw in fm_lines:
         stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
         if stripped.startswith("review_tier:"):
             in_labels = False
-            review_tier = stripped.split(":", 1)[1].strip().strip("'\"").lower()
+            raw_val = _strip_yaml_inline_comment(stripped.split(":", 1)[1])
+            review_tier = raw_val.strip("'\"").lower()
             continue
         if stripped.startswith("labels:"):
-            val = stripped.split(":", 1)[1].strip()
+            val = _strip_yaml_inline_comment(stripped.split(":", 1)[1])
             if val.startswith("[") and val.endswith("]"):
                 in_labels = False
                 for item in val[1:-1].split(","):
@@ -181,14 +212,16 @@ def _parse_task_frontmatter(task_file: Path | None) -> tuple[str, set[str]]:
                 in_labels = True
             else:
                 in_labels = False
-                labels.add(val.strip("'\"").lower())
+                tok = val.strip("'\"").lower()
+                if tok:
+                    labels.add(tok)
             continue
         if in_labels and stripped.startswith("- "):
-            tok = stripped[2:].strip().strip("'\"")
+            tok = _strip_yaml_inline_comment(stripped[2:]).strip("'\"").lower()
             if tok:
-                labels.add(tok.lower())
+                labels.add(tok)
             continue
-        if stripped and not raw.startswith((" ", "\t")):
+        if not raw.startswith((" ", "\t")):
             in_labels = False
     return review_tier, labels
 
@@ -2659,16 +2692,29 @@ class LifecycleRunner:
         scenarios_doc = ed.resolve_epic_doc(epic_dir, "bdd_scenarios")
 
         hld_integ_cmds: list[str] = []
+        hld_report_paths: list[str] = []
         if hld_doc is not None and hld_doc.is_file():
             try:
                 for line in hld_doc.read_text(encoding="utf-8").splitlines():
                     if line.startswith("Integration results:"):
                         cmd_part = line[len("Integration results:") :].strip()
-                        cmd_str = (
-                            cmd_part.split("->")[0].strip()
-                            if "->" in cmd_part
-                            else cmd_part
-                        )
+                        if "->" in cmd_part:
+                            cmd_str, rhs = cmd_part.split("->", 1)
+                            cmd_str = cmd_str.strip()
+                            for tok in re.split(r"[\s,]+", rhs.strip()):
+                                cleaned = tok.strip("`'\"")
+                                if not cleaned:
+                                    continue
+                                low = cleaned.lower()
+                                if (
+                                    "/" in cleaned
+                                    or "*" in cleaned
+                                    or low.endswith((".xml", ".json"))
+                                ):
+                                    if cleaned not in hld_report_paths:
+                                        hld_report_paths.append(cleaned)
+                        else:
+                            cmd_str = cmd_part
                         if cmd_str:
                             hld_integ_cmds.append(cmd_str)
             except OSError:
@@ -2679,10 +2725,12 @@ class LifecycleRunner:
             if scenarios_doc is not None
             else f".devtool/epic/{self.epic_slug}/bdd_scenarios.md"
         )
+        results_opt = (
+            f" --results {' '.join(hld_report_paths)}" if hld_report_paths else ""
+        )
         bdd_cmd = (
             f"python3 skills/dev-implementation/resources/scripts/check_bdd_traceability.py "
-            f"tests --roots tests --scenarios {scenarios_rel} "
-            f"--results build/test-results/autonomous-lifecycle-runner.xml"
+            f"tests --roots tests --scenarios {scenarios_rel}{results_opt}"
         )
 
         lines = [
@@ -2737,7 +2785,7 @@ class LifecycleRunner:
     def run_gate4(self) -> tuple[bool, str]:
         """Execute Stage 3 Gate 4 via a fresh Role 2.3 gate4-verifier with SHA and clean-tree checks."""
         max_attempts = max(4, self.config.max_review_rounds + 1)
-        prev_failure_sig: tuple[str, ...] | None = None
+        prev_checks: set[str] = set()
         last_detail = "Gate 4 verification failed"
 
         for attempt_idx in range(max_attempts):
@@ -2833,8 +2881,18 @@ class LifecycleRunner:
             if attempt_idx == max_attempts - 1:
                 break
 
-            failure_sig = tuple(sorted(failure_lines)) if failure_lines else (err,)
-            if prev_failure_sig is not None and failure_sig == prev_failure_sig:
+            curr_checks = {
+                (
+                    item.split(":", 1)[0].strip().lower()
+                    if ":" in item
+                    else item.strip().lower()
+                )
+                for item in (failure_lines or [err])
+                if item.strip()
+            }
+            repeated = bool(prev_checks & curr_checks)
+            prev_checks = curr_checks
+            if repeated:
                 plan_status, criteria, plan_md = self._draft_fix_plan(
                     attempt_idx + 1, last_detail
                 )
@@ -2849,7 +2907,6 @@ class LifecycleRunner:
                     mode="apply-plan",
                 )
             else:
-                prev_failure_sig = failure_sig
                 fixer_ok = self._apply_code_fixes(
                     attempt_idx + 1,
                     plan_text=last_detail,
