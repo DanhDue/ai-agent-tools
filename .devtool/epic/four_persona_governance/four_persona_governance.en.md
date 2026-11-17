@@ -20,7 +20,7 @@
 ## Meta Data
 
 - **Epic name**: `four_persona_governance`
-- **Status**: In Progress
+- **Status**: Done
 - **PIC**: `danhdue`
 - **Target release**: Next plugin release
 - **Platform**: Python tooling, Markdown skills and rules, local HTTP dashboard (HTML/Vanilla JS)
