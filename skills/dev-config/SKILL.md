@@ -5,7 +5,7 @@ description: Configures layered AI persona model bindings, presets, model catalo
 
 # dev-config
 
-Manages the four-persona model configuration across kit defaults (`scripts/personas.default.json`), global user settings (`$REAL_HOME/.d3nexus/personas.json`), project overrides (`.agents/config/personas.json`), global `agy` profile pool settings (`$REAL_HOME/.d3nexus/agy_profiles.json` and `agy_profile_leases.json`), and one-off CLI flags.
+Manages the four-persona model configuration across kit defaults (`scripts/personas.default.json`), global user settings (`$REAL_HOME/.d3nexus/personas.json`), project overrides (`.agents/config/personas.json`), global `agy` profile pool settings (`$REAL_HOME/.d3nexus/agy_profiles.json` and `agy_profile_leases.json`), and one-off CLI flags. See the human quick-guide at [dev-config-quick-guide.en.md](../../docs/dev-config-quick-guide.en.md).
 
 ## Invocation Mapping
 
