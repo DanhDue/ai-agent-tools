@@ -154,6 +154,14 @@ Then it returns profile "p1" and the skipped map is {"p3": "leased"}
 When "p3" instead has "exhausted_until" in the future and "acquire" runs with preferred_profile "p3"
 Then it returns profile "p1" and the skipped map is {"p3": "exhausted"}
 And "run_on_pool" for that binding attempts "p3" first and then "p1" and "p2" in priority order
+
+Scenario: [FPG-HP-16] [Tier A - Unit] The dev-config quick guide documents only commands the real CLI accepts and keeps both language variants in step
+Given the files "docs/dev-config-quick-guide.en.md" and "docs/dev-config-quick-guide.vi.md"
+When the contract test extracts every command that begins with "/d3nexus:dev-config" or "python3 scripts/dev_config.py" from the fenced code blocks of the English guide and parses each one with the argument parser of "dev_config.py"
+Then every command parses without a usage error
+And the guide shows the subcommands "status", "models", "set", "preset", "reset", "low-quota", "checkpoint", "quota-check", "resolve", "profiles" and "dispatch", the options "--provider", "--model", "--effort" and "--profile", and the line "/d3nexus:dev-config set programmer kiro-sonnet high"
+And the Vietnamese variant has the same number of headings and the same commands in the same order
+And neither variant contains an e-mail address or the word "password"
 ```
 
 ---

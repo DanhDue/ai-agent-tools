@@ -312,7 +312,7 @@ Integration results: python3 -m pytest -q --tb=short --maxfail=3 --junitxml=buil
 
 ## Comprehensive BDD Scenario Coverage
 
-All 45 scenarios (`FPG-HP-01` to `FPG-FR-08`, including `FPG-HP-09` to `FPG-HP-15`, `FPG-EC-06` to `FPG-EC-08`, `FPG-ST-05` to `FPG-ST-07`, `FPG-AR-05` to `FPG-AR-07` and `FPG-FR-05` to `FPG-FR-08`) are defined in [bdd_scenarios.en.md](bdd_scenarios.en.md)
+All 46 scenarios (`FPG-HP-01` to `FPG-FR-08`, including `FPG-HP-09` to `FPG-HP-16`, `FPG-EC-06` to `FPG-EC-08`, `FPG-ST-05` to `FPG-ST-07`, `FPG-AR-05` to `FPG-AR-07` and `FPG-FR-05` to `FPG-FR-08`) are defined in [bdd_scenarios.en.md](bdd_scenarios.en.md)
 across Happy Path (`HP`), Edge Cases (`EC`), State Transitions (`ST`), Architecture and Concurrency (`AR`)
 and Fault Resilience (`FR`).
 
@@ -338,7 +338,7 @@ and Fault Resilience (`FR`).
 5. **[Task 05: check-tasks Dashboard Sync for Personas, Checkpoints and Quota Alerts](task_05_check_tasks_dashboard_persona_and_quota_sync.md)** (`review_tier: "full"`) — Covers: `FPG-HP-07`, `FPG-EC-05`, `FPG-ST-04`, `FPG-HP-13`
 6. **[Task 06: Four-Persona Governance and Checkpoint Rules in Rules and Skills](task_06_four_persona_governance_text.md)** (`review_tier: "full"`) — Covers: `FPG-AR-03`, `FPG-AR-07`
 7. **[Task 07: English-Only Dev-Lifecycle Skill Text and Vietnamese Mirror Isolation](task_07_english_only_skill_text_and_mirror_isolation.md)** (`review_tier: "full"`) — Covers: `FPG-AR-04`
-8. **[Task 08: Kit Guides, verify.sh Registration and End-to-End Acceptance](task_08_kit_guides_verify_registration_and_acceptance.md)** (`review_tier: "full"`) — Covers: `FPG-HP-08`
+8. **[Task 08: Kit Guides, verify.sh Registration and End-to-End Acceptance](task_08_kit_guides_verify_registration_and_acceptance.md)** (`review_tier: "full"`) — Covers: `FPG-HP-08`, `FPG-HP-16`
 9. **[Task 09: Provider Quick-Setup Shortcut](task_09_provider_quick_setup.md)** (`review_tier: "full"`) — Covers: `FPG-HP-10`, `FPG-EC-06`
 10. **[Task 10: Agy Profile Pool, Lease File and Pooled Dispatch](task_10_agy_profile_pool_and_leases.md)** (`review_tier: "full"`) — Covers: `FPG-HP-11`, `FPG-HP-12`, `FPG-EC-07`, `FPG-ST-07`, `FPG-AR-06`, `FPG-FR-05`, `FPG-FR-07`
 11. **[Task 11: dev-config set with Provider, Model, Effort and Preferred agy Profile; Kiro Sonnet](task_11_set_provider_model_effort_profile.md)** (`review_tier: "full"`) — Covers: `FPG-HP-14`, `FPG-HP-15`, `FPG-EC-08`, `FPG-FR-08`
@@ -416,3 +416,10 @@ and Fault Resilience (`FR`).
   Kiro CLI is installed, has credit above the kit thresholds, and accepted `claude-sonnet-5.5` at `high`. Not stated, to
   confirm: `--provider kiro` is not added to the all-personas shortcut of SE-07, and `--provider` without `--model` is a
   usage error. It is Task 11, blocked by Tasks 09 and 10 because it edits their files, and Task 08 now waits for it.
+- **[SE-11] dev-config Quick Guide**: Role 1.0 asked on 2026-11-17 for a quick guide to `/d3nexus:dev-config`. Spec §6.4 lists
+  the guides to update but not a new one. It is added to Task 08, the guides task, as `docs/dev-config-quick-guide.en.md` and
+  `.vi.md` in the shape of the existing quick guides, because it must describe the final behaviour after Tasks 1, 9, 10 and 11.
+  A contract test parses every command in the guide with the real `dev_config.py` parser (scenario FPG-HP-16), so the guide
+  cannot drift from the CLI. Example profiles are generic names; a real profile name, e-mail address or password never
+  appears. Not stated, to confirm: no README or CHANGELOG entry is added inside this epic (they change at release time),
+  and `skills/dev-config/SKILL.md` gets one pointer line.
