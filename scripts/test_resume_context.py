@@ -19,6 +19,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 # Target script under test
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -31,6 +32,21 @@ class TestResumeContext(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
         self.workspace = Path(self.temp_dir.name)
+        self.home_dir = self.workspace / "home"
+        self.home_dir.mkdir(parents=True, exist_ok=True)
+        env_patcher = mock.patch.dict(
+            os.environ,
+            {
+                "HOME": str(self.home_dir),
+                "REAL_HOME": str(self.home_dir),
+                "WORKSPACE_ROOT": str(self.workspace),
+                "USER": "testuser",
+            },
+        )
+        env_patcher.start()
+        self.addCleanup(env_patcher.stop)
+        os.environ.pop("AGY_PROFILE", None)
+        os.environ.pop("ANTIGRAVITY_PROFILE", None)
         # Create a sample primary repo inside workspace
         self.repo_dir = self.workspace / "ai-agent-tools"
         self.repo_dir.mkdir(parents=True, exist_ok=True)
@@ -49,6 +65,10 @@ class TestResumeContext(unittest.TestCase):
         target_cwd = cwd or self.repo_dir
         cmd = [sys.executable, str(SCRIPT_PATH)] + args
         env = os.environ.copy()
+        env.pop("AGY_PROFILE", None)
+        env.pop("ANTIGRAVITY_PROFILE", None)
+        env["HOME"] = str(self.home_dir)
+        env["REAL_HOME"] = str(self.home_dir)
         env["WORKSPACE_ROOT"] = str(self.workspace)
         return subprocess.run(cmd, cwd=target_cwd, capture_output=True, text=True, env=env, check=False)
 
@@ -215,37 +235,44 @@ class TestResumeContext(unittest.TestCase):
         self.assertIn("3/5 done", out)
 
     def test_cmm_st_01_tri_role_banners_and_emit_prompts(self) -> None:
-        """[CMM-ST-01] Tri-Role Persona Governance Banners and 4-Scenario Handoff Prompt Emission."""
-        # 1. --role assistant banner
+        """[CMM-ST-01] Four-Persona Governance Banners and Handoff Prompt Emission."""
+        # 1. --role architect and legacy --role assistant banners
+        res_arch = self.run_cli(["--role", "architect"])
+        self.assertEqual(res_arch.returncode, 0)
+        self.assertIn("[PERSONA: Role 2.1 AI Architect & Reviewer]", res_arch.stdout)
+
         res_asst = self.run_cli(["--role", "assistant"])
         self.assertEqual(res_asst.returncode, 0)
-        self.assertIn("[PERSONA: AI ASSISTANT — ORCHESTRATOR]", res_asst.stdout)
-        self.assertIn("NO IMPLEMENTATION", res_asst.stdout)
+        self.assertIn("[PERSONA: Role 2.1 AI Architect & Reviewer]", res_asst.stdout)
 
-        # 2. --role programmer banner
+        # 2. --role orchestrator banner
+        res_orch = self.run_cli(["--role", "orchestrator"])
+        self.assertEqual(res_orch.returncode, 0)
+        self.assertIn("[PERSONA: Role 2.2 Orchestrator]", res_orch.stdout)
+        self.assertIn("NO IMPLEMENTATION", res_orch.stdout)
+
+        # 3. --role programmer banner
         res_prog = self.run_cli(["--role", "programmer"])
         self.assertEqual(res_prog.returncode, 0)
-        self.assertIn("[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]", res_prog.stdout)
+        self.assertIn("[PERSONA: Role 2.3 Programmer", res_prog.stdout)
         self.assertIn("TDD", res_prog.stdout)
 
-        # 3. Aliases --role implementer and --role worker
-        res_impl = self.run_cli(["--role", "implementer"])
-        self.assertEqual(res_impl.returncode, 0)
-        self.assertIn("[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]", res_impl.stdout)
+        # 4. Removed legacy role aliases fail argparse choice validation
+        for legacy_role in ("implementer", "worker", "reviewer"):
+            res_bad = self.run_cli(["--role", legacy_role])
+            self.assertNotEqual(res_bad.returncode, 0)
+            self.assertIn("invalid choice", res_bad.stderr.lower())
 
-        res_work = self.run_cli(["--role", "worker"])
-        self.assertEqual(res_work.returncode, 0)
-        self.assertIn("[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]", res_work.stdout)
-
-        # 4. --emit-prompt modes
+        # 5. --emit-prompt modes
         modes = ["principal-review", "implement", "cross-review", "finish", "assistant"]
         for mode in modes:
             res_mode = self.run_cli(["--emit-prompt", mode, "--epic", "context_memory_management"])
             self.assertEqual(res_mode.returncode, 0, f"Mode {mode} failed with: {res_mode.stderr}")
             self.assertIn("context_memory_management", res_mode.stdout)
             self.assertTrue(
-                "[PERSONA: AI ASSISTANT" in res_mode.stdout or "[PERSONA: AI PROGRAMMER" in res_mode.stdout,
-                f"Mode {mode} output missing persona banner: {res_mode.stdout}",
+                "Role 2.2 Orchestrator" in res_mode.stdout
+                or "Role 2.1 AI Architect & Reviewer" in res_mode.stdout,
+                f"Mode {mode} output missing persona label: {res_mode.stdout}",
             )
 
     def test_cmm_ar_01_concurrent_flock(self) -> None:
@@ -591,7 +618,7 @@ ag_run() {
         self.assertTrue((self.repo_dir / ".devtool" / "logs" / "activity_nested_bug_check.log").exists())
 
     def test_sync_window_title_with_vietnamese_epic_and_colors(self) -> None:
-        """[CMM-TITLE-01] Verify sync_window_title formats title and enforces inactive bar color parity."""
+        """[CMM-TITLE-01] Verify sync_window_title formats English title, skips .vi.md, and enforces bar color parity."""
         import json
 
         vscode_dir = self.repo_dir / ".vscode"
@@ -607,17 +634,19 @@ ag_run() {
         }
         settings_file.write_text(json.dumps(initial_settings, indent=2), encoding="utf-8")
 
-        # Create mock epic with Vietnamese title
+        # Create mock epic with English canonical doc and ignored Vietnamese decoy
         epic_dir = self.repo_dir / ".devtool" / "epic" / "ui_sync"
         epic_dir.mkdir(parents=True, exist_ok=True)
         (epic_dir / "ui_sync.vi.md").write_text("# Epic: Thiết Lập Đồng Bộ Giao Diện\n\nNội dung chi tiết", encoding="utf-8")
+        (epic_dir / "ui_sync.md").write_text("# Epic: UI Sync Configuration\n\nDetails", encoding="utf-8")
 
         # Call sync_window_title
         sync_window_title(self.repo_dir, epic_slug="ui_sync", stage_override="Stage 2: Design Approved")
 
         updated = json.loads(settings_file.read_text(encoding="utf-8"))
         self.assertIn("🟠 [AGENT-TOOLS]", updated["window.title"])
-        self.assertIn("Thiết Lập Đồng Bộ Giao Diện - Stage 2: Design Approved", updated["window.title"])
+        self.assertIn("UI Sync Configuration - Stage 2: Design Approved", updated["window.title"])
+        self.assertNotIn("Thiết Lập Đồng Bộ Giao Diện", updated["window.title"])
         colors = updated["workbench.colorCustomizations"]
         self.assertEqual(colors["titleBar.inactiveBackground"], "#b45309")
         self.assertEqual(colors["statusBar.inactiveBackground"], "#b45309")
@@ -629,6 +658,7 @@ ag_run() {
         epic_dir = self.repo_dir / ".devtool" / "epic" / "wt_color_check"
         epic_dir.mkdir(parents=True, exist_ok=True)
         (epic_dir / "wt_color_check.vi.md").write_text("# Epic: Kiểm Tra Màu Worktree\n", encoding="utf-8")
+        (epic_dir / "wt_color_check.md").write_text("# Epic: Worktree Color Check\n", encoding="utf-8")
         subprocess.run(["git", "-C", str(self.repo_dir), "add", "-A"], check=True)
         subprocess.run(["git", "-C", str(self.repo_dir), "commit", "-q", "-m", "init epic"], check=True)
 
@@ -641,7 +671,8 @@ ag_run() {
         sync_window_title(wt_dir, epic_slug="wt_color_check", stage_override="Stage 3: Implementation")
         wt_settings = json.loads((wt_dir / ".vscode" / "settings.json").read_text(encoding="utf-8"))
         self.assertIn("🟠 [AGENT-TOOLS]", wt_settings["window.title"])
-        self.assertIn("Kiểm Tra Màu Worktree - Stage 3: Implementation", wt_settings["window.title"])
+        self.assertIn("Worktree Color Check - Stage 3: Implementation", wt_settings["window.title"])
+        self.assertNotIn("Kiểm Tra Màu Worktree", wt_settings["window.title"])
         self.assertEqual(
             wt_settings["workbench.colorCustomizations"]["titleBar.activeBackground"],
             "#b45309",
@@ -805,10 +836,11 @@ ag_run() {
             "window.title": "🟠 [AGENT-TOOLS] [@danhdue] Primary Title",
         }), encoding="utf-8")
 
-        # Create epic definition in primary .devtool
+        # Create epic definition in primary .devtool (English doc + ignored Vietnamese decoy)
         epic_dir = self.repo_dir / ".devtool" / "epic" / "isolated_epic"
         epic_dir.mkdir(parents=True, exist_ok=True)
         (epic_dir / "isolated_epic.vi.md").write_text("# Epic: Kiểm Thử Worktree Độc Lập\n", encoding="utf-8")
+        (epic_dir / "isolated_epic.md").write_text("# Epic: Isolated Worktree Test\n", encoding="utf-8")
 
         # Create git worktree
         wt_dir = self.repo_dir / ".worktrees" / "isolated_epic"
@@ -828,7 +860,8 @@ ag_run() {
         self.assertTrue(wt_settings.exists(), "Worktree .vscode/settings.json was not created")
         wt_data = json.loads(wt_settings.read_text(encoding="utf-8"))
         self.assertIn("[@peter]", wt_data["window.title"])
-        self.assertIn("Kiểm Thử Worktree Độc Lập", wt_data["window.title"])
+        self.assertIn("Isolated Worktree Test", wt_data["window.title"])
+        self.assertNotIn("Kiểm Thử Worktree Độc Lập", wt_data["window.title"])
 
         # Assert primary repo settings were NOT overwritten
         primary_data = json.loads(primary_settings.read_text(encoding="utf-8"))
@@ -910,55 +943,65 @@ ag_run() {
         self.assertFalse((self.repo_dir / ".vscode" / "settings.json").exists())
 
     def test_tto_hp_06_emit_handoff_prompt_config_and_legacy_upgrade(self) -> None:
-        """[TTO-HP-06] emit_handoff_prompt reads review_config.json, normalizes effort, and upgrades legacy models."""
+        """[TTO-HP-06] emit_handoff_prompt resolves persona_config bindings and ignores legacy review_config.json."""
         import json
+        from resume_context import resolve_programmer_model_config
 
         devtool = self.repo_dir / ".devtool"
         devtool.mkdir(parents=True, exist_ok=True)
         cfg_file = devtool / "review_config.json"
 
-        # 1. Missing review_config.json -> default gemini-4-hydrogen-xhigh / xhigh
+        # 1. Missing config -> default gemini-4-hydrogen-xhigh / xhigh
         res_default = self.run_cli(["--emit-prompt", "implement", "--epic", "demo_epic"])
         self.assertEqual(res_default.returncode, 0, res_default.stderr)
         self.assertIn("gemini-4-hydrogen-xhigh", res_default.stdout)
         self.assertIn("xhigh", res_default.stdout)
         self.assertNotIn("Gemini Flash 3.8", res_default.stdout)
 
-        # 2. Extra effort alias normalization -> xhigh
+        # 2. resolve_programmer_model_config normalizes extra effort and upgrades legacy models
         cfg_file.write_text(
             json.dumps({"providers": {"programmer": {"model": "gemini-4-hydrogen-xhigh", "thinking_level": "extra"}}}),
             encoding="utf-8",
         )
-        res_extra = self.run_cli([
+        self.assertEqual(resolve_programmer_model_config(self.repo_dir), ("gemini-4-hydrogen-xhigh", "xhigh"))
+
+        cfg_file.write_text(
+            json.dumps({"providers": {"programmer": {"model": "gemini-3.8-flash-high", "thinking_level": "high"}}}),
+            encoding="utf-8",
+        )
+        self.assertEqual(resolve_programmer_model_config(self.repo_dir), ("gemini-4-hydrogen-xhigh", "xhigh"))
+
+        # 3. Legacy review_config.json is ignored by emit_handoff_prompt; .agents/config/personas.json wins
+        cfg_file.write_text(
+            json.dumps({"providers": {"programmer": {"model": "claude-sonnet-4-6", "thinking_level": "medium"}}}),
+            encoding="utf-8",
+        )
+        res_ignored = self.run_cli(["--emit-prompt", "implement", "--epic", "demo_epic"])
+        self.assertEqual(res_ignored.returncode, 0, res_ignored.stderr)
+        self.assertNotIn("claude-sonnet-4-6", res_ignored.stdout)
+
+        personas_dir = self.repo_dir / ".agents" / "config"
+        personas_dir.mkdir(parents=True, exist_ok=True)
+        (personas_dir / "personas.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "active_preset": "default",
+                    "overrides": {
+                        "programmer": {"model": "claude-sonnet", "effort": "medium"},
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        res_custom = self.run_cli([
             "--workspace-root", str(self.workspace),
             "--repo", "ai-agent-tools",
             "--emit-prompt", "implement",
             "--epic", "demo_epic",
         ])
-        self.assertEqual(res_extra.returncode, 0, res_extra.stderr)
-        self.assertIn("gemini-4-hydrogen-xhigh", res_extra.stdout)
-        self.assertIn("xhigh", res_extra.stdout)
-        self.assertNotIn("Gemini Flash 3.8", res_extra.stdout)
-
-        # 3. Legacy model upgrade -> gemini-4-hydrogen-xhigh / xhigh
-        cfg_file.write_text(
-            json.dumps({"providers": {"programmer": {"model": "gemini-3.8-flash-high", "thinking_level": "high"}}}),
-            encoding="utf-8",
-        )
-        res_legacy = self.run_cli(["--emit-prompt", "implement", "--epic", "demo_epic"])
-        self.assertEqual(res_legacy.returncode, 0, res_legacy.stderr)
-        self.assertIn("gemini-4-hydrogen-xhigh", res_legacy.stdout)
-        self.assertIn("xhigh", res_legacy.stdout)
-
-        # 4. Custom model preserved
-        cfg_file.write_text(
-            json.dumps({"providers": {"programmer": {"model": "claude-sonnet-4-6", "thinking_level": "medium"}}}),
-            encoding="utf-8",
-        )
-        res_custom = self.run_cli(["--emit-prompt", "implement", "--epic", "demo_epic"])
         self.assertEqual(res_custom.returncode, 0, res_custom.stderr)
-        self.assertIn("claude-sonnet-4-6", res_custom.stdout)
-        self.assertIn("medium", res_custom.stdout)
+        self.assertIn("claude -p --model sonnet --effort medium", res_custom.stdout)
 
     def test_compact_context_emits_single_hld_line_across_roots(self) -> None:
         """build_compact_context stops scanning roots once the active epic HLD line is emitted."""
@@ -977,6 +1020,46 @@ ag_run() {
         hld_lines = [ln for ln in compact.splitlines() if ln.startswith("HLD (")]
         self.assertEqual(len(hld_lines), 1)
         self.assertIn("Packaged (2026-11-12)", hld_lines[0])
+
+    def test_run_cli_isolates_home_and_profile_env(self) -> None:
+        """run_cli isolates HOME/REAL_HOME to workspace and strips AGY_PROFILE/ANTIGRAVITY_PROFILE."""
+        import json
+
+        polluted_host = self.workspace / "polluted_host_home"
+        host_d3 = polluted_host / ".d3nexus"
+        host_d3.mkdir(parents=True, exist_ok=True)
+        (host_d3 / "personas.json").write_text(
+            json.dumps({"schema_version": 1, "active_preset": "all-claude"}),
+            encoding="utf-8",
+        )
+        with mock.patch.dict(
+            os.environ,
+            {
+                "HOME": str(polluted_host),
+                "REAL_HOME": str(polluted_host),
+                "AGY_PROFILE": "host_profile",
+                "ANTIGRAVITY_PROFILE": "host_antigravity",
+            },
+        ):
+            res_isolated = self.run_cli(["--emit-prompt", "implement", "--epic", "demo_epic"])
+            self.assertEqual(res_isolated.returncode, 0, res_isolated.stderr)
+            self.assertIn("gemini-4-hydrogen-xhigh", res_isolated.stdout)
+            self.assertNotIn("claude -p", res_isolated.stdout)
+
+            prof_res = self.run_cli(["--detect-profile"])
+            self.assertEqual(prof_res.returncode, 0, prof_res.stderr)
+            self.assertNotIn("host_profile", prof_res.stdout)
+            self.assertNotIn("host_antigravity", prof_res.stdout)
+
+            temp_d3 = self.home_dir / ".d3nexus"
+            temp_d3.mkdir(parents=True, exist_ok=True)
+            (temp_d3 / "personas.json").write_text(
+                json.dumps({"schema_version": 1, "active_preset": "all-claude"}),
+                encoding="utf-8",
+            )
+            res_temp_global = self.run_cli(["--emit-prompt", "implement", "--epic", "demo_epic"])
+            self.assertEqual(res_temp_global.returncode, 0, res_temp_global.stderr)
+            self.assertIn("claude -p --model sonnet --effort high", res_temp_global.stdout)
 
 
 if __name__ == "__main__":
