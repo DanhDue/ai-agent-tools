@@ -89,6 +89,7 @@ skills: `d3nexus:writing-skills`, `d3nexus:doc_quality_check`.
   - `scripts/test_lifecycle_document_contract.py`: `test_prv_hp_04_packaging_readiness_and_principal_review_choice` (L330-L358)
   - `tests/test_tto_docs_and_slimming.py`: `test_tto_hp_05_slimmed_rules_and_skills_caps` (L31-L86), `test_tto_hp_05_lifecycle_word_caps` (L89-L143), `test_tto_ec_05_selective_task_reviewer_and_prompt_rules` (L146-L221)
   - `scripts/test_verifiable_handoff_text.py`: `test_vth_hp_09_sdd_prompts_treat_evidence_as_proof` (L74-L83)
+  - `tests/test_assistant_orchestrator_handoff.py`: `test_handoff_template_resume_prompt_binds_assistant_orchestrator` (L204-L217)
 - **Downstream Callers**: every runtime that loads these skills; `scripts/verify.sh` link and ToC checks.
 - **Cross-Platform Bridges**: None.
 - **Target Test Coverage Threshold**: zero old-vocabulary hits in `rules/` and `skills/`.

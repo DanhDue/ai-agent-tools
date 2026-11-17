@@ -464,3 +464,13 @@ and Fault Resilience (`FR`).
   nor discoverable is an error (exit 1) that names both. `probe` without a name and `probe` of a pool profile are unchanged: they
   refresh the quota cache. The command still uses the login of only the profile the user names. Delivered as a Fix commit; no scenario
   text changes, and the quick guide of Task 08 states the rule after that task is merged.
+- **[SE-17] Ownership Check Compares Claims by Expansion, Not Only by Equality**: Cross-model review round 1 (finding 13) showed that the
+  exclusive-ownership check (R-OWN, Task 04) compared the Allowed-files entries of two tasks only for exact normalised path equality, so
+  `scripts/*.py` and `scripts/persona_*`, or a directory entry and a file inside it, were accepted although both cover
+  `scripts/persona_config.py`. Task 04 and scenario FPG-AR-02 froze exact equality, so the finding was first dismissed as out of contract and
+  left to Role 1.0. Role 1.0 then instructed on 2026-11-18 to fix all findings, which includes this one. New contract: after the existing
+  normalisation, an entry that contains a glob character (`*`, `?` or `[`) or that names a directory (a trailing `/`, or a path that is a
+  directory in the repository) is EXPANDED against the repository's tracked files plus every literal entry of every task (so a file marked
+  `(new)` counts); two tasks that are not ordered by Blocked-by conflict (R-OWN) when their expanded sets share at least one path, and the
+  problem names both tasks, both entries and one shared path. Literal file entries keep the old behaviour, and the scenario text of FPG-AR-02
+  is unchanged (it still holds for equal entries). Delivered as a Fix commit with tests; the readiness check of this epic must still pass.
