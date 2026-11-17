@@ -28,7 +28,7 @@ Update `skills/check-quota/resources/dashboard/quota_dashboard.html` so profile 
    - Display actual dynamic model lists from `data.groupModels?.gemini` (e.g., `Gemini 4 Carbon`, `Gemini 4 Argon`, `Gemini 4 Hydrogen`, `Orchestrator`, `Gemini 3.8 Flash`) and `data.groupModels?.claude` (e.g., `Claude Sonnet 4.6`, `Claude Opus 4.6`, `GPT-OSS 120B` vs `5.5`), falling back safely to default labels on legacy cached profiles missing `groupModels`.
    - For the Argon weekly bucket: render independent weekly quota when `argonMode === "separate"`, render mirrored `geminiWeekly` progress + countdown + explicit `"Shared w/ Gemini Pool"` pill alongside Argon/Orchestrator model labels when `sharedPool === true` (eliminating false `INACTIVE` / `Unavailable N/A`), and suppress active badges/cards when `argonMode === "none"`.
 3. **Quota Score & Auto-Switch Eligibility (`getProfileQuotaScore`, `isProfileSchedulable`, `renderAllProfiles`)**:
-   - Prevent double-counting `argonWeekly` against `geminiWeekly` inside `getProfileQuotaScore()` when `argonWeekly?.sharedPool === true`, while preserving `hasArgon === true` so `shared_gemini` accounts still satisfy Argon filters.
+   - Keep `getProfileQuotaScore()`'s existing 4-bucket score formula (`(g5 + c5 + gw + cw) / 4 * 100`) unchanged — `argonWeekly` stays excluded so `shared_gemini` is never double-counted and `separate` profile sorting stays preserved — while preserving `hasArgon === true` and `argonWeekly.unavailable === false` so `shared_gemini` accounts still satisfy `ARGON` filters (`L3100-L3101`) and `isProfileSchedulable()`.
 4. **Profile Info Modal (`openProfileInfoModal`)**:
    - Render grouped `Gemini Models`, `Claude & GPT`, and `Argon / Orchestrator` model lists, `capabilities.badges`, `argonMode`, `modelsFetchedAt`, and `groupDescSig`.
 5. **Browser / DOM Verification Suite (`tests/test_cqra_quota_ui.py`)**:
@@ -52,7 +52,7 @@ Rendering straight from Task 01's additive `ProfileQuotaState` properties (`capa
 ## Impact Analysis & Blast Radius
 
 - **Target Files & Symbols**:
-  - `skills/check-quota/resources/dashboard/quota_dashboard.html`: `getTierBadgeHTML` (L2230-L2244), `getArgonBadgeHTML` (L2254-L2261), `renderDetailModelCard` (L2305-L2366), `renderProfileCard` (L2377-L2756), `getProfileQuotaScore` (L2853-L2869), `renderAllProfiles` (L3026-L3126), `isProfileSchedulable` (L3140-L3145), `openProfileInfoModal` (L4230-L4255)
+  - `skills/check-quota/resources/dashboard/quota_dashboard.html`: `getTierBadgeHTML` (L2252-L2266), `getArgonBadgeHTML` (L2276-L2283), `renderDetailModelCard` (L2327-L2388), `renderProfileCard` (L2399-L2778), `getProfileQuotaScore` (L2875-L2891), `renderAllProfiles` (L3048-L3148), `isProfileSchedulable` (L3162-L3166), `openProfileInfoModal` (L4252-L4277)
   - `tests/test_cqra_quota_ui.py`: new UI DOM + headless Chrome CDP test suite
 - **Downstream Callers**: Task 05, `tests/test_rsdh_quota_modal_stack.py`, `scripts/agy_quota.py` HTTP dashboard HTML embed.
 - **Cross-Platform Bridges**: Consumes `ProfileQuotaState` JSON schema defined in `scripts/types/quota_dashboard.types.ts`.
@@ -76,10 +76,11 @@ When `renderProfileCard()` and `getProfileQuotaScore()` run against both profile
 Then the legacy profile renders fallback group headers without throwing a `TypeError` or blank DOM node
 And `"free_acct"` does not display an active Argon badge or `"Shared w/ Gemini Pool"` indicator
 
-Scenario: [CQRA-AR-02] [Tier A - Unit] Frontend quota score avoids double-counting shared_gemini Argon bucket while preserving Argon filter match
-Given profile data in `quota_dashboard.html` for `"nguyenhieu000690"` (`geminiWeekly.remainingFraction = 0.80`, `argonWeekly.remainingFraction = 0.80`, `argonWeekly.sharedPool = true`, `hasArgon = true`) alongside an identical `separate` profile where `argonWeekly.remainingFraction = 0.20` and `argonWeekly.sharedPool = false`
-When `getProfileQuotaScore()` and the `argon` filter predicate evaluate both profiles
-Then `"nguyenhieu000690"` matches the `argon` filter predicate without counting the shared `0.80` pool twice in aggregate weighted quota score, while the `separate` profile weights its independent `0.20` Argon pool separately
+Scenario: [CQRA-AR-02] [Tier A - Unit] Frontend quota score keeps Argon excluded with equal scores for shared_gemini and separate profiles while preserving Argon filter match
+Given profile data in `quota_dashboard.html` for `"nguyenhieu000690"` (`gemini5h.fraction = 0.80`, `claude5h.fraction = 0.80`, `geminiWeekly.fraction = 0.80`, `claudeWeekly.fraction = 0.80`, `argonWeekly.fraction = 0.80`, `argonWeekly.sharedPool = true`, `argonWeekly.unavailable = false`, `hasArgon = true`) alongside a `separate` profile with identical 5h/weekly Gemini and Claude fractions (`0.80`) where `argonWeekly.fraction = 0.20`, `argonWeekly.sharedPool = false`, `argonWeekly.unavailable = false`, and `hasArgon = true`
+When `getProfileQuotaScore()` and the `ARGON` filter predicate evaluate both profiles
+Then `getProfileQuotaScore()` returns the same score (`80.0`) for both `"nguyenhieu000690"` and the `separate` profile (existing 4-bucket formula unchanged; Argon stays excluded and never double-counted)
+And both profiles match the `ARGON` filter predicate via `hasArgon` and active `argonWeekly`
 ```
 
 ## Verification
@@ -104,6 +105,7 @@ Then `"nguyenhieu000690"` matches the `argon` filter predicate without counting 
 
 ## Decisions Already Made
 
+- `getProfileQuotaScore()` (`L2875-L2891`) keeps its existing `(g5 + c5 + gw + cw) / 4 * 100` formula unchanged with `argonWeekly` excluded (avoiding double-counting `shared_gemini` while preserving sorting on `separate` profiles).
 - All dynamic strings rendered inside profile cards, badges, and `#profile-info-modal` must escape HTML safely and preserve existing DOM hooks relied upon by `tests/test_rsdh_quota_modal_stack.py`.
 - Cross-profile pool links are never computed or displayed; each card renders exclusively from its own `PROFILES_DATA[profile]` entry.
 - Zero console errors (`console.error` / uncaught `pageerror`) must occur under headless Chrome CDP loading.

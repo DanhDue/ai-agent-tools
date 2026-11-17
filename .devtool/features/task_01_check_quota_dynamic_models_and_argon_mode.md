@@ -28,16 +28,16 @@ Implement dynamic per-profile model discovery, capability derivation, shared-poo
    - Enforce Hybrid + Cache policy: skip `agy models` entirely for `AUTH NEEDED` or `DISABLED` profiles; invoke `agy models` on single-profile queries (`check-quota <profile>`, `refresh`, `/api/refresh`, `execute_ping_profile()`) and during batch scans (`all`, `/api/refresh-all`) only when cache is missing, `modelsFetchedAt` > 24 hours old, or `groupDescSig` changed.
 2. **`argonMode`, Shared-Pool Mirror & Strict Per-Profile Isolation**:
    - Classify `argonMode` into `"separate"` (dedicated Argon `/usage` group), `"shared_gemini"` (no dedicated Argon group, yet `"argon"` exists in Gemini `description` or `modelCatalog`), or `"none"`.
-   - When `argonMode == "shared_gemini"`, populate `argonWeekly` by mirroring `geminiWeekly` (`remainingPct`, `usedPct`, `remainingStr`, `resetTime`, `resetStr`, `status`, `available`) with `sharedPool: True` and `mode: "shared_gemini"`. Set `hasArgon = (argonMode != "none")`.
-   - Derive `capabilities`: `{tier, hasCarbon, hasArgon, argonMode, hasOrchestrator, badges}` (`ULTRA`, `PRO`, `FREE`, `DEV`, `Carbon`, `Argon`, `Orchestrator`).
-   - Suppress standalone `Argon 7D` ping inside `execute_ping_profile()` unless `argonMode == "separate"` and the dedicated Argon bucket is inactive.
+   - When `argonMode == "shared_gemini"`, populate `argonWeekly` by mirroring `geminiWeekly`'s emitted runtime keys (`fraction`, `countdown`, `resetTime`, `resetTimeLocal`, `unavailable`) with `sharedPool: True` and `mode: "shared_gemini"`. Set `hasArgon = (argonMode != "none")`.
+   - Derive `capabilities`: `{tier, hasCarbon, hasArgon, argonMode, hasOrchestrator, badges}` (`ULTRA`, `PRO`, `FREE`, `DEV`, `Carbon`, `Argon`, `Orchestrator`). Keep top-level `tier` strictly `"PRO"` / `"FREE"` (or `"DEV"`) so `execute_ping_profile()` (`tier == "PRO"` / `"FREE"`) continues operating safely while `capabilities.tier` carries `"ULTRA"` when applicable.
+   - Gate standalone Argon pings/probes across BOTH live and cached-fallback paths — `execute_ping_profile()` (including cached branch `L2908-L2920`) and `probe_blocked_profile()` (`L666-L820`) — on `argonMode == "separate"` (or legacy cache lacking `capabilities.argonMode` with `sharedPool != True` and `hasArgon and not unavailable`).
    - **Strict Per-Profile Isolation**: Never invoke or merge pools via `retrieveUserQuotaSummary`; every profile retains completely independent payloads and output entries.
 3. **CLI Views & `refresh` Cache Persistence**:
    - Update `print_dashboard_cards()` and `print_all_summary()` to display dynamic group model lists and `(Shared Gemini)` mirrored quota percentages/resets for `shared_gemini` profiles.
    - Update `main()`'s `refresh` CLI branch to persist merged quota + model metadata via `update_cached_profile()`.
    - Tolerate missing/null `/usage` group descriptions or `agy models` timeouts without crashing `fetch_quota_for_profile()`.
 4. **TypeScript Schema (`scripts/types/quota_dashboard.types.ts`)**:
-   - Export `ArgonMode`, `ModelCatalogEntry`, `ProfileCapabilities`, and additive optional properties (`sharedPool?`, `mode?`, `models?`, `availableModels?`, `modelCatalog?`, `groupModels?`, `capabilities?`, `modelsFetchedAt?`, `groupDescSig?`).
+   - Export `ArgonMode`, `ModelCatalogEntry`, `ProfileCapabilities`; align `QuotaBucket` with the emitted dashboard bucket fields (`name`, `fraction`, `countdown`, `resetTime`, `resetTimeLocal?`, `unavailable`, `tags?`, `sharedPool?: boolean`, `mode?: ArgonMode`, keeping `id?`, `window?`, `remainingFraction?`, `description?`, `isAvailable?` optional for backward compatibility); and add additive optional properties (`models?`, `availableModels?`, `modelCatalog?`, `groupModels?`, `capabilities?`, `modelsFetchedAt?`, `groupDescSig?`) on `QuotaGroup` and `ProfileQuotaState`.
 5. **Unit & CLI Integration Suite (`tests/test_cqra_quota_discovery.py`)**:
    - Cover scenarios `CQRA-HP-01`, `CQRA-HP-02`, `CQRA-EC-01`, `CQRA-ST-01`, `CQRA-AR-01`, and `CQRA-FR-01`.
 
@@ -59,7 +59,7 @@ Centralizing Hybrid + Cache discovery, `argonMode` classification, and Shared-Po
 ## Impact Analysis & Blast Radius
 
 - **Target Files & Symbols**:
-  - `scripts/agy_quota.py`: `parse_agy_models_output` (L116-L126), `fetch_quota_for_profile` (L883-L969), `parse_quota_items` (L971-L1021), `print_dashboard_cards` (L1024-L1102), `print_all_summary` (L1117-L1169), `load_cached_profiles` (L2456-L2519), `update_cached_profile` (L2520-L2553), `format_profile_for_dashboard` (L2554-L2735), `execute_ping_profile` (L2737-L3079), `_discover_profile_models` (L3105-L3120), `main` (L3983-L4227), new `parse_usage_group_models`, new `parse_agy_models_catalog`, new `classify_argon_mode`
+  - `scripts/agy_quota.py`: `parse_agy_models_output` (L116-L126), `probe_blocked_profile` (L666-L820), `fetch_quota_for_profile` (L883-L968), `parse_quota_items` (L971-L1021), `print_dashboard_cards` (L1024-L1101), `print_all_summary` (L1117-L1169), `get_dashboard_html_path` (L1172-L1182), `load_cached_profiles` (L2456-L2517), `update_cached_profile` (L2520-L2551), `format_profile_for_dashboard` (L2554-L2734), `execute_ping_profile` (L2737-L3079; cached branch L2908-L2920), `_discover_profile_models` (L3105-L3120), `main` (L3983-L4223), new `parse_usage_group_models`, new `parse_agy_models_catalog`, new `classify_argon_mode`
   - `scripts/types/quota_dashboard.types.ts`: `QuotaBucket` (L16-L24), `QuotaGroup` (L26-L30), `ProfileQuotaState` (L58-L71), new `ArgonMode`, new `ModelCatalogEntry`, new `ProfileCapabilities`
   - `tests/test_cqra_quota_discovery.py`: new unit and CLI test suite
 - **Downstream Callers**: Task 04 (`quota_dashboard.html`), `tests/test_agy_quota.py`, `tests/test_claude_quota.py`, `tests/test_kiro_quota.py`.
@@ -75,14 +75,14 @@ Scenario: [CQRA-HP-01] [Tier A - Unit] Ultra shared-pool profile discovers dynam
 Given an authenticated profile "nguyenhieu000690" where `/usage` returns two quota groups `"Gemini Models"` (description `"Gemini 4 Carbon, Gemini 4 Argon, Gemini 4 Hydrogen, Orchestrator (Carbon), Orchestrator (Argon), Gemini 3.8 Flash"`, 85% remaining, reset `"2026-11-24T00:00:00Z"`) and `"Claude and GPT models"` (description `"Claude Sonnet 4.6, Claude Opus 4.6, GPT-OSS 120B"`, 90% remaining) with no dedicated Argon group, and `agy models` returns 18 IDs including `gemini-4-carbon-high`, `gemini-4-argon-high`, `gemini-pro-orchestrator`, and `gemini-pro-orchestrator-argon`
 When `fetch_quota_for_profile("nguyenhieu000690")` and `format_profile_for_dashboard("nguyenhieu000690", result)` execute
 Then `groupModels["gemini"]` equals `["Gemini 4 Carbon", "Gemini 4 Argon", "Gemini 4 Hydrogen", "Orchestrator (Carbon)", "Orchestrator (Argon)", "Gemini 3.8 Flash"]` and `groupModels["claude"]` equals `["Claude Sonnet 4.6", "Claude Opus 4.6", "GPT-OSS 120B"]`
-And `capabilities["argonMode"]` equals `"shared_gemini"`, `capabilities["badges"]` includes `"Carbon"`, `"Argon"`, and `"Orchestrator"`, and `hasArgon` is `True`
-And `argonWeekly["sharedPool"]` is `True`, `argonWeekly["mode"]` equals `"shared_gemini"`, and `argonWeekly["remainingFraction"]` equals `0.85` with resetTime `"2026-11-24T00:00:00Z"`
+And `capabilities["argonMode"]` equals `"shared_gemini"`, `capabilities["tier"]` equals `"ULTRA"`, `capabilities["badges"]` includes `"ULTRA"`, `"Carbon"`, `"Argon"`, and `"Orchestrator"`, top-level `tier` equals `"PRO"`, and `hasArgon` is `True`
+And `argonWeekly["sharedPool"]` is `True`, `argonWeekly["mode"]` equals `"shared_gemini"`, and `argonWeekly["fraction"]` equals `0.85` with resetTime `"2026-11-24T00:00:00Z"`
 
 Scenario: [CQRA-HP-02] [Tier A - Unit] Pro separate-Argon profile merges agy models catalog with /usage descriptions and preserves Claude 5.5 labels
 Given an authenticated profile "danhdue" where `/usage` returns three quota groups `"Gemini Models"` (description `"Gemini 4 Hydrogen, Gemini 3.8 Flash"`, 100% remaining), `"Claude and GPT models"` (description `"Claude Opus 5.5, Claude Sonnet 5.5, GPT-OSS 120B"`, 80% remaining), and `"Gemini 4 Argon"` (`gemini-argon-wtu-weekly`, 45% remaining), and `agy models` additionally includes `gemini-pro-orchestrator-g1-pro`
 When `fetch_quota_for_profile("danhdue")` and `format_profile_for_dashboard("danhdue", result)` execute
-Then `capabilities["argonMode"]` equals `"separate"`, `capabilities["hasOrchestrator"]` is `True`, and `groupModels["claude"]` contains `"Claude Opus 5.5"`, `"Claude Sonnet 5.5"`, and `"GPT-OSS 120B"`
-And `argonWeekly["sharedPool"]` is `False`, `argonWeekly["mode"]` equals `"separate"`, `argonWeekly["remainingFraction"]` equals `0.45`, and `modelCatalog` includes the reconciled `gemini-pro-orchestrator-g1-pro` entry
+Then `capabilities["argonMode"]` equals `"separate"`, `capabilities["tier"]` equals `"PRO"`, `capabilities["hasOrchestrator"]` is `True`, top-level `tier` equals `"PRO"`, and `groupModels["claude"]` contains `"Claude Opus 5.5"`, `"Claude Sonnet 5.5"`, and `"GPT-OSS 120B"`
+And `argonWeekly["sharedPool"]` is `False`, `argonWeekly["mode"]` equals `"separate"`, `argonWeekly["fraction"]` equals `0.45`, and `modelCatalog` includes the reconciled `gemini-pro-orchestrator-g1-pro` entry
 
 Scenario: [CQRA-EC-01] [Tier A - Unit] Auth-needed and disabled profiles never invoke agy models subprocesses
 Given profiles `"broken_auth"` with `AUTH NEEDED` status and `"banned_acct"` with `DISABLED` status, where `"banned_acct"` has a previously cached `availableModels` list `["gemini-4-hydrogen-high"]`
@@ -91,9 +91,9 @@ Then subprocess runner mocks receive zero calls invoking `agy models` for `"brok
 And `"banned_acct"` retains its cached `availableModels` without clearing existing metadata
 
 Scenario: [CQRA-ST-01] [Tier A - Unit] Hybrid cache refreshes agy models on miss, signature change, 24h expiry, and single-profile refresh while skipping warm batch hits
-Given an authenticated `"shared_gemini"` profile cached 2 hours ago with matching `groupDescSig`
+Given an authenticated `"shared_gemini"` profile cached 2 hours ago with matching `groupDescSig` inside a `tmp_path`-isolated cache HTML (never mutating repo-tracked or host home files)
 When batch scan (`all`) runs once with unchanged `/usage` descriptions, then runs again after `/usage` `description` changes `groupDescSig`, then runs a third time after `modelsFetchedAt` ages past 24 hours, followed by single-profile `refresh` CLI command
-Then batch run 1 invokes `agy models` 0 times, batch run 2 invokes `agy models` 1 time and updates `groupDescSig`, batch run 3 invokes `agy models` 1 time and refreshes `modelsFetchedAt`, and single-profile `refresh` invokes `agy models` 1 time and persists updated data via `update_cached_profile()`
+Then batch run 1 invokes `agy models` 0 times, batch run 2 invokes `agy models` 1 time and updates `groupDescSig`, batch run 3 invokes `agy models` 1 time and refreshes `modelsFetchedAt`, and single-profile `refresh` invokes `agy models` 1 time and persists updated data via `update_cached_profile()` into the isolated `tmp_path` target
 
 Scenario: [CQRA-AR-01] [Tier A - Unit] Strictly independent per-profile quota isolation, ping suppression, and CLI table formatting
 Given two Ultra profiles `"hoangcongtam690"` and `"nguyenhieu000690"` whose mocked `/usage` timestamps match, without invoking `retrieveUserQuotaSummary`
@@ -131,7 +131,11 @@ Then `fetch_quota_for_profile()` returns `available` quota buckets with empty/ca
 
 - Hybrid + Cache TTL is fixed at `24 hours` (`86400s`), keyed by `modelsFetchedAt` (ISO-8601 UTC) and `groupDescSig` (SHA-256 hex digest prefix of normalized `(groupName, description)` pairs).
 - Single-profile refresh paths (`check-quota <profile>`, `refresh`, `/api/refresh`, `execute_ping_profile()`) refresh `agy models` whenever authenticated & enabled; batch scans (`all`, `/api/refresh-all`) skip `agy models` on warm matching signatures within 24h; `AUTH NEEDED` / `DISABLED` profiles never invoke `agy models`.
-- `argonMode` values are strictly `"separate" | "shared_gemini" | "none"`. `hasArgon = (argonMode != "none")`. When `argonMode == "shared_gemini"`, `argonWeekly` mirrors `geminiWeekly` with `sharedPool: True`, `mode: "shared_gemini"`.
+- `argonMode` values are strictly `"separate" | "shared_gemini" | "none"`. `hasArgon = (argonMode != "none")`. When `argonMode == "shared_gemini"`, `argonWeekly` mirrors `geminiWeekly`'s emitted keys (`fraction`, `countdown`, `resetTime`, `resetTimeLocal`, `unavailable`) with `sharedPool: True`, `mode: "shared_gemini"`.
+- `QuotaBucket` in `scripts/types/quota_dashboard.types.ts` aligns with the runtime emitted shape (`name`, `fraction`, `countdown`, `resetTime`, `resetTimeLocal?`, `unavailable`, `tags?`, `sharedPool?: boolean`, `mode?: ArgonMode`) while keeping legacy fields (`id?`, `window?`, `remainingFraction?`, `description?`, `isAvailable?`) optional for backward compatibility.
+- `ULTRA` tier derivation: `capabilities.tier` resolves to `"FREE"` when top-level `tier == "FREE"`, `"ULTRA"` when `/usage` `plan_name` contains `"ULTRA"` OR (top-level `tier != "FREE"` AND no dedicated Argon group exists AND a Carbon model is present in `groupModels`/`modelCatalog`), `"DEV"` when `DEV`, else `"PRO"`. Top-level `tier` stays strictly `"PRO"` / `"FREE"` (or `"DEV"`) so `execute_ping_profile()` (`tier == "PRO"` / `"FREE"`) continues operating safely.
+- Every cached-fallback Argon path (`probe_blocked_profile` `L666-L820`, `execute_ping_profile` cached branch `L2908-L2920`) gates Argon probes/pings on `capabilities.argonMode == "separate"` (or, for legacy caches lacking `capabilities.argonMode`, when `argonWeekly.sharedPool != True` and `hasArgon and not argonWeekly.unavailable`).
+- Test isolation for cache persistence (`CQRA-ST-01` and `refresh`): tests MUST patch `update_cached_profile` (or patch `get_dashboard_html_path` and `sync_copies` / `REAL_HOME` / `Path.home` to `tmp_path`), asserting the mock or `tmp_path` file and NEVER mutating repo-tracked `quota_dashboard.html` or `~/antigravity_homes/`.
 - Cross-profile pool aggregation via `retrieveUserQuotaSummary` is strictly prohibited.
 - `parse_agy_models_output(stdout: str) -> list[str]` preserves its existing return type and contract for downstream callers.
 

@@ -20,14 +20,14 @@ Scenario: [CQRA-HP-01] [Tier A - Unit] Ultra shared-pool profile discovers dynam
 Given an authenticated profile "nguyenhieu000690" where `/usage` returns two quota groups `"Gemini Models"` (description `"Gemini 4 Carbon, Gemini 4 Argon, Gemini 4 Hydrogen, Orchestrator (Carbon), Orchestrator (Argon), Gemini 3.8 Flash"`, 85% remaining, reset `"2026-11-24T00:00:00Z"`) and `"Claude and GPT models"` (description `"Claude Sonnet 4.6, Claude Opus 4.6, GPT-OSS 120B"`, 90% remaining) with no dedicated Argon group, and `agy models` returns 18 IDs including `gemini-4-carbon-high`, `gemini-4-argon-high`, `gemini-pro-orchestrator`, and `gemini-pro-orchestrator-argon`
 When `fetch_quota_for_profile("nguyenhieu000690")` and `format_profile_for_dashboard("nguyenhieu000690", result)` execute
 Then `groupModels["gemini"]` equals `["Gemini 4 Carbon", "Gemini 4 Argon", "Gemini 4 Hydrogen", "Orchestrator (Carbon)", "Orchestrator (Argon)", "Gemini 3.8 Flash"]` and `groupModels["claude"]` equals `["Claude Sonnet 4.6", "Claude Opus 4.6", "GPT-OSS 120B"]`
-And `capabilities["argonMode"]` equals `"shared_gemini"`, `capabilities["badges"]` includes `"Carbon"`, `"Argon"`, and `"Orchestrator"`, and `hasArgon` is `True`
-And `argonWeekly["sharedPool"]` is `True`, `argonWeekly["mode"]` equals `"shared_gemini"`, and `argonWeekly["remainingFraction"]` equals `0.85` with resetTime `"2026-11-24T00:00:00Z"`
+And `capabilities["argonMode"]` equals `"shared_gemini"`, `capabilities["tier"]` equals `"ULTRA"`, `capabilities["badges"]` includes `"ULTRA"`, `"Carbon"`, `"Argon"`, and `"Orchestrator"`, top-level `tier` equals `"PRO"`, and `hasArgon` is `True`
+And `argonWeekly["sharedPool"]` is `True`, `argonWeekly["mode"]` equals `"shared_gemini"`, and `argonWeekly["fraction"]` equals `0.85` with resetTime `"2026-11-24T00:00:00Z"`
 
 Scenario: [CQRA-HP-02] [Tier A - Unit] Pro separate-Argon profile merges agy models catalog with /usage descriptions and preserves Claude 5.5 labels
 Given an authenticated profile "danhdue" where `/usage` returns three quota groups `"Gemini Models"` (description `"Gemini 4 Hydrogen, Gemini 3.8 Flash"`, 100% remaining), `"Claude and GPT models"` (description `"Claude Opus 5.5, Claude Sonnet 5.5, GPT-OSS 120B"`, 80% remaining), and `"Gemini 4 Argon"` (`gemini-argon-wtu-weekly`, 45% remaining), and `agy models` additionally includes `gemini-pro-orchestrator-g1-pro`
 When `fetch_quota_for_profile("danhdue")` and `format_profile_for_dashboard("danhdue", result)` execute
-Then `capabilities["argonMode"]` equals `"separate"`, `capabilities["hasOrchestrator"]` is `True`, and `groupModels["claude"]` contains `"Claude Opus 5.5"`, `"Claude Sonnet 5.5"`, and `"GPT-OSS 120B"`
-And `argonWeekly["sharedPool"]` is `False`, `argonWeekly["mode"]` equals `"separate"`, `argonWeekly["remainingFraction"]` equals `0.45`, and `modelCatalog` includes the reconciled `gemini-pro-orchestrator-g1-pro` entry
+Then `capabilities["argonMode"]` equals `"separate"`, `capabilities["tier"]` equals `"PRO"`, `capabilities["hasOrchestrator"]` is `True`, top-level `tier` equals `"PRO"`, and `groupModels["claude"]` contains `"Claude Opus 5.5"`, `"Claude Sonnet 5.5"`, and `"GPT-OSS 120B"`
+And `argonWeekly["sharedPool"]` is `False`, `argonWeekly["mode"]` equals `"separate"`, `argonWeekly["fraction"]` equals `0.45`, and `modelCatalog` includes the reconciled `gemini-pro-orchestrator-g1-pro` entry
 
 Scenario: [CQRA-HP-03] [Tier C - Integration] Quota dashboard Web UI renders dynamic badges, per-group rosters, and Shared Gemini Pool row without INACTIVE errors
 Given an HTTP server serving `skills/check-quota/resources/dashboard/quota_dashboard.html` injected with formatted `shared_gemini` ("nguyenhieu000690") and `separate` ("danhdue") profiles
@@ -36,16 +36,16 @@ Then the card header displays dynamic badges matching `capabilities["badges"]` (
 And the Argon row inside "nguyenhieu000690" renders `"Shared w/ Gemini Pool"` alongside `85%` instead of `"INACTIVE"` or `"Unavailable N/A"`
 And `#profile-info-modal` displays the full dynamic model lists for `Gemini Models`, `Claude & GPT`, and `Argon / Orchestrator`
 
-Scenario: [CQRA-HP-04] [Tier A - Unit] Review prompts mandate Proposed suffix while run_external_review preserves 5-column tables and pre-fills triage actions
+Scenario: [CQRA-HP-04] [Tier A - Unit] Review prompts mandate Proposed suffix while run_external_review preserves 5-column tables and pre-fills triage stdout
 Given `skills/dev-implementation/references/external-review-prompt.md` and `skills/dev-implementation/references/local-review-prompt.md` alongside raw reviewer output containing `- [Important] scripts/app.py:42 — Stale cache key omits round id. Proposed: include round_num in cache key`
-When `run_external_review.py` renders `review_results.md` via `render_round()`, validates it via `check()`, and generates `fix_plan_round1.md` via `triage()` plus `top_risk_findings_section()`
-Then every row in `review_results.md` contains strictly 5 pipe-delimited columns passing `check()` with exit code `0`
-And both `top_risk_findings_section()` output and generated `fix_plan_round1.md` pre-fill `Proposed action: include round_num in cache key` instead of `?`
+When `run_external_review.py` renders `review_results.md` via `render_round()`, validates it via `check()`, and prints triage tables via `top_risk_findings_section()` and `triage()` stdout
+Then every row in `review_results.md` contains strictly 5 pipe-delimited columns (`| # | Severity | Location | Problem | Decision |`) passing `check()` with exit code `0`
+And both `top_risk_findings_section()` output and the 7-column `## Findings` table printed by `triage()` to stdout pre-fill `include round_num in cache key` in the `Proposed action` column instead of `?`
 
 Scenario: [CQRA-HP-05] [Tier C - Integration] Cross-Model Review parser and tasks_dashboard.html populate PROPOSED ACTION from inline prefixes, 6-col tables, and fix_plan_roundN fallback
-Given a running `TasksServer` over a temporary repository containing epic `"duet_harmonize"` with Round 1 5-column `review_results.md` lacking inline `Proposed:` text paired with `fix_plan_round1.md` (`Summary Matrix` Action `"Align sidecar priority"` and `### Finding #1` `- **Proposed Action (Adjusted):** Enforce script > doc > sidecar precedence in ingest`), plus Round 2 containing `- [Minor] src/a.py:10 — Missing guard. Proposed: add early return`
-When `GET /api/epic/history?repo=demo&epic=duet_harmonize&round_cross=1` is fetched and rendered in `tasks_dashboard.html` under headless Chrome
-Then finding `#1` in Round 1 carries `"Enforce script > doc > sidecar precedence in ingest"` in `proposed_action` and renders that text in the `PROPOSED ACTION` cell of the Cross-Model Review table with zero `"—"` placeholder
+Given a running `TasksServer` over a temporary repository containing epic `"duet_harmonize"` with Round 1 5-column `review_results.md` lacking inline `Proposed:` text paired with `fix_plan_round1.md` (`Summary Matrix` Action `"Align sidecar priority"` and `### Finding #1` `- **Proposed Action (Adjusted):** Enforce script > doc > sidecar precedence in ingest`), plus Round 2 containing table row `| 1 | Minor | src/a.py:10 | Missing guard. Proposed: add early return |  |`
+When `GET /api/epic/history?repo=demo&epic=duet_harmonize&round_cross=1` and `round_cross=2` are fetched and rendered in `tasks_dashboard.html` under headless Chrome
+Then finding `#1` in Round 1 carries `"Enforce script > doc > sidecar precedence in ingest"` in `proposed_action`, finding `#1` in Round 2 carries `"add early return"` in `proposed_action`, and both render in the `PROPOSED ACTION` cell of the Cross-Model Review table with zero `"—"` placeholder
 And zero uncaught JavaScript console errors occur during modal and tab transitions
 ```
 
@@ -64,24 +64,24 @@ When `renderProfileCard()` and `getProfileQuotaScore()` run against both profile
 Then the legacy profile renders fallback group headers without throwing a `TypeError` or blank DOM node
 And `"free_acct"` does not display an active Argon badge or `"Shared w/ Gemini Pool"` indicator
 
-Scenario: [CQRA-EC-03] [Tier A - Unit] Multi-prefix Problem extraction preserves problem text with colons and leaves empty action only when all sources omit proposals
-Given a 5-column `review_results.md` row whose `Problem` cell ends with `; Suggestion: cache mtime per round file` and a 6-column table row having explicit `Proposed Action` column `"Use bounded helper"`, alongside a third row having `Flag edge case: null id` with no matching entry in `fix_plan_round1.md`
-When `parse_review_results()` parses all three rows
-Then Row 1 sets `proposed_action == "cache mtime per round file"` and `problem` excludes the `Suggestion:` tail, Row 2 preserves `proposed_action == "Use bounded helper"` separately from `decision`, and Row 3 yields `proposed_action == ""` while retaining `"Flag edge case: null id"` intact
+Scenario: [CQRA-EC-03] [Tier A - Unit] Multi-prefix Problem extraction preserves problem text with colons, reads best-effort fix_plan variants, and leaves empty action only when all sources omit proposals
+Given a Round 1 `review_results.md` with Row 1 (`5-column`, `Problem` ending with `; Suggestion: cache mtime per round file`), Row 2 (`6-column` with explicit `Proposed Action` column `"Use bounded helper"`), Row 3 (`Flag edge case: null id` with no matching entry in `fix_plan_round1.md`), and Row 4 (`| 4 | Important | src/b.py:20 | Stale table |  |`) matched by `### Fix 1 [Important #4]` (`- **Action:** normalize header map`) in `fix_plan_round1.md`
+When `parse_review_results()` parses all four rows
+Then Row 1 sets `proposed_action == "cache mtime per round file"` and `problem` excludes the `Suggestion:` tail, Row 2 preserves `proposed_action == "Use bounded helper"` separately from `decision`, Row 3 yields `proposed_action == ""` while retaining `"Flag edge case: null id"` intact, and Row 4 yields `proposed_action == "normalize header map"`
 
 Scenario: [CQRA-EC-04] [Tier A - Unit] External review triage falls back to question mark only for findings omitting Proposed suffix
 Given two parsed findings in one review round where Finding #1 includes `. Proposed: clamp negative fraction` in its Problem cell and Finding #2 omits any `. Proposed:` suffix
-When `triage()` generates the initial fix plan entries for the round
-Then Finding #1 pre-fills `Proposed action: clamp negative fraction` while Finding #2 sets `Proposed action: ?`
+When `triage()` prints the round's triage skeleton to stdout
+Then Finding #1 pre-fills `clamp negative fraction` in the `Proposed action` column while Finding #2 emits `?` in the `Proposed action` column
 ```
 
 ## Dimension 3 State Transitions
 
 ```gherkin
 Scenario: [CQRA-ST-01] [Tier A - Unit] Hybrid cache refreshes agy models on miss, signature change, 24h expiry, and single-profile refresh while skipping warm batch hits
-Given an authenticated `"shared_gemini"` profile cached 2 hours ago with matching `groupDescSig`
+Given an authenticated `"shared_gemini"` profile cached 2 hours ago with matching `groupDescSig` inside a `tmp_path`-isolated cache HTML (never mutating repo-tracked or host home files)
 When batch scan (`all`) runs once with unchanged `/usage` descriptions, then runs again after `/usage` `description` changes `groupDescSig`, then runs a third time after `modelsFetchedAt` ages past 24 hours, followed by single-profile `refresh` CLI command
-Then batch run 1 invokes `agy models` 0 times, batch run 2 invokes `agy models` 1 time and updates `groupDescSig`, batch run 3 invokes `agy models` 1 time and refreshes `modelsFetchedAt`, and single-profile `refresh` invokes `agy models` 1 time and persists updated data via `update_cached_profile()`
+Then batch run 1 invokes `agy models` 0 times, batch run 2 invokes `agy models` 1 time and updates `groupDescSig`, batch run 3 invokes `agy models` 1 time and refreshes `modelsFetchedAt`, and single-profile `refresh` invokes `agy models` 1 time and persists updated data via `update_cached_profile()` into the isolated `tmp_path` target
 
 Scenario: [CQRA-ST-02] [Tier A - Unit] Refresh-session ping suppresses Argon 7D ping on shared_gemini while preserving ping on inactive separate Argon
 Given `refresh_session.py` inspecting two authenticated accounts after `/usage`: `"ultra_shared"` (`argonMode == "shared_gemini"` with active `"Gemini Models"` bucket) and `"pro_sep"` (`argonMode == "separate"` with inactive dedicated `"Gemini 4 Argon"` bucket)
@@ -89,10 +89,10 @@ When `ping_profile()` evaluates ping candidates for both profiles with mocked is
 Then `"ultra_shared"` triggers 0 `Argon 7D` model pings and records no spurious Argon failure
 And `"pro_sep"` dispatches exactly 1 `Argon 7D` ping against `"gemini-argon"` candidate
 
-Scenario: [CQRA-ST-03] [Tier A - Unit] Modifying fix_plan_roundN.md invalidates tasks_server review parse cache immediately via watch_paths
-Given `parse_review_results(repo_dir, active_epic="demo_epic")` has cached a Round 1 result in `_REVIEW_PARSE_CACHE` where Finding #1 has `proposed_action == "Initial fix"`
-When `.devtool/epic/demo_epic/fix_plan_round1.md` is edited on disk (with updated content and distinct mtime) to `"Updated fix action"` and `parse_review_results(repo_dir, active_epic="demo_epic")` is called again
-Then `_REVIEW_PARSE_CACHE` detects the `watch_paths` signature delta and returns Finding #1 with `proposed_action == "Updated fix action"`
+Scenario: [CQRA-ST-03] [Tier A - Unit] Creating or modifying fix_plan_roundN.md invalidates tasks_server review parse cache immediately via watch_paths
+Given `parse_review_results(repo_dir, active_epic="demo_epic")` has cached a Round 1 result in `_REVIEW_PARSE_CACHE` where `fix_plan_round1.md` does not yet exist on disk and Finding #1 has `proposed_action == ""`
+When `.devtool/epic/demo_epic/fix_plan_round1.md` is created on disk with Finding #1 action `"Initial fix"` and `parse_review_results(repo_dir, active_epic="demo_epic")` is called, and then `fix_plan_round1.md` is edited on disk (with updated content and distinct mtime) to `"Updated fix action"` and called again
+Then `_REVIEW_PARSE_CACHE` detects the `watch_paths` signature delta on both creation and modification, returning Finding #1 with `"Initial fix"` first and `"Updated fix action"` after edit
 ```
 
 ## Dimension 4 Architecture and Concurrency
@@ -104,10 +104,11 @@ When `fetch_quota_for_profile()`, `execute_ping_profile()`, `print_dashboard_car
 Then neither `fetch_quota_for_profile()` nor `format_profile_for_dashboard()` calls `retrieveUserQuotaSummary` or emits any cross-profile pool linkage field
 And `execute_ping_profile()` suppresses standalone `Argon 7D` pings for both `shared_gemini` profiles while `print_all_summary()` prints `(Shared Gemini)` and mirrored percentages per profile independently
 
-Scenario: [CQRA-AR-02] [Tier A - Unit] Frontend quota score avoids double-counting shared_gemini Argon bucket while preserving Argon filter match
-Given profile data in `quota_dashboard.html` for `"nguyenhieu000690"` (`geminiWeekly.remainingFraction = 0.80`, `argonWeekly.remainingFraction = 0.80`, `argonWeekly.sharedPool = true`, `hasArgon = true`) alongside an identical `separate` profile where `argonWeekly.remainingFraction = 0.20` and `argonWeekly.sharedPool = false`
-When `getProfileQuotaScore()` and the `argon` filter predicate evaluate both profiles
-Then `"nguyenhieu000690"` matches the `argon` filter predicate without counting the shared `0.80` pool twice in aggregate weighted quota score, while the `separate` profile weights its independent `0.20` Argon pool separately
+Scenario: [CQRA-AR-02] [Tier A - Unit] Frontend quota score keeps Argon excluded with equal scores for shared_gemini and separate profiles while preserving Argon filter match
+Given profile data in `quota_dashboard.html` for `"nguyenhieu000690"` (`gemini5h.fraction = 0.80`, `claude5h.fraction = 0.80`, `geminiWeekly.fraction = 0.80`, `claudeWeekly.fraction = 0.80`, `argonWeekly.fraction = 0.80`, `argonWeekly.sharedPool = true`, `argonWeekly.unavailable = false`, `hasArgon = true`) alongside a `separate` profile with identical 5h/weekly Gemini and Claude fractions (`0.80`) where `argonWeekly.fraction = 0.20`, `argonWeekly.sharedPool = false`, `argonWeekly.unavailable = false`, and `hasArgon = true`
+When `getProfileQuotaScore()` and the `ARGON` filter predicate evaluate both profiles
+Then `getProfileQuotaScore()` returns the same score (`80.0`) for both `"nguyenhieu000690"` and the `separate` profile (existing 4-bucket formula unchanged; Argon stays excluded and never double-counted)
+And both profiles match the `ARGON` filter predicate via `hasArgon` and active `argonWeekly`
 ```
 
 ## Dimension 5 Fault Resilience
@@ -118,10 +119,11 @@ Given a profile whose `/usage` payload contains a group with `description: null`
 When `fetch_quota_for_profile()` runs with fallback cache present
 Then `fetch_quota_for_profile()` returns `available` quota buckets with empty/cached `groupModels` and `argonMode == "none"` (or cached mode) without raising an unhandled exception
 
-Scenario: [CQRA-FR-02] [Tier A - Unit] Corrupted or incomplete usage probe in refresh_session.py degrades safely without firing false Argon pings
-Given a mocked `_probe_profile_usage_and_models()` call returning empty groups (`{}`) and malformed `available_models` strings (`None` / empty output) for profile `"corrupt_probe"`
-When `refresh_session.py` (`check_profile_has_argon()` and `ping_profile()`) executes
-Then `check_profile_has_argon("corrupt_probe")` returns `False` and `ping_profile()` completes cleanly with `0` spurious `Argon 7D` pings and zero unhandled exceptions
+Scenario: [CQRA-FR-02] [Tier A - Unit] Shared-gemini cache fallback and corrupted usage probes degrade safely with zero Argon pings
+Given `_DASHBOARD_HTML_CANDIDATES` patched to a temporary HTML file containing a `shared_gemini` cache entry for `"shared_cached"` (`hasArgon: true`, `capabilities.argonMode: "shared_gemini"`, `argonWeekly: {unavailable: false, sharedPool: true}`) and a missing entry for `"corrupt_probe"`, alongside a mocked `_probe_profile_usage_and_models()` returning empty groups (`{}`) and malformed `available_models` (`None` / empty output)
+When `refresh_session.py` (`check_profile_has_argon()` and `ping_profile()`) executes for both profiles
+Then `check_profile_has_argon("shared_cached")` and `check_profile_has_argon("corrupt_probe")` both return `False`
+And `ping_profile()` completes cleanly with `0` spurious `Argon 7D` pings and zero unhandled exceptions
 
 Scenario: [CQRA-FR-03] [Tier C - Integration] Malformed fix_plan_roundN.md alongside valid review_results.md degrades per-file without breaking TasksServer endpoints
 Given a running `TasksServer` over a temporary epic directory containing valid Round 1 5-column `review_results.md` alongside a truncated/corrupted `fix_plan_round1.md` containing invalid markdown table separators

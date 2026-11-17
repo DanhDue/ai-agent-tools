@@ -22,13 +22,14 @@ Epic: [check_quota_dynamic_models_and_review_action](../epic/check_quota_dynamic
 Update `skills/refresh-session/resources/scripts/refresh_session.py` so `Argon 7D` standalone pings run exclusively for accounts with a separate Argon quota bucket and are suppressed when Argon shares the active `"Gemini Models"` pool (`argonMode == "shared_gemini"`):
 
 1. **Extract Usage Descriptions & Classify `argonMode` (`_extract_usage_buckets`, `check_profile_has_argon`)**:
-   - Extend `_extract_usage_buckets(cmd_data)` (`L1327-L1360`) to inspect each `/usage` group's `description` alongside group names (`has_dedicated_argon_group`, `gemini_group_active`, normalized model tokens).
+   - Extend `_extract_usage_buckets(cmd_data)` (`L1327-L1358`) to inspect each `/usage` group's `description` alongside group names (`has_dedicated_argon_group`, `gemini_group_active`, normalized model tokens).
    - Determine `argonMode` (`"separate"` when a dedicated Argon `/usage` group exists; `"shared_gemini"` when no dedicated Argon group exists yet Argon models/keywords exist in `"Gemini Models"` description or `available_models`; `"none"` otherwise).
-   - Keep `check_profile_has_argon(profile)` (`L1306-L1326`) safely returning `bool` (`True` when Argon exists via either mode, `False` on corrupt/empty probes or `"none"`).
-2. **Ping Suppression Guard in `ping_profile()` (`L1486-L1658`)**:
+   - Update `check_profile_has_argon(profile)` (`L1306-L1324`, reading `_DASHBOARD_HTML_CANDIDATES` `L531`) to return `bool` gated on cached `capabilities.argonMode == "separate"` (or, for legacy caches lacking `capabilities.argonMode`, when `argonWeekly.sharedPool != True` and `hasArgon and not argonWeekly.unavailable`); return `False` for `"shared_gemini"`, `"none"`, or corrupt/missing entries.
+2. **Ping Suppression Guard in `ping_profile()` (`L1486-L1656`)**:
    - Before queuing `_run_isolated_agy_model_ping` for `"Argon 7D"`, verify `argonMode == "separate"` and the dedicated Argon bucket is not already activated (`is_bucket_activated`).
+   - In the non-live fallback (`L1581-L1583`), consult `_DASHBOARD_HTML_CANDIDATES` cached state alongside `check_profile_has_argon()` so `"shared_gemini"` profiles suppress `Argon 7D` pings even when `available_models` includes `"argon"`.
    - When `argonMode == "shared_gemini"` and `"Gemini Models"` is active (or covered by the Gemini ping), skip standalone `Argon 7D` pings cleanly without emitting false Argon failure status.
-   - When `_probe_profile_usage_and_models()` (`L1371-L1425`) yields malformed/empty data (`{}` or `None`), degrade softly without raising unhandled exceptions or firing spurious Argon pings.
+   - When `_probe_profile_usage_and_models()` (`L1371-L1423`) yields malformed/empty data (`{}` or `None`), degrade softly without raising unhandled exceptions or firing spurious Argon pings.
 3. **Unit Suite (`tests/test_cqra_refresh_session_argon.py`)**:
    - Cover scenarios `CQRA-ST-02` and `CQRA-FR-02`.
 
@@ -49,7 +50,7 @@ Aligning `refresh_session.py` with `agy_quota.py`'s `argonMode` distinction prev
 ## Impact Analysis & Blast Radius
 
 - **Target Files & Symbols**:
-  - `skills/refresh-session/resources/scripts/refresh_session.py`: `parse_agy_models_output` (L78-L94), `select_model_from_candidates` (L95-L108), `is_bucket_activated` (L109-L147), `check_profile_has_argon` (L1306-L1326), `_extract_usage_buckets` (L1327-L1360), `_probe_profile_usage_and_models` (L1371-L1425), `ping_profile` (L1486-L1658)
+  - `skills/refresh-session/resources/scripts/refresh_session.py`: `parse_agy_models_output` (L78-L92), `select_model_from_candidates` (L95-L106), `is_bucket_activated` (L109-L145), `_DASHBOARD_HTML_CANDIDATES` (L531), `check_profile_has_argon` (L1306-L1324), `_extract_usage_buckets` (L1327-L1358), `_probe_profile_usage_and_models` (L1371-L1423), `ping_profile` (L1486-L1656; fallback L1581-L1583)
   - `tests/test_cqra_refresh_session_argon.py`: new unit test suite
 - **Downstream Callers**: `scripts/agy_quota.py` (`_load_refresh_session_module`), `skills/refresh-session/resources/scripts/test_refresh_session.py`, `tests/test_agy_quota.py`.
 - **Cross-Platform Bridges**: None.
@@ -66,10 +67,11 @@ When `ping_profile()` evaluates ping candidates for both profiles with mocked is
 Then `"ultra_shared"` triggers 0 `Argon 7D` model pings and records no spurious Argon failure
 And `"pro_sep"` dispatches exactly 1 `Argon 7D` ping against `"gemini-argon"` candidate
 
-Scenario: [CQRA-FR-02] [Tier A - Unit] Corrupted or incomplete usage probe in refresh_session.py degrades safely without firing false Argon pings
-Given a mocked `_probe_profile_usage_and_models()` call returning empty groups (`{}`) and malformed `available_models` strings (`None` / empty output) for profile `"corrupt_probe"`
-When `refresh_session.py` (`check_profile_has_argon()` and `ping_profile()`) executes
-Then `check_profile_has_argon("corrupt_probe")` returns `False` and `ping_profile()` completes cleanly with `0` spurious `Argon 7D` pings and zero unhandled exceptions
+Scenario: [CQRA-FR-02] [Tier A - Unit] Shared-gemini cache fallback and corrupted usage probes degrade safely with zero Argon pings
+Given `_DASHBOARD_HTML_CANDIDATES` patched to a temporary HTML file containing a `shared_gemini` cache entry for `"shared_cached"` (`hasArgon: true`, `capabilities.argonMode: "shared_gemini"`, `argonWeekly: {unavailable: false, sharedPool: true}`) and a missing entry for `"corrupt_probe"`, alongside a mocked `_probe_profile_usage_and_models()` returning empty groups (`{}`) and malformed `available_models` (`None` / empty output)
+When `refresh_session.py` (`check_profile_has_argon()` and `ping_profile()`) executes for both profiles
+Then `check_profile_has_argon("shared_cached")` and `check_profile_has_argon("corrupt_probe")` both return `False`
+And `ping_profile()` completes cleanly with `0` spurious `Argon 7D` pings and zero unhandled exceptions
 ```
 
 ## Verification
@@ -96,7 +98,8 @@ Then `check_profile_has_argon("corrupt_probe")` returns `False` and `ping_profil
 
 - Shared-pool detection triggers `argonMode == "shared_gemini"` only when NO dedicated Argon group exists in `/usage` and Argon capability is indicated by Gemini group description or discovered model catalog.
 - Dedicated `Argon 7D` ping only fires when `argonMode == "separate"` and `!is_bucket_activated(...)` on the separate Argon weekly bucket.
-- `is_bucket_activated()` (`L109-L147`) retains its existing 1-arg or `usage_buckets` signature compatibility for `scripts/agy_quota.py` and existing `test_refresh_session.py` callers.
+- Cached-fallback gating in `check_profile_has_argon()` (`L1306-L1324`) and `ping_profile()` (`L1581-L1583`) gates standalone Argon pings on cached `capabilities.argonMode == "separate"` (or legacy cache lacking `capabilities.argonMode` with `argonWeekly.sharedPool != True` and `hasArgon and not unavailable`); `"shared_gemini"` cache entries yield `False` and dispatch `0` `Argon 7D` pings even if `available_models` includes `"argon"`.
+- `is_bucket_activated()` (`L109-L145`) retains its existing 1-arg or `usage_buckets` signature compatibility for `scripts/agy_quota.py` and existing `test_refresh_session.py` callers.
 
 ## Definition of Done
 

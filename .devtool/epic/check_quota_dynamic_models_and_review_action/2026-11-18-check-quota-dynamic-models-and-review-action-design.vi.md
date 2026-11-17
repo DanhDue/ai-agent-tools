@@ -38,8 +38,8 @@ Trên giao diện `/check-tasks` (tab `Cross-Model Review`, ví dụ epic `duet_
 Quá trình truy vết chỉ ra nguyên nhân gốc ở ba tầng:
 
 1. **Lệch chuẩn định dạng giữa các prompt review**: [skills/principal-review/references/principal-review-prompt.md](../../../skills/principal-review/references/principal-review-prompt.md) yêu cầu kết thúc mỗi finding bằng `. Proposed: <edit>`, nhờ đó tab `Principal Review` hiển thị đầy đủ `Proposed Action`. Ngược lại, [skills/dev-implementation/references/external-review-prompt.md](../../../skills/dev-implementation/references/external-review-prompt.md) và [skills/dev-implementation/references/local-review-prompt.md](../../../skills/dev-implementation/references/local-review-prompt.md) dừng ở `<problem>` và thiếu `. Proposed: <edit>`.
-2. **Script điều phối luôn điền `?`**: [skills/dev-implementation/resources/scripts/run_external_review.py](../../../skills/dev-implementation/resources/scripts/run_external_review.py) hardcode ký tự `?` cho `Proposed action` trong `top_risk_findings_section()` và `triage()`, trong khi `check()` và `finding_rows()` bắt buộc bảng `review_results.md` luôn giữ đúng 5 cột (`len(cells) == 5`).
-3. **Bộ phân tích và cache trong `tasks_server.py` thiếu fallback**: [skills/check-tasks/resources/scripts/tasks_server.py](../../../skills/check-tasks/resources/scripts/tasks_server.py) (`parse_review_results()`) chỉ tìm chuỗi `Proposed:\s*(.+)` trong `cells[3]` (`Problem`), luôn coi `cells[4]` là `decision`, chưa đọc fallback từ `.devtool/epic/<epic>/fix_plan_round<N>.md` (cột `Action` trong `## Summary Matrix` hoặc mục `- **Proposed Action (...):**` trong `### Finding #N`), và chưa đưa `fix_plan_round*.md` vào `watch_paths`.
+2. **Script điều phối luôn điền `?`**: [skills/dev-implementation/resources/scripts/run_external_review.py](../../../skills/dev-implementation/resources/scripts/run_external_review.py) hardcode ký tự `?` cho `Proposed action` trong `top_risk_findings_section()` và bảng `triage()` xuất ra stdout thay vì tách sẵn đề xuất khi có (lưu ý `triage()` chỉ in ra stdout, còn `fix_plan_round<N>.md` do `lifecycle_runner.py::_draft_fix_plan` hoặc Role 2.2 tạo riêng), trong khi `check()` và `finding_rows()` bắt buộc bảng `review_results.md` luôn giữ đúng 5 cột (`len(cells) == 5`).
+3. **Bộ phân tích và cache trong `tasks_server.py` thiếu fallback**: [skills/check-tasks/resources/scripts/tasks_server.py](../../../skills/check-tasks/resources/scripts/tasks_server.py) (`parse_review_results()`) chỉ tìm chuỗi `(?:Proposed(?:\s+Action)?|Đề xuất):\s*(.+)$` trong `cells[3]` (`Problem`) mà thiếu `Fix:` / `Suggestion:`, ranh giới từ `\b` và cơ chế lấy khớp cuối theo dấu phân tách; luôn coi `cells[4]` là `decision`; chưa đọc fallback từ `.devtool/epic/<epic>/fix_plan_round<N>.md` (cả mẫu `### Finding #N` / `## Summary Matrix` lẫn mẫu `### Fix N` / `Planned Surgical Fix`); và chưa đưa `fix_plan_round<N>.md` / `fix_plan.md` vào `watch_paths`.
 
 ## 2. Mục tiêu và ngoài phạm vi
 
@@ -47,9 +47,9 @@ Quá trình truy vết chỉ ra nguyên nhân gốc ở ba tầng:
 
 1. Phân tích danh sách model động theo từng nhóm quota từ `/usage` (`groups[].description`) kết hợp `agy models` theo chiến lược **Hybrid + Cache** (`groupDescSig` + TTL 24 giờ).
 2. Hiển thị chính xác badge gói và năng lực ở header (`ULTRA`, `PRO`, `FREE`, `DEV`, `Carbon`, `Argon`, `Orchestrator`) cùng danh sách model thực tế trên thẻ Web UI, modal chi tiết, thẻ CLI và bảng CLI `--table`.
-3. Bổ sung phân loại `argonMode` (`"separate"` | `"shared_gemini"` | `"none"`) và **Shared-Pool Mirror** (`sharedPool: true`) để tài khoản `shared_gemini` phản chiếu quota `geminiWeekly` sang hàng Argon (hiển thị `"Shared w/ Gemini Pool"` thay vì `INACTIVE`), tránh tính trùng điểm quota và bỏ ping `Argon 7D` dư thừa.
+3. Bổ sung phân loại `argonMode` (`"separate"` | `"shared_gemini"` | `"none"`) và **Shared-Pool Mirror** (`sharedPool: true`) để tài khoản `shared_gemini` phản chiếu quota `geminiWeekly` sang hàng Argon (hiển thị `"Shared w/ Gemini Pool"` thay vì `INACTIVE`), giữ nguyên công thức điểm quota 4 bucket hiện có trong `getProfileQuotaScore()` (không tính Argon để tránh tính trùng) và bỏ ping `Argon 7D` dư thừa trên cả luồng live lẫn cache fallback.
 4. Bổ sung lưu cache (`update_cached_profile()`) cho nhánh CLI `refresh <profile>` để đồng bộ với `all` và HTTP refresh.
-5. Cập nhật prompt External/Local Review sinh `. Proposed: <edit>`, điền trước `Proposed action` trong `run_external_review.py` nhưng vẫn bảo toàn hợp đồng 5 cột của `review_results.md`, đồng thời nâng cấp `parse_review_results()` hỗ trợ đa tiền tố, bảng 5/6 cột, fallback từ `fix_plan_round<N>.md` và làm mới cache qua `watch_paths`.
+5. Cập nhật prompt External/Local Review sinh `. Proposed: <edit>`, điền trước `Proposed action` trong bảng stdout của `run_external_review.py` nhưng vẫn bảo toàn hợp đồng 5 cột của `review_results.md`, đồng thời nâng cấp `parse_review_results()` hỗ trợ đa tiền tố, nhận diện cột 5/6 theo tiêu đề, fallback best-effort từ `fix_plan_round<N>.md` và làm mới cache vô điều kiện qua `watch_paths`.
 
 ### 2.2 Ngoài phạm vi
 
@@ -89,9 +89,10 @@ Trong [scripts/agy_quota.py](../../../scripts/agy_quota.py) và [skills/refresh-
 2. **`parse_agy_models_catalog(stdout: str) -> list[dict]`**: Mở rộng `parse_agy_models_output(stdout: str) -> list[str]` để trích xuất bản ghi có cấu trúc `{id, label, quotaFamily, tags}` (nhận diện `carbon`, `argon`, `orchestrator`, `hydrogen`, `flash`, `claude`, `gpt`, và tag gói như `g1-pro`). Việc gộp `parse_usage_group_models()` với `parse_agy_models_catalog()` bù đắp các model không xuất hiện trong `description` của `/usage` (ví dụ `Orchestrator (Argon)` từ `gemini-pro-orchestrator-g1-pro` trên `danhdue`).
 3. **Phân loại `argonMode`**:
    - `"separate"`: `/usage` có nhóm Argon riêng (`"argon"` trong tên nhóm, ví dụ `"Gemini 4 Argon"` / `gemini-argon-wtu-weekly`). Đặt `argonWeekly.sharedPool = false`.
-   - `"shared_gemini"`: `/usage` không có nhóm Argon riêng VÀ (`"argon"` xuất hiện trong `description` của nhóm Gemini HOẶC có model Argon/Orchestrator-Argon trong `modelCatalog` / `availableModels`). Phản chiếu tỷ lệ phần trăm, chuỗi còn lại, thời gian reset và trạng thái khả dụng của `geminiWeekly` sang `argonWeekly` kèm `sharedPool: true` và `mode: "shared_gemini"`.
-   - `"none"`: Không có cả nhóm Argon riêng lẫn năng lực Argon (`argonWeekly.available = false`, `mode: "none"`).
-4. **Chốt chặn ping `Argon 7D`**: Cả `execute_ping_profile()` (`agy_quota.py`) và `ping_profile()` / `_extract_usage_buckets()` / `check_profile_has_argon()` (`refresh_session.py`) kiểm tra `argonMode`. Chỉ kích hoạt ping `Argon 7D` riêng khi `argonMode == "separate"` và bucket Argon riêng đang chưa kích hoạt/rỗng; không bắn ping `Argon 7D` cho tài khoản `"shared_gemini"` khi `"Gemini Models"` đã hoạt động.
+   - `"shared_gemini"`: `/usage` không có nhóm Argon riêng VÀ (`"argon"` xuất hiện trong `description` của nhóm Gemini HOẶC có model Argon/Orchestrator-Argon trong `modelCatalog` / `availableModels`). Phản chiếu các trường phát sinh của `geminiWeekly` (`fraction`, `countdown`, `resetTime`, `resetTimeLocal`, `unavailable`) sang `argonWeekly` kèm `sharedPool: true` và `mode: "shared_gemini"`.
+   - `"none"`: Không có cả nhóm Argon riêng lẫn năng lực Argon (`argonWeekly.unavailable = true`, `mode: "none"`).
+   - **Suy diễn tier (`capabilities.tier` so với `tier` cấp cao nhất)**: Suy diễn `capabilities.tier` là `"FREE"` nếu `tier == "FREE"`, `"ULTRA"` nếu `plan_name` trong `/usage` chứa `"ULTRA"` (hoặc profile không phải `FREE` không có nhóm Argon riêng nhưng có model Carbon), `"DEV"` nếu là `DEV`, còn lại là `"PRO"`. Trường `tier` cấp cao nhất giữ nguyên `"PRO"` / `"FREE"` (hoặc `"DEV"`) để `execute_ping_profile()` (`tier == "PRO"` / `"FREE"`) hoạt động an toàn.
+4. **Chốt chặn ping `Argon 7D`**: Cả `execute_ping_profile()` / `probe_blocked_profile()` (`agy_quota.py`) và `ping_profile()` / `_extract_usage_buckets()` / `check_profile_has_argon()` (`refresh_session.py`) đều kiểm tra `argonMode`. Cả luồng live lẫn nhánh cache fallback chỉ kích hoạt probe/ping `Argon 7D` riêng khi `argonMode == "separate"` (hoặc cache cũ chưa có `capabilities.argonMode` và `sharedPool != True` với `hasArgon` bật và `unavailable == False`) và bucket Argon riêng đang chưa kích hoạt/rỗng; không bắn ping `Argon 7D` cho tài khoản `"shared_gemini"` khi `"Gemini Models"` đã hoạt động.
 5. **Lưu cache cho lệnh CLI `refresh`**: Cập nhật nhánh `refresh` trong `main()` của `scripts/agy_quota.py` gọi `update_cached_profile()` tương tự `all` và HTTP `/api/refresh` để dữ liệu model và quota mới được lưu bền vững.
 
 ### 3.3 Lược đồ TypeScript tương thích ngược trong `quota_dashboard.types.ts`
@@ -118,7 +119,7 @@ export interface ProfileCapabilities {
 }
 ```
 
-- `QuotaBucket`: bổ sung tùy chọn `sharedPool?: boolean` và `mode?: ArgonMode`.
+- `QuotaBucket`: đồng bộ với các trường runtime thực tế (`name`, `fraction`, `countdown`, `resetTime`, `resetTimeLocal?`, `unavailable`, `tags?`) cùng tùy chọn `sharedPool?: boolean` và `mode?: ArgonMode`, giữ các trường cũ (`id?`, `window?`, `remainingFraction?`, `description?`, `isAvailable?`) ở dạng tùy chọn để tương thích ngược.
 - `QuotaGroup`: bổ sung tùy chọn `models?: string[]`.
 - `ProfileQuotaState`: bổ sung `availableModels?: string[]`, `modelCatalog?: ModelCatalogEntry[]`, `groupModels?: { gemini: string[]; claude: string[]; argon: string[] }`, `capabilities?: ProfileCapabilities`, `modelsFetchedAt?: string`, `groupDescSig?: string`; tính `hasArgon = (argonMode !== "none")` để cả profile `separate` và `shared_gemini` đều khớp bộ lọc Argon.
 
@@ -129,7 +130,7 @@ export interface ProfileCapabilities {
   - Thẻ `Gemini Models` hiển thị danh sách `groupModels.gemini` thực tế (có fallback an toàn nếu dữ liệu cache cũ chưa có trường mới).
   - Thẻ `Claude & GPT` hiển thị danh sách `groupModels.claude` thực tế (ví dụ `Claude Sonnet 4.6, Claude Opus 4.6, GPT-OSS 120B` so với `5.5`).
   - Thẻ `Gemini 4 Argon`: với `separate` hiển thị bucket độc lập; với `shared_gemini` hiển thị thanh phần trăm, bộ đếm reset phản chiếu từ `geminiWeekly` cùng nhãn `"Shared w/ Gemini Pool"` và danh sách model Argon thay cho `INACTIVE`; với `none` sẽ ẩn hoặc báo không khả dụng.
-- **Tính điểm Quota và sắp xếp Auto-Switch (`getProfileQuotaScore()`, `isProfileSchedulable()`)**: Khi `argonWeekly.sharedPool === true`, không tính cộng dồn trùng lặp `argonWeekly` với `geminiWeekly` vào tổng điểm, đồng thời không trừ điểm oan tài khoản `shared_gemini`.
+- **Tính điểm Quota và sắp xếp Auto-Switch (`getProfileQuotaScore()`, `isProfileSchedulable()`)**: Giữ nguyên công thức 4 bucket hiện có của `getProfileQuotaScore()` (`(g5 + c5 + gw + cw) / 4 * 100`) — `argonWeekly` tiếp tục không được tính vào điểm để tránh tính trùng `shared_gemini` và bảo toàn thứ tự sắp xếp của tài khoản `separate` — đồng thời giữ `hasArgon === true` và `argonWeekly.unavailable === false` để khớp bộ lọc `ARGON`.
 - **Modal thông tin Profile (`openProfileInfoModal()`)**: Bổ sung danh sách model chi tiết theo từng nhóm, tập badge năng lực, `argonMode`, `modelsFetchedAt` và `groupDescSig`.
 - **Giao diện CLI (`print_dashboard_cards()`, `print_all_summary()`)**: Thay chuỗi model cố định trên thẻ bằng danh sách model động theo nhóm, đồng thời gắn nhãn `(Shared Gemini)` cùng phần trăm/thời gian reset phản chiếu ở chế độ `--table` khi `argonMode == "shared_gemini"`.
 
@@ -151,20 +152,20 @@ flowchart LR
    ```text
    - [Critical|Important|Minor] <artefact>:<location> — <problem>. Proposed: <edit>
    ```
-2. Bảo toàn cấu trúc bảng Markdown 5 cột (`| # | Severity | File / Target | Problem | Decision |`) trong [skills/dev-implementation/resources/scripts/run_external_review.py](../../../skills/dev-implementation/resources/scripts/run_external_review.py) (`render_round()`, `check()`, `finding_rows()`) để mọi kiểm tra tự động `len(cells) == 5` không bị gián đoạn.
-3. Cập nhật `top_risk_findings_section()` và `triage()` trong `run_external_review.py` để tách `. Proposed: <edit>` từ `problem` và điền sẵn vào `Proposed action` trong `fix_plan_round<N>.md` / báo cáo tóm tắt thay vì hardcode `?` (chỉ để `?` nếu không có đề xuất).
+2. Bảo toàn cấu trúc bảng Markdown 5 cột (`| # | Severity | Location | Problem | Decision |`) trong [skills/dev-implementation/resources/scripts/run_external_review.py](../../../skills/dev-implementation/resources/scripts/run_external_review.py) (`render_round()`, `check()`, `finding_rows()`) để mọi kiểm tra tự động `len(cells) == 5` không bị gián đoạn.
+3. Cập nhật `top_risk_findings_section()` và `triage()` trong `run_external_review.py` để tách `. Proposed: <edit>` từ `finding[3]` (`Problem`) qua biểu thức chính quy dùng chung và điền sẵn ô `Proposed action` trong bảng triage xuất ra stdout thay vì hardcode `?` (chỉ để `?` nếu không có đề xuất; `triage()` chỉ in ra stdout, còn `fix_plan_round<N>.md` do bên ngoài sinh riêng).
 
 ### 4.3 Bộ phân tích đa chiến lược và Fallback trong `tasks_server.py`
 
 Nâng cấp `parse_review_results()` trong [skills/check-tasks/resources/scripts/tasks_server.py](../../../skills/check-tasks/resources/scripts/tasks_server.py):
 
-1. **Nhận diện cột theo dòng tiêu đề bảng**: Kiểm tra tiêu đề bảng Markdown ở từng round, hỗ trợ cả bảng 5 cột chuẩn (`#`, `Severity`, `File / Target`, `Problem`, `Decision`) lẫn bảng 6 cột có cột `Proposed Action` / `Action` tách riêng mà không nhầm sang `decision`.
-2. **Mở rộng biểu thức chính quy trích xuất từ cột Problem**: Hỗ trợ `. Proposed: <text>`, `Proposed action: <text>`, `Fix: <text>` và `Suggestion: <text>` (theo sau dấu `.`, `;` hoặc `—`), tách gọn phần đề xuất sang `proposed_action` khỏi `problem`.
-3. **Fallback theo round từ `fix_plan_round<N>.md`**: Nếu `proposed_action` vẫn rỗng sau khi đọc `review_results.md` / `principal_review.md`, đọc `.devtool/epic/<epic>/fix_plan_round<N>.md` (hoặc `fix_plan.md`):
-   - Phân tích mục `### Finding #<N>` để lấy dòng `- **Proposed Action (...):** <text>` (gồm cả `Proposed Action (Adjusted)` hoặc `Action`).
-   - Phân tích bảng `## Summary Matrix` để ánh xạ số thứ tự `#` sang cột `Action`.
-   - Ưu tiên nội dung chi tiết ở `### Finding #<N>` nếu có, sau đó mới dùng `Summary Matrix`.
-4. **Cập nhật `watch_paths` làm mới cache**: Bổ sung toàn bộ đường dẫn `fix_plan_round*.md` và `fix_plan.md` phát hiện được trong thư mục epic vào `watch_paths` của `_file_stat_sig()` trong `_REVIEW_PARSE_CACHE`, giúp giao diện `/check-tasks` phản ánh thay đổi tức thì khi chỉnh sửa fix plan.
+1. **Nhận diện cột theo dòng tiêu đề bảng**: Kiểm tra tiêu đề bảng Markdown ở từng round và ánh xạ chỉ mục theo tên tiêu đề chuẩn hóa (`#`/`id`, `Severity`/`Mức độ`/`Sev`, `Location`/`File / Target`/`Target`, `Problem`, `Proposed Action`/`Action`, `Decision`), fallback theo vị trí 5 cột chuẩn `[0..4]` khi không nhận diện được; hỗ trợ cả bảng 5 cột chuẩn (`#`, `Severity`, `Location`, `Problem`, `Decision`) lẫn bảng 6 cột có cột `Proposed Action` / `Action` tách riêng mà không nhầm sang `decision`.
+2. **Mở rộng biểu thức chính quy trích xuất từ cột Problem**: Dùng biểu thức có ranh giới từ `\b` và lấy khớp cuối cùng (`(?:^|(?:[.;—]|\n)\s*)\b(?:Proposed(?:\s+action)?|Fix|Suggestion|Đề xuất):\s*`) để tách `. Proposed: <text>`, `Proposed action: <text>`, `Fix: <text>`, `Suggestion: <text>` và `Đề xuất: <text>` khỏi `problem` mà không bắt nhầm `Unproposed:`.
+3. **Fallback best-effort theo round từ `fix_plan_round<N>.md`**: Nếu `proposed_action` vẫn rỗng sau khi đọc `review_results.md` / `principal_review.md`, áp dụng fallback best-effort trên `.devtool/epic/<epic>/fix_plan_round<N>.md` (rồi `fix_plan.md`):
+   - Phân tích mục chi tiết theo từng finding (`### Finding #<N>` `- **Proposed Action (...):**` / `- **Action:**`, `### Fix \d+ \[...#<N>...\]` `- **Action:**`, và mục đánh số `N. **Finding #N ...**:`).
+   - Phân tích bảng tóm tắt (`## Summary Matrix` cột `Action` / `Proposed Action`, `## Verified Findings` hoặc bảng markdown ánh xạ cột `#` sang `Planned Surgical Fix` / `Action` / `Proposed Action`).
+   - Ưu tiên nội dung chi tiết từng finding hơn ô ngắn trong bảng tóm tắt nếu cả hai cùng tồn tại.
+4. **Cập nhật `watch_paths` vô điều kiện để làm mới cache**: Luôn bổ sung đường dẫn dự kiến `fix_plan_round<round>.md` và `fix_plan.md` (cùng mọi `fix_plan_round*.md` tìm thấy trong thư mục tệp review) vào `watch_paths` của `_file_stat_sig()` trong `_REVIEW_PARSE_CACHE` (tệp chưa tồn tại trả về `None`), giúp `/check-tasks` phản ánh ngay cả khi fix plan được tạo mới hoặc chỉnh sửa sau khi đã cache.
 
 ### 4.4 Hiển thị trên `tasks_dashboard.html`
 
@@ -183,11 +184,11 @@ Tuân thủ quy trình TDD Tam vai trò tại Giai đoạn 3 (`dev-implementatio
 - **Bộ test Quota** ([tests/test_agy_quota.py](../../../tests/test_agy_quota.py) và test cho `refresh_session`):
   - Phân tích kết hợp `description` từ `/usage` và `agy models` cho gói Ultra (`shared_gemini`, Carbon + Argon + Orchestrator, Claude 4.6) và gói Pro (`separate`, Hydrogen + Flash + Argon tách biệt + Orchestrator `g1-pro`, Claude 5.5).
   - Kiểm chứng cơ chế Hybrid + Cache: gọi `agy models` ở lệnh đơn profile và khi cache thiếu/hết hạn 24h/đổi `groupDescSig`, dùng lại cache khi quét `all`, và bỏ qua hoàn toàn profile `AUTH NEEDED` / `DISABLED`.
-  - Kiểm chứng `shared_gemini` phản chiếu `geminiWeekly` sang `argonWeekly` (`sharedPool: true`), không tính trùng điểm ở `getProfileQuotaScore()`, bỏ ping `Argon 7D` trong `execute_ping_profile()` và `ping_profile()`, lưu cache ở nhánh CLI `refresh`, và đảm bảo tách biệt tuyệt đối giữa các profile.
+  - Kiểm chứng `shared_gemini` phản chiếu `geminiWeekly` sang `argonWeekly` (`sharedPool: true`), giữ nguyên công thức 4 bucket ở `getProfileQuotaScore()` (không tính Argon), bỏ ping `Argon 7D` trong `execute_ping_profile()`, `probe_blocked_profile()`, `check_profile_has_argon()` và `ping_profile()` (kể cả nhánh cache fallback), lưu cache ở nhánh CLI `refresh` trên `tmp_path`, và đảm bảo tách biệt tuyệt đối giữa các profile.
 - **Bộ test Review Proposed Action** ([skills/dev-implementation/resources/scripts/test_run_external_review.py](../../../skills/dev-implementation/resources/scripts/test_run_external_review.py), [tests/test_check_tasks_server.py](../../../tests/test_check_tasks_server.py), [tests/test_cehm_history_aggregator.py](../../../tests/test_cehm_history_aggregator.py)):
   - Xác nhận `run_external_review.py check()` vẫn đạt chuẩn 5 cột trên `review_results.md` chứa `. Proposed: <edit>`.
-  - Kiểm chứng `top_risk_findings_section()` và `triage()` điền sẵn `Proposed action` khi có đề xuất và fallback về `?` khi thiếu.
-  - Kiểm chứng `parse_review_results()` trích xuất được đa tiền tố (`Proposed:`, `Proposed action:`, `Fix:`, `Suggestion:`), bảng 6 cột, fallback `### Finding #N` + `Summary Matrix` từ `fix_plan_round<N>.md` (với fixture theo cấu trúc `duet_refrain_harmonization`), và vô hiệu hóa cache qua `watch_paths` khi sửa file `fix_plan`.
+  - Kiểm chứng `top_risk_findings_section()` và bảng stdout `triage()` điền sẵn `Proposed action` khi có đề xuất và fallback về `?` khi thiếu.
+  - Kiểm chứng `parse_review_results()` trích xuất được đa tiền tố (`Proposed:`, `Proposed action:`, `Fix:`, `Suggestion:`, `Đề xuất:`), bảng 6 cột, fallback best-effort `fix_plan_round<N>.md` (`### Finding #N` + `Summary Matrix` lẫn `### Fix N` + `Planned Surgical Fix`), và vô hiệu hóa cache qua `watch_paths` khi tạo mới hoặc sửa file `fix_plan`.
 
 ### 6.2 Kiểm thử thực tế và cổng chất lượng repo
 

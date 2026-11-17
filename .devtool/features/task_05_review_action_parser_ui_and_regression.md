@@ -21,18 +21,18 @@ Epic: [check_quota_dynamic_models_and_review_action](../epic/check_quota_dynamic
 
 Restore reliable `PROPOSED ACTION` extraction for both future and historical reviews inside `skills/check-tasks/resources/scripts/tasks_server.py`, verify rendering inside `skills/check-tasks/resources/dashboard/tasks_dashboard.html`, register all `CQRA` test suites in `scripts/verify.sh`, and run full cross-epic integration & regression verification:
 
-1. **Multi-Strategy Extraction in `tasks_server.py::parse_review_results()` (`L525-L785`)**:
-   - **Header-Aware Column Detection**: Inspect each round's markdown table header row so canonical 5-column tables (`# | Severity | File / Target | Problem | Decision`) AND explicit 6-column tables with a `Proposed Action` / `Action` column extract `proposed_action` separately from `decision`.
-   - **Broadened Problem Prefix Extraction**: Expand regex extraction beyond `Proposed:\s*(.+)` to support `Proposed action:\s*(.+)`, `Fix:\s*(.+)`, and `Suggestion:\s*(.+)` (after `.`, `;`, or `—`), preserving problem colons when no proposal prefix matches and stripping only the proposal tail from `problem`.
-   - **Round-Scoped `fix_plan_round<N>.md` Fallback**: When `proposed_action` remains empty for finding `#N` in round `<round_num>`, read `.devtool/epic/<epic>/fix_plan_round<round_num>.md` (then unnumbered `fix_plan.md` fallback):
-     - Parse `### Finding #<N>` blocks for `- **Proposed Action (...):** <text>` (preferring detailed Finding prose).
-     - Fall back to `## Summary Matrix` table rows mapping finding number `#` to `Action`.
-     - Degrade safely per-finding on truncated/malformed fix-plan markdown without breaking HTTP `200` responses.
-   - **Watch-Path Cache Invalidation**: Add discovered `fix_plan_round*.md` and `fix_plan.md` paths under the epic directory to `watch_paths` (`_file_stat_sig()` `L516-L524`) inside `_REVIEW_PARSE_CACHE` so edits immediately invalidate cached review payloads.
+1. **Multi-Strategy Extraction in `tasks_server.py::parse_review_results()` (`L525-L784`)**:
+   - **Header-Aware Column Detection**: Inspect each round's markdown table header row and map columns by normalized header name (`#`/`id`, `Severity`/`Mức độ`/`Sev`, `Location`/`File / Target`/`Target`, `Problem`, `Proposed Action`/`Action`, `Decision`), falling back to canonical 5-column positions `[0..4]` when unrecognized. Support canonical 5-column tables (`# | Severity | Location | Problem | Decision`) AND explicit 6-column tables with a `Proposed Action` / `Action` column without misclassifying it as `decision`.
+   - **Broadened Problem Prefix Extraction**: Extract proposals using the pinned shared marker regex `re.compile(r"(?:^|(?:[.;—]|\n)\s*)\b(?:Proposed(?:\s+action)?|Fix|Suggestion|Đề xuất):\s*", re.IGNORECASE)` applied to the **last** `finditer()` match (`problem = problem_full[:m.start()].strip()`, `proposed_action = problem_full[m.end():].strip()`), preventing false positives like `Unproposed:` and preserving problem colons when no marker matches.
+   - **Best-Effort Round-Scoped `fix_plan_round<N>.md` Fallback**: When `proposed_action` remains empty for finding `#N` in round `<round_num>`, perform best-effort parsing on `.devtool/epic/<epic>/fix_plan_round<round_num>.md` (then unnumbered `fix_plan.md` fallback):
+     - Parse detailed per-finding entries: `### Finding #<N>` (`- **Proposed Action (...):** <text>` / `- **Action:** <text>`), `### Fix \d+ \[...#<N>...\]` (`- **Action:** <text>`), and numbered prose (`N. **Finding #N ...**: <text>`).
+     - Fall back to summary table rows mapping `#` to `Action` / `Proposed Action` / `Planned Surgical Fix` (across `## Summary Matrix`, `## Verified Findings`, or any markdown table).
+     - Prefer detailed per-finding prose over summary table cells when both exist; degrade safely per-finding on truncated/malformed fix-plan markdown without breaking HTTP `200` responses.
+   - **Unconditional Watch-Path Cache Invalidation**: Always add expected `review_file.parent / f"fix_plan_round{round_to_extract}.md"` and `review_file.parent / "fix_plan.md"` (plus any discovered `fix_plan_round*.md` under `review_file.parent`) to `watch_paths` (`_file_stat_sig()` `L516-L522`) inside `_REVIEW_PARSE_CACHE`, even when missing on disk (`_file_stat_sig` returns `None` for missing files, so creating or editing a fix plan after initial caching immediately invalidates the cache).
 2. **Dashboard Table Rendering (`tasks_dashboard.html`)**:
    - Verify `buildReviewFindingsTableHtml()` (`L4050-L4089`), `formatReviewTokens()` (`L4017-L4048`), and `renderEpicHistoryReviewTab()` (`L4808-L4878`) display `f.proposed_action` cleanly across `Cross-Model Review` and `Principal Review` modals (rendering `—` only when all sources are empty) and tighten token formatting/CSS truncation if required without console errors.
 3. **Suite Registration (`scripts/verify.sh`) & Acceptance Suite (`tests/test_cqra_review_action_e2e.py`)**:
-   - Register all five `tests/test_cqra_*.py` suites inside `SUITES` (`scripts/verify.sh:L362-L445`) under Section `21`.
+   - Register all five `tests/test_cqra_*.py` suites inside `SUITES` (`scripts/verify.sh:L362-L439`) under Section `21`.
    - Cover scenarios `CQRA-HP-05`, `CQRA-EC-03`, `CQRA-ST-03`, and `CQRA-FR-03` including real `TasksServer` HTTP endpoints + headless Chrome CDP inspection of `Cross-Model Review` `PROPOSED ACTION` cells, plus sweep the full epic integration & regression matrix in `TIER-C`.
 
 ## Files
@@ -54,9 +54,9 @@ Combining inline proposal parsing, header-aware column detection, `fix_plan_roun
 ## Impact Analysis & Blast Radius
 
 - **Target Files & Symbols**:
-  - `skills/check-tasks/resources/scripts/tasks_server.py`: `_discover_round_files` (L354-L376), `_collect_review_candidates` (L443-L483), `_scan_round_headings` (L489-L515), `_file_stat_sig` (L516-L524), `parse_review_results` (L525-L785), new _parse_fix_plan_actions
+  - `skills/check-tasks/resources/scripts/tasks_server.py`: `_discover_round_files` (L354-L374), `_collect_review_candidates` (L443-L481), `_scan_round_headings` (L489-L505), `_file_stat_sig` (L516-L522), `parse_review_results` (L525-L784), new _parse_fix_plan_actions
   - `skills/check-tasks/resources/dashboard/tasks_dashboard.html`: `formatReviewTokens` (L4017-L4048), `buildReviewFindingsTableHtml` (L4050-L4089), `renderEpicHistoryReviewTab` (L4808-L4878)
-  - `scripts/verify.sh`: `SUITES` (L362-L445)
+  - `scripts/verify.sh`: `SUITES` (L362-L439)
   - `tests/test_cqra_review_action_e2e.py`: new server + Chrome CDP E2E acceptance suite
 - **Downstream Callers**: `tests/test_check_tasks_server.py`, `tests/test_cehm_history_aggregator.py`, `tests/test_cehm_dashboard_modal_ui.py`, `tests/test_cehm_e2e_cdp.py`, `tests/test_rsdh_tasks_dashboard_ui.py`.
 - **Cross-Platform Bridges**: JSON REST endpoints `GET /api/review` and `GET /api/epic/history` consumed by `tasks_dashboard.html`.
@@ -68,20 +68,20 @@ Covers: CQRA-HP-05, CQRA-EC-03, CQRA-ST-03, CQRA-FR-03
 
 ```gherkin
 Scenario: [CQRA-HP-05] [Tier C - Integration] Cross-Model Review parser and tasks_dashboard.html populate PROPOSED ACTION from inline prefixes, 6-col tables, and fix_plan_roundN fallback
-Given a running `TasksServer` over a temporary repository containing epic `"duet_harmonize"` with Round 1 5-column `review_results.md` lacking inline `Proposed:` text paired with `fix_plan_round1.md` (`Summary Matrix` Action `"Align sidecar priority"` and `### Finding #1` `- **Proposed Action (Adjusted):** Enforce script > doc > sidecar precedence in ingest`), plus Round 2 containing `- [Minor] src/a.py:10 — Missing guard. Proposed: add early return`
-When `GET /api/epic/history?repo=demo&epic=duet_harmonize&round_cross=1` is fetched and rendered in `tasks_dashboard.html` under headless Chrome
-Then finding `#1` in Round 1 carries `"Enforce script > doc > sidecar precedence in ingest"` in `proposed_action` and renders that text in the `PROPOSED ACTION` cell of the Cross-Model Review table with zero `"—"` placeholder
+Given a running `TasksServer` over a temporary repository containing epic `"duet_harmonize"` with Round 1 5-column `review_results.md` lacking inline `Proposed:` text paired with `fix_plan_round1.md` (`Summary Matrix` Action `"Align sidecar priority"` and `### Finding #1` `- **Proposed Action (Adjusted):** Enforce script > doc > sidecar precedence in ingest`), plus Round 2 containing table row `| 1 | Minor | src/a.py:10 | Missing guard. Proposed: add early return |  |`
+When `GET /api/epic/history?repo=demo&epic=duet_harmonize&round_cross=1` and `round_cross=2` are fetched and rendered in `tasks_dashboard.html` under headless Chrome
+Then finding `#1` in Round 1 carries `"Enforce script > doc > sidecar precedence in ingest"` in `proposed_action`, finding `#1` in Round 2 carries `"add early return"` in `proposed_action`, and both render in the `PROPOSED ACTION` cell of the Cross-Model Review table with zero `"—"` placeholder
 And zero uncaught JavaScript console errors occur during modal and tab transitions
 
-Scenario: [CQRA-EC-03] [Tier A - Unit] Multi-prefix Problem extraction preserves problem text with colons and leaves empty action only when all sources omit proposals
-Given a 5-column `review_results.md` row whose `Problem` cell ends with `; Suggestion: cache mtime per round file` and a 6-column table row having explicit `Proposed Action` column `"Use bounded helper"`, alongside a third row having `Flag edge case: null id` with no matching entry in `fix_plan_round1.md`
-When `parse_review_results()` parses all three rows
-Then Row 1 sets `proposed_action == "cache mtime per round file"` and `problem` excludes the `Suggestion:` tail, Row 2 preserves `proposed_action == "Use bounded helper"` separately from `decision`, and Row 3 yields `proposed_action == ""` while retaining `"Flag edge case: null id"` intact
+Scenario: [CQRA-EC-03] [Tier A - Unit] Multi-prefix Problem extraction preserves problem text with colons, reads best-effort fix_plan variants, and leaves empty action only when all sources omit proposals
+Given a Round 1 `review_results.md` with Row 1 (`5-column`, `Problem` ending with `; Suggestion: cache mtime per round file`), Row 2 (`6-column` with explicit `Proposed Action` column `"Use bounded helper"`), Row 3 (`Flag edge case: null id` with no matching entry in `fix_plan_round1.md`), and Row 4 (`| 4 | Important | src/b.py:20 | Stale table |  |`) matched by `### Fix 1 [Important #4]` (`- **Action:** normalize header map`) in `fix_plan_round1.md`
+When `parse_review_results()` parses all four rows
+Then Row 1 sets `proposed_action == "cache mtime per round file"` and `problem` excludes the `Suggestion:` tail, Row 2 preserves `proposed_action == "Use bounded helper"` separately from `decision`, Row 3 yields `proposed_action == ""` while retaining `"Flag edge case: null id"` intact, and Row 4 yields `proposed_action == "normalize header map"`
 
-Scenario: [CQRA-ST-03] [Tier A - Unit] Modifying fix_plan_roundN.md invalidates tasks_server review parse cache immediately via watch_paths
-Given `parse_review_results(repo_dir, active_epic="demo_epic")` has cached a Round 1 result in `_REVIEW_PARSE_CACHE` where Finding #1 has `proposed_action == "Initial fix"`
-When `.devtool/epic/demo_epic/fix_plan_round1.md` is edited on disk (with updated content and distinct mtime) to `"Updated fix action"` and `parse_review_results(repo_dir, active_epic="demo_epic")` is called again
-Then `_REVIEW_PARSE_CACHE` detects the `watch_paths` signature delta and returns Finding #1 with `proposed_action == "Updated fix action"`
+Scenario: [CQRA-ST-03] [Tier A - Unit] Creating or modifying fix_plan_roundN.md invalidates tasks_server review parse cache immediately via watch_paths
+Given `parse_review_results(repo_dir, active_epic="demo_epic")` has cached a Round 1 result in `_REVIEW_PARSE_CACHE` where `fix_plan_round1.md` does not yet exist on disk and Finding #1 has `proposed_action == ""`
+When `.devtool/epic/demo_epic/fix_plan_round1.md` is created on disk with Finding #1 action `"Initial fix"` and `parse_review_results(repo_dir, active_epic="demo_epic")` is called, and then `fix_plan_round1.md` is edited on disk (with updated content and distinct mtime) to `"Updated fix action"` and called again
+Then `_REVIEW_PARSE_CACHE` detects the `watch_paths` signature delta on both creation and modification, returning Finding #1 with `"Initial fix"` first and `"Updated fix action"` after edit
 
 Scenario: [CQRA-FR-03] [Tier C - Integration] Malformed fix_plan_roundN.md alongside valid review_results.md degrades per-file without breaking TasksServer endpoints
 Given a running `TasksServer` over a temporary epic directory containing valid Round 1 5-column `review_results.md` alongside a truncated/corrupted `fix_plan_round1.md` containing invalid markdown table separators
@@ -111,10 +111,12 @@ Then both HTTP endpoints respond with status `200`, valid JSON `reviews` metadat
 
 ## Decisions Already Made
 
-- When both `### Finding #<N>` `- **Proposed Action (...):**` text and `## Summary Matrix` `Action` column exist in `fix_plan_round<N>.md`, `### Finding #<N>` takes precedence and `Summary Matrix` serves as secondary fallback.
-- Cache invalidation includes every discovered `fix_plan_round*.md` and `fix_plan.md` inside `watch_paths` monitored by `_file_stat_sig()` inside `_REVIEW_PARSE_CACHE`.
+- Shared proposal marker extraction regex (matching Task 03): `re.compile(r"(?:^|(?:[.;—]|\n)\s*)\b(?:Proposed(?:\s+action)?|Fix|Suggestion|Đề xuất):\s*", re.IGNORECASE)` applied to the **last** `finditer()` match (`problem_text = text[:m.start()].strip()`, `proposed_action = text[m.end():].strip()`).
+- Header-aware column mapping maps columns by normalized header name (`#`/`id`, `Severity`/`Mức độ`/`Sev`, `Location`/`File / Target`/`Target`, `Problem`, `Proposed Action`/`Action`, `Decision`) and falls back to canonical 5-column positions `[0..4]` when unrecognized.
+- `fix_plan_round<N>.md` / `fix_plan.md` fallback is **best-effort** across both `### Finding #<N>` / `## Summary Matrix` AND in-repo formats (`### Fix N [...#<N>...]` `- **Action:**`, numbered `N. **Finding #N ...**:`, and markdown tables with `Planned Surgical Fix` / `Action` / `Proposed Action`); detailed per-finding sections precede summary table cells when both exist.
+- Cache invalidation unconditionally appends expected `review_file.parent / f"fix_plan_round{round_to_extract}.md"` and `review_file.parent / "fix_plan.md"` (plus every discovered `fix_plan_round*.md`) inside `watch_paths` monitored by `_file_stat_sig()` inside `_REVIEW_PARSE_CACHE`, so creating or editing a fix plan after initial caching invalidates immediately (`_file_stat_sig` returns `None` for missing files).
 - `build/test-results/cqra-integration.xml` is written by `V6` (`TIER-C`) matching the HLD `Integration results:` contract.
-- `scripts/verify.sh` `SUITES` registers all five `tests/test_cqra_*.py` suites under Section `21`.
+- `scripts/verify.sh` `SUITES` (`L362-L439`) registers all five `tests/test_cqra_*.py` suites under Section `21`.
 
 ## Definition of Done
 
