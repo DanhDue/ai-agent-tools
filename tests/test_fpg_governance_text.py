@@ -272,12 +272,120 @@ def _load_external_review_parser() -> argparse.ArgumentParser:
     raise AssertionError("run_external_review.main() did not invoke parse_args")
 
 
-def _extract_external_review_commands(text: str) -> list[tuple[str, str]]:
-    """Extract inline run_external_review.py <sub> ... commands from governance markdown."""
+def _extract_external_review_commands(text: str) -> list[tuple[int, str, str]]:
+    """Extract inline run_external_review.py <sub> ... commands with 1-based line numbers."""
+    results: list[tuple[int, str, str]] = []
+    for line_no, line in enumerate(text.splitlines(), start=1):
+        for match in re.finditer(r"`(run_external_review\.py\s+(\S+)[^`\n]*)`", line):
+            results.append((line_no, match.group(2), match.group(1)))
+    return results
+
+
+def _strip_optional_brackets(command: str) -> str:
+    """Remove bracketed optional synopsis groups from innermost to outermost."""
+    stripped = command
+    while True:
+        updated = re.sub(r"\[[^\[\]]*\]", "", stripped)
+        if updated == stripped:
+            return updated
+        stripped = updated
+
+
+def _unwrap_continuations(lines: list[str]) -> list[tuple[int, str]]:
+    """Join trailing-backslash line continuations, preserving 1-based start offsets."""
+    joined: list[tuple[int, str]] = []
+    index = 0
+    while index < len(lines):
+        start_offset = index + 1
+        buf = lines[index]
+        while buf.rstrip().endswith("\\") and index + 1 < len(lines):
+            buf = buf.rstrip()[:-1].rstrip() + " " + lines[index + 1].lstrip()
+            index += 1
+        joined.append((start_offset, buf))
+        index += 1
+    return joined
+
+
+def _collect_run_option_commands(
+    line_no: int, text: str, pattern: str
+) -> list[tuple[int, str]]:
+    """Return (line_no, cmd) entries for `run_external_review.py run` snippets that show options."""
+    hits: list[tuple[int, str]] = []
+    for match in re.finditer(pattern, text):
+        cmd = match.group(1).strip()
+        tokens = shlex.split(cmd)
+        if any(tok.lstrip("[").startswith("-") for tok in tokens[2:]):
+            hits.append((line_no, cmd))
+    return hits
+
+
+def _extract_quoted_run_commands_with_options(text: str) -> list[tuple[int, str]]:
+    """Extract quoted `run_external_review.py run` commands that show at least one option."""
+    results: list[tuple[int, str]] = []
+    in_fence = False
+    fence_lines: list[str] = []
+    fence_start = 1
+    outside_lines: list[tuple[int, str]] = []
+    run_pat = r"(?:^|(?<=[\s/`\"'$(]))(run_external_review\.py\s+run\b[^\n`]*)"
+
+    for line_no, raw_line in enumerate(text.splitlines(), start=1):
+        if raw_line.lstrip(" >").startswith("```"):
+            if not in_fence:
+                in_fence = True
+                fence_start = line_no + 1
+                fence_lines = []
+            else:
+                in_fence = False
+                for offset, joined_line in _unwrap_continuations(fence_lines):
+                    results.extend(
+                        _collect_run_option_commands(
+                            fence_start + offset - 1, joined_line, run_pat
+                        )
+                    )
+            continue
+        if in_fence:
+            fence_lines.append(raw_line)
+        else:
+            outside_lines.append((line_no, raw_line))
+
+    for line_no, raw_line in outside_lines:
+        for span in re.finditer(r"`([^`\n]+)`", raw_line):
+            results.extend(_collect_run_option_commands(line_no, span.group(1), run_pat))
+    return results
+
+
+def _external_review_scan_targets() -> list[Path]:
+    """Return skills SKILL.md, skills references/*.md, and English docs/architecture/* files."""
     return [
-        (match.group(2), match.group(1))
-        for match in re.finditer(r"`(run_external_review\.py\s+(\S+)[^`\n]*)`", text)
+        *sorted((REPO_ROOT / "skills").glob("*/SKILL.md")),
+        *sorted((REPO_ROOT / "skills").glob("*/references/*.md")),
+        *sorted(
+            path
+            for path in (REPO_ROOT / "docs" / "architecture").glob("*")
+            if path.is_file()
+            and not path.name.endswith(".vi.md")
+            and path.suffix in TEXT_SUFFIXES
+        ),
     ]
+
+
+def _all_external_review_command_cases() -> list[tuple[str, str, str]]:
+    """Collect (source_label, subcommand, command) cases from rules, skills, and docs/architecture."""
+    cases = [
+        (f"{RULES_REL}:{line_no}", subcommand, command)
+        for line_no, subcommand, command in _extract_external_review_commands(
+            _read(RULES_REL)
+        )
+    ]
+    for path in _external_review_scan_targets():
+        rel = path.relative_to(REPO_ROOT).as_posix()
+        text = path.read_text(encoding="utf-8")
+        for line_no, command in _extract_quoted_run_commands_with_options(text):
+            cases.append((f"{rel}:{line_no}", "run", command))
+    return cases
+
+
+_EXTERNAL_REVIEW_COMMAND_CASES = _all_external_review_command_cases()
 
 
 def _required_subparser_option_groups(
@@ -301,20 +409,44 @@ def external_review_parser() -> argparse.ArgumentParser:
     return _load_external_review_parser()
 
 
+def test_external_review_command_scanner_coverage() -> None:
+    """Scanner covers CRITICAL_RULES, skills, and docs/architecture while ignoring bare mentions."""
+    rules_subs = {sub for _, sub, _ in _extract_external_review_commands(_read(RULES_REL))}
+    assert {"run", "triage"} <= rules_subs
+
+    scanned = {
+        path.relative_to(REPO_ROOT).as_posix() for path in _external_review_scan_targets()
+    }
+    assert {
+        "skills/dev-implementation/SKILL.md",
+        "skills/principal-review/SKILL.md",
+        "skills/cross-model-review/SKILL.md",
+        "skills/dev-lifecycle/references/principal-review.md",
+        "docs/architecture/resume_context.py",
+    } <= scanned
+    assert not any(rel.endswith(".vi.md") for rel in scanned)
+
+    assert _extract_quoted_run_commands_with_options(
+        "Run `run_external_review.py run` and `triage`."
+    ) == []
+    assert _extract_quoted_run_commands_with_options(
+        "Runs `run_external_review.py run --kind principal` synchronously."
+    ) == [(1, "run_external_review.py run --kind principal")]
+
+
 @pytest.mark.parametrize(
-    ("subcommand", "command"),
-    _extract_external_review_commands(_read(RULES_REL)),
-    ids=[sub for sub, _ in _extract_external_review_commands(_read(RULES_REL))],
+    ("source_label", "subcommand", "command"),
+    _EXTERNAL_REVIEW_COMMAND_CASES,
+    ids=[f"{src}:{sub}" for src, sub, _ in _EXTERNAL_REVIEW_COMMAND_CASES],
 )
 def test_critical_rules_external_review_commands_include_required_options(
     external_review_parser: argparse.ArgumentParser,
+    source_label: str,
     subcommand: str,
     command: str,
 ) -> None:
-    """Each run_external_review.py command in CRITICAL_RULES.md supplies all required subparser options."""
-    extracted = _extract_external_review_commands(_read(RULES_REL))
-    assert {"run", "triage"} <= {sub for sub, _ in extracted}
-    tokens = shlex.split(command)[1:]
+    """Quoted run_external_review.py commands in rules, skills, and docs/architecture include required options."""
+    tokens = shlex.split(_strip_optional_brackets(command))[1:]
     required_groups = _required_subparser_option_groups(
         external_review_parser, subcommand
     )
@@ -327,7 +459,7 @@ def test_critical_rules_external_review_commands_include_required_options(
         )
     ]
     assert not missing, (
-        f"{RULES_REL} command {command!r} is missing required option(s) {missing} "
+        f"{source_label} command {command!r} is missing required option(s) {missing} "
         f"for subcommand {subcommand!r}"
     )
     parsed = external_review_parser.parse_args(tokens)

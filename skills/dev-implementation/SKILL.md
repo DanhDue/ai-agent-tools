@@ -279,7 +279,7 @@ Resolve candidate SHA (`git rev-parse HEAD`) on a clean tree:
 
 <HARD-GATE>
 Do NOT stop to ask for an intermediate Review Choice prompt after Gate 4 passes.
-When all tasks are complete and Phase 4 / Gate 4 local machine acceptance passes (🟢 LGTM), the workflow MUST AUTOMATICALLY transition into `/cross-model-review` (`run_external_review.py run --epic-dir <epic_dir> --auto-quota`).
+When all tasks are complete and Phase 4 / Gate 4 local machine acceptance passes (🟢 LGTM), the workflow MUST AUTOMATICALLY transition into `/cross-model-review` (`run_external_review.py run --epic-dir <epic_dir> --base <base_ref> --auto-quota`).
 Do NOT ask the developer whether to review or finish at this intermediate point.
 The decision to Finish belongs strictly in Stage 4 (Phase 4.1 / Gate 5), after Cross-Model Review completes.
 </HARD-GATE>
