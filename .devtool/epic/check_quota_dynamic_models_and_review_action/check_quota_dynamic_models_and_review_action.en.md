@@ -20,7 +20,7 @@
 ## Meta Data
 
 - **Epic name**: `check_quota_dynamic_models_and_review_action`
-- **Status**: Packaged (2026-11-17)
+- **Status**: In Progress
 - **PIC**: `nguyenhieu000690`
 - **Target release**: Next plugin release
 - **Platform**: Python tooling, Markdown skill prompts, TypeScript contract types, local HTTP servers, and HTML/Vanilla JS dashboards
