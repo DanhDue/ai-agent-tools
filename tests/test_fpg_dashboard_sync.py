@@ -665,3 +665,71 @@ class TestFpgDashboardSync_Integration:
 
         assert meta.is_human_action_required is True
         assert any("5H=3.0%" in b["reason"] for b in meta.action_blockers)
+
+
+def test_checkpoint_wave_zero_converts_to_string_before_escape_html() -> None:
+    """S7: buildCheckpointLineHtml must convert checkpoint.wave to string before calling escapeHtml (0 is falsy)."""
+    html = DASHBOARD_HTML.read_text(encoding="utf-8")
+    start = html.index("function buildCheckpointLineHtml(")
+    end = html.index("function buildCheckpointStatusHtml(", start)
+    fn_source = html[start:end]
+    assert "escapeHtml(String(checkpoint.wave))" in fn_source
+    assert "escapeHtml(checkpoint.wave)" not in fn_source
+
+
+@pytest.mark.parametrize(
+    ("status_label", "source_kind"),
+    [
+        ("Done", "heartbeat"),
+        ("Done", "state"),
+        ("Abandoned", "heartbeat"),
+        ("Abandoned", "state"),
+    ],
+)
+def test_finished_or_abandoned_epic_halt_tokens_do_not_set_human_action(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    status_label: str,
+    source_kind: str,
+) -> None:
+    """S8: Halt tokens for completed or abandoned epics must be skipped by _collect_orchestrator_signals."""
+    repo = _init_repo(tmp_path / "closed_halt_repo")
+    epic = "closed_epic"
+    epic_dir = repo / ".devtool" / "epic" / epic
+    epic_dir.mkdir(parents=True, exist_ok=True)
+    (epic_dir / f"{epic}.md").write_text(
+        f"# Epic: Closed\n\n- **Status**: {status_label}\n",
+        encoding="utf-8",
+    )
+    if source_kind == "heartbeat":
+        _set_heartbeat_halt(repo, epic, "FIX_PLAN_ESCALATE")
+    else:
+        state_file = repo / ".devtool" / "state" / f"{epic}.md"
+        state_file.parent.mkdir(parents=True, exist_ok=True)
+        state_file.write_text(
+            f"# Active Epic: {epic}\n\n## Next Immediate Step:\n- halt_reason: QUOTA_LOW\n",
+            encoding="utf-8",
+        )
+
+    completed = check_tasks.get_completed_epic_slugs(repo)
+    abandoned = check_tasks.get_abandoned_epic_slugs(repo)
+    closed = completed | abandoned
+    assert epic in closed
+    hb = check_tasks._read_epic_heartbeat(repo, epic)
+
+    signals = check_tasks._collect_orchestrator_signals(
+        repo,
+        epic,
+        None,
+        hb,
+        decisions_snapshot={},
+        stage_name="Idle",
+        seen_blockers=set(),
+        closed_slugs=closed,
+    )
+    assert [b for b in signals.blockers if b.get("kind") == "halt"] == []
+
+    monkeypatch.setattr(check_tasks, "resolve_active_epic", lambda _r: epic)
+    meta = check_tasks.scan_repo(repo)
+    assert meta.is_human_action_required is False
+    assert [b for b in meta.action_blockers if b.get("kind") == "halt"] == []

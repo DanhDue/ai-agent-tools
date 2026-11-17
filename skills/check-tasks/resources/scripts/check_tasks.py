@@ -4572,18 +4572,23 @@ def _collect_orchestrator_signals(
         *_checkpoint_warning_notices(signals.checkpoint),
     ]
 
-    state_text = (
-        _read_combined_state_text(repo_path, active_epic) if active_epic else ""
-    )
-    signals.blockers.extend(
-        {
-            "epic": active_epic or repo_path.name,
-            "stage": stage_name,
-            "reason": f"Orchestrator halted: {token}",
-            "kind": "halt",
-        }
-        for token in _find_halt_tokens(heartbeat, state_text)
-    )
+    hb_epic = str((heartbeat or {}).get("epic_slug") or "").strip()
+    active_closed = bool(active_epic and _is_completed_epic(active_epic, closed_slugs))
+    hb_closed = bool(hb_epic and _is_completed_epic(hb_epic, closed_slugs))
+    if not active_closed:
+        state_text = (
+            _read_combined_state_text(repo_path, active_epic) if active_epic else ""
+        )
+        effective_hb = None if hb_closed else heartbeat
+        signals.blockers.extend(
+            {
+                "epic": active_epic or repo_path.name,
+                "stage": stage_name,
+                "reason": f"Orchestrator halted: {token}",
+                "kind": "halt",
+            }
+            for token in _find_halt_tokens(effective_hb, state_text)
+        )
     signals.blockers.extend(
         _unseen_decision_blockers(decisions_snapshot, seen_blockers, closed_slugs)
     )

@@ -2183,7 +2183,7 @@ Loading evidence data...
       if (!checkpoint || typeof checkpoint !== 'object' || !checkpoint.event) return '';
       const parts = [`<strong style="color: #f1f5f9;">${escapeHtml(checkpoint.event)}</strong>`];
       if (checkpoint.persona) parts.push(escapeHtml(personaRoleLabel(checkpoint.persona)));
-      if (checkpoint.wave !== null && checkpoint.wave !== undefined) parts.push(`wave ${escapeHtml(checkpoint.wave)}`);
+      if (checkpoint.wave !== null && checkpoint.wave !== undefined) parts.push(`wave ${escapeHtml(String(checkpoint.wave))}`);
       if (checkpoint.next_step) parts.push(`next: ${escapeHtml(checkpoint.next_step)}`);
       if (checkpoint.at) parts.push(escapeHtml(checkpoint.at));
       return `<span style="font-size: 11px; color: #94a3b8; font-family: monospace;">💾 Checkpoint: ${parts.join(' • ')}</span>`;
