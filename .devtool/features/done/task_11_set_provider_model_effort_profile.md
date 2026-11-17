@@ -1,12 +1,13 @@
 ---
 id: "task_11_set_provider_model_effort_profile"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T11:28:49Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T11:28:49Z"
 labels: ["config", "cli", "dispatch"]
 order: "a11"
 review_tier: "full"
@@ -14,13 +15,13 @@ review_tier: "full"
 
 # Task 11: dev-config set with Provider, Model, Effort and Preferred agy Profile; Kiro Sonnet
 
-Epic: [four_persona_governance](../epic/four_persona_governance/four_persona_governance.en.md)
+Epic: [four_persona_governance](../../epic/four_persona_governance/four_persona_governance.en.md)
 
 ## Requirement Analysis
 
 Let the Human name the provider (Claude, Codex, Kiro or agy), the model, the effort and, for agy, a preferred profile
 in one `dev-config set` command, and offer Kiro `claude-sonnet-5.5` at `high` as a ready option when every agy
-profile is out of quota ([SE-10](../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)).
+profile is out of quota ([SE-10](../../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)).
 
 1. **`set` flags (`scripts/dev_config.py`)**: `set PERSONA [MODEL EFFORT] [--provider P] [--model M] [--effort E]
    [--profile NAME|auto] [--fallback MODEL] [--scope S]`. The positional form `set PERSONA MODEL EFFORT` stays valid
@@ -35,7 +36,7 @@ profile is out of quota ([SE-10](../epic/four_persona_governance/four_persona_go
 4. **Skill (`skills/dev-config/SKILL.md`)**: documents the flag form of `set`, `--profile`, `profiles discover` and the Kiro Sonnet example;
    frontmatter stays `name` + `description` only.
 4a. **Discover (`dev_config.py profiles discover`)**: a read-only list of the profiles you could add to the pool, taken from
-   the same discovery the `check-quota` skill uses, so nothing is parsed twice ([SE-12](../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)).
+   the same discovery the `check-quota` skill uses, so nothing is parsed twice ([SE-12](../../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)).
 5. **Tests**: `tests/test_fpg_set_provider_model_profile.py` (FPG-HP-14, FPG-HP-15, FPG-EC-08, FPG-FR-08; FPG-HP-17 goes in `tests/test_fpg_agy_profile_pool.py`), with a
    temporary `REAL_HOME`, project, `PATH` and pool; plus any existing assertion that enumerates the kit catalogue
    or `PersonaBinding` fields exactly.
@@ -232,11 +233,11 @@ And it does not suggest "kiro-opus"
 
 ## Dependencies & Blockers
 
-Blocked by [Task 9](../epic/four_persona_governance/task_09_provider_quick_setup.md) and [Task 10](../epic/four_persona_governance/task_10_agy_profile_pool_and_leases.md).
+Blocked by [Task 9](../../epic/four_persona_governance/task_09_provider_quick_setup.md) and [Task 10](../../epic/four_persona_governance/task_10_agy_profile_pool_and_leases.md).
 
 Downstream dependents (blocked by Task 11): `task_08`.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/four_persona_governance/four_persona_governance.en.md)
+- [Epic HLD](../../epic/four_persona_governance/four_persona_governance.en.md)
 - **Rollback**: Revert the task commit.

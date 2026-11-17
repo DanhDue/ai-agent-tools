@@ -1,12 +1,13 @@
 ---
 id: "task_11_set_provider_model_effort_profile"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T11:28:49Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T11:28:49Z"
 labels: ["config", "cli", "dispatch"]
 order: "a11"
 review_tier: "full"
