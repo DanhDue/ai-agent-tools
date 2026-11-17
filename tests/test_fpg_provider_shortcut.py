@@ -88,13 +88,13 @@ def _load_module(name: str, path: Path) -> ModuleType:
     return mod
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def pc_mod() -> ModuleType:
     """Load persona_config module dynamically."""
     return _load_module("persona_config", PERSONA_CONFIG_SCRIPT)
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def dc_mod() -> ModuleType:
     """Load dev_config module dynamically."""
     return _load_module("dev_config", DEV_CONFIG_SCRIPT)

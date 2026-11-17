@@ -37,21 +37,28 @@ for _p in (str(LIFECYCLE_SCRIPTS), str(SCRIPTS_DIR), str(DEV_IMPL_SCRIPTS)):
 
 
 def _load_module(name: str, path: Path) -> ModuleType:
+    existing = sys.modules.get(name)
+    if existing is not None:
+        return existing
     spec = importlib.util.spec_from_file_location(name, str(path))
     assert spec is not None and spec.loader is not None, f"Cannot load {path}"
     mod = importlib.util.module_from_spec(spec)
     sys.modules[name] = mod
-    spec.loader.exec_module(mod)
+    try:
+        spec.loader.exec_module(mod)
+    except Exception:
+        sys.modules.pop(name, None)
+        raise
     return mod
 
 
+_state_envelope = _load_module("_state_envelope", SCRIPTS_DIR / "_state_envelope.py")
+persona_config = _load_module("persona_config", SCRIPTS_DIR / "persona_config.py")
+agy_dispatch = _load_module("agy_dispatch", SCRIPTS_DIR / "agy_dispatch.py")
+dev_config = _load_module("dev_config", SCRIPTS_DIR / "dev_config.py")
 lifecycle_runner = _load_module(
     "lifecycle_runner", LIFECYCLE_SCRIPTS / "lifecycle_runner.py"
 )
-agy_dispatch = _load_module("agy_dispatch", SCRIPTS_DIR / "agy_dispatch.py")
-dev_config = _load_module("dev_config", SCRIPTS_DIR / "dev_config.py")
-persona_config = _load_module("persona_config", SCRIPTS_DIR / "persona_config.py")
-_state_envelope = _load_module("_state_envelope", SCRIPTS_DIR / "_state_envelope.py")
 
 
 @pytest.fixture(autouse=True)

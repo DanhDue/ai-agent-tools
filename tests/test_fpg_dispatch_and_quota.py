@@ -24,6 +24,9 @@ DEV_CONFIG_SCRIPT = REPO_ROOT / "scripts" / "dev_config.py"
 
 def _load_module(name: str, path: Path) -> ModuleType:
     """Load a module by path via importlib so RED phase fails as test failure."""
+    existing = sys.modules.get(name)
+    if existing is not None:
+        return existing
     if not path.is_file():
         pytest.fail(f"Expected module does not exist yet: {path}")
     spec = importlib.util.spec_from_file_location(name, str(path))
@@ -31,7 +34,11 @@ def _load_module(name: str, path: Path) -> ModuleType:
         pytest.fail(f"Failed to create module spec for {path}")
     mod = importlib.util.module_from_spec(spec)
     sys.modules[name] = mod
-    spec.loader.exec_module(mod)
+    try:
+        spec.loader.exec_module(mod)
+    except Exception:
+        sys.modules.pop(name, None)
+        raise
     return mod
 
 
