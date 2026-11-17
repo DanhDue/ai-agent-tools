@@ -541,25 +541,31 @@
     }
 
     /* Scrollable Container Custom Scrollbars & Behavior */
-    .kanban-col-cards {
+    .kanban-col-cards,
+    .kanban-columns-scroll {
       scrollbar-width: thin;
       scrollbar-color: #2b354f #0c101a;
       scroll-behavior: auto;
       overscroll-behavior: contain;
     }
 
-    .kanban-col-cards::-webkit-scrollbar {
+    .kanban-col-cards::-webkit-scrollbar,
+    .kanban-columns-scroll::-webkit-scrollbar {
       width: 6px;
+      height: 6px;
     }
-    .kanban-col-cards::-webkit-scrollbar-track {
+    .kanban-col-cards::-webkit-scrollbar-track,
+    .kanban-columns-scroll::-webkit-scrollbar-track {
       background: #0c101a;
       border-radius: 4px;
     }
-    .kanban-col-cards::-webkit-scrollbar-thumb {
+    .kanban-col-cards::-webkit-scrollbar-thumb,
+    .kanban-columns-scroll::-webkit-scrollbar-thumb {
       background: #2b354f;
       border-radius: 4px;
     }
-    .kanban-col-cards::-webkit-scrollbar-thumb:hover {
+    .kanban-col-cards::-webkit-scrollbar-thumb:hover,
+    .kanban-columns-scroll::-webkit-scrollbar-thumb:hover {
       background: #3b4868;
     }
 
@@ -2681,6 +2687,7 @@ Loading evidence data...
       const compact = Boolean(opts.compact);
       const includeSubSteps = opts.includeSubSteps !== undefined ? Boolean(opts.includeSubSteps) : !compact;
       const includeLogs = opts.includeLogs !== undefined ? Boolean(opts.includeLogs) : !compact;
+      const liveTelemetryHtml = opts.liveTelemetryHtml ? String(opts.liveTelemetryHtml) : '';
 
       const stagePillsHtml = buildStagePillsHtml(stages, curIdx, compact);
       const subStepsSectionHtml = includeSubSteps ? buildSubStepsHtml(stages, curIdx, rs) : '';
@@ -2720,11 +2727,12 @@ Loading evidence data...
           ${stagePillsHtml || '<span style="font-size: 11px; color: #64748b;">No pipeline stage telemetry available.</span>'}
         </div>
         ${subStepsSectionHtml}
+        ${liveTelemetryHtml}
         ${eventLogsHtml}
       `;
     }
 
-    function renderPipelineStepperAndLogs(repo, slug, isPrimaryActive, progState, doneCount, totalCount) {
+    function renderPipelineStepperAndLogs(repo, slug, isPrimaryActive, progState, doneCount, totalCount, liveTelemetryHtml = '') {
       const pt = synthesizePipelineTelemetry(repo, slug, isPrimaryActive, progState, doneCount, totalCount);
       const hb = (repo.heartbeat && (!repo.heartbeat.epic_slug || slugsMatch(repo.heartbeat.epic_slug, slug) || isPrimaryActive)) ? repo.heartbeat : null;
       return buildPipelineStepperHtml(pt, hb, {
@@ -2733,6 +2741,7 @@ Loading evidence data...
         compact: false,
         includeSubSteps: true,
         includeLogs: true,
+        liveTelemetryHtml,
       });
     }
 
@@ -2830,7 +2839,7 @@ Loading evidence data...
           (isPrimaryActive && repo.is_human_action_required !== false && hasPromptActionWords)
         );
         const telemetryHtml = renderLiveTelemetryBanner(repo, slug, isPrimaryActive);
-        const pipelineHtml = renderPipelineStepperAndLogs(repo, slug, isPrimaryActive, progState, doneCount, totalCount);
+        const pipelineHtml = renderPipelineStepperAndLogs(repo, slug, isPrimaryActive, progState, doneCount, totalCount, telemetryHtml);
         const pctLabelHtml = progState.isFullyDone
           ? '<span style="color: #10b981; font-weight: 700;">100% ✓ Done</span>'
           : (progState.isWaitingFinish
@@ -2879,7 +2888,6 @@ Loading evidence data...
               </div>
             ` : ''}
 
-            ${telemetryHtml}
             ${pipelineHtml}
 
             <!-- Row 2: Current task & Next step -->
@@ -3275,7 +3283,7 @@ Loading evidence data...
           </div>
 
           <!-- RIGHT: 5 KANBAN COLUMNS -->
-          <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; background: #0c0f17;">
+          <div class="kanban-columns-scroll" data-scroll-id="kanban-board-scroll-${escapeHtml(repo.name)}" style="min-width: 0; overflow-x: auto; display: grid; grid-template-columns: repeat(5, minmax(240px, 1fr)); gap: 0; background: #0c0f17;">
             ${columnsHtml}
           </div>
 
