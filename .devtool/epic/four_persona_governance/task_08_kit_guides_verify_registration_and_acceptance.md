@@ -23,11 +23,11 @@ Close the epic: human guides, suite registration and one end-to-end test across 
 1. **Guides (bilingual, spec §6.4)**: `docs/lifecycles.en.md` and `docs/lifecycles.vi.md` (dev-lifecycle
    section, Skills Catalog, Role and Model Matrix) and `docs/context-memory-quick-guide.en.md` /
    `.vi.md` (persona section, workflow diagram, scenario headings) describe the four personas,
-   `/d3nexus:dev-config` (including the `--provider` shortcut and the agy profile pool with its lease file),
+   `/d3nexus:dev-config` (including the `--provider` shortcut and the agy profile pool with its lease file, and `set` with `--provider`, `--model`, `--effort` and `--profile`),
    checkpoints, low-quota mode and the quota gate (5-hour and weekly windows). Both variants keep identical
    structure; English is written first.
 2. **`scripts/verify.sh`**: register `tests/test_fpg_persona_config.py`, `tests/test_fpg_dispatch_and_quota.py`,
-   `tests/test_fpg_provider_shortcut.py`, `tests/test_fpg_agy_profile_pool.py`, `tests/test_fpg_agy_dispatch.py`,
+   `tests/test_fpg_provider_shortcut.py`, `tests/test_fpg_agy_profile_pool.py`, `tests/test_fpg_agy_dispatch.py`, `tests/test_fpg_set_provider_model_profile.py`,
    `tests/test_fpg_checkpoint_and_briefs.py`, `tests/test_fpg_runner_personas.py`,
    `tests/test_fpg_english_only_and_ownership.py`, `tests/test_fpg_dashboard_sync.py`,
    `tests/test_fpg_governance_text.py`, `tests/test_fpg_english_only_text.py` and `tests/test_fpg_acceptance.py` in `SUITES` (section 11, mode
@@ -96,7 +96,7 @@ And the dashboard payload shows both tasks done, the latest checkpoint "wave_mer
 | V3 | GREEN | `python3 skills/doc_quality_check/resources/scripts/check_document.py --require-toc --require-bilingual docs/lifecycles.en.md docs/lifecycles.vi.md docs/context-memory-quick-guide.en.md docs/context-memory-quick-guide.vi.md` | exit 0 | — |
 | V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_fpg_acceptance.py` | exit 0 | — |
 | V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_fpg_acceptance.py` | exit 0 | — |
-| V6 | TIER-C | `python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/fpg_task_08.xml tests/test_fpg_acceptance.py tests/test_fpg_persona_config.py tests/test_fpg_dispatch_and_quota.py tests/test_fpg_provider_shortcut.py tests/test_fpg_agy_profile_pool.py tests/test_fpg_agy_dispatch.py tests/test_fpg_checkpoint_and_briefs.py tests/test_fpg_runner_personas.py tests/test_fpg_english_only_and_ownership.py tests/test_fpg_dashboard_sync.py tests/test_fpg_governance_text.py tests/test_fpg_english_only_text.py` | exit 0; results build/test-results/fpg_task_08.xml | — |
+| V6 | TIER-C | `python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/fpg_task_08.xml tests/test_fpg_acceptance.py tests/test_fpg_persona_config.py tests/test_fpg_dispatch_and_quota.py tests/test_fpg_provider_shortcut.py tests/test_fpg_agy_profile_pool.py tests/test_fpg_agy_dispatch.py tests/test_fpg_set_provider_model_profile.py tests/test_fpg_checkpoint_and_briefs.py tests/test_fpg_runner_personas.py tests/test_fpg_english_only_and_ownership.py tests/test_fpg_dashboard_sync.py tests/test_fpg_governance_text.py tests/test_fpg_english_only_text.py` | exit 0; results build/test-results/fpg_task_08.xml | — |
 
 ## Stop and Report If
 
@@ -110,7 +110,7 @@ And the dashboard payload shows both tasks done, the latest checkpoint "wave_mer
 ## Decisions Already Made
 
 - Source: `scripts/verify.sh` `SUITES` tuples are `(section, mode, path, priority_weight, affects_doc_only)`
-  (`L357-L362`); the twelve `tests/test_fpg_*.py` suites go in section `"11"` with mode `"pytest"`,
+  (`L357-L362`); the thirteen `tests/test_fpg_*.py` suites go in section `"11"` with mode `"pytest"`,
   `affects_doc_only=False`, and the two text suites with `affects_doc_only=True`.
 - Source: the kit guides are doc-lifecycle documents; `check_document.py --require-bilingual` stays their
   gate, and the English variant is written first.
@@ -128,7 +128,7 @@ And the dashboard payload shows both tasks done, the latest checkpoint "wave_mer
 
 ## Dependencies & Blockers
 
-Blocked by [Task 7](task_07_english_only_skill_text_and_mirror_isolation.md), [Task 9](task_09_provider_quick_setup.md) and [Task 10](task_10_agy_profile_pool_and_leases.md).
+Blocked by [Task 7](task_07_english_only_skill_text_and_mirror_isolation.md), [Task 9](task_09_provider_quick_setup.md), [Task 10](task_10_agy_profile_pool_and_leases.md) and [Task 11](task_11_set_provider_model_effort_profile.md).
 
 Downstream dependents (blocked by Task 8): none.
 

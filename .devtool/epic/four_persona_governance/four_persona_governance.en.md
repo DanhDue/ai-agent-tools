@@ -61,6 +61,8 @@ The source spec describes four problems; this HLD maps them onto the code that c
   every profile is out of quota the work stops with a report for Role 1.0 that offers waiting, topping up, or
   switching the programmer to Codex, Kiro or Claude, and the same report appears on the dashboard
   ([SE-09](#spec-errata)).
+- `dev-config set` takes the provider, the model, the effort and a preferred agy profile as separate options, and the
+  catalogue offers Kiro `claude-sonnet-5.5` at `high` ([SE-10](#spec-errata)).
 - High-risk findings routed to a Role 2.1 `fix-planner`; the five halt criteria escalate to Role 1.0.
 - No automatic fallback: an unavailable model writes a checkpoint, records a blocker and stops.
 - Proactive checkpoints in the heartbeat, a turn budget, low-quota mode and an automatic quota gate.
@@ -182,6 +184,7 @@ flowchart TD
 | Provider quick-setup | `scripts/dev_config.py`, `scripts/personas.default.json` | `--provider`, presets `all-claude` and `all-codex` |
 | Agy profile pool and leases | `scripts/agy_profile_pool.py`, `$REAL_HOME/.d3nexus/agy_profiles.json`, `agy_profile_leases.json` | `acquire()`, `pool_status()`, `exhaustion_report()` |
 | Pooled dispatch | `scripts/agy_dispatch.py`, `scripts/dev_config.py` | `run_on_pool()`, `dev_config.py dispatch`, `profiles` |
+| Set with provider, model, effort and profile | `scripts/dev_config.py`, `scripts/persona_config.py`, `scripts/personas.default.json` | `cmd_set()`, `PersonaBinding.profile`, `acquire(preferred_profile=...)` |
 | Quota gate | `scripts/dev_config.py` | `cmd_quota_check()` |
 | Checkpoints and briefs | `scripts/resume_context.py`, `scripts/_state_envelope.py` | `--checkpoint`, `update_epic_checkpoint()`, `_BRIEF_ROLE_CONTRACTS`, `emit_handoff_prompt()` |
 | Autonomous runner | `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` | `RunnerConfig`, `_draft_fix_plan()`, `step_implementation()`, `step_cross_model_review()` |
@@ -226,6 +229,7 @@ flowchart TD
    dev_config.py --provider agy|claude|codex [--scope global|project]   # the preset write for that provider's preset
    dev_config.py profiles list [--json] | add NAME [--priority N] [--max-concurrent N] | remove NAME | release NAME [--force] | clear [NAME] | probe [NAME]
    dev_config.py dispatch --persona P [--mode write|read-only] --prompt-file F --cwd D --log L [--epic E] [--task T] [--slot N] [--role R] [--wait S]
+   dev_config.py set PERSONA [MODEL EFFORT] [--provider agy|claude|codex|kiro] [--model M] [--effort E] [--profile NAME|auto] [--fallback MODEL] [--scope global|project]
    dev_config.py set PERSONA MODEL EFFORT [--fallback MODEL] [--scope global|project]
    dev_config.py reset [PERSONA] [--scope global|project]
    dev_config.py low-quota on|off [--for HOURS]      # alias: --low-quota
@@ -285,7 +289,7 @@ repository).
 
 Integration test roots: tests
 Protected paths: .agents/quality/**, .devtool/epic/four_persona_governance/bdd_scenarios.en.md
-Integration results: python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/four-persona-governance.xml tests/test_fpg_persona_config.py tests/test_fpg_dispatch_and_quota.py tests/test_fpg_provider_shortcut.py tests/test_fpg_agy_profile_pool.py tests/test_fpg_agy_dispatch.py tests/test_fpg_checkpoint_and_briefs.py tests/test_fpg_runner_personas.py tests/test_fpg_english_only_and_ownership.py tests/test_fpg_dashboard_sync.py tests/test_fpg_governance_text.py tests/test_fpg_english_only_text.py tests/test_fpg_acceptance.py tests/test_lifecycle_runner.py tests/test_rsdh_state_envelope.py tests/test_check_tasks_fsm.py -> build/test-results/four-persona-governance.xml
+Integration results: python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/four-persona-governance.xml tests/test_fpg_persona_config.py tests/test_fpg_dispatch_and_quota.py tests/test_fpg_provider_shortcut.py tests/test_fpg_agy_profile_pool.py tests/test_fpg_agy_dispatch.py tests/test_fpg_set_provider_model_profile.py tests/test_fpg_checkpoint_and_briefs.py tests/test_fpg_runner_personas.py tests/test_fpg_english_only_and_ownership.py tests/test_fpg_dashboard_sync.py tests/test_fpg_governance_text.py tests/test_fpg_english_only_text.py tests/test_fpg_acceptance.py tests/test_lifecycle_runner.py tests/test_rsdh_state_envelope.py tests/test_check_tasks_fsm.py -> build/test-results/four-persona-governance.xml
 
 | Boundary | Producer | Consumer | Verification Tier |
 |---|---|---|---|
@@ -308,7 +312,7 @@ Integration results: python3 -m pytest -q --tb=short --maxfail=3 --junitxml=buil
 
 ## Comprehensive BDD Scenario Coverage
 
-All 41 scenarios (`FPG-HP-01` to `FPG-FR-07`, including `FPG-HP-09` to `FPG-HP-13`, `FPG-EC-06`, `FPG-EC-07`, `FPG-ST-05` to `FPG-ST-07`, `FPG-AR-05` to `FPG-AR-07` and `FPG-FR-05` to `FPG-FR-07`) are defined in [bdd_scenarios.en.md](bdd_scenarios.en.md)
+All 45 scenarios (`FPG-HP-01` to `FPG-FR-08`, including `FPG-HP-09` to `FPG-HP-15`, `FPG-EC-06` to `FPG-EC-08`, `FPG-ST-05` to `FPG-ST-07`, `FPG-AR-05` to `FPG-AR-07` and `FPG-FR-05` to `FPG-FR-08`) are defined in [bdd_scenarios.en.md](bdd_scenarios.en.md)
 across Happy Path (`HP`), Edge Cases (`EC`), State Transitions (`ST`), Architecture and Concurrency (`AR`)
 and Fault Resilience (`FR`).
 
@@ -318,7 +322,7 @@ and Fault Resilience (`FR`).
   Gate 3, so Task 05 does not branch from a tree that conflicts at merge.
 - Waves: (1) Tasks 01, 04; (2) Tasks 02, 09, 10; (3) Tasks 03, 05; (4) Task 06; (5) Task 07; (6) Task 08. Task 09
   depends only on Task 01 and Task 10 on Tasks 01 and 09 (both edit `dev_config.py`), so they take the first free slot;
-  Tasks 03 and 05 wait for Task 10; Task 08 waits for all.
+  Tasks 03 and 05 wait for Task 10; Task 11 depends on Tasks 09 and 10 and takes the next free slot; Task 08 waits for all.
 - Writes to the shared global `personas.json` take an exclusive file lock, so profiles and repositories that
   change bindings at the same time do not overwrite each other.
 - Legacy compatibility: `.en.md` resolution, the `assistant` role alias and the no-op `--strict-bilingual`
@@ -337,6 +341,7 @@ and Fault Resilience (`FR`).
 8. **[Task 08: Kit Guides, verify.sh Registration and End-to-End Acceptance](task_08_kit_guides_verify_registration_and_acceptance.md)** (`review_tier: "full"`) — Covers: `FPG-HP-08`
 9. **[Task 09: Provider Quick-Setup Shortcut](task_09_provider_quick_setup.md)** (`review_tier: "full"`) — Covers: `FPG-HP-10`, `FPG-EC-06`
 10. **[Task 10: Agy Profile Pool, Lease File and Pooled Dispatch](task_10_agy_profile_pool_and_leases.md)** (`review_tier: "full"`) — Covers: `FPG-HP-11`, `FPG-HP-12`, `FPG-EC-07`, `FPG-ST-07`, `FPG-AR-06`, `FPG-FR-05`, `FPG-FR-07`
+11. **[Task 11: dev-config set with Provider, Model, Effort and Preferred agy Profile; Kiro Sonnet](task_11_set_provider_model_effort_profile.md)** (`review_tier: "full"`) — Covers: `FPG-HP-14`, `FPG-HP-15`, `FPG-EC-08`, `FPG-FR-08`
 
 ## Spec Errata
 
@@ -398,3 +403,16 @@ and Fault Resilience (`FR`).
   not stated by Role 1.0, to confirm: the pool is an explicit allow-list and empty by default, never derived from
   `antigravity_homes/`; only `agy` bindings use it; the kit never switches model by itself and only prints the
   commands; account-specific `agy` arguments such as `--dangerously-skip-permissions` come from `agy_extra_args`.
+- **[SE-10] `set` with Provider, Model, Effort and Preferred Profile; Kiro Sonnet**: Role 1.0 asked on 2026-11-17 to be able to
+  name the provider (Claude, Codex, Kiro) or the agy profile and then the model and the effort, and to use Kiro with
+  `claude-sonnet-5.5` at `high` after every agy profile is out of quota. Spec §5.3 has only `set PERSONA MODEL EFFORT`, where
+  MODEL is a catalogue alias that already carries the CLI. `set` now also takes `--provider`, `--model` (an alias, or the
+  model id of a catalogue entry), `--effort` and `--profile`; the positional form is unchanged. `--profile` is valid only
+  for `agy`, must name a profile of the pool allow-list, and means "try this profile first, then rotate through the pool
+  by priority" (Role 1.0's choice); it is stored in the persona override and `acquire` takes it as `preferred_profile`.
+  The new catalogue alias `kiro-sonnet` (`claude-sonnet-5.5`, efforts `["high"]`) sits before `kiro-opus`, so the
+  exhaustion report of SE-09 suggests `/d3nexus:dev-config set programmer kiro-sonnet high` for Kiro. On a fully exhausted
+  pool the kit still stops and reports; it never switches model by itself (Role 1.0's choice). Confirmed on 2026-11-17: the
+  Kiro CLI is installed, has credit above the kit thresholds, and accepted `claude-sonnet-5.5` at `high`. Not stated, to
+  confirm: `--provider kiro` is not added to the all-personas shortcut of SE-07, and `--provider` without `--model` is a
+  usage error. It is Task 11, blocked by Tasks 09 and 10 because it edits their files, and Task 08 now waits for it.

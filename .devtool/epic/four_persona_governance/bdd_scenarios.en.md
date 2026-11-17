@@ -134,6 +134,26 @@ And "action_blockers" holds no pool entry and "notices" mentions that "p1" is in
 When the lease of "p1" is released and "p1" also carries "exhausted_until" with exhausted_reason "5h"
 Then "is_human_action_required" is true
 And "action_blockers" holds an entry whose reason names "all agy profiles are out of quota", the lines "- p1: 5-hour limit reached" and "- p2: weekly limit reached", the earliest "exhausted_until" and the line "/d3nexus:dev-config set programmer codex-gpt xhigh"
+
+Scenario: [FPG-HP-14] [Tier C - Integration] dev-config set accepts a provider, a model, an effort and a preferred agy profile
+Given a temporary REAL_HOME and project with the kit default configuration, "antigravity_homes/p1" and "antigravity_homes/p2" as directories, a pool listing "p1" and "p2", and stub executables "agy", "claude", "codex" and "kiro-cli" on PATH
+When "dev_config.py set programmer --provider kiro --model claude-sonnet-5.5 --effort high" runs
+Then it exits 0 and "dev_config.py resolve programmer --format json" prints cli "kiro", alias "kiro-sonnet", model_id "claude-sonnet-5.5", effort "high" and profile null
+When "dev_config.py set programmer --provider agy --profile p2 --model hydrogen --effort xhigh" runs
+Then "dev_config.py resolve programmer --format json" prints cli "agy", model_id "gemini-4-hydrogen-xhigh", effort "xhigh" and profile "p2"
+When "dev_config.py set programmer codex-gpt xhigh" runs
+Then "dev_config.py resolve programmer --format json" prints cli "codex" and profile null
+And "dev_config.py models --json" lists "kiro-sonnet" with cli "kiro", id "claude-sonnet-5.5" and efforts ["high"] before "kiro-opus"
+
+Scenario: [FPG-HP-15] [Tier A - Unit] A preferred agy profile is tried first and the pool rotates when it is unusable
+Given a pool of "p1", "p2" and "p3" with priorities 1 to 3 and sufficient quota for all of them, and "programmer" bound to agy with profile "p3"
+When "acquire" runs with preferred_profile "p3"
+Then it returns profile "p3"
+When "p3" is leased by another orchestrator and "acquire" runs again with preferred_profile "p3"
+Then it returns profile "p1" and the skipped map is {"p3": "leased"}
+When "p3" instead has "exhausted_until" in the future and "acquire" runs with preferred_profile "p3"
+Then it returns profile "p1" and the skipped map is {"p3": "exhausted"}
+And "run_on_pool" for that binding attempts "p3" first and then "p1" and "p2" in priority order
 ```
 
 ---
@@ -193,6 +213,13 @@ When "dev_config.py profiles remove real_p" runs while "real_p" holds a live lea
 Then it exits 1 naming the lease owner and the lease file is unchanged
 When a dispatch targets a non-host profile and the preflight command "zsh -ic 'typeset -f _ag_link_ok _ag_rel_link ag_run'" exits non-zero
 Then nothing is launched, the lease is released and the result status is "preflight_failed"
+
+Scenario: [FPG-EC-08] [Tier A - Unit] Invalid provider, model, effort and profile combinations are rejected and change nothing
+Given a project configuration file whose SHA-256 is recorded, a pool listing "p1", and the kit default catalogue
+When these seven commands run with "--scope project": "set programmer --provider kiro --model hydrogen --effort high", "set programmer --provider kiro --effort high", "set programmer --provider kiro --model claude-sonnet-5.5 --effort xhigh", "set programmer --model no-such-model --effort high", "set programmer --provider codex --model codex-gpt --effort xhigh --profile p1", "set programmer --provider agy --model hydrogen --effort xhigh --profile nope" and "set programmer codex-gpt xhigh --model codex-gpt"
+Then each exits 1 with a message naming the rejected value: "hydrogen" as not a kiro model, "--model", "xhigh", "no-such-model" with "models add", "profile" with "agy", "nope" with "profiles add", and "positional"
+And the project configuration file SHA-256 is unchanged
+And "dev_config.py --provider claude set programmer claude-sonnet high" still exits 1 because the all-personas shortcut cannot be combined with a subcommand
 ```
 
 ---
@@ -389,4 +416,11 @@ When the fetcher then returns gemini5h 0.60 and geminiWeekly 0.50 for "p1" and "
 Then it returns profile "p1"
 When "p2" is marked exhausted again and "dev_config.py profiles clear p2" runs
 Then "p2" has no "exhausted_until", no exhausted_reason and no cached quota
+
+Scenario: [FPG-FR-08] [Tier A - Unit] The exhaustion report offers Kiro claude-sonnet-5.5 at high effort with the default catalogue
+Given the kit default catalogue, "programmer" bound to "hydrogen" with effort "xhigh", a PATH holding "kiro-cli" and "codex" but not "kiro", and a pool whose profiles are all exhausted
+When "exhaustion_report" runs
+Then the report contains the line "- switch the programmer: /d3nexus:dev-config set programmer kiro-sonnet high" with no "not on PATH" note
+And it contains "/d3nexus:dev-config set programmer codex-gpt xhigh"
+And it does not suggest "kiro-opus"
 ```
