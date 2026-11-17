@@ -1282,3 +1282,145 @@ def test_fpg_hp_17_profiles_discover_lists_candidates_not_in_the_pool(
     assert fetched == []
     assert pool_path.read_bytes() == pool_before
     assert not lease_path.exists()
+
+
+@pytest.mark.parametrize("seconds_past_reset", [0, 30])
+def test_quota_cache_bypassed_once_exhausted_until_passes(
+    tmp_path: Path, seconds_past_reset: int
+) -> None:
+    """S4: The 120s quota cache must be bypassed once exhausted_until <= now."""
+    pool_mod = _pool_mod()
+    real_home = tmp_path / "real_home"
+    _make_profile_dirs(real_home, ("p1",))
+    _write_json(
+        real_home / ".d3nexus" / "agy_profiles.json",
+        {
+            "schema_version": 1,
+            "pool": [{"profile": "p1", "priority": 1}],
+            "exhausted_recheck_seconds": 600,
+        },
+    )
+    thresholds = {
+        "5h_min_fraction": 0.15,
+        "7d_min_fraction": 0.02,
+        "agy_argon_min_fraction": 0.10,
+    }
+    t0 = datetime(2026, 11, 17, 10, 0, 0, tzinfo=timezone.utc)
+    reset_at = t0 + timedelta(seconds=60)
+    t_before = t0 + timedelta(seconds=30)
+    t_after = reset_at + timedelta(seconds=seconds_past_reset)
+    t_cached = t_after + timedelta(seconds=30)
+
+    clock = t0
+    fetch_times: list[datetime] = []
+
+    def fake_fetcher(_profile: str) -> dict[str, Any]:
+        fetch_times.append(clock)
+        if clock < reset_at:
+            return {
+                "status": "ACTIVE",
+                "gemini5h": {"fraction": 0.02, "resetTime": _iso_utc(reset_at)},
+                "geminiWeekly": {"fraction": 0.80, "resetTime": "2026-11-22T00:00:00Z"},
+            }
+        return {
+            "status": "ACTIVE",
+            "gemini5h": {"fraction": 0.90, "resetTime": "2026-11-17T15:00:00Z"},
+            "geminiWeekly": {"fraction": 0.80, "resetTime": "2026-11-22T00:00:00Z"},
+        }
+
+    owner = {"epic": "e1", "task": "t1", "slot": 1, "role": "orchestrator"}
+    acq_exhausted = pool_mod.acquire(
+        owner,
+        real_home=real_home,
+        host_profile="other",
+        quota_pool="gemini5h",
+        thresholds=thresholds,
+        fetcher=fake_fetcher,
+        resident_probe=lambda _p: False,
+        now=clock,
+    )
+    assert acq_exhausted.profile is None
+    assert acq_exhausted.reason == "pool_exhausted"
+    assert len(fetch_times) == 1
+
+    clock = t_before
+    acq_still_exhausted = pool_mod.acquire(
+        owner,
+        real_home=real_home,
+        host_profile="other",
+        quota_pool="gemini5h",
+        thresholds=thresholds,
+        fetcher=fake_fetcher,
+        resident_probe=lambda _p: False,
+        now=clock,
+    )
+    assert acq_still_exhausted.profile is None
+    assert acq_still_exhausted.skipped == {"p1": "exhausted"}
+    assert len(fetch_times) == 1
+
+    # Still within 120s of t0, but exhausted_until <= now: cache must be bypassed
+    clock = t_after
+    acq_recovered = pool_mod.acquire(
+        owner,
+        real_home=real_home,
+        host_profile="other",
+        quota_pool="gemini5h",
+        thresholds=thresholds,
+        fetcher=fake_fetcher,
+        resident_probe=lambda _p: False,
+        now=clock,
+    )
+    assert acq_recovered.profile == "p1"
+    assert len(fetch_times) == 2
+    pool_mod.release(acq_recovered.owner_id, real_home=real_home, now=clock)
+
+    # After recovery cleared exhausted_until, subsequent acquires within 120s reuse fresh cache
+    clock = t_cached
+    acq_cached = pool_mod.acquire(
+        owner,
+        real_home=real_home,
+        host_profile="other",
+        quota_pool="gemini5h",
+        thresholds=thresholds,
+        fetcher=fake_fetcher,
+        resident_probe=lambda _p: False,
+        now=clock,
+    )
+    assert acq_cached.profile == "p1"
+    assert len(fetch_times) == 2
+    pool_mod.release(acq_cached.owner_id, real_home=real_home, now=clock)
+
+
+@pytest.mark.parametrize("payload", [{}, {"error": "timeout"}])
+def test_quota_check_pool_empty_payload_propagates_quota_unknown(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], payload: dict[str, Any]
+) -> None:
+    """S5: Pool quota-check must propagate quota_unknown even when the chosen payload is an empty dict."""
+    dev_config_mod = _dev_config_mod()
+    real_home = tmp_path / "real_home"
+    project = tmp_path / "project"
+    _make_profile_dirs(real_home, ("p1",))
+    _write_json(
+        project / ".agents" / "config" / "personas.json",
+        {"overrides": {"programmer": {"model": "hydrogen", "effort": "xhigh"}}},
+    )
+    _write_json(
+        real_home / ".d3nexus" / "agy_profiles.json",
+        {"schema_version": 1, "pool": [{"profile": "p1", "priority": 1}]},
+    )
+
+    rc = dev_config_mod.cmd_quota_check(
+        project,
+        personas=("programmer",),
+        json_output=True,
+        fetcher=lambda _p: dict(payload),
+        real_home=real_home,
+        resident_probe=lambda _p: False,
+    )
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["sufficient"] is True
+    entry = out["personas"][0]
+    assert entry["sufficient"] is True
+    assert entry["quota_line"] == "profile=p1"
+    assert entry["warning"] == "quota_unknown"

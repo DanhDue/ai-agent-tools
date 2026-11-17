@@ -866,7 +866,7 @@ def _check_agy_pool_quota(
                 if item.get("profile") == acq.profile and isinstance(item.get("quota"), Mapping):
                     chosen = dict(item["quota"])
                     break
-        if chosen:
+        if chosen is not None:
             _, q_line, warn = _evaluate_binding_quota(binding, chosen, thresholds)
             detail = f"profile={acq.profile} ({q_line})" if q_line else f"profile={acq.profile}"
             return True, detail, warn
@@ -1065,9 +1065,23 @@ def cmd_profiles_clear(
     return 0
 
 
-def _discover_agy_profiles() -> list[str]:
+def _discover_agy_profiles(
+    *,
+    loader: Callable[[str, Path], ModuleType] | None = None,
+) -> list[str]:
     """Return the Antigravity profiles found by the discovery behind the check-quota skill."""
-    mod = _load_module_by_path("agy_quota", _SCRIPTS_DIR / "agy_quota.py")
+    load_mod = loader if loader is not None else _load_module_by_path
+    quota_path = _SCRIPTS_DIR / "agy_quota.py"
+    try:
+        mod = load_mod("agy_quota", quota_path)
+    except (SyntaxError, TypeError) as exc:
+        detail = str(exc).splitlines()[0] if str(exc) else exc.__class__.__name__
+        raise AgyPoolError(
+            f"Cannot load {quota_path.name} (Python 3.10+ required): {exc.__class__.__name__}: {detail}"
+        ) from exc
+    except (ImportError, OSError, RuntimeError) as exc:
+        detail = str(exc).splitlines()[0] if str(exc) else exc.__class__.__name__
+        raise AgyPoolError(f"Cannot load {quota_path.name}: {detail}") from exc
     return [str(name) for name in mod.get_all_profiles()]
 
 

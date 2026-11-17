@@ -267,6 +267,57 @@ def _run_with_heartbeat(
         hb_thread.join(timeout=2.0)
 
 
+def _format_busy_pool_report(
+    status: Mapping[str, Any],
+    *,
+    skipped: Mapping[str, str],
+    wait_seconds: float,
+) -> list[str]:
+    wait_display = (
+        int(wait_seconds)
+        if isinstance(wait_seconds, (int, float)) and float(wait_seconds).is_integer()
+        else wait_seconds
+    )
+    lines = [f"Stopped: agy profile pool is busy (stayed in use for {wait_display} seconds)."]
+    resident_profiles = [
+        profile for profile, why in skipped.items() if why == "resident_process"
+    ]
+    for p_name in resident_profiles:
+        lines.append(
+            f"- {p_name} is held by a resident agy process (antigravity_homes/{p_name}/)"
+        )
+    leased_count = 0
+    for entry in status.get("profiles") or []:
+        p_name = str(entry.get("profile") or "")
+        for holder in entry.get("leased_by") or []:
+            leased_count += 1
+            epic = str(holder.get("epic") or "unknown")
+            task = str(holder.get("task") or "unknown")
+            slot = holder.get("slot")
+            slot_str = str(slot) if slot is not None else "?"
+            lines.append(f"- {p_name} is held by {epic}/{task}/slot {slot_str}")
+    if not resident_profiles and leased_count == 0:
+        lines.append("- one or more pool profiles are currently busy")
+    lines.append("Options:")
+    lines.append(
+        "- wait for the active profile to finish, or retry dispatch with --wait <seconds>"
+    )
+    if resident_profiles:
+        target_pat = (
+            f"antigravity_homes/{resident_profiles[0]}/"
+            if len(resident_profiles) == 1
+            else "antigravity_homes/<profile>/"
+        )
+        lines.append(
+            f"- free the profile by closing its resident agy session (or `pkill -f '{target_pat}'`)"
+        )
+    if leased_count > 0 or not resident_profiles:
+        lines.append(
+            '- or run "/d3nexus:dev-config profiles release <name> --force" once stale'
+        )
+    return lines
+
+
 def _build_no_profile_report(
     cwd: Path,
     binding: PersonaBinding,
@@ -276,9 +327,22 @@ def _build_no_profile_report(
     wait_seconds: float,
     which: Callable[[str], str | None],
     now: datetime | None,
+    acq: Any | None = None,
 ) -> list[str]:
     status = _pool.pool_status(real_home=real_home, now=now, host_profile=host_profile)
     status["wait_seconds"] = wait_seconds
+    acq_reason = getattr(acq, "reason", None) if acq is not None else None
+    skipped = getattr(acq, "skipped", None) if acq is not None else None
+    skipped_map = dict(skipped) if isinstance(skipped, Mapping) else {}
+    if acq_reason == "pool_busy" and (
+        status.get("state") != "busy"
+        or any(why == "resident_process" for why in skipped_map.values())
+    ):
+        return _format_busy_pool_report(
+            status,
+            skipped=skipped_map,
+            wait_seconds=wait_seconds,
+        )
     cfg = _pc.load_persona_config(cwd, real_home=real_home)
     prog_binding = (
         binding
@@ -622,6 +686,7 @@ def run_on_pool(
                 wait_seconds=wait_seconds,
                 which=which,
                 now=now,
+                acq=acq,
             )
             return DispatchResult(
                 status="no_profile",

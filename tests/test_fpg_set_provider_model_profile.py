@@ -643,3 +643,42 @@ def test_fpg_fr_08_exhaustion_report_offers_kiro_sonnet(tmp_path: Path) -> None:
     assert "not on PATH" not in kiro_lines[0]
     joined = "\n".join(report)
     assert "kiro-opus" not in joined
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [
+        TypeError("unsupported operand type(s) for |: 'type' and 'NoneType'"),
+        SyntaxError("invalid syntax"),
+    ],
+)
+def test_profiles_discover_reports_python_version_on_load_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    exc: Exception,
+) -> None:
+    """S6: profiles discover must report a one-line CLI error naming Python 3.10+ when loading agy_quota.py fails."""
+    dc = _dev_config_mod()
+    real_home = tmp_path / "real_home"
+    project = tmp_path / "project"
+    project.mkdir()
+    _make_pool(real_home, ("p1",))
+
+    def failing_loader(_name: str, _path: Path) -> ModuleType:
+        raise exc
+
+    monkeypatch.setattr(dc, "_load_module_by_path", failing_loader)
+    rc = dc.main(["--project-root", str(project), "profiles", "discover"])
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert captured.out == ""
+    err_lines = [line for line in captured.err.splitlines() if line.strip()]
+    assert len(err_lines) == 1
+    assert err_lines[0].startswith("Error:")
+    assert "3.10" in err_lines[0]
+
+    with pytest.raises(dc.AgyPoolError) as err_info:
+        dc._discover_agy_profiles(loader=failing_loader)
+    assert "3.10" in str(err_info.value)
+    assert "\n" not in str(err_info.value)

@@ -629,8 +629,10 @@ def _is_exhausted_skip(
 ) -> tuple[bool, bool]:
     """Return (should_skip_as_exhausted, recheck_interval_elapsed)."""
     until_dt = _parse_utc(rec.get("exhausted_until"))
-    if until_dt is None or until_dt <= now:
+    if until_dt is None:
         return False, False
+    if until_dt <= now:
+        return False, True
     checked_dt = _parse_utc(rec.get("exhausted_checked_at"))
     if checked_dt is None:
         return True, False
@@ -796,8 +798,11 @@ def _get_quota_for_candidate(
     recheck_due: bool,
     fetcher: Callable[[str], Mapping[str, Any]],
     now: datetime,
+    exhausted_until: Any = None,
 ) -> tuple[Mapping[str, Any], bool]:
-    if not recheck_due and isinstance(cached_quota, Mapping):
+    until_dt = _parse_utc(exhausted_until)
+    reset_elapsed = until_dt is not None and until_dt <= now
+    if not recheck_due and not reset_elapsed and isinstance(cached_quota, Mapping):
         fetched_dt = _parse_utc(cached_quota.get("fetched_at"))
         if (
             fetched_dt is not None

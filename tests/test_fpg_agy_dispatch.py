@@ -788,3 +788,88 @@ def test_fpg_fr_05_non_git_cwd_and_empty_pool_and_non_agy_dispatch(
     assert res_claude.status == "ok"
     assert res_claude.profile_used is None
     assert res_claude.attempts == 1
+
+
+@pytest.mark.parametrize(
+    ("reason", "skipped", "pool_state", "exhausted_until", "exhausted_reason"),
+    [
+        ("pool_busy", {"p1": "resident_process"}, "ok", None, None),
+        ("pool_exhausted", {"p1": "exhausted"}, "exhausted", "2026-11-17T12:00:00Z", "5h"),
+    ],
+)
+def test_no_profile_report_distinguishes_resident_busy_from_exhausted(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    reason: str,
+    skipped: dict[str, str],
+    pool_state: str,
+    exhausted_until: str | None,
+    exhausted_reason: str | None,
+) -> None:
+    """S3: A resident_process pool_busy outcome must report busy + wait/free steps, never exhausted quota."""
+    pool_mod = _pool_mod()
+    dispatch_mod = _dispatch_mod()
+    persona_mod = _persona_mod()
+    real_home = tmp_path / "real_home"
+    repo = tmp_path / "repo"
+    _make_profile_dirs(real_home, ("p1",))
+    repo.mkdir(parents=True)
+    prompt_file = tmp_path / "prompt.txt"
+    prompt_file.write_text("task\n", encoding="utf-8")
+    _write_json(
+        real_home / ".d3nexus" / "agy_profiles.json",
+        {"schema_version": 1, "pool": [{"profile": "p1", "priority": 1}]},
+    )
+
+    injected_acq = pool_mod.Acquisition(
+        profile=None,
+        via_ag_run=False,
+        owner_id="owner-1",
+        skipped=skipped,
+        reason=reason,
+    )
+    injected_status = {
+        "state": pool_state,
+        "profiles": [
+            {
+                "profile": "p1",
+                "priority": 1,
+                "max_concurrent": 1,
+                "leased_by": [],
+                "exhausted_until": exhausted_until,
+                "exhausted_reason": exhausted_reason,
+                "quota": None,
+            }
+        ],
+        "earliest_reset": exhausted_until,
+    }
+    monkeypatch.setattr(pool_mod, "acquire", lambda *_a, **_kw: injected_acq)
+    monkeypatch.setattr(pool_mod, "pool_status", lambda *_a, **_kw: dict(injected_status))
+
+    binding = persona_mod.resolve_persona("programmer", repo, real_home=real_home)
+    res = dispatch_mod.run_on_pool(
+        binding,
+        "write",
+        prompt_file=prompt_file,
+        cwd=repo,
+        log=tmp_path / "dispatch.log",
+        owner={"repo": "repo", "epic": "e1", "task": "t1", "slot": 1, "role": "runner"},
+        real_home=real_home,
+        host_profile="other",
+        wait_seconds=15,
+    )
+
+    assert res.status == "no_profile"
+    assert res.reason == reason
+    joined = "\n".join(res.report).lower()
+    if reason == "pool_busy":
+        assert "busy" in joined
+        assert "resident" in joined
+        assert "p1" in joined
+        assert "wait" in joined
+        assert any(tok in joined for tok in ("free", "close", "terminat", "pkill"))
+        assert "out of quota" not in joined
+        assert "exhausted" not in joined
+    else:
+        assert res.report[0] == "Stopped: all agy profiles are out of quota."
+        assert "- p1: 5-hour limit reached (resets 2026-11-17T12:00:00Z)" in res.report
