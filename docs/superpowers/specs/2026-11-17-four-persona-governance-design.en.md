@@ -280,6 +280,9 @@ maps `/d3nexus:dev-config <args>` to the script.
 | Command | Effect |
 |---------|--------|
 | `status` | Table of persona → CLI, resolved model ID, effort, fallback, and the layer each value came from; lists presets; shows the turn budget and low-quota state with its expiry; prints validation and legacy-key warnings; flags a CLI missing from `PATH` |
+| `models [--persona <persona>]` (alias `--models`) | Lists the merged model catalogue: alias, CLI, resolved model IDs per effort, allowed efforts, whether the CLI is on `PATH`, the current quota line when readable, and which personas use it now |
+| `models add <alias> --cli <cli> --id <id> --efforts <list> [--scope global\|project]` | Adds or replaces a catalogue alias, so a newly released model is usable without editing JSON |
+| `models remove <alias> [--scope global\|project]` | Removes an alias from that layer; refused while a binding in the merged config still uses it |
 | `preset <name> [--scope global\|project]` | Sets `active_preset` (default scope `global`); warns when a project layer masks the change |
 | `set <persona> <model> <effort> [--fallback <model>] [--scope global\|project]` | Writes `overrides.<persona>` |
 | `reset [<persona>] [--scope global\|project]` | Clears one or all overrides |
@@ -287,6 +290,11 @@ maps `/d3nexus:dev-config <args>` to the script.
 | `checkpoint --turns <n> [--scope global\|project]` | Sets `max_orchestrator_turns_before_checkpoint` |
 | `quota-check [--personas <list>]` | Runs the automatic quota gate ([8.5](#85-automatic-quota-gate)); exit 0 sufficient, 2 insufficient |
 | `resolve <persona> [--format json\|argv] [--mode read-only\|write]` | Machine interface used by every dispatch site |
+
+**Choosing models interactively.** `/d3nexus:dev-config --models` with no further arguments runs
+`models`, shows the table, then asks the user one question per persona to pick a model and effort among
+the valid options (current binding first). It applies each answer with `set` (scope `global` unless the
+user picks `project`) and finishes with `status`. With `--persona <persona>` it asks about that persona only.
 
 Writes are atomic (temp file plus rename) and validated before replacing the file. The resolver lives in
 `resources/scripts/persona_config.py` and is loaded by path (`importlib.util`) from
@@ -506,6 +514,8 @@ Tests are parametrised per the kit's anti-test-bloat rules.
   checkpoint precedes the halt and no retry is dispatched; low-quota mode completes the in-flight wave,
   starts no new one, and stops.
 - `dev-config low-quota`: per-profile storage, expiry, `off`.
+- `dev-config models`: listing marks missing CLIs and current users of an alias; `add` validates CLI and
+  efforts; `remove` is refused while the alias is bound.
 - Quota gate: parametrised over CLI × (sufficient, insufficient, unreadable) with a stub fetcher;
   insufficient writes `quota_low` and a `quota` pending decision and dispatches nothing; unreadable warns and
   continues.
