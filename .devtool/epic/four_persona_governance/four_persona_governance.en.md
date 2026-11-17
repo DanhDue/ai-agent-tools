@@ -227,7 +227,7 @@ flowchart TD
    dev_config.py models remove ALIAS [--scope global|project]
    dev_config.py preset NAME [--scope global|project]
    dev_config.py --provider agy|claude|codex [--scope global|project]   # the preset write for that provider's preset
-   dev_config.py profiles list [--json] | add NAME [--priority N] [--max-concurrent N] | remove NAME | release NAME [--force] | clear [NAME] | probe [NAME]
+   dev_config.py profiles list [--json] | add NAME [--priority N] [--max-concurrent N] | remove NAME | release NAME [--force] | clear [NAME] | probe [NAME] | discover [--json]
    dev_config.py dispatch --persona P [--mode write|read-only] --prompt-file F --cwd D --log L [--epic E] [--task T] [--slot N] [--role R] [--wait S]
    dev_config.py set PERSONA [MODEL EFFORT] [--provider agy|claude|codex|kiro] [--model M] [--effort E] [--profile NAME|auto] [--fallback MODEL] [--scope global|project]
    dev_config.py set PERSONA MODEL EFFORT [--fallback MODEL] [--scope global|project]
@@ -312,7 +312,7 @@ Integration results: python3 -m pytest -q --tb=short --maxfail=3 --junitxml=buil
 
 ## Comprehensive BDD Scenario Coverage
 
-All 46 scenarios (`FPG-HP-01` to `FPG-FR-08`, including `FPG-HP-09` to `FPG-HP-16`, `FPG-EC-06` to `FPG-EC-08`, `FPG-ST-05` to `FPG-ST-07`, `FPG-AR-05` to `FPG-AR-07` and `FPG-FR-05` to `FPG-FR-08`) are defined in [bdd_scenarios.en.md](bdd_scenarios.en.md)
+All 47 scenarios (`FPG-HP-01` to `FPG-FR-08`, including `FPG-HP-09` to `FPG-HP-17`, `FPG-EC-06` to `FPG-EC-08`, `FPG-ST-05` to `FPG-ST-07`, `FPG-AR-05` to `FPG-AR-07` and `FPG-FR-05` to `FPG-FR-08`) are defined in [bdd_scenarios.en.md](bdd_scenarios.en.md)
 across Happy Path (`HP`), Edge Cases (`EC`), State Transitions (`ST`), Architecture and Concurrency (`AR`)
 and Fault Resilience (`FR`).
 
@@ -341,7 +341,7 @@ and Fault Resilience (`FR`).
 8. **[Task 08: Kit Guides, verify.sh Registration and End-to-End Acceptance](task_08_kit_guides_verify_registration_and_acceptance.md)** (`review_tier: "full"`) — Covers: `FPG-HP-08`, `FPG-HP-16`
 9. **[Task 09: Provider Quick-Setup Shortcut](task_09_provider_quick_setup.md)** (`review_tier: "full"`) — Covers: `FPG-HP-10`, `FPG-EC-06`
 10. **[Task 10: Agy Profile Pool, Lease File and Pooled Dispatch](task_10_agy_profile_pool_and_leases.md)** (`review_tier: "full"`) — Covers: `FPG-HP-11`, `FPG-HP-12`, `FPG-EC-07`, `FPG-ST-07`, `FPG-AR-06`, `FPG-FR-05`, `FPG-FR-07`
-11. **[Task 11: dev-config set with Provider, Model, Effort and Preferred agy Profile; Kiro Sonnet](task_11_set_provider_model_effort_profile.md)** (`review_tier: "full"`) — Covers: `FPG-HP-14`, `FPG-HP-15`, `FPG-EC-08`, `FPG-FR-08`
+11. **[Task 11: dev-config set with Provider, Model, Effort and Preferred agy Profile; Kiro Sonnet](task_11_set_provider_model_effort_profile.md)** (`review_tier: "full"`) — Covers: `FPG-HP-14`, `FPG-HP-15`, `FPG-EC-08`, `FPG-FR-08`, `FPG-HP-17`
 
 ## Spec Errata
 
@@ -423,3 +423,17 @@ and Fault Resilience (`FR`).
   cannot drift from the CLI. Example profiles are generic names; a real profile name, e-mail address or password never
   appears. Not stated, to confirm: no README or CHANGELOG entry is added inside this epic (they change at release time),
   and `skills/dev-config/SKILL.md` gets one pointer line.
+- **[SE-12] `profiles discover`**: Role 1.0 asked on 2026-11-17 to add `dev-config profiles discover`, after asking whether the pool list
+  should come from `~/.zshrc` or from the `antigravity_homes/` folders and whether `check-quota` already does it. It does:
+  `agy_quota.get_all_profiles()` scans the folders, validates each with `is_valid_antigravity_profile` and falls back to
+  `~/.zshrc`; on Role 1.0's machine both sources agree (25 and 25). `discover` reuses that function and lists the profiles that are
+  not yet in the pool. It fetches no quota, because that would use the logins of every profile on the machine, including other
+  people's; `profiles probe NAME` does that for one chosen profile. The pool stays an explicit allow-list: `discover` only
+  suggests. It is added to Task 11.
+- **[SE-13] Task 03 Verification Repair**: The Task 03 worker found that V3 (`pytest tests/test_token_throttling_acceptance.py`) also runs
+  `test_tto_ec_06_verify_suite_registration`, which runs the whole repository gate `scripts/verify.sh`. That contradicts the rule of this
+  epic that the repository gate runs once at Gate 4, and it fails under host isolation because its tests read the real environment.
+  V3 now deselects it, and the isolation fixture of Task 03 must not wrap the tests that run `verify.sh`. Separately,
+  `scripts/test_lifecycle_signals.py::QueuedPackagingTest::test_lf_st_03_queued_epic_keeps_its_queue_and_the_grep_still_matches` has
+  failed on the epic branch since Task 04 changed `sync_task_status.sync_epic` to English-only resolution, and no task owns that
+  file; it is repaired by a Fix commit before Gate 4.

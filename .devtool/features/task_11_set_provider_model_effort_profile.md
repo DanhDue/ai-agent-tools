@@ -32,9 +32,11 @@ profile is out of quota ([SE-10](../epic/four_persona_governance/four_persona_go
 3. **Catalogue (`scripts/personas.default.json`)**: add `kiro-sonnet` (`claude-sonnet-5.5`, efforts `["high"]`) just
    before `kiro-opus`. The exhaustion report of Task 10 then suggests
    `/d3nexus:dev-config set programmer kiro-sonnet high` for Kiro, with no change to the report code.
-4. **Skill (`skills/dev-config/SKILL.md`)**: documents the flag form of `set`, `--profile` and the Kiro Sonnet example;
+4. **Skill (`skills/dev-config/SKILL.md`)**: documents the flag form of `set`, `--profile`, `profiles discover` and the Kiro Sonnet example;
    frontmatter stays `name` + `description` only.
-5. **Tests**: `tests/test_fpg_set_provider_model_profile.py` (FPG-HP-14, FPG-HP-15, FPG-EC-08, FPG-FR-08), with a
+4a. **Discover (`dev_config.py profiles discover`)**: a read-only list of the profiles you could add to the pool, taken from
+   the same discovery the `check-quota` skill uses, so nothing is parsed twice ([SE-12](../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)).
+5. **Tests**: `tests/test_fpg_set_provider_model_profile.py` (FPG-HP-14, FPG-HP-15, FPG-EC-08, FPG-FR-08; FPG-HP-17 goes in `tests/test_fpg_agy_profile_pool.py`), with a
    temporary `REAL_HOME`, project, `PATH` and pool; plus any existing assertion that enumerates the kit catalogue
    or `PersonaBinding` fields exactly.
 
@@ -83,7 +85,7 @@ profile still has quota. Applicable skills: `d3nexus:test-driven-development`, `
 
 ### BDD SCENARIOS
 
-Covers: FPG-HP-14, FPG-HP-15, FPG-EC-08, FPG-FR-08
+Covers: FPG-HP-14, FPG-HP-15, FPG-HP-17, FPG-EC-08, FPG-FR-08
 
 
 ```gherkin
@@ -106,6 +108,14 @@ Then it returns profile "p1" and the skipped map is {"p3": "leased"}
 When "p3" instead has "exhausted_until" in the future and "acquire" runs with preferred_profile "p3"
 Then it returns profile "p1" and the skipped map is {"p3": "exhausted"}
 And "run_on_pool" for that binding attempts "p3" first and then "p1" and "p2" in priority order
+
+Scenario: [FPG-HP-17] [Tier A - Unit] profiles discover lists the profiles that could be added and fetches no quota
+Given an injected discoverer returning "profile_a", "profile_b", "profile_c" and "profile_d", a pool listing "profile_b", a host profile "profile_c", and an injected quota fetcher that records every call
+When "dev_config.py profiles discover --json" runs
+Then it exits 0 and lists "profile_a", "profile_c" and "profile_d" as candidates in that order, with "host" true for "profile_c", and "in_pool" lists "profile_b"
+And the quota fetcher was never called
+And "dev_config.py profiles discover" without "--json" prints one line per candidate followed by the hints "profiles probe <name>" and "profiles add <name>"
+And the pool file and the lease file are unchanged
 
 Scenario: [FPG-EC-08] [Tier A - Unit] Invalid provider, model, effort and profile combinations are rejected and change nothing
 Given a project configuration file whose SHA-256 is recorded, a pool listing "p1", and the kit default catalogue
@@ -190,6 +200,19 @@ And it does not suggest "kiro-opus"
 - `exhaustion_report` is unchanged: its Kiro suggestion is the first catalogue alias of the Kiro CLI, now
   `kiro-sonnet`, and its PATH check already accepts `kiro-cli` or `kiro`.
 
+**Discover**
+- New contract: `dev_config.py profiles discover [--json]` lists the profiles you could add. Candidates come from
+  `agy_quota.get_all_profiles()`, the function behind `check-quota` (the `antigravity_homes/` folders validated by
+  `is_valid_antigravity_profile`, with a `~/.zshrc` fallback), loaded by path and injectable as `discoverer` for tests. This
+  task never parses `~/.zshrc` itself. A candidate is a discovered profile that is not in the pool; the host profile stays
+  a candidate and is marked `host: true`. Candidates are sorted by name.
+- New contract: the command fetches no quota and unlocks no keychain, because that would use the logins of every profile on
+  the machine, including other people's. It prints one line per candidate, then the hints `profiles probe <name>` and
+  `profiles add <name>`. JSON: `{"candidates": [{"profile", "host"}], "in_pool": [names], "source":
+  "agy_quota.get_all_profiles"}`. Exit `0`. The pool file and the lease file are never written.
+- New contract: the test is `test_fpg_hp_17_profiles_discover_lists_candidates_not_in_the_pool` in
+  `tests/test_fpg_agy_profile_pool.py`; it injects the discoverer and a recording fetcher and never reads the host.
+
 **Tests**
 - Test names in `tests/test_fpg_set_provider_model_profile.py`: `test_fpg_hp_14_set_with_provider_model_effort_and_profile`,
   `test_fpg_hp_15_preferred_profile_first_then_rotate`, `test_fpg_ec_08_invalid_set_combinations_change_nothing`
@@ -202,7 +225,7 @@ And it does not suggest "kiro-opus"
 
 ## Definition of Done
 
-- FPG-HP-14, FPG-HP-15, FPG-EC-08 and FPG-FR-08 pass, and Tasks 1, 9 and 10 suites still pass. (V2, V5)
+- FPG-HP-14, FPG-HP-15, FPG-HP-17, FPG-EC-08 and FPG-FR-08 pass, and Tasks 1, 9 and 10 suites still pass. (V2, V5)
 - Ruff and mypy pass on the changed modules. (V3, V4)
 - `skills/dev-config/SKILL.md` frontmatter holds exactly `name` and `description`, and the skill documents the flag
   form of `set`, `--profile` and the Kiro Sonnet example. (Gate 5)

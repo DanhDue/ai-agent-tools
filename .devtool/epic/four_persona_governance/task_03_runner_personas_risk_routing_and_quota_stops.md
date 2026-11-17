@@ -183,7 +183,7 @@ Then halt_reason is "MODEL_UNAVAILABLE" and the pending decision kind is "blocke
 |----|-------|---------|--------|-------|
 | V1 | RED | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_runner_personas.py::test_fpg_st_02_high_risk_routes_to_fix_planner_and_escalates` | exit 1; contains "failed" | — |
 | V2 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_runner_personas.py tests/test_lifecycle_runner.py` | exit 0; contains "passed" | — |
-| V3 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_token_throttling_acceptance.py` | exit 0 | — |
+| V3 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_token_throttling_acceptance.py -k "not test_tto_ec_06"` | exit 0 | — |
 | V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` | exit 0 | — |
 | V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` | exit 0 | — |
 | V6 | TIER-C | `python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/fpg_task_03.xml tests/test_fpg_runner_personas.py tests/test_lifecycle_runner.py` | exit 0; results build/test-results/fpg_task_03.xml | — |
@@ -217,6 +217,11 @@ Then halt_reason is "MODEL_UNAVAILABLE" and the pending decision kind is "blocke
   `role="runner"` with the epic slug, task id and slot of the dispatch. The `subagent_returned` checkpoint
   detail names `profile_used`. The `quota` pending decision reason for `pool_exhausted` and `pool_busy` is the
   report lines joined with newlines, unchanged.
+- New contract ([SE-13](four_persona_governance.en.md#spec-errata)): `test_tto_ec_06_verify_suite_registration` and its integration twin run the whole repository gate
+  `scripts/verify.sh`. V3 deselects them, because the repository gate runs once at Gate 4. The host-isolation fixture
+  you add to `tests/test_token_throttling_acceptance.py` MUST NOT wrap those tests or any test that runs `verify.sh`: they
+  need the real environment and still run at Gate 4. Apply the fixture only to tests that call the runner, `persona_config`
+  or `resume_context` in-process.
 - The quota gate and the checkpoint writer are injected attributes (`self.quota_gate`, `self.checkpoint_writer`)
   defaulting to `dev_config.cmd_quota_check` and `_state_envelope.update_epic_checkpoint`, so tests use stubs.
 - New contract: the fix-planner summary is the last fenced `json` block of its output; a missing or unparseable

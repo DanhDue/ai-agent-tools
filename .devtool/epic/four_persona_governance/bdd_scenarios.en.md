@@ -162,6 +162,14 @@ Then every command parses without a usage error
 And the guide shows the subcommands "status", "models", "set", "preset", "reset", "low-quota", "checkpoint", "quota-check", "resolve", "profiles" and "dispatch", the options "--provider", "--model", "--effort" and "--profile", and the line "/d3nexus:dev-config set programmer kiro-sonnet high"
 And the Vietnamese variant has the same number of headings and the same commands in the same order
 And neither variant contains an e-mail address or the word "password"
+
+Scenario: [FPG-HP-17] [Tier A - Unit] profiles discover lists the profiles that could be added and fetches no quota
+Given an injected discoverer returning "profile_a", "profile_b", "profile_c" and "profile_d", a pool listing "profile_b", a host profile "profile_c", and an injected quota fetcher that records every call
+When "dev_config.py profiles discover --json" runs
+Then it exits 0 and lists "profile_a", "profile_c" and "profile_d" as candidates in that order, with "host" true for "profile_c", and "in_pool" lists "profile_b"
+And the quota fetcher was never called
+And "dev_config.py profiles discover" without "--json" prints one line per candidate followed by the hints "profiles probe <name>" and "profiles add <name>"
+And the pool file and the lease file are unchanged
 ```
 
 ---

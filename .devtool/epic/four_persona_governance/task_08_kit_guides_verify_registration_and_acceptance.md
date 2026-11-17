@@ -32,7 +32,7 @@ Close the epic: human guides, suite registration and one end-to-end test across 
    Diátaxis `how-to`, Non-goals, Acceptance, Source Spec) and numbered sections: (1) a ten-second cheat sheet, a table
    of goal to exact command; (2) where settings live and which layer wins, read with `status`; (3) choose a
    provider, a model and an effort with `set` (positional and flag forms, the `--provider` shortcut, presets, the Kiro
-   Sonnet example, the effort rules); (4) use several agy profiles (`profiles add|list|remove|release|clear|probe`,
+   Sonnet example, the effort rules); (4) use several agy profiles (`profiles discover|add|list|remove|release|clear|probe`,
    priority, `--profile` as prefer-then-rotate, leases, the 5-hour and weekly windows and their thresholds, and only
    profiles you own); (5) when quota runs out (low-quota mode, `quota-check`, the stop report, the commands it offers,
    and that the kit never switches model by itself); (6) a troubleshooting table of symptom, cause and command; (7) a
