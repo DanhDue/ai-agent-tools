@@ -1,12 +1,13 @@
 ---
 id: "task_01_persona_config_and_dev_config_cli"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T07:43:05Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T07:43:05Z"
 labels: ["config", "cli", "dispatch", "quota", "architecture", "security"]
 order: "a1"
 review_tier: "full"
