@@ -391,3 +391,15 @@ def test_dev_implementation_worker_rules_pointer_at_phase2_step1() -> None:
     assert step1.index("references/worker-execution-rules.md") < step1.index(
         "dispatch the slot's `task-implementer`"
     )
+
+
+def test_window_title_rule_template_matches_english_only_rule() -> None:
+    """templates/.agents/rules/window_title_sync.md stays in sync with .agents/rules/window_title_sync.md."""
+    live = _read(".agents/rules/window_title_sync.md").rstrip("\n")
+    template = _read("templates/.agents/rules/window_title_sync.md").rstrip("\n")
+    assert template == live, (
+        "templates/.agents/rules/window_title_sync.md drifted from .agents/rules/window_title_sync.md"
+    )
+    assert "<Tên Epic Tiếng Việt>" not in template
+    assert "<Epic Name>" in template
+    assert "No `.vi.md` file is read" in template
