@@ -444,3 +444,11 @@ and Fault Resilience (`FR`).
   without editing files it does not own. Both files are added to Task 07, which rewords that clause to "never read `*.vi.md`
   mirrors" and changes nothing else. The prohibition keeps its meaning. No other task owns either file (exclusive-ownership check),
   and a repository search found no test that pins the old clause. This was a gap in the original task breakdown.
+- **[SE-15] Inherited agy Profile and a Higher-Layer Non-agy Model**: The Task 11 reviewer found that a `profile` stored in a lower layer
+  (for example global) made `resolve` raise `PersonaConfigError` when a higher layer (project or CLI) bound a model that is not an agy
+  model, so `/d3nexus:dev-config set programmer codex-gpt xhigh --scope project` exited 1 until the global entry was changed. That is the
+  very command the exhaustion report of SE-09 suggests, so the stop report led into an error. Role 1.0 approved the fix on 2026-11-17.
+  New rule, superseding the literal reading of SE-10: a profile inherited from a lower layer is ignored when a higher layer sets a model
+  that is not an agy model; it is dropped from the resolved binding and from `sources`. A profile stored in the SAME layer as a non-agy
+  model, and `--profile` given together with a non-agy model in one command, stay errors. Layer order is kit, global, project, CLI. This is
+  delivered as a Fix commit; no scenario and no task text changes, and the quick guide of Task 08 states the rule.
