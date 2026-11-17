@@ -1,12 +1,13 @@
 ---
 id: "task_05_check_tasks_dashboard_persona_and_quota_sync"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T11:03:00Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T11:03:00Z"
 labels: ["dashboard", "telemetry", "quota"]
 order: "a5"
 review_tier: "full"
@@ -14,7 +15,7 @@ review_tier: "full"
 
 # Task 5: check-tasks Dashboard Sync for Personas, Checkpoints and Quota Alerts
 
-Epic: [four_persona_governance](../epic/four_persona_governance/four_persona_governance.en.md)
+Epic: [four_persona_governance](../../epic/four_persona_governance/four_persona_governance.en.md)
 
 ## Requirement Analysis
 
@@ -32,7 +33,7 @@ Surface every new script output and state on `/d3nexus:check-tasks` (spec §9).
    `MODEL_UNAVAILABLE`, `QUOTA_LOW`, `LOW_QUOTA_STOP`, `FIX_PLAN_ESCALATE`, set
    `is_human_action_required` and add an `action_blockers` entry carrying the reason text (quota lines
    included); a checkpoint `warning: quota_unknown` adds a `notices` entry only. The agy profile pool
-   ([SE-09](../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)) is read from `agy_profile_pool.pool_status` (loaded by path):
+   ([SE-09](../../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)) is read from `agy_profile_pool.pool_status` (loaded by path):
    `agy_profiles` lists each pool profile with its holders (epic, task, slot, role, repository), `exhausted_until`,
    `exhausted_reason` and its cached 5-hour and weekly quota; a profile in use adds a `notices` entry naming the
    holder; pool state `exhausted` (every profile out of quota) sets `is_human_action_required` and adds an
@@ -171,11 +172,11 @@ And the fourth has is_human_action_required false and a "notices" entry containi
 
 ## Dependencies & Blockers
 
-Blocked by [Task 1](../epic/four_persona_governance/task_01_persona_config_and_dev_config_cli.md), [Task 2](../epic/four_persona_governance/task_02_checkpoints_briefs_and_handoff_prompts.md), [Task 4](../epic/four_persona_governance/task_04_english_only_resolution_and_ownership_check.md) and [Task 10](../epic/four_persona_governance/task_10_agy_profile_pool_and_leases.md).
+Blocked by [Task 1](../../epic/four_persona_governance/task_01_persona_config_and_dev_config_cli.md), [Task 2](../../epic/four_persona_governance/task_02_checkpoints_briefs_and_handoff_prompts.md), [Task 4](../../epic/four_persona_governance/task_04_english_only_resolution_and_ownership_check.md) and [Task 10](../../epic/four_persona_governance/task_10_agy_profile_pool_and_leases.md).
 
 Downstream dependents (blocked by Task 5): `task_06`.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/four_persona_governance/four_persona_governance.en.md)
+- [Epic HLD](../../epic/four_persona_governance/four_persona_governance.en.md)
 - **Rollback**: Revert the task commit; the dashboard falls back to the previous payload.

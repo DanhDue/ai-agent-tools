@@ -1,12 +1,13 @@
 ---
 id: "task_05_check_tasks_dashboard_persona_and_quota_sync"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T11:03:00Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T11:03:00Z"
 labels: ["dashboard", "telemetry", "quota"]
 order: "a5"
 review_tier: "full"
