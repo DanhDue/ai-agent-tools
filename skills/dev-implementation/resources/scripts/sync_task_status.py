@@ -17,7 +17,8 @@ This script writes them all:
 `task` mode rewrites `status`, `modified`, and -- on `done` -- `completedAt` in
 the frontmatter of every copy of that task, in every checkout `git worktree
 list` reports. `epic` mode rewrites the Meta Data `Status` line of the Epic
-Overview's `.en.md` and `.vi.md` together, so the pair can never diverge.
+Overview resolved English-only via `_epic_docs.resolve_epic_doc` (`<epic_dir>.md`,
+else legacy `<epic_dir>.en.md`; Vietnamese `*.vi.md` mirrors are never touched).
 
 Only matched lines change; every other key and the whole document body survive
 byte-for-byte. Frontmatter is parsed with the same hand-rolled regex idiom as
@@ -723,7 +724,7 @@ def fix_task_markdown_links(text: str, epic_dir: str) -> str:
 
 
 def fix_epic_overview_links(text: str) -> str:
-    """Rewrite Section 8 links in <epic_dir>.en.md / .vi.md to local task_*.md."""
+    """Rewrite Section 8 links in the resolved English overview (<epic_dir>.md, else legacy .en.md) to local task_*.md."""
     return re.sub(
         r"\]\(\.\./\.\./features/(?:done/)?(task_[^)]+\.md)\)", r"](\1)", text
     )
@@ -1068,7 +1069,11 @@ def extract_scenario_blocks(text: str) -> dict[str, list[str]]:
     return blocks
 
 
-def inject_bdd_scenarios(task_text: str, canonical_blocks: dict[str, list[str]]) -> str:
+def inject_bdd_scenarios(
+    task_text: str,
+    canonical_blocks: dict[str, list[str]],
+    scenarios_file: str | Path = "bdd_scenarios.md",
+) -> str:
     """Inject verbatim Gherkin scenario blocks matching Covers: into ### BDD SCENARIOS."""
     covers: list[str] = []
     for line in task_text.splitlines():
@@ -1080,8 +1085,11 @@ def inject_bdd_scenarios(task_text: str, canonical_blocks: dict[str, list[str]])
 
     missing = [c for c in covers if c not in canonical_blocks]
     if missing:
+        scenarios_label = (
+            scenarios_file.name if isinstance(scenarios_file, Path) else scenarios_file
+        )
         raise ValueError(
-            f"Covered scenario(s) missing from bdd_scenarios.en.md: {', '.join(missing)}"
+            f"Covered scenario(s) missing from {scenarios_label}: {', '.join(missing)}"
         )
 
     scenario_blocks = ["\n".join(canonical_blocks[c]) for c in covers]
@@ -1321,6 +1329,9 @@ def render_epic_tasks(
 
     source_root = source_root or root
     bdd_file = resolve_epic_doc(epic_path, "bdd_scenarios")
+    scenarios_label = (
+        bdd_file.name if bdd_file is not None else "bdd_scenarios.md (or legacy bdd_scenarios.en.md)"
+    )
     canonical_blocks: dict[str, list[str]] = {}
     if bdd_file is not None and bdd_file.is_file():
         canonical_blocks = extract_scenario_blocks(bdd_file.read_text(encoding="utf-8"))
@@ -1341,7 +1352,7 @@ def render_epic_tasks(
         task_text = task_file.read_text(encoding="utf-8")
         task_text = canonicalize_intra_epic_links(task_text, epic_path)
         task_text = expand_embedded_files(task_text, source_root)
-        task_text = inject_bdd_scenarios(task_text, canonical_blocks)
+        task_text = inject_bdd_scenarios(task_text, canonical_blocks, scenarios_label)
 
         fm = parse_frontmatter(task_text)
         is_done = fm.get("status") == "done"

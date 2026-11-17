@@ -11,6 +11,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 from collections.abc import Callable
@@ -1131,3 +1132,81 @@ def test_task_discovery_never_opens_vi_mirrors(
 
     vi_reads = collect_vi_reads()
     assert vi_reads == [], f"Unexpected .vi.md file reads for {caller}: {vi_reads}"
+
+
+@pytest.mark.parametrize(
+    "scenarios_filename", ["bdd_scenarios.md", "bdd_scenarios.en.md"]
+)
+def test_inject_bdd_scenarios_missing_id_names_resolved_file(
+    scenarios_filename: str, tmp_path: Path
+) -> None:
+    """inject_bdd_scenarios and render_epic_tasks name the resolved scenarios file on missing ID."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    epic_dir = repo / ".devtool" / "epic" / "demo_epic"
+    epic_dir.mkdir(parents=True, exist_ok=True)
+    (epic_dir / "demo_epic.md").write_text(
+        "# Demo Epic\n\n- **Epic**: `demo-epic`\n- **Status**: Planned\n",
+        encoding="utf-8",
+    )
+    (epic_dir / scenarios_filename).write_text(
+        "# Scenarios\n\n```gherkin\nScenario: [DEMO-HP-01] Present\n  Given a\n```\n",
+        encoding="utf-8",
+    )
+    task_text = _task_markdown(
+        "task_01_missing",
+        "demo-epic",
+        "demo_epic.md",
+        allowed="- `src/alpha.py`",
+        covers="Covers: DEMO-HP-99",
+    )
+    (epic_dir / "task_01_missing.md").write_text(task_text, encoding="utf-8")
+
+    sts = _load_script("sync_task_status", DEV_IMPL_SCRIPTS / "sync_task_status.py")
+    expected_msg = f"Covered scenario(s) missing from {scenarios_filename}: DEMO-HP-99"
+    with pytest.raises(ValueError, match=re.escape(expected_msg)):
+        sts.render_epic_tasks(repo, "demo_epic")
+    with pytest.raises(ValueError, match=re.escape(expected_msg)):
+        sts.inject_bdd_scenarios(task_text, {}, scenarios_filename)
+
+
+def test_render_epic_tasks_missing_scenarios_file_names_looked_for_names(
+    tmp_path: Path,
+) -> None:
+    """When no English scenarios file exists, render_epic_tasks names the file looked for."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    epic_dir = repo / ".devtool" / "epic" / "demo_epic"
+    epic_dir.mkdir(parents=True, exist_ok=True)
+    (epic_dir / "demo_epic.md").write_text(
+        "# Demo Epic\n\n- **Epic**: `demo-epic`\n- **Status**: Planned\n",
+        encoding="utf-8",
+    )
+    task_text = _task_markdown(
+        "task_01_missing",
+        "demo-epic",
+        "demo_epic.md",
+        allowed="- `src/alpha.py`",
+        covers="Covers: DEMO-HP-99",
+    )
+    (epic_dir / "task_01_missing.md").write_text(task_text, encoding="utf-8")
+
+    sts = _load_script("sync_task_status", DEV_IMPL_SCRIPTS / "sync_task_status.py")
+    with pytest.raises(ValueError) as exc_info:
+        sts.render_epic_tasks(repo, "demo_epic")
+    msg = str(exc_info.value)
+    assert "Covered scenario(s) missing from bdd_scenarios.md" in msg
+    assert "DEMO-HP-99" in msg
+
+
+def test_sync_and_contract_docstrings_describe_english_only_resolution() -> None:
+    """sync_task_status and check_task_contract docstrings reflect English-only resolution."""
+    sts_text = (DEV_IMPL_SCRIPTS / "sync_task_status.py").read_text(encoding="utf-8")
+    ctc_text = (DEV_IMPL_SCRIPTS / "check_task_contract.py").read_text(encoding="utf-8")
+    assert "`.en.md` and `.vi.md` together" not in sts_text
+    assert "<epic_dir>.en.md / .vi.md" not in sts_text
+    assert "--hld <epic_dir>.en.md" not in ctc_text
+    assert "_epic_docs.resolve_epic_doc" in sts_text
+    assert "_epic_docs.resolve_epic_doc" in ctc_text

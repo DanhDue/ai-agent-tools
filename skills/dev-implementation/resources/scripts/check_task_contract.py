@@ -2,8 +2,11 @@
 """Check the task files and HLD a designer wrote against the task contract, before Gate 2 closes.
 
 Usage:
-  check_task_contract.py [--design] --hld <epic_dir>.en.md --tasks <task_*.md ...>
+  check_task_contract.py [--design] --hld <epic_dir>.md --tasks <task_*.md ...>
 
+Accepts `<epic_dir>.md` or legacy `<epic_dir>.en.md` for `--hld`, and resolves
+`bdd_scenarios` English-only via `_epic_docs.resolve_epic_doc` (`bdd_scenarios.md`,
+else legacy `bdd_scenarios.en.md`; Vietnamese `*.vi.md` mirrors are never read).
 Prints problems as `<task stem>:<row or section>: <problem>` or `<hld file name>: <problem>`, the
 implicit protected paths, and a Result line. Exit codes: 0 no problem; 1 problems; 2 usage error.
 Python 3 standard library only.
