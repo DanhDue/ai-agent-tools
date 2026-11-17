@@ -1363,21 +1363,145 @@ def release_profile_leases(
     return int(_with_file_lock(leases_path, _op))
 
 
+def discover_agy_profiles(
+    *,
+    loader: Callable[[str, Path], ModuleType] | None = None,
+) -> list[str]:
+    """Return Antigravity profiles found by check-quota's discovery helper."""
+    load_mod = loader if loader is not None else _load_module_by_path
+    quota_path = _SCRIPTS_DIR / "agy_quota.py"
+    try:
+        mod = load_mod("agy_quota", quota_path)
+    except (SyntaxError, TypeError) as exc:
+        detail = str(exc).splitlines()[0] if str(exc) else exc.__class__.__name__
+        raise AgyPoolError(
+            f"Cannot load {quota_path.name} (Python 3.10+ required): {exc.__class__.__name__}: {detail}"
+        ) from exc
+    except (ImportError, OSError, RuntimeError) as exc:
+        detail = str(exc).splitlines()[0] if str(exc) else exc.__class__.__name__
+        raise AgyPoolError(f"Cannot load {quota_path.name}: {detail}") from exc
+    return [str(name) for name in mod.get_all_profiles()]
+
+
+def _resolve_non_pool_candidate(
+    profile: str,
+    pool_names: Sequence[str],
+    discoverer: Callable[[], Sequence[str]] | None = None,
+) -> None:
+    find = discoverer if discoverer is not None else discover_agy_profiles
+    discovered = [str(item) for item in find()]
+    if profile not in discovered:
+        candidates = sorted(set(discovered) - set(pool_names))
+        pool_desc = ", ".join(pool_names) if pool_names else "empty"
+        disc_desc = ", ".join(candidates) if candidates else "none"
+        raise AgyPoolError(
+            f"Profile '{profile}' is neither in the pool ({pool_desc}) "
+            f"nor in discovered profiles ({disc_desc})"
+        )
+
+
+def _extract_window_fraction(payload: Mapping[str, Any], key: str) -> float | None:
+    bucket = payload.get(key)
+    if isinstance(bucket, Mapping) and bucket.get("fraction") is not None:
+        return float(bucket["fraction"])
+    return None
+
+
+def _payload_status_ok(payload: Mapping[str, Any]) -> bool:
+    raw_status = payload.get("status")
+    if isinstance(raw_status, str) and raw_status:
+        return raw_status == "ACTIVE"
+    if "success" in payload:
+        return bool(payload.get("success"))
+    return True
+
+
+def probe_outside_pool(
+    profile: str,
+    *,
+    fetcher: Callable[[str], Mapping[str, Any]] | None = None,
+    discoverer: Callable[[], Sequence[str]] | None = None,
+    resident_probe: Callable[[str], bool] | None = None,
+    thresholds: Mapping[str, float] | Callable[[], Mapping[str, float]] | None = None,
+    host_profile: str | None = None,
+    real_home: Path | str | None = None,
+) -> dict[str, Any]:
+    """Probe one discoverable non-pool profile without modifying pool or lease files."""
+    validate_profile_name(profile)
+    cfg = load_pool_config(real_home=real_home)
+    pool_names = [str(entry["profile"]) for entry in cfg["pool"]]
+    _resolve_non_pool_candidate(profile, pool_names, discoverer)
+
+    active_fetcher = fetcher if fetcher is not None else default_fetcher
+    raw_payload = active_fetcher(profile)
+    payload: Mapping[str, Any] = raw_payload if isinstance(raw_payload, Mapping) else {}
+
+    active_probe = resident_probe if resident_probe is not None else default_resident_probe
+    resident = bool(active_probe(profile))
+    resolved_host = host_profile if host_profile is not None else detect_host_profile()
+    is_host = resolved_host is not None and profile == resolved_host
+
+    resolved_thresholds = thresholds() if callable(thresholds) else thresholds
+    active_thresholds = dict(
+        resolved_thresholds if resolved_thresholds is not None else DEFAULT_QUOTA_THRESHOLDS
+    )
+    has_windows = any(isinstance(payload.get(key), Mapping) for key in _QUOTA_WINDOW_KEYS)
+    quota_unknown = (
+        not payload
+        or (payload.get("success") is False and not has_windows)
+        or ("error" in payload and not has_windows)
+    )
+    status_ok = _payload_status_ok(payload)
+    verdict = evaluate_agy_quota(payload, "gemini5h", active_thresholds)
+    blocked_by_resident = resident and not is_host
+    usable = (
+        (not quota_unknown)
+        and status_ok
+        and verdict.sufficient
+        and (not blocked_by_resident)
+    )
+    raw_status = payload.get("status")
+    status_text = (
+        str(raw_status)
+        if isinstance(raw_status, str) and raw_status
+        else ("unknown" if quota_unknown else "ACTIVE")
+    )
+    return {
+        "profile": profile,
+        "in_pool": False,
+        "status": status_text,
+        "status_ok": status_ok,
+        "quota_unknown": quota_unknown,
+        "verdict": verdict,
+        "thresholds": active_thresholds,
+        "windows": {
+            "5h": _extract_window_fraction(payload, "gemini5h"),
+            "7d": _extract_window_fraction(payload, "geminiWeekly"),
+        },
+        "resident_process": resident,
+        "is_host": is_host,
+        "usable": usable,
+    }
+
+
 def probe_profiles(
     profile: str | None = None,
     *,
     fetcher: Callable[[str], Mapping[str, Any]] | None = None,
+    discoverer: Callable[[], Sequence[str]] | None = None,
     real_home: Path | str | None = None,
     now: datetime | None = None,
 ) -> dict[str, dict[str, Any]]:
-    """Call `fetcher` for `profile` (or every pool profile) and refresh quota cache."""
+    """Call `fetcher` for `profile` (pool or discoverable) or all pool profiles."""
     current_now = _coerce_now(now)
     cfg = load_pool_config(real_home=real_home)
     pool_names = [str(entry["profile"]) for entry in cfg["pool"]]
+    in_pool = True
     if profile is not None:
         validate_profile_name(profile)
         if profile not in pool_names:
-            raise AgyPoolError(f"Profile '{profile}' is not in the pool")
+            _resolve_non_pool_candidate(profile, pool_names, discoverer)
+            in_pool = False
         targets = [profile]
     else:
         targets = pool_names
@@ -1389,7 +1513,7 @@ def probe_profiles(
         sanitized = _sanitize_quota_payload(payload, fetched_at=current_now)
         probed[name] = sanitized or {}
 
-    if targets:
+    if targets and in_pool:
         leases_path = leases_file_path(real_home)
 
         def _store() -> None:

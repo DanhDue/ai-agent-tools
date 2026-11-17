@@ -1071,18 +1071,7 @@ def _discover_agy_profiles(
 ) -> list[str]:
     """Return the Antigravity profiles found by the discovery behind the check-quota skill."""
     load_mod = loader if loader is not None else _load_module_by_path
-    quota_path = _SCRIPTS_DIR / "agy_quota.py"
-    try:
-        mod = load_mod("agy_quota", quota_path)
-    except (SyntaxError, TypeError) as exc:
-        detail = str(exc).splitlines()[0] if str(exc) else exc.__class__.__name__
-        raise AgyPoolError(
-            f"Cannot load {quota_path.name} (Python 3.10+ required): {exc.__class__.__name__}: {detail}"
-        ) from exc
-    except (ImportError, OSError, RuntimeError) as exc:
-        detail = str(exc).splitlines()[0] if str(exc) else exc.__class__.__name__
-        raise AgyPoolError(f"Cannot load {quota_path.name}: {detail}") from exc
-    return [str(name) for name in mod.get_all_profiles()]
+    return _pool.discover_agy_profiles(loader=load_mod)
 
 
 def cmd_profiles_discover(
@@ -1119,15 +1108,85 @@ def cmd_profiles_discover(
     return 0
 
 
+def _format_window_pct(fraction: float | None) -> str:
+    return f"{fraction * 100:.1f}%" if fraction is not None else "unknown"
+
+
+def _print_outside_pool_probe(result: Mapping[str, Any]) -> None:
+    thresholds = result["thresholds"]
+    verdict = result["verdict"]
+    t_5h = thresholds["5h_min_fraction"] * 100
+    t_7d = thresholds["7d_min_fraction"] * 100
+    w_5h = _format_window_pct(result["windows"]["5h"])
+    w_7d = _format_window_pct(result["windows"]["7d"])
+
+    if result["quota_unknown"]:
+        quota_state = "unknown (quota_unknown)"
+    elif not verdict.sufficient:
+        fail_parts = [
+            f"{item['window']} {item['fraction'] * 100:.1f}% vs {item['threshold'] * 100:.1f}%"
+            for item in verdict.failing
+        ]
+        quota_state = f"fail ({', '.join(fail_parts)})"
+    elif not result["status_ok"]:
+        quota_state = f"fail (status={result['status']})"
+    else:
+        quota_state = "pass"
+
+    print(f"Probed '{result['profile']}' (not in the pool): status={result['status']}")
+    print(f"  Quota: 5H={w_5h} (>= {t_5h:.1f}%), 7D={w_7d} (> {t_7d:.1f}%) -> {quota_state}")
+    if result["resident_process"]:
+        res_text = "yes (host profile)" if result["is_host"] else "yes (held by a running process)"
+    else:
+        res_text = "no"
+    print(f"  Resident process: {res_text}")
+    if result["usable"]:
+        print("  Verdict: usable")
+        print(f"  Next step: /d3nexus:dev-config profiles add {result['profile']}")
+        return
+    reasons: list[str] = []
+    if result["quota_unknown"]:
+        reasons.append("quota unknown")
+    if not result["status_ok"]:
+        reasons.append(f"status={result['status']}")
+    if not verdict.sufficient:
+        reasons.append(", ".join(f"{item['window']} below floor" for item in verdict.failing))
+    if result["resident_process"] and not result["is_host"]:
+        reasons.append("held by resident process")
+    print(f"  Verdict: not usable ({'; '.join(reasons)})")
+
+
 def cmd_profiles_probe(
     project_root: Path,
     *,
     name: str | None = None,
     fetcher: Callable[[str], Mapping[str, Any]] | None = None,
+    discoverer: Callable[[], Sequence[str]] | None = None,
+    resident_probe: Callable[[str], bool] | None = None,
+    host_profile: str | None = None,
     real_home: Path | None = None,
 ) -> int:
-    """Probe one or all pool profiles and refresh the sanitized quota cache."""
-    _ = project_root
+    """Probe pool profile(s) (refreshing cache) or test one discovered profile outside the pool."""
+    if name is not None:
+        _pool.validate_profile_name(name)
+        cfg = _pool.load_pool_config(real_home=real_home)
+        pool_names = [str(entry["profile"]) for entry in cfg["pool"]]
+        if name not in pool_names:
+            find = discoverer if discoverer is not None else _discover_agy_profiles
+            result = _pool.probe_outside_pool(
+                name,
+                fetcher=fetcher,
+                discoverer=find,
+                resident_probe=resident_probe,
+                thresholds=lambda: _load_quota_thresholds(
+                    project_root, _load_external_review_module()
+                ),
+                host_profile=host_profile,
+                real_home=real_home,
+            )
+            _print_outside_pool_probe(result)
+            return 0
+
     probed = _pool.probe_profiles(name, fetcher=fetcher, real_home=real_home)
     for prof_name, quota in probed.items():
         status_val = quota.get("status", "unknown") if quota else "unknown"
@@ -1330,8 +1389,16 @@ def _build_parser() -> _DevConfigParser:
     p_pclr = profiles_sub.add_parser("clear", help="Clear exhaustion state for a profile or all.")
     p_pclr.add_argument("name", nargs="?", default=None)
 
-    p_pprb = profiles_sub.add_parser("probe", help="Probe quota and refresh cache.")
-    p_pprb.add_argument("name", nargs="?", default=None)
+    p_pprb = profiles_sub.add_parser(
+        "probe",
+        help="Probe pool profiles (refresh cache) or test one discovered profile outside the pool.",
+    )
+    p_pprb.add_argument(
+        "name",
+        nargs="?",
+        default=None,
+        help="Optional pool or discovered profile name.",
+    )
 
     p_pdisc = profiles_sub.add_parser(
         "discover", help="List discovered profiles that could be added to the pool."

@@ -1284,6 +1284,319 @@ def test_fpg_hp_17_profiles_discover_lists_candidates_not_in_the_pool(
     assert not lease_path.exists()
 
 
+def _setup_isolated_probe_env(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    pool_names: tuple[str, ...] = ("profile_b",),
+    create_pool_file: bool = True,
+) -> tuple[Path, Path, Path, Path]:
+    real_home = tmp_path / "real_home"
+    real_home.mkdir()
+    project = tmp_path / "project"
+    project.mkdir()
+    if pool_names:
+        _make_profile_dirs(real_home, pool_names)
+    pool_path = real_home / ".d3nexus" / "agy_profiles.json"
+    if create_pool_file:
+        _write_json(
+            pool_path,
+            {
+                "schema_version": 1,
+                "pool": [
+                    {"profile": name, "priority": idx + 1}
+                    for idx, name in enumerate(pool_names)
+                ],
+                "lease_ttl_seconds": 180,
+                "heartbeat_seconds": 30,
+                "exhausted_recheck_seconds": 600,
+                "agy_extra_args": [],
+            },
+        )
+    lease_path = real_home / ".d3nexus" / "agy_profile_leases.json"
+    monkeypatch.setenv("HOME", str(real_home))
+    monkeypatch.setenv("REAL_HOME", str(real_home))
+    monkeypatch.delenv("AGY_PROFILE", raising=False)
+    monkeypatch.delenv("ANTIGRAVITY_PROFILE", raising=False)
+    return real_home, project, pool_path, lease_path
+
+
+@pytest.mark.parametrize("create_pool_file", [True, False])
+def test_se_16_profiles_probe_usable_non_pool_profile(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    create_pool_file: bool,
+) -> None:
+    """SE-16: profiles probe tests a usable non-pool discoverable profile without writing pool or lease files."""
+    pool_mod = _pool_mod()
+    dc_mod = _dev_config_mod()
+    pool_names = ("profile_b",) if create_pool_file else ()
+    real_home, project, pool_path, lease_path = _setup_isolated_probe_env(
+        tmp_path,
+        monkeypatch,
+        pool_names=pool_names,
+        create_pool_file=create_pool_file,
+    )
+    pool_before = pool_path.read_bytes() if pool_path.exists() else None
+
+    fetched: list[str] = []
+    probed_resident: list[str] = []
+
+    def recording_fetcher(profile: str) -> dict[str, Any]:
+        fetched.append(profile)
+        return {
+            "status": "ACTIVE",
+            "gemini5h": {"fraction": 0.85},
+            "geminiWeekly": {"fraction": 0.65},
+        }
+
+    def recording_resident_probe(profile: str) -> bool:
+        probed_resident.append(profile)
+        return False
+
+    monkeypatch.setattr(pool_mod, "default_fetcher", recording_fetcher)
+    monkeypatch.setattr(pool_mod, "default_resident_probe", recording_resident_probe)
+    monkeypatch.setattr(
+        dc_mod,
+        "_discover_agy_profiles",
+        lambda: ["profile_d", "profile_b", "profile_c", "profile_a"],
+    )
+
+    rc = dc_mod.main(["--project-root", str(project), "profiles", "probe", "profile_a"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert fetched == ["profile_a"]
+    assert probed_resident == ["profile_a"]
+    assert "not in the pool" in out.lower()
+    assert "5H=85.0%" in out
+    assert "7D=65.0%" in out
+    assert "usable" in out.lower()
+    assert "not usable" not in out.lower()
+    assert "resident" in out.lower()
+    assert "/d3nexus:dev-config profiles add profile_a" in out
+    if pool_before is not None:
+        assert pool_path.read_bytes() == pool_before
+    else:
+        assert not pool_path.exists()
+        assert not (pool_path.parent).exists()
+    assert not lease_path.exists()
+
+    direct_probed = pool_mod.probe_profiles(
+        "profile_a",
+        fetcher=recording_fetcher,
+        discoverer=lambda: ["profile_b", "profile_a"],
+        real_home=real_home,
+    )
+    assert direct_probed["profile_a"]["status"] == "ACTIVE"
+    assert fetched == ["profile_a", "profile_a"]
+    assert not lease_path.exists()
+
+
+@pytest.mark.parametrize(
+    ("case_name", "payload", "is_resident", "expected_fragments"),
+    [
+        (
+            "below_5h_floor",
+            {
+                "status": "ACTIVE",
+                "gemini5h": {"fraction": 0.10},
+                "geminiWeekly": {"fraction": 0.65},
+            },
+            False,
+            ("5H=10.0%", "7D=65.0%", "not usable"),
+        ),
+        (
+            "at_weekly_floor",
+            {
+                "status": "ACTIVE",
+                "gemini5h": {"fraction": 0.85},
+                "geminiWeekly": {"fraction": 0.02},
+            },
+            False,
+            ("5H=85.0%", "7D=2.0%", "not usable"),
+        ),
+        (
+            "below_weekly_floor",
+            {
+                "status": "ACTIVE",
+                "gemini5h": {"fraction": 0.85},
+                "geminiWeekly": {"fraction": 0.01},
+            },
+            False,
+            ("5H=85.0%", "7D=1.0%", "not usable"),
+        ),
+        (
+            "resident_process",
+            {
+                "status": "ACTIVE",
+                "gemini5h": {"fraction": 0.85},
+                "geminiWeekly": {"fraction": 0.65},
+            },
+            True,
+            ("5H=85.0%", "7D=65.0%", "not usable", "resident", "yes"),
+        ),
+        (
+            "inactive_status",
+            {
+                "status": "DISABLED",
+                "gemini5h": {"fraction": 0.85},
+                "geminiWeekly": {"fraction": 0.65},
+            },
+            False,
+            ("5H=85.0%", "7D=65.0%", "not usable"),
+        ),
+        (
+            "empty_payload",
+            {},
+            False,
+            ("5H=unknown", "7D=unknown", "not usable"),
+        ),
+        (
+            "error_payload",
+            {"error": "timeout"},
+            False,
+            ("5H=unknown", "7D=unknown", "not usable"),
+        ),
+    ],
+)
+def test_se_16_profiles_probe_unusable_non_pool_profile(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    case_name: str,
+    payload: dict[str, Any],
+    is_resident: bool,
+    expected_fragments: tuple[str, ...],
+) -> None:
+    """SE-16: unusable non-pool profiles report verdict without suggesting profiles add."""
+    _ = case_name
+    pool_mod = _pool_mod()
+    dc_mod = _dev_config_mod()
+    real_home, project, pool_path, lease_path = _setup_isolated_probe_env(
+        tmp_path, monkeypatch
+    )
+    pool_before = pool_path.read_bytes()
+
+    fetched: list[str] = []
+
+    def recording_fetcher(profile: str) -> dict[str, Any]:
+        fetched.append(profile)
+        return dict(payload)
+
+    monkeypatch.setattr(pool_mod, "default_fetcher", recording_fetcher)
+    monkeypatch.setattr(pool_mod, "default_resident_probe", lambda _p: is_resident)
+    monkeypatch.setattr(
+        dc_mod,
+        "_discover_agy_profiles",
+        lambda: ["profile_d", "profile_b", "profile_a"],
+    )
+
+    rc = dc_mod.main(["--project-root", str(project), "profiles", "probe", "profile_a"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert fetched == ["profile_a"]
+    assert "not in the pool" in out.lower()
+    for fragment in expected_fragments:
+        assert fragment.lower() in out.lower()
+    assert "profiles add" not in out
+    assert pool_path.read_bytes() == pool_before
+    assert not lease_path.exists()
+
+
+def test_se_16_profiles_probe_unknown_name_errors_naming_both_lists(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """SE-16: probing an unknown profile exits 1 and names both pool and discovered lists."""
+    pool_mod = _pool_mod()
+    dc_mod = _dev_config_mod()
+    real_home, project, pool_path, lease_path = _setup_isolated_probe_env(
+        tmp_path, monkeypatch
+    )
+    pool_before = pool_path.read_bytes()
+
+    fetched: list[str] = []
+    monkeypatch.setattr(pool_mod, "default_fetcher", lambda p: fetched.append(p) or {})
+    monkeypatch.setattr(
+        dc_mod,
+        "_discover_agy_profiles",
+        lambda: ["profile_b", "profile_a", "profile_c"],
+    )
+
+    rc = dc_mod.main(["--project-root", str(project), "profiles", "probe", "mystery"])
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert captured.out == ""
+    err = captured.err
+    assert "Error:" in err
+    assert "pool" in err.lower()
+    assert "discovered" in err.lower()
+    assert "profile_b" in err
+    assert "profile_a" in err
+    assert "profile_c" in err
+    assert fetched == []
+    assert pool_path.read_bytes() == pool_before
+    assert not lease_path.exists()
+
+    with pytest.raises(pool_mod.AgyPoolError) as exc_info:
+        pool_mod.probe_profiles(
+            "mystery",
+            discoverer=lambda: ["profile_b", "profile_a"],
+            real_home=real_home,
+        )
+    msg = str(exc_info.value)
+    assert "profile_b" in msg
+    assert "profile_a" in msg
+
+
+@pytest.mark.parametrize("target", ["p1", None])
+def test_se_16_profiles_probe_pool_profile_and_no_name_unchanged(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    target: str | None,
+) -> None:
+    """SE-16: probing a pool profile or all pool profiles still refreshes quota cache without calling discoverer."""
+    pool_mod = _pool_mod()
+    dc_mod = _dev_config_mod()
+    _real_home, project, _pool_path, lease_path = _setup_isolated_probe_env(
+        tmp_path, monkeypatch, pool_names=("p1", "p2")
+    )
+
+    fetched: list[str] = []
+
+    def recording_fetcher(profile: str) -> dict[str, Any]:
+        fetched.append(profile)
+        return {
+            "status": "ACTIVE",
+            "gemini5h": {"fraction": 0.90},
+            "geminiWeekly": {"fraction": 0.70},
+        }
+
+    def fail_if_discovered() -> list[str]:
+        raise AssertionError("discoverer must not be called for pool probe")
+
+    monkeypatch.setattr(pool_mod, "default_fetcher", recording_fetcher)
+    monkeypatch.setattr(dc_mod, "_discover_agy_profiles", fail_if_discovered)
+
+    argv = ["--project-root", str(project), "profiles", "probe"]
+    if target is not None:
+        argv.append(target)
+    rc = dc_mod.main(argv)
+    out = capsys.readouterr().out
+    assert rc == 0
+    expected = ["p1"] if target == "p1" else ["p1", "p2"]
+    assert fetched == expected
+    for name in expected:
+        assert f"Probed '{name}': status=ACTIVE" in out
+    assert lease_path.is_file()
+    leases_doc = json.loads(lease_path.read_text(encoding="utf-8"))
+    for name in expected:
+        assert leases_doc["profiles"][name]["quota"]["status"] == "ACTIVE"
+
+
 @pytest.mark.parametrize("seconds_past_reset", [0, 30])
 def test_quota_cache_bypassed_once_exhausted_until_passes(
     tmp_path: Path, seconds_past_reset: int

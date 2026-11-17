@@ -684,6 +684,73 @@ def test_profiles_discover_reports_python_version_on_load_error(
     assert "\n" not in str(err_info.value)
 
 
+@pytest.mark.parametrize(
+    "exc",
+    [
+        TypeError("unsupported operand type(s) for |: 'type' and 'NoneType'"),
+        SyntaxError("invalid syntax"),
+    ],
+)
+def test_profiles_probe_reports_python_version_on_load_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    exc: Exception,
+) -> None:
+    """SE-16: profiles probe reuses discover load-error handling when loading agy_quota.py fails."""
+    dc = _dev_config_mod()
+    real_home = tmp_path / "real_home"
+    project = tmp_path / "project"
+    project.mkdir()
+    _make_pool(real_home, ("p1",))
+
+    def failing_loader(_name: str, _path: Path) -> ModuleType:
+        raise exc
+
+    monkeypatch.setattr(dc, "_load_module_by_path", failing_loader)
+    rc = dc.main(["--project-root", str(project), "profiles", "probe", "cand1"])
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert captured.out == ""
+    err_lines = [line for line in captured.err.splitlines() if line.strip()]
+    assert len(err_lines) == 1
+    assert err_lines[0].startswith("Error:")
+    assert "3.10" in err_lines[0]
+
+
+def test_se_16_profiles_probe_cli_unknown_name_and_help(tmp_path: Path) -> None:
+    """SE-16: CLI wiring for profiles probe errors on unknown names naming both lists and documents outside-pool probe."""
+    real_home = tmp_path / "real_home"
+    project = tmp_path / "project"
+    bin_dir = tmp_path / "bin"
+    real_home.mkdir()
+    project.mkdir()
+    _make_stub_bin(bin_dir, ("agy",))
+    _make_pool(real_home, ("p1",))
+    for name in ("p1", "cand1"):
+        (real_home / "antigravity_homes" / name / ".gemini").mkdir(parents=True, exist_ok=True)
+    pool_path = real_home / ".d3nexus" / "agy_profiles.json"
+    pool_before = pool_path.read_bytes()
+
+    err_res = _run_cli(
+        ["profiles", "probe", "unknown_x"], cwd=project, real_home=real_home, path_dir=bin_dir
+    )
+    assert err_res.returncode == 1
+    assert err_res.stdout == ""
+    assert "p1" in err_res.stderr
+    assert "cand1" in err_res.stderr
+    assert "pool" in err_res.stderr.lower()
+    assert "discovered" in err_res.stderr.lower()
+    assert pool_path.read_bytes() == pool_before
+    assert not (real_home / ".d3nexus" / "agy_profile_leases.json").exists()
+
+    help_res = _run_cli(
+        ["profiles", "probe", "--help"], cwd=project, real_home=real_home, path_dir=bin_dir
+    )
+    assert help_res.returncode == 0
+    assert "discover" in help_res.stdout.lower()
+
+
 _AGY_WITH_PROFILE = {"model": "hydrogen", "effort": "xhigh", "profile": "p1"}
 _AGY_PLAIN = {"model": "hydrogen", "effort": "xhigh"}
 _CODEX = {"model": "codex-gpt", "effort": "xhigh"}
