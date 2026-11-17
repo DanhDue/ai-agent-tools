@@ -1,12 +1,13 @@
 ---
 id: "task_03_runner_personas_risk_routing_and_quota_stops"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T11:29:40Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T11:29:40Z"
 labels: ["runner", "architecture", "concurrency", "quota"]
 order: "a3"
 review_tier: "full"
@@ -14,7 +15,7 @@ review_tier: "full"
 
 # Task 3: Lifecycle Runner on Persona Bindings, Risk Routing, Checkpoints and Quota Stops
 
-Epic: [four_persona_governance](../epic/four_persona_governance/four_persona_governance.en.md)
+Epic: [four_persona_governance](../../epic/four_persona_governance/four_persona_governance.en.md)
 
 ## Requirement Analysis
 
@@ -47,7 +48,7 @@ Make the autonomous Orchestrator (`lifecycle_runner.py`) implement spec ยง4.3, ย
    `model_unavailable` the runner writes a `model_unavailable` checkpoint, records a `blocker` pending
    decision whose reason contains `/d3nexus:dev-config set <persona> <fallback_alias> <effort>`, sets
    halt `MODEL_UNAVAILABLE`, and dispatches nothing further (no retry, no fallback).
-3a. **Agy profile pool** ([SE-09](../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)): `ModelDispatcher.dispatch` sends every
+3a. **Agy profile pool** ([SE-09](../../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)): `ModelDispatcher.dispatch` sends every
    `agy` dispatch through `agy_dispatch.run_on_pool` (Task 10; injectable as `self.pool_dispatcher`) when
    `agy_profiles.json` lists at least one profile; with an empty pool the existing direct dispatch stays. Profile
    rotation happens inside `run_on_pool` before the runner sees a result, so the no-retry, no-fallback rule of
@@ -217,7 +218,7 @@ Then halt_reason is "MODEL_UNAVAILABLE" and the pending decision kind is "blocke
   `role="runner"` with the epic slug, task id and slot of the dispatch. The `subagent_returned` checkpoint
   detail names `profile_used`. The `quota` pending decision reason for `pool_exhausted` and `pool_busy` is the
   report lines joined with newlines, unchanged.
-- New contract ([SE-13](../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)): `test_tto_ec_06_verify_suite_registration` and its integration twin run the whole repository gate
+- New contract ([SE-13](../../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)): `test_tto_ec_06_verify_suite_registration` and its integration twin run the whole repository gate
   `scripts/verify.sh`. V3 deselects them, because the repository gate runs once at Gate 4. The host-isolation fixture
   you add to `tests/test_token_throttling_acceptance.py` MUST NOT wrap those tests or any test that runs `verify.sh`: they
   need the real environment and still run at Gate 4. Apply the fixture only to tests that call the runner, `persona_config`
@@ -239,11 +240,11 @@ Then halt_reason is "MODEL_UNAVAILABLE" and the pending decision kind is "blocke
 
 ## Dependencies & Blockers
 
-Blocked by [Task 1](../epic/four_persona_governance/task_01_persona_config_and_dev_config_cli.md), [Task 2](../epic/four_persona_governance/task_02_checkpoints_briefs_and_handoff_prompts.md) and [Task 10](../epic/four_persona_governance/task_10_agy_profile_pool_and_leases.md).
+Blocked by [Task 1](../../epic/four_persona_governance/task_01_persona_config_and_dev_config_cli.md), [Task 2](../../epic/four_persona_governance/task_02_checkpoints_briefs_and_handoff_prompts.md) and [Task 10](../../epic/four_persona_governance/task_10_agy_profile_pool_and_leases.md).
 
 Downstream dependents (blocked by Task 3): `task_06`.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/four_persona_governance/four_persona_governance.en.md)
+- [Epic HLD](../../epic/four_persona_governance/four_persona_governance.en.md)
 - **Rollback**: Revert the task commit to restore `FixPlanVerdict` and the legacy resolution order.

@@ -1,12 +1,13 @@
 ---
 id: "task_03_runner_personas_risk_routing_and_quota_stops"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T11:29:40Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T11:29:40Z"
 labels: ["runner", "architecture", "concurrency", "quota"]
 order: "a3"
 review_tier: "full"
