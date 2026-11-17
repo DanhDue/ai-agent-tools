@@ -8,6 +8,37 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.32.0 — 2026-11-18
+
+Delivers **Four-Persona Governance & Model Configuration (`dev-config`)** across `dev-lifecycle`, introducing the 4-role model (`Human Architect 1.0`, `AI Architect & Reviewer 2.1`, `Orchestrator 2.2`, `Programmer 2.3`), 4-layer persona model resolution (`persona_config.py`, `dev_config.py`), the global **Antigravity (`agy`) Profile Pool & Exclusive Lease Engine** (`agy_profile_pool.py`, `agy_dispatch.py`), proactive turn-budget and quota-gate checkpoints, **English-Only SSOT & Vietnamese Mirror Isolation** (Rule 11), and `/check-tasks` dashboard persona & quota alert synchronization.
+
+### Added
+
+- **Four-Persona Governance & `dev-config` CLI / Skill (`skills/dev-config/SKILL.md`, `scripts/dev_config.py`, `scripts/persona_config.py`, `scripts/personas.default.json`, `docs/dev-config-quick-guide.{en,vi}.md`)**:
+  - Formalizes four distinct personas: Role 1.0 (`Human Architect`), Role 2.1 (`ai_architect_reviewer`), Role 2.2 (`orchestrator`), and Role 2.3 (`programmer`).
+  - Resolves persona bindings across four layers (`Kit defaults -> Global $REAL_HOME/.d3nexus/personas.json -> Project .agents/config/personas.json -> CLI flags`), shipping 7 presets (`default`, `gemini-saver`, `claude-hybrid`, `all-hydrogen`, `codex-kiro`, `all-claude`, `all-codex`) and runtime catalogue management (`models`, `models add`, `models remove`, `Kiro Sonnet`).
+  - Adds one-command `--provider agy|claude|codex` quick-setup and flag-based `set PERSONA [--provider ...] --model M --effort E [--profile NAME|auto]` with lower-layer profile inheritance cleanup when higher layers bind a non-`agy` CLI.
+  - Supports profile-scoped low-quota mode (`low-quota on|off`), configurable orchestrator turn budgets (`checkpoint --turns N`), and pre-wave quota gates (`quota-check`).
+- **Global `agy` Profile Pool, Exclusive Leases & Pooled Dispatch (`scripts/agy_profile_pool.py`, `scripts/agy_dispatch.py`)**:
+  - Manages priority-ordered Antigravity profile pools (`$REAL_HOME/.d3nexus/agy_profiles.json`) and atomic file-locked leases (`$REAL_HOME/.d3nexus/agy_profile_leases.json`) with `profiles list|add|remove|release|clear|probe|discover`.
+  - Launches non-host profiles safely through `zsh -ic 'ag_run "$0" cli "$@"'` after verifying `_ag_link_ok`, `_ag_rel_link`, and `ag_run` helper definitions, rotating automatically on pre-work quota errors (`HEAD` and working tree clean) and halting cleanly on `quota_midrun` or `no_profile` without silent model switching.
+- **Checkpoints, Structured Briefs & Risk-Tiered Remediation (`scripts/resume_context.py`, `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`, `skills/dev-implementation/resources/scripts/_epic_docs.py`)**:
+  - Adds structured checkpoint events (`gate2_tasks_locked`, `subagent_returned`, `wave_merged`, `model_unavailable`, `turn_budget`, `low_quota_stop`, `quota_low`) and persona-scoped JSON briefs (`task-implementer`, `task-reviewer`, `fix-planner`, `review-fixer`, `gate4-verifier`).
+  - Routes low-risk Stage 3 fixes directly to Role 2.3 `review-fixer` (`fast-track`) while routing high-risk findings (`Critical`, escalation markers, repeated check failures) through Role 2.1 `fix-planner` (`apply-plan` / `ESCALATE`).
+- **English-Only SSOT, Vietnamese Mirror Isolation & Ownership Expansion (`rules/CRITICAL_RULES.md`, `skills/dev-implementation/resources/scripts/check_task_contract.py`, `check_epic_readiness.py`, `sync_task_status.py`)**:
+  - Enforces Rule 11 (`*.vi.md` exclusion from agent context, searches, briefs, and review bundles unless explicitly requested by Role 1.0) and deterministic English document resolution (`_epic_docs.py`).
+  - Expands glob and directory claims in task `Allowed files` ownership validation so overlapping task claims are caught at readiness and contract checks.
+- **Dashboard Persona & Quota Alert Sync (`skills/check-tasks/resources/scripts/check_tasks.py`, `skills/check-tasks/resources/dashboard/tasks_dashboard.html`)**:
+  - Surfaces active persona bindings, checkpoint states, wave-0 labels, and quota-stop alerts in `/check-tasks` while suppressing stale halt banners on completed epics.
+- **Four-Persona Governance Verification Suites (`tests/test_fpg_*.py`, `scripts/verify.sh`)**:
+  - Registers 13 comprehensive test suites covering persona config, provider shortcuts, `agy` profile pool & dispatch, checkpoints, runner personas, English-only & ownership checks, dashboard sync, and E2E acceptance.
+
+### Changed
+
+- **Lifecycle Rules, Handoff Prompts & Documentation (`rules/CRITICAL_RULES.md`, `skills/dev-lifecycle/`, `skills/dev-implementation/`, `docs/lifecycles.{en,vi}.md`, `docs/context-memory-quick-guide.{en,vi}.md`)**:
+  - Replaces legacy Tri-Role labels with the Four-Persona model across rules, skills, handoff emitters, and architecture guides, and slimmed `dev-implementation/SKILL.md` into dedicated reference modules (`entry-point-and-resume.md`, `gate4-semantic-integrity.md`, `worker-execution-rules.md`).
+  - Requires `--base <ref>` on `run_external_review.py run` invocations across rules, skills, and docs.
+
 ## 1.31.0 — 2026-11-15
 
 Delivers the **Epic History Modal** with append-only event stream archival, review tab performance optimizations, **Action Alerts & English UI** unification in `/check-tasks`, **Dynamic Claude Quota Buckets** & macOS multi-schedule hardening in `/check-quota`, and the **Argon Orchestrator / Hydrogen Subagent Role Matrix** across `dev-lifecycle`.
