@@ -98,10 +98,10 @@ Covers: FPG-AR-03
 ```gherkin
 Scenario: [FPG-AR-03] [Tier A - Unit] Governance text uses the four-persona model everywhere
 Given the tracked files under "rules/" and "skills/" excluding historical ".devtool" content
-When the governance contract test scans them
-Then no file contains "Tri-Role" or "Role 2.1 Human Architect" or "Role 2.3 AI Programmer"
+When the governance contract test scans them, excluding only the "Old-to-New Role Mapping" table in "skills/dev-lifecycle/references/orchestration-roles.md"
+Then no scanned line contains "Tri-Role" or "Role 2.1 Human Architect" or "Role 2.3 AI Programmer"
 And "rules/CRITICAL_RULES.md" contains "Role 1.0 Human Architect", "Role 2.1 AI Architect & Reviewer", "Role 2.2 Orchestrator" and "Role 2.3 Programmer"
-And "skills/dev-lifecycle/references/orchestration-roles.md" contains the old-to-new role mapping table and the brief role "fix-planner"
+And "skills/dev-lifecycle/references/orchestration-roles.md" contains a table under the heading "Old-to-New Role Mapping" and the brief role "fix-planner"
 ```
 
 ```gherkin
@@ -133,8 +133,9 @@ And "skills/dev-lifecycle/references/orchestration-roles.md" contains the old-to
 - New contract: canonical labels `Role 1.0 Human Architect`, `Role 2.1 AI Architect & Reviewer`,
   `Role 2.2 Orchestrator`, `Role 2.3 Programmer`; config keys `ai_architect_reviewer`, `orchestrator`,
   `programmer`.
-- New contract: the old-to-new mapping table appears once, in `orchestration-roles.md`; other files use only
-  the new labels.
+- New contract: the old-to-new mapping table appears once, in `orchestration-roles.md`, under the heading
+  `## Old-to-New Role Mapping`; it is the only place old labels may appear, and the FPG-AR-03 test skips
+  exactly the lines of that section. Other files use only the new labels.
 - Source: `CRITICAL_RULES.md` keeps its frontmatter (`scripts/verify.sh` `sec_5b` fails without it) and Rule
   §10 wording; Rule numbering §1–§10 is preserved so cross-references stay valid. Task 7 adds §11.
 - Source: the selective review gating condition (spec §3.4) is unchanged; only the persona that reviews moves.

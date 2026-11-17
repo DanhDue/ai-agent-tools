@@ -27,22 +27,26 @@ classification and the quota gate (spec §5, §8.3–§8.5; layout per [SE-03]).
    all three personas bound in each, `overrides` `{}`, `checkpoint_policy`
    `{"max_orchestrator_turns_before_checkpoint": 8}`, `low_quota` `{}`.
 2. **Resolver (`scripts/persona_config.py`)**: `load_persona_config`, `resolve_persona`, `low_quota_state`,
-   `effective_turn_budget`, `build_dispatch_argv`, `classify_dispatch_failure`, `PersonaBinding`,
+   `effective_turn_budget`, `build_dispatch_argv`, `build_dispatch_env`, `classify_dispatch_failure`,
+   `quota_pool_for`, `PersonaBinding`,
    `PersonaConfigError` per the HLD Module Contracts. Deep-merge kit → global
    (`$REAL_HOME/.d3nexus/personas.json`) → project (`.agents/config/personas.json`); select `active_preset`;
    apply `overrides`; apply CLI overrides; record the source layer of every field; substitute `{effort}`;
    validate.
 3. **CLI (`scripts/dev_config.py`)**: `status`, `models` (list, `add`, `remove`), `preset`, `set`, `reset`,
    `low-quota on|off [--for HOURS]` with the `--low-quota` alias, `checkpoint --turns`, `quota-check`,
-   `resolve [--format json|argv] [--mode read-only|write]`. Writes are validated first and applied atomically
-   (temp file plus `os.replace`).
+   `resolve [--format json|argv] [--mode read-only|write]`. Every write holds an exclusive `fcntl` lock on
+   `<file>.lock` for the whole read-modify-validate-replace transaction, then replaces atomically (temp file
+   plus `os.replace`), so concurrent writers from other repositories or profiles never lose updates.
 4. **Quota gate**: `quota-check` fetches through `run_external_review.py::_default_quota_fetcher`
-   (`L234-L261`) and judges with `evaluate_provider_quota` (`L192-L231`), both loaded by path; exit `2` when
-   any persona is insufficient; an empty payload yields `"warning": "quota_unknown"` and does not block.
+   (`L234-L261`), loaded by path, and judges the pool the bound model consumes (`quota_pool_for`) against the
+   existing `quota_thresholds`; it does not reuse `evaluate_provider_quota`, which accepts either Antigravity
+   pool. Exit `2` when any persona is insufficient; an empty payload yields `"warning": "quota_unknown"` and
+   does not block.
 5. **Skill (`skills/dev-config/SKILL.md`)**: frontmatter `name` + `description` only; maps
    `/d3nexus:dev-config <args>` to `python3 scripts/dev_config.py <args>` and describes the interactive
    `--models` flow (spec §5.3).
-6. **Tests**: `tests/test_fpg_persona_config.py` (FPG-HP-01, FPG-HP-02, FPG-EC-01, FPG-EC-02, FPG-ST-01) and
+6. **Tests**: `tests/test_fpg_persona_config.py` (FPG-HP-01, FPG-HP-02, FPG-EC-01, FPG-EC-02, FPG-ST-01, FPG-AR-05) and
    `tests/test_fpg_dispatch_and_quota.py` (FPG-HP-03, FPG-FR-01, FPG-FR-02), parametrised, with a temporary
    `REAL_HOME`, project, `PATH` and an injected quota fetcher.
 
@@ -63,6 +67,7 @@ Read-only context:
 - `skills/check-tasks/resources/scripts/tasks_server.py` — `get_real_home` (L87-L95)
 - `scripts/resume_context.py` — `detect_current_profile` (L465-L557)
 - `.devtool/review_config.json` — `quota_thresholds`
+- `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` — `ModelDispatcher.dispatch` spawn-failure message (L315-L330)
 
 ## Design Rationale
 
@@ -73,14 +78,14 @@ keeps one implementation of per-CLI flags and one set of thresholds. Applicable 
 
 ## Impact Analysis & Blast Radius
 
-- **Target Files & Symbols**: all new; `run_external_review.py` is imported read-only: `cli_command` (L1049-L1123), `evaluate_provider_quota` (L192-L231), `_default_quota_fetcher` (L234-L261).
+- **Target Files & Symbols**: all new; `run_external_review.py` is imported read-only for `_default_quota_fetcher` (L234-L261) and `QUOTA_THRESHOLDS`; `cli_command` (L1049-L1123) and the Kiro `HOME` rule in `execute` (L548-L580) are reference behaviour only, not called.
 - **Downstream Callers**: Task 2 (`resume_context.py` prompts), Task 3 (`lifecycle_runner.py`), Task 5 (`check_tasks.py`).
 - **Cross-Platform Bridges**: None.
 - **Target Test Coverage Threshold**: every validation branch, every CLI subcommand, every CLI × mode pair and every failure signature.
 
 ### BDD SCENARIOS
 
-Covers: FPG-HP-01, FPG-HP-02, FPG-HP-03, FPG-EC-01, FPG-EC-02, FPG-ST-01, FPG-FR-01, FPG-FR-02
+Covers: FPG-HP-01, FPG-HP-02, FPG-HP-03, FPG-EC-01, FPG-EC-02, FPG-ST-01, FPG-FR-01, FPG-FR-02, FPG-AR-05
 
 
 ```gherkin
@@ -101,12 +106,15 @@ And "codex-gpt" and "kiro-opus" carry "cli_on_path": false while "argon" carries
 When "dev_config.py models add gpt-next --cli codex --id gpt-7 --efforts medium,high --scope global" and "dev_config.py set programmer gpt-next high" run
 Then both exit 0 and "dev_config.py resolve programmer --format json" prints "model_id": "gpt-7" and "cli": "codex"
 
-Scenario: [FPG-HP-03] [Tier A - Unit] Dispatch argv per CLI and mode
-Given bindings for "programmer" on "hydrogen" effort "xhigh", "ai_architect_reviewer" on "codex-gpt" effort "high" and "programmer" on "kiro-opus" effort "high"
-When "build_dispatch_argv" runs for (hydrogen, "write"), (codex-gpt, "read-only") and (kiro-opus, "write")
-Then the agy argv equals ["agy", "--model", "gemini-4-hydrogen-xhigh", "--effort", "xhigh", "--mode", "auto"]
-And the codex argv starts with ["codex", "exec", "--sandbox", "read-only"] and contains "gpt-6.1-sol"
-And the kiro argv contains "--trust-all-tools" and "claude-opus-5.5"
+Scenario: [FPG-HP-03] [Tier A - Unit] Dispatch argv and environment preserve the bound model and effort per CLI and mode
+Given bindings "programmer" on "hydrogen" effort "xhigh", "ai_architect_reviewer" on "argon" effort "high", a catalogue alias "claude-custom" with id "claude-opus-4-custom" bound effort "medium", "programmer" on "codex-gpt" effort "xhigh" and "programmer" on "kiro-opus" effort "high"
+When "build_dispatch_argv" runs for (hydrogen, "write"), (argon, "read-only"), (claude-custom, "read-only"), (codex-gpt, "write") and (kiro-opus, "write")
+Then the hydrogen argv equals ["agy", "--model", "gemini-4-hydrogen-xhigh", "--effort", "xhigh", "--mode", "auto"]
+And the argon argv equals ["agy", "--sandbox", "--mode", "plan", "--model", "gemini-4-argon-high", "--effort", "high"]
+And the claude argv contains "--model", "claude-opus-4-custom", "--effort", "medium" and "--permission-mode", "plan" and does not contain "--dangerously-skip-permissions"
+And the codex argv contains "--sandbox", "workspace-write", "--model", "gpt-6.1-sol" and "model_reasoning_effort=extra-high"
+And the kiro argv contains "--trust-all-tools", "--model", "claude-opus-5.5", "--effort" and "high"
+And "build_dispatch_env" for the kiro argv with HOME "/Users/x/antigravity_homes/p1" and an existing "/Users/x/.kiro" returns HOME "/Users/x", while for the agy argv it returns the input environment unchanged
 
 Scenario: [FPG-EC-01] [Tier A - Unit] Invalid writes are rejected and leave the configuration file unchanged
 Given a project configuration file whose SHA-256 is recorded
@@ -132,14 +140,24 @@ Then "low_quota_state(root, 'danhdue', now=11:00 UTC)" returns None
 Scenario: [FPG-FR-01] [Tier A - Unit] The quota gate stops on insufficient quota and tolerates unknown quota
 Given bindings "programmer" on "agy" and "ai_architect_reviewer" on "claude", and a stub quota fetcher
 When the fetcher returns agy {"status": "ACTIVE", "gemini5h": {"fraction": 0.12}, "argonWeekly": {"fraction": 0.05}} and a healthy claude payload
-Then "dev_config.py quota-check --json" exits 2 and lists "programmer" with "sufficient": false and quota line "5H=12.0%, Argon=5.0%"
+Then "dev_config.py quota-check --json" exits 2 and lists "programmer" with "sufficient": false and quota line "5H=12.0%"
+When the fetcher returns agy {"status": "ACTIVE", "gemini5h": {"fraction": 0.0}, "argonWeekly": {"fraction": 0.9}} with "programmer" bound to "hydrogen" and "ai_architect_reviewer" bound to "argon"
+Then "programmer" is "sufficient": false with quota line "5H=0.0%" and "ai_architect_reviewer" is "sufficient": true with quota line "Argon=90.0%"
 When the fetcher returns {} for every CLI
 Then "dev_config.py quota-check --json" exits 0 and every persona carries "warning": "quota_unknown"
 
 Scenario: [FPG-FR-02] [Tier A - Unit] Dispatch failures are classified as model failures only for quota, auth and missing CLI
-Given dispatch results (exit 1, stderr "HTTP 429 Too Many Requests"), (exit 1, stderr "RESOURCE_EXHAUSTED"), (exit 127, stderr "agy: command not found"), (exit 1, stderr "401 Unauthorized") and (exit 1, stdout "3 failed, 10 passed")
+Given dispatch results (exit 1, stderr "HTTP 429 Too Many Requests"), (exit 1, stderr "RESOURCE_EXHAUSTED: quota exceeded"), (exit 1, stderr "CLI binary 'agy' not found on PATH"), (exit 127, stderr "agy: command not found") and (exit 1, stderr "401 Unauthorized: please log in")
+And dispatch results (exit 1, stdout "3 failed, 10 passed"), (exit 1, stdout "401 failed, 403 passed"), (exit 1, stdout "FAILED tests/test_x.py::test_quota_check") and (exit 0, stdout "rate limit handled")
 When "classify_dispatch_failure" runs on each
-Then the first four return "model_unavailable" and the fifth returns "task_failure"
+Then the first five return "model_unavailable"
+And the next three return "task_failure" and the exit-0 result returns None
+
+Scenario: [FPG-AR-05] [Tier A - Unit] Concurrent writers to the global persona file never lose updates
+Given a temporary REAL_HOME with the kit default configuration
+When 4 processes run concurrently "dev_config.py set programmer hydrogen high", "dev_config.py set ai_architect_reviewer argon medium", "dev_config.py low-quota on" for profile "p1" and "dev_config.py low-quota on" for profile "p2"
+Then all four exit 0
+And the global file holds overrides for both "programmer" and "ai_architect_reviewer" and low_quota entries for both "p1" and "p2"
 ```
 
 ```gherkin
@@ -191,20 +209,41 @@ Then the first four return "model_unavailable" and the fifth returns "task_failu
   while enabled and unexpired, else `N`.
 - `--scope` defaults to `global` for `preset`, `set`, `reset`, `models add/remove` and `checkpoint`.
 - `models remove ALIAS` exits 1 while any merged binding or fallback references `ALIAS`.
-- Source: `run_external_review.py::cli_command(cli: str, model: str | None, thinking_level: str | None = None)
-  -> list[str]` (`L1049-L1123`) is the `read-only` builder; it is called, never copied or modified.
-- New contract: `write` argv — `agy`: `["agy", "--model", model_id, "--effort", effort, "--mode", "auto"]`
-  (matches `lifecycle_runner.build_agy_command`); `claude`: `["claude", "-p", "--model", model_id,
-  "--dangerously-skip-permissions"]`; `codex`: `["codex", "exec", "--sandbox", "workspace-write", "--model",
-  model_id, "-c", f"model_reasoning_effort={effort}"]`; `kiro`: `["kiro-cli", "chat", "--no-interactive",
-  "--trust-all-tools", "--model", model_id]`.
-- New contract: `classify_dispatch_failure(exit_code, stdout, stderr)` returns `"model_unavailable"` when the
-  exit code is `127`, or the combined output matches (case-insensitive) `429`, `resource_exhausted`,
-  `resourceexhausted`, `quota`, `rate limit`, `401`, `403`, `unauthorized`, `not authenticated`,
-  `command not found`; otherwise `"task_failure"`.
+- New contract: `build_dispatch_argv(binding, mode)` owns every CLI adapter and never rewrites `model_id`
+  (unlike `run_external_review.py::cli_command` `L1049-L1123`, which collapses Claude IDs to `opus`/`sonnet`).
+  Read-only / write forms:
+  - `agy`: `["agy", "--sandbox", "--mode", "plan", "--model", id, "--effort", e]` /
+    `["agy", "--model", id, "--effort", e, "--mode", "auto"]` (the write form equals
+    `lifecycle_runner.build_agy_command`).
+  - `claude`: `["claude", "-p", "--model", id, "--effort", e, "--permission-mode", "plan"]` /
+    `["claude", "-p", "--model", id, "--effort", e, "--dangerously-skip-permissions"]`.
+  - `codex`: `["codex", "exec", "--sandbox", "read-only" | "workspace-write", "--model", id, "-c",
+    f"model_reasoning_effort={e'}", "-"]` where `e'` maps `xhigh` to `extra-high` as `cli_command` does.
+  - `kiro`: `[kiro_bin, "chat", "--no-interactive", "--trust-all-tools", "--wrap", "never", "--model", id,
+    "--effort", e]` for both modes (the read-only contract is carried by the brief, as in external review);
+    `kiro_bin` is `kiro-cli` unless only `kiro` is on `PATH`.
+- New contract: `build_dispatch_env(argv, base_env) -> dict[str, str]` reproduces the Kiro rule of
+  `run_external_review.py::execute` (`L548-L580`): for `kiro-cli`/`kiro`, when `HOME` contains
+  `/antigravity_homes/` and `<real_home>/Library/Application Support/kiro-cli` or `<real_home>/.kiro` exists,
+  return a copy with `HOME=<real_home>`; otherwise return `base_env` unchanged.
+- New contract: `classify_dispatch_failure(exit_code: int, stdout: str, stderr: str) -> str | None` returns
+  `None` when `exit_code == 0`. Otherwise `"model_unavailable"` when `exit_code == 127`, or stderr contains
+  `CLI binary '` + `' not found on PATH` (the `ModelDispatcher.dispatch` spawn failure, `lifecycle_runner.py`
+  `L324-L325`), `command not found`, `Failed to spawn process`, or matches (case-insensitive) one of
+  `\b429\b.*too many requests`, `resource_?exhausted`, `quota (exceeded|exhausted)`, `rate.?limit(ed)? exceeded`,
+  `usage limit`, `\b401\b.*unauthori[sz]ed`, `\b403\b.*forbidden`, `not authenticated`, `please (log|sign) in`,
+  `login required`. Patterns are matched against stderr only; stdout never classifies as a model failure.
+  Everything else is `"task_failure"`.
+- New contract: `quota_pool_for(binding) -> str` returns `"argonWeekly"` for alias `argon`, `"gemini5h"` for other
+  `agy` aliases, and `"provider"` for `claude`, `codex`, `kiro`. `argonWeekly` passes at
+  `fraction >= quota_thresholds["agy_argon_min_fraction"]`; `gemini5h` at `>= quota_thresholds["5h_min_fraction"]`;
+  `provider` applies the `evaluate_provider_quota` rule for that CLI. Quota lines name only the judged pool
+  (`5H=12.0%`, `Argon=90.0%`).
 - New contract: `quota-check --json` prints `{"sufficient": bool, "personas": [{"persona", "cli", "alias",
   "sufficient", "quota_line", "warning"}]}`; exit `2` iff any `sufficient` is false; `quota_unknown` entries
   count as sufficient; `cmd_quota_check` accepts an injectable `fetcher: Callable[[str], dict[str, Any]]`.
+- New contract: `low-quota on|off` accepts `--profile NAME` (default: detected profile); writes take the
+  lock described in Requirement 3.
 - Exit codes: `0` success, `1` validation or usage error, `2` quota insufficient. Errors print one line naming
   the rejected value.
 - Tests load `persona_config.py` and `dev_config.py` through `importlib.util.spec_from_file_location` inside
@@ -212,7 +251,7 @@ Then the first four return "model_unavailable" and the fifth returns "task_failu
 
 ## Definition of Done
 
-- FPG-HP-01, FPG-HP-02, FPG-HP-03, FPG-EC-01, FPG-EC-02, FPG-ST-01, FPG-FR-01 and FPG-FR-02 pass. (V3, V6)
+- FPG-HP-01, FPG-HP-02, FPG-HP-03, FPG-EC-01, FPG-EC-02, FPG-ST-01, FPG-FR-01, FPG-FR-02 and FPG-AR-05 pass. (V3, V6)
 - Ruff and mypy pass on the new modules. (V4, V5)
 - `skills/dev-config/SKILL.md` frontmatter holds exactly `name` and `description`. (Gate 5)
 

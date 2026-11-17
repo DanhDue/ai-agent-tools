@@ -35,9 +35,12 @@ Give `resume_context.py` the four-persona vocabulary and the checkpoint command 
    moves to Role 2.1 and drops the `done`/commit duty; `review-fixer` modes become `fast-track` and
    `apply-plan`. `emit_handoff_prompt` (`L2053-L2138`) names the persona and its resolved binding (via
    `persona_config.resolve_persona` and `build_dispatch_argv`, loaded by path) and never emits a `.vi.md` path.
-5. **Latent bug**: `main` calls `parser.error` at `L2576` where `parser` is undefined (ruff F821, mypy
+5. **English-only reads**: `sync_window_title` (`L583-L769`), `_collect_compact_snapshot` (`L1636-L1738`) and
+   `emit_handoff_prompt` locate the HLD and specs through `_epic_docs.resolve_epic_doc` /
+   `resolve_design_specs` (Task 4) instead of hardcoded `.en.md` names.
+6. **Latent bug**: `main` calls `parser.error` at `L2576` where `parser` is undefined (ruff F821, mypy
    name-defined); make the parser reachable there.
-6. **Tests**: new `tests/test_fpg_checkpoint_and_briefs.py` (FPG-HP-04, FPG-HP-05, FPG-EC-03, FPG-AR-01);
+7. **Tests**: new `tests/test_fpg_checkpoint_and_briefs.py` (FPG-HP-04, FPG-HP-05, FPG-EC-03, FPG-AR-01);
    update the existing assertions that pin the Tri-Role vocabulary.
 
 ## Files
@@ -51,6 +54,7 @@ Allowed files:
 
 Read-only context:
 - `scripts/persona_config.py` (new) — `resolve_persona`, `build_dispatch_argv` from Task 1
+- `skills/dev-implementation/resources/scripts/_epic_docs.py` (new) — `resolve_epic_doc`, `resolve_design_specs` from Task 4
 - `.devtool/epic/four_persona_governance/four_persona_governance.en.md` — Module Contracts 3 and 4
 - `skills/dev-lifecycle/references/orchestration-roles.md` — current summary contracts
 
@@ -64,7 +68,7 @@ already read; a new state file would duplicate it. Applicable skills: `d3nexus:t
 
 - **Target Files & Symbols**:
   - `scripts/_state_envelope.py`: `run_state_transaction` (L388-L496), `update_epic_heartbeat` (L497-L671), new `update_epic_checkpoint`
-  - `scripts/resume_context.py`: `print_role_banner` (L61-L76), `write_epic_state` (L849-L930), `_BRIEF_ROLE_CONTRACTS` (L2026-L2051), `emit_handoff_prompt` (L2053-L2138), `main` (L2512-L2800)
+  - `scripts/resume_context.py`: `print_role_banner` (L61-L76), `sync_window_title` (L583-L769), `write_epic_state` (L849-L930), `_collect_compact_snapshot` (L1636-L1738), `_BRIEF_ROLE_CONTRACTS` (L2026-L2051), `emit_handoff_prompt` (L2053-L2138), `main` (L2512-L2800)
   - `scripts/test_resume_context.py`: `test_cmm_st_01_tri_role_banners_and_emit_prompts` (L217-L249), `test_cmm_st_02_checkpoint_non_destructive_save` (L448-L505)
   - `tests/test_assistant_orchestrator_handoff.py`: role and brief assertions
 - **Downstream Callers**: `check_tasks.py` heartbeat readers (Task 5), `lifecycle_runner.py` (Task 3), `package_epic.py` (imports `resume_context`).
@@ -144,7 +148,8 @@ And "events_conc-epic.jsonl" in each mirror holds exactly 30 "checkpoint" lines 
 - New contract: `_BRIEF_ROLE_CONTRACTS` keys `task-implementer`, `task-reviewer`, `review-fixer`,
   `gate4-verifier`, `fix-planner`. `task-reviewer` schema `{"task_id", "verdict", "head_sha", "done_gate",
   "findings"}` with objective text that forbids edits and commits; `fix-planner` schema `{"round", "status":
-  "PLANNED|ESCALATE", "plan_path", "halt_criteria": [...], "decision_sha"}`; `review-fixer` mode
+  "PLANNED|ESCALATE", "halt_criteria": [...], "plan_markdown": "..."}` — the fix-planner is read-only and
+  returns the plan body; the Orchestrator writes `fix_plan_round<N>.md` and commits it ([SE-04]); `review-fixer` mode
   `"fast-track|apply-plan"`.
 - New contract: brief and prompt persona labels are `Role 2.1 AI Architect & Reviewer`, `Role 2.2
   Orchestrator`, `Role 2.3 Programmer`; each brief prints `shlex.join(build_dispatch_argv(binding, mode))`
@@ -160,7 +165,7 @@ And "events_conc-epic.jsonl" in each mirror holds exactly 30 "checkpoint" lines 
 
 ## Dependencies & Blockers
 
-Blocked by [Task 1](task_01_persona_config_and_dev_config_cli.md).
+Blocked by [Task 1](task_01_persona_config_and_dev_config_cli.md) and [Task 4](task_04_english_only_resolution_and_ownership_check.md).
 
 Downstream dependents (blocked by Task 2): `task_03`, `task_05`.
 

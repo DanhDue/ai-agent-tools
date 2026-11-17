@@ -30,12 +30,15 @@ And "codex-gpt" and "kiro-opus" carry "cli_on_path": false while "argon" carries
 When "dev_config.py models add gpt-next --cli codex --id gpt-7 --efforts medium,high --scope global" and "dev_config.py set programmer gpt-next high" run
 Then both exit 0 and "dev_config.py resolve programmer --format json" prints "model_id": "gpt-7" and "cli": "codex"
 
-Scenario: [FPG-HP-03] [Tier A - Unit] Dispatch argv per CLI and mode
-Given bindings for "programmer" on "hydrogen" effort "xhigh", "ai_architect_reviewer" on "codex-gpt" effort "high" and "programmer" on "kiro-opus" effort "high"
-When "build_dispatch_argv" runs for (hydrogen, "write"), (codex-gpt, "read-only") and (kiro-opus, "write")
-Then the agy argv equals ["agy", "--model", "gemini-4-hydrogen-xhigh", "--effort", "xhigh", "--mode", "auto"]
-And the codex argv starts with ["codex", "exec", "--sandbox", "read-only"] and contains "gpt-6.1-sol"
-And the kiro argv contains "--trust-all-tools" and "claude-opus-5.5"
+Scenario: [FPG-HP-03] [Tier A - Unit] Dispatch argv and environment preserve the bound model and effort per CLI and mode
+Given bindings "programmer" on "hydrogen" effort "xhigh", "ai_architect_reviewer" on "argon" effort "high", a catalogue alias "claude-custom" with id "claude-opus-4-custom" bound effort "medium", "programmer" on "codex-gpt" effort "xhigh" and "programmer" on "kiro-opus" effort "high"
+When "build_dispatch_argv" runs for (hydrogen, "write"), (argon, "read-only"), (claude-custom, "read-only"), (codex-gpt, "write") and (kiro-opus, "write")
+Then the hydrogen argv equals ["agy", "--model", "gemini-4-hydrogen-xhigh", "--effort", "xhigh", "--mode", "auto"]
+And the argon argv equals ["agy", "--sandbox", "--mode", "plan", "--model", "gemini-4-argon-high", "--effort", "high"]
+And the claude argv contains "--model", "claude-opus-4-custom", "--effort", "medium" and "--permission-mode", "plan" and does not contain "--dangerously-skip-permissions"
+And the codex argv contains "--sandbox", "workspace-write", "--model", "gpt-6.1-sol" and "model_reasoning_effort=extra-high"
+And the kiro argv contains "--trust-all-tools", "--model", "claude-opus-5.5", "--effort" and "high"
+And "build_dispatch_env" for the kiro argv with HOME "/Users/x/antigravity_homes/p1" and an existing "/Users/x/.kiro" returns HOME "/Users/x", while for the agy argv it returns the input environment unchanged
 
 Scenario: [FPG-HP-04] [Tier A - Unit] A checkpoint writes the heartbeat block, the state file and one event
 Given an isolated git repository with epic "fpg_epic" and an existing heartbeat
@@ -74,6 +77,15 @@ When readiness, packaging, "--emit-prompt implement", the runner's implementatio
 Then every dispatch argv was built from the configured bindings
 And the heartbeat holds checkpoints "gate2_tasks_locked", "subagent_returned" and "wave_merged" in that order
 And the dashboard payload shows both tasks done, the latest checkpoint "wave_merged" and no human-action alert
+
+Scenario: [FPG-HP-09] [Tier C - Integration] Downstream verifiers read English-only epic documents
+Given epic "solo_epic" with "solo_epic.md" carrying an "Integration results" line and an amended "## Spec Errata" entry, "bdd_scenarios.md" with scenario "[SOLO-HP-01]", and no ".en.md" or ".vi.md" file
+When "generate_smoke_checklist.py --epic-dir solo_epic", "run_task_checks.py status" for a task covering "SOLO-HP-01", "audit_epic.py solo_epic", the local review epic slice and "integrate_branch.py" upstream epic detection run
+Then the smoke checklist lists "SOLO-HP-01"
+And the task status reports scenario "SOLO-HP-01" as covered
+And the audit reports the HLD amendment from "solo_epic.md"
+And the review slice includes "solo_epic.md" and "bdd_scenarios.md"
+And upstream epic detection names "solo_epic"
 ```
 
 ---
@@ -130,17 +142,19 @@ Then "low_quota_state(root, 'danhdue', now=11:00 UTC)" returns None
 
 Scenario: [FPG-ST-02] [Tier A - Unit] High-risk findings go to the fix-planner and halt criteria escalate
 Given a runner whose cross-model triage contains one Critical finding and stub dispatchers recording persona and mode
-When the fix-planner stub returns status "PLANNED"
-Then the first dispatch is persona "ai_architect_reviewer" in mode "read-only" and the second is persona "programmer" with review-fixer mode "apply-plan"
-When, for each of "CRITICAL_CONFLICT", "Debatable", "SHARED_CONTRACT_CONFLICT", "FIX_LOOP" and "MAX_ROUNDS_CRITICAL_REMAINING", the fix-planner stub returns status "ESCALATE" with that criterion
+When the fix-planner stub returns a JSON summary with status "PLANNED", "halt_criteria": [] and a "plan_markdown" body
+Then the first dispatch is persona "ai_architect_reviewer" in mode "read-only", the runner writes "plan_markdown" to "fix_plan_round1.md" and commits it, and the second dispatch is persona "programmer" with review-fixer mode "apply-plan"
+When, for each of "CRITICAL_CONFLICT", "Debatable", "SHARED_CONTRACT_CONFLICT", "FIX_LOOP" and "MAX_ROUNDS_CRITICAL_REMAINING", the fix-planner stub returns status "ESCALATE" with "halt_criteria" [that criterion]
 Then each run halts with halt_reason "FIX_PLAN_ESCALATE", records a pending decision naming the criterion, and dispatches no programmer
 
 Scenario: [FPG-ST-03] [Tier A - Unit] Turn budget and low-quota stop at the next safe point
 Given a runner with three waves of two tasks each and stub dispatchers that succeed
 When max_orchestrator_turns_before_checkpoint is 4 and low-quota mode is off
 Then a "turn_budget" checkpoint is written after dispatches 4 and 8
-When low-quota mode is on before wave 2 starts
-Then wave 2 completes, a "low_quota_stop" checkpoint is written, no wave 3 task is dispatched, and halt_reason is "LOW_QUOTA_STOP"
+When low-quota mode is switched on after wave 1 merges and before wave 2 starts
+Then no wave 2 task is dispatched, a "low_quota_stop" checkpoint is written, and halt_reason is "LOW_QUOTA_STOP"
+When low-quota mode is switched on while wave 2 is executing
+Then wave 2's in-flight tasks complete and merge, no wave 3 task is dispatched, and halt_reason is "LOW_QUOTA_STOP"
 
 Scenario: [FPG-ST-04] [Tier C - Integration] Quota, model and escalation stops render as human action on the dashboard
 Given repositories whose pending decisions are kind "quota" (with quota lines "programmer agy 5H=12.0%"), kind "blocker" titled "programmer model hydrogen unavailable", and a heartbeat halt "FIX_PLAN_ESCALATE"
@@ -148,6 +162,24 @@ And a fourth repository whose latest checkpoint carries warning "quota_unknown"
 When "scan_repo" runs for each repository
 Then the first three have is_human_action_required true and an action_blockers entry whose text contains "5H=12.0%", "unavailable" and "FIX_PLAN_ESCALATE" respectively
 And the fourth has is_human_action_required false and a "notices" entry containing "quota_unknown"
+
+Scenario: [FPG-ST-05] [Tier A - Unit] The runner dispatches the Architect task-reviewer when gating requires it and finalizes only on a SHA-bound PASS
+Given a runner with task "t_full" (review_tier "full") and task "t_small" (no review_tier, one non-test module) and stub dispatchers recording persona, brief role and mode
+When the programmer stub returns DONE with head_sha "abc123" for both tasks
+Then "t_small" is marked done without a reviewer dispatch
+And "t_full" triggers one dispatch of persona "ai_architect_reviewer", brief role "task-reviewer", mode "read-only"
+When the reviewer stub returns verdict "PASS" with head_sha "abc123"
+Then the runner marks "t_full" done and commits the status change
+When the reviewer stub instead returns verdict "PASS" with head_sha "zzz999" or verdict "FAIL"
+Then "t_full" is not marked done and the programmer is dispatched again for "t_full"
+
+Scenario: [FPG-ST-06] [Tier A - Unit] Gate 4 runs in a fresh Programmer gate4-verifier on every attempt
+Given a runner whose slots are merged and cleaned and stub dispatchers recording brief roles
+When Gate 4 starts, the first gate4-verifier stub returns verdict "FAIL", a review-fixer runs, and a second gate4-verifier stub returns verdict "PASS" with candidate_sha equal to HEAD
+Then two distinct "gate4-verifier" dispatches on persona "programmer" in mode "write" were made and the runner executed no Gate 4 command itself
+And Gate 4 is recorded as passed only after the second report
+When a gate4-verifier stub returns verdict "PASS" with a candidate_sha different from HEAD
+Then Gate 4 is not recorded and the runner dispatches a new gate4-verifier
 ```
 
 ---
@@ -170,10 +202,10 @@ Then the same command exits 0
 
 Scenario: [FPG-AR-03] [Tier A - Unit] Governance text uses the four-persona model everywhere
 Given the tracked files under "rules/" and "skills/" excluding historical ".devtool" content
-When the governance contract test scans them
-Then no file contains "Tri-Role" or "Role 2.1 Human Architect" or "Role 2.3 AI Programmer"
+When the governance contract test scans them, excluding only the "Old-to-New Role Mapping" table in "skills/dev-lifecycle/references/orchestration-roles.md"
+Then no scanned line contains "Tri-Role" or "Role 2.1 Human Architect" or "Role 2.3 AI Programmer"
 And "rules/CRITICAL_RULES.md" contains "Role 1.0 Human Architect", "Role 2.1 AI Architect & Reviewer", "Role 2.2 Orchestrator" and "Role 2.3 Programmer"
-And "skills/dev-lifecycle/references/orchestration-roles.md" contains the old-to-new role mapping table and the brief role "fix-planner"
+And "skills/dev-lifecycle/references/orchestration-roles.md" contains a table under the heading "Old-to-New Role Mapping" and the brief role "fix-planner"
 
 Scenario: [FPG-AR-04] [Tier A - Unit] Dev-lifecycle skills are English-only and isolate Vietnamese mirrors
 Given the SKILL.md and references of "dev-lifecycle", "dev-brainstorming", "dev-designer", "dev-implementation", "writing-plans", "finishing-a-development-branch", "principal-review" and "cross-model-review"
@@ -182,6 +214,12 @@ Then none instructs creating a ".vi.md" file or passing "--require-bilingual" or
 And none instructs reading a ".vi.md" file
 And "rules/CRITICAL_RULES.md" contains a section titled "English SSOT and Vietnamese Mirror Isolation"
 And the doc-lifecycle skills "doc-brainstorming", "doc-designer" and "doc-implementation" still contain "--require-bilingual"
+
+Scenario: [FPG-AR-05] [Tier A - Unit] Concurrent writers to the global persona file never lose updates
+Given a temporary REAL_HOME with the kit default configuration
+When 4 processes run concurrently "dev_config.py set programmer hydrogen high", "dev_config.py set ai_architect_reviewer argon medium", "dev_config.py low-quota on" for profile "p1" and "dev_config.py low-quota on" for profile "p2"
+Then all four exit 0
+And the global file holds overrides for both "programmer" and "ai_architect_reviewer" and low_quota entries for both "p1" and "p2"
 ```
 
 ---
@@ -192,14 +230,18 @@ And the doc-lifecycle skills "doc-brainstorming", "doc-designer" and "doc-implem
 Scenario: [FPG-FR-01] [Tier A - Unit] The quota gate stops on insufficient quota and tolerates unknown quota
 Given bindings "programmer" on "agy" and "ai_architect_reviewer" on "claude", and a stub quota fetcher
 When the fetcher returns agy {"status": "ACTIVE", "gemini5h": {"fraction": 0.12}, "argonWeekly": {"fraction": 0.05}} and a healthy claude payload
-Then "dev_config.py quota-check --json" exits 2 and lists "programmer" with "sufficient": false and quota line "5H=12.0%, Argon=5.0%"
+Then "dev_config.py quota-check --json" exits 2 and lists "programmer" with "sufficient": false and quota line "5H=12.0%"
+When the fetcher returns agy {"status": "ACTIVE", "gemini5h": {"fraction": 0.0}, "argonWeekly": {"fraction": 0.9}} with "programmer" bound to "hydrogen" and "ai_architect_reviewer" bound to "argon"
+Then "programmer" is "sufficient": false with quota line "5H=0.0%" and "ai_architect_reviewer" is "sufficient": true with quota line "Argon=90.0%"
 When the fetcher returns {} for every CLI
 Then "dev_config.py quota-check --json" exits 0 and every persona carries "warning": "quota_unknown"
 
 Scenario: [FPG-FR-02] [Tier A - Unit] Dispatch failures are classified as model failures only for quota, auth and missing CLI
-Given dispatch results (exit 1, stderr "HTTP 429 Too Many Requests"), (exit 1, stderr "RESOURCE_EXHAUSTED"), (exit 127, stderr "agy: command not found"), (exit 1, stderr "401 Unauthorized") and (exit 1, stdout "3 failed, 10 passed")
+Given dispatch results (exit 1, stderr "HTTP 429 Too Many Requests"), (exit 1, stderr "RESOURCE_EXHAUSTED: quota exceeded"), (exit 1, stderr "CLI binary 'agy' not found on PATH"), (exit 127, stderr "agy: command not found") and (exit 1, stderr "401 Unauthorized: please log in")
+And dispatch results (exit 1, stdout "3 failed, 10 passed"), (exit 1, stdout "401 failed, 403 passed"), (exit 1, stdout "FAILED tests/test_x.py::test_quota_check") and (exit 0, stdout "rate limit handled")
 When "classify_dispatch_failure" runs on each
-Then the first four return "model_unavailable" and the fifth returns "task_failure"
+Then the first five return "model_unavailable"
+And the next three return "task_failure" and the exit-0 result returns None
 
 Scenario: [FPG-FR-03] [Tier A - Unit] An unavailable model halts with a checkpoint and a fallback command, never a retry
 Given a runner whose programmer stub fails with stderr "RESOURCE_EXHAUSTED" and whose binding fallback is "claude-sonnet"

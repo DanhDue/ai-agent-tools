@@ -118,23 +118,29 @@ flowchart TD
    substituted. Validation rejects unknown aliases, efforts outside `efforts`, unknown personas, unknown
    CLIs (allowed: `agy`, `claude`, `codex`, `kiro`) and unknown `schema_version`. Legacy
    `review_config.json` persona keys and `AGY_*` variables are reported as warnings and never read.
-2. **Dispatch argv (`persona_config.py::build_dispatch_argv`).** For `read-only` mode it delegates to
-   `run_external_review.py::cli_command` (`L1049-L1123`), already tested per CLI. For `write` mode it
-   builds the same base command with the CLI's write permission: `agy --mode auto`, `claude -p
-   --dangerously-skip-permissions` with edit tools allowed, `codex exec --sandbox workspace-write`,
-   `kiro-cli chat --no-interactive --trust-all-tools`.
-3. **Quota gate (`dev_config.py quota-check`).** Loads `run_external_review.py` by path and calls
-   `_default_quota_fetcher(cli)` and `evaluate_provider_quota(cli, data)` with the existing
-   `quota_thresholds`. Exit `0` sufficient, `2` insufficient, `0` with a `quota_unknown` warning when no
-   data is available. JSON output lists each persona's CLI, verdict and quota line.
+2. **Dispatch argv and environment (`scripts/persona_config.py`).** `build_dispatch_argv` owns one adapter per
+   CLI and mode, passes `model_id` verbatim and always passes the effort; it does not reuse
+   `run_external_review.py::cli_command`, which rewrites Claude IDs and omits the `agy` effort ([SE-06]).
+   `build_dispatch_env` reproduces the Kiro `HOME` rule from `run_external_review.py::execute`, and
+   `ModelDispatcher.dispatch` passes it to `subprocess.Popen`. `classify_dispatch_failure` inspects stderr of
+   non-zero exits only, including the runner's own spawn-failure message.
+3. **Quota gate (`dev_config.py quota-check`).** Loads `run_external_review.py` by path for
+   `_default_quota_fetcher(cli)` and judges the pool each binding consumes (`argonWeekly` for Argon,
+   `gemini5h` for other `agy` models, the provider rule for Claude, Codex and Kiro) against the existing
+   `quota_thresholds` ([SE-05]). Exit `0` sufficient, `2` insufficient, `0` with a `quota_unknown` warning
+   when no data is available. JSON output lists each persona's CLI, verdict and quota line.
 4. **Checkpoints (`scripts/resume_context.py --checkpoint`, `scripts/_state_envelope.py`).** A new
    `update_epic_checkpoint()` runs inside `run_state_transaction()` under `_state_lock`, writes the
    `checkpoint` block into every mirrored heartbeat, appends one `checkpoint` event to
    `events_<safe_slug>.jsonl`, and refreshes `Next Immediate Step` in `.devtool/state/<slug>.md`.
-5. **Runner (`lifecycle_runner.py`).** `RunnerConfig` resolves every persona through `persona_config`;
+5. **Runner (`lifecycle_runner.py`).** After each `task-implementer` it recomputes selective gating and, when
+   required, dispatches the Architect `task-reviewer`, finalizing only on a PASS bound to the implementer's
+   `head_sha`. `run_gate4` dispatches a fresh Programmer `gate4-verifier` for every attempt instead of running
+   Gate 4 commands itself (Role 1.0 decision: Gate 4 stays with the Programmer). `RunnerConfig` resolves every persona through `persona_config`;
    `StageName` gains no stage, but halt reasons gain `MODEL_UNAVAILABLE`, `QUOTA_LOW`, `LOW_QUOTA_STOP` and
    `FIX_PLAN_ESCALATE`. `_draft_fix_plan` dispatches the `ai_architect_reviewer` binding in `read-only` mode
-   and parses `PLANNED` / `ESCALATE`; `FixPlanVerdict` and `evaluate_programmer_fix_plan` are removed. A
+   and parses its JSON summary (`status`, `halt_criteria`, `plan_markdown`); the runner writes and commits
+   `fix_plan_round<N>.md` ([SE-04]); `FixPlanVerdict` and `evaluate_programmer_fix_plan` are removed. A
    dispatch counter writes a `turn_budget` checkpoint every N dispatches (N/2 in low-quota mode).
 6. **Document resolution (`skills/dev-implementation/resources/scripts/_epic_docs.py`).**
    `resolve_epic_doc(directory, stem)` returns `<stem>.md`, else `<stem>.en.md`, else `None`; it never
@@ -225,6 +231,10 @@ and `extract_epic_hld_status`:
 - Downstream callers that stay untouched but must keep passing: `audit_epic.py`, `run_task_checks.py`,
   `manage_worker_pool.py`, `verify_polyglot_registry.py`, `check_bdd_traceability.py` callers.
 - `update_epic_heartbeat` keeps its signature; checkpoints use a new function in the same transaction.
+- Every production reader of epic documents adopts `resolve_epic_doc`: besides the scripts named in
+  Background, `audit_epic.py`, `generate_smoke_checklist.py`, `local_review.py`, `run_task_checks.py`,
+  `task_contract.py` and `integrate_branch.py` (Task 04), `lifecycle_runner.py` (Task 03) and
+  `resume_context.py` (Task 02). `check_document.py` is generic and keeps accepting any file name.
 - String-asserting tests that change with the renumbering or the English-only rule are listed per task.
 - The working tree holds uncommitted user edits to `tasks_dashboard.html` and `quota_dashboard.html`;
   they must be committed or stashed before Stage 3 (see [Rollout](#rollout-strategy-and-mitigation)).
@@ -260,7 +270,7 @@ Integration results: python3 -m pytest -q --tb=short --maxfail=3 --junitxml=buil
 
 ## Comprehensive BDD Scenario Coverage
 
-All 25 scenarios (`FPG-HP-01` to `FPG-FR-04`) are defined in [bdd_scenarios.en.md](bdd_scenarios.en.md)
+All 29 scenarios (`FPG-HP-01` to `FPG-FR-04`, including `FPG-HP-09`, `FPG-ST-05`, `FPG-ST-06` and `FPG-AR-05`) are defined in [bdd_scenarios.en.md](bdd_scenarios.en.md)
 across Happy Path (`HP`), Edge Cases (`EC`), State Transitions (`ST`), Architecture and Concurrency (`AR`)
 and Fault Resilience (`FR`).
 
@@ -269,16 +279,18 @@ and Fault Resilience (`FR`).
 - Commit or stash the pending edits to `tasks_dashboard.html` and `quota_dashboard.html` on `main` before
   Gate 3, so Task 05 does not branch from a tree that conflicts at merge.
 - Waves: (1) Tasks 01, 04; (2) Task 02; (3) Tasks 03, 05; (4) Task 06; (5) Task 07; (6) Task 08.
+- Writes to the shared global `personas.json` take an exclusive file lock, so profiles and repositories that
+  change bindings at the same time do not overwrite each other.
 - Legacy compatibility: `.en.md` resolution, the `assistant` role alias and the no-op `--strict-bilingual`
   flag keep in-flight epics in consuming repositories working.
 - After Gate 5, sync the installed plugin; until then agents must read `skills/` from the working tree.
 
 ## Kanban Tasks Breakdown
 
-1. **[Task 01: Persona Config, Dispatch, Quota Gate and the dev-config Skill](task_01_persona_config_and_dev_config_cli.md)** (`review_tier: "full"`) — Covers: `FPG-HP-01`, `FPG-HP-02`, `FPG-HP-03`, `FPG-EC-01`, `FPG-EC-02`, `FPG-ST-01`, `FPG-FR-01`, `FPG-FR-02`
+1. **[Task 01: Persona Config, Dispatch, Quota Gate and the dev-config Skill](task_01_persona_config_and_dev_config_cli.md)** (`review_tier: "full"`) — Covers: `FPG-HP-01`, `FPG-HP-02`, `FPG-HP-03`, `FPG-EC-01`, `FPG-EC-02`, `FPG-ST-01`, `FPG-FR-01`, `FPG-FR-02`, `FPG-AR-05`
 2. **[Task 02: Checkpoint Record, Persona Briefs and Handoff Prompts](task_02_checkpoints_briefs_and_handoff_prompts.md)** (`review_tier: "full"`) — Covers: `FPG-HP-04`, `FPG-HP-05`, `FPG-EC-03`, `FPG-AR-01`
-3. **[Task 03: Lifecycle Runner on Persona Bindings, Risk Routing, Checkpoints and Quota Stops](task_03_runner_personas_risk_routing_and_quota_stops.md)** (`review_tier: "full"`) — Covers: `FPG-ST-02`, `FPG-ST-03`, `FPG-FR-03`, `FPG-FR-04`
-4. **[Task 04: English-Only Document Resolution and Exclusive Ownership Check](task_04_english_only_resolution_and_ownership_check.md)** (`review_tier: "full"`) — Covers: `FPG-HP-06`, `FPG-EC-04`, `FPG-AR-02`
+3. **[Task 03: Lifecycle Runner on Persona Bindings, Risk Routing, Checkpoints and Quota Stops](task_03_runner_personas_risk_routing_and_quota_stops.md)** (`review_tier: "full"`) — Covers: `FPG-ST-02`, `FPG-ST-03`, `FPG-ST-05`, `FPG-ST-06`, `FPG-FR-03`, `FPG-FR-04`
+4. **[Task 04: English-Only Document Resolution and Exclusive Ownership Check](task_04_english_only_resolution_and_ownership_check.md)** (`review_tier: "full"`) — Covers: `FPG-HP-06`, `FPG-HP-09`, `FPG-EC-04`, `FPG-AR-02`
 5. **[Task 05: check-tasks Dashboard Sync for Personas, Checkpoints and Quota Alerts](task_05_check_tasks_dashboard_persona_and_quota_sync.md)** (`review_tier: "full"`) — Covers: `FPG-HP-07`, `FPG-EC-05`, `FPG-ST-04`
 6. **[Task 06: Four-Persona Governance and Checkpoint Rules in Rules and Skills](task_06_four_persona_governance_text.md)** (`review_tier: "full"`) — Covers: `FPG-AR-03`
 7. **[Task 07: English-Only Dev-Lifecycle Skill Text and Vietnamese Mirror Isolation](task_07_english_only_skill_text_and_mirror_isolation.md)** (`review_tier: "full"`) — Covers: `FPG-AR-04`
@@ -301,3 +313,14 @@ and Fault Resilience (`FR`).
   `skills/dev-config/SKILL.md` holds only agent instructions — the same layout as the `resume-context` and
   `save-context` skills. The runner, `resume_context.py` and `check_tasks.py` already load shared modules
   from `scripts/`.
+- **[SE-04] §3.4 Subagent Brief Roles**: Spec §3.4 gives the read-only `fix-planner` a `plan_path` and has it
+  write `fix_plan_round<N>.md`, which a read-only sandbox cannot do. The fix-planner returns
+  `{"round", "status", "halt_criteria", "plan_markdown"}` and the Orchestrator (main session or runner) writes
+  and commits the plan file.
+- **[SE-05] §8.5 Automatic Quota Gate**: Spec §8.5 reuses `evaluate_provider_quota()`, which accepts an `agy`
+  binding when either the Argon or the Gemini 5-hour pool is healthy. The gate judges the pool the bound
+  model consumes, with the same `quota_thresholds`.
+- **[SE-06] §5.4 Dispatch**: Spec §5.4 reuses `run_external_review.py::cli_command` for read-only dispatch and
+  claims the Kiro `HOME` handling with it. `cli_command` rewrites Claude model IDs and omits the `agy` effort,
+  and the `HOME` rule lives in `execute`. `persona_config.py` owns its adapters and a `build_dispatch_env`
+  helper instead.

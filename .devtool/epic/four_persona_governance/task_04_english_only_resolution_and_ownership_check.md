@@ -32,6 +32,11 @@ Make the dev-implementation scripts English-only (spec §6.2–§6.3, [SE-02]) a
    `check_epic_prerequisites` L1199-L1239, `render_epic_tasks` L1326), `check_bdd_traceability.py`
    (`load_scenarios` L83, `main` L231-L299), `run_external_review.py` (`collect_facts` L658 and the
    epic-document listing at L393-L413 and L851-L868) resolve documents through the helper.
+2a. **Remaining readers**: `audit_epic.py` (`audit_protected` L171-L190, `audit_amendments` L211-L227,
+   `hld_amendments` L230-L241), `generate_smoke_checklist.py` (`generate_smoke_checklist` L174-L210, `main`
+   L213-L256), `local_review.py` (`task_slice` L234-L249, `epic_slice` L252-L276), `run_task_checks.py`
+   (`epic_scenario_ids` L282-L288), `task_contract.py` (`epic_layout` L403-L415, `_visit` L616-L651) and
+   `integrate_branch.py` (`upstream_epics` L266-L276) resolve epic documents through the helper.
 3. **Status writes**: `sync_task_status.py epic` and `package_epic.py` update the Status line only in the
    resolved English file; `.vi.md` is neither read nor written.
 4. **`--strict-bilingual`**: accepted by `check_epic_readiness.py` and `check_bdd_traceability.py` as a
@@ -41,7 +46,7 @@ Make the dev-implementation scripts English-only (spec §6.2–§6.3, [SE-02]) a
    (`L828-L893`) under `--design`, using `Blocked by` links (same parsing as
    `compute_execution_order.parse_blockers`) to build reachability; finding id `R-OWN`.
 6. **Baseline lint**: `package_epic.py` `L440` `except Exception: pass` (ruff S110) logs the exception to stderr.
-7. **Tests**: new `tests/test_fpg_english_only_and_ownership.py` (FPG-HP-06, FPG-EC-04, FPG-AR-02); update
+7. **Tests**: new `tests/test_fpg_english_only_and_ownership.py` (FPG-HP-06, FPG-HP-09, FPG-EC-04, FPG-AR-02); update
    existing tests that assert `.vi.md` writes or strict-bilingual failures.
 
 ## Files
@@ -54,6 +59,12 @@ Allowed files:
 - `skills/dev-implementation/resources/scripts/check_bdd_traceability.py`
 - `skills/dev-implementation/resources/scripts/run_external_review.py`
 - `skills/dev-implementation/resources/scripts/check_task_contract.py`
+- `skills/dev-implementation/resources/scripts/audit_epic.py`
+- `skills/dev-implementation/resources/scripts/generate_smoke_checklist.py`
+- `skills/dev-implementation/resources/scripts/local_review.py`
+- `skills/dev-implementation/resources/scripts/run_task_checks.py`
+- `skills/dev-implementation/resources/scripts/task_contract.py`
+- `skills/finishing-a-development-branch/resources/scripts/integrate_branch.py`
 - `skills/dev-implementation/resources/scripts/test_check_epic_readiness.py`
 - `skills/dev-implementation/resources/scripts/test_sync_task_status.py`
 - `skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py`
@@ -83,6 +94,12 @@ from tooling is what makes the context-loading rule enforceable. Applicable skil
   - `skills/dev-implementation/resources/scripts/check_bdd_traceability.py`: `load_scenarios` (L83-L120), `main` (L231-L299)
   - `skills/dev-implementation/resources/scripts/run_external_review.py`: `collect_facts` (L658-L700), epic document listing (L393-L413), (L851-L868)
   - `skills/dev-implementation/resources/scripts/check_task_contract.py`: `check_duplicate_new_claims` (L231-L253), `main` (L828-L893)
+  - `skills/dev-implementation/resources/scripts/audit_epic.py`: `audit_protected` (L171-L190), `audit_amendments` (L211-L227), `hld_amendments` (L230-L241)
+  - `skills/dev-implementation/resources/scripts/generate_smoke_checklist.py`: `generate_smoke_checklist` (L174-L210), `main` (L213-L256)
+  - `skills/dev-implementation/resources/scripts/local_review.py`: `task_slice` (L234-L249), `epic_slice` (L252-L276)
+  - `skills/dev-implementation/resources/scripts/run_task_checks.py`: `epic_scenario_ids` (L282-L288)
+  - `skills/dev-implementation/resources/scripts/task_contract.py`: `epic_layout` (L403-L415), `_visit` (L616-L651)
+  - `skills/finishing-a-development-branch/resources/scripts/integrate_branch.py`: `upstream_epics` (L266-L276)
   - `skills/dev-implementation/resources/scripts/test_check_epic_readiness.py`: `test_prv_fr_02_failing_preflight_subcheck_and_missing_dir` (L536-L577), `test_tto_same_heading_prose_drift_and_strict_bilingual_provenance` (L887-L944)
   - `skills/dev-implementation/resources/scripts/test_sync_task_status.py`: `test_updates_both_en_and_vi_docs` (L417-L435), `test_updates_a_status_line_with_the_colon_inside_the_bold` (L437-L455), `test_handles_vietnamese_meta_data_label` (L457-L470), `test_updates_table_blockquote_unbulleted_yaml_and_case_variants` (L479-L532), `test_prv_hp_05_own_worktree_updated` (L1082-L1095), `test_TCAE_EC_01_legacy_task_backward_compatible` (L1123-L1206), `test_TCAE_ST_01_orphan_mirrors_and_location_aware_links` (L1307-L1429), `test_TCAE_HP_02_render_single_source` (L1432-L1555)
   - `skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py`: `test_vietnamese_sibling_with_same_identifiers_passes` (L78-L87), `test_vietnamese_sibling_missing_identifier_fails` (L89-L100), `test_absent_vietnamese_sibling_tolerated_by_default_fails_strict` (L102-L122)
@@ -97,7 +114,7 @@ from tooling is what makes the context-loading rule enforceable. Applicable skil
 
 ### BDD SCENARIOS
 
-Covers: FPG-HP-06, FPG-EC-04, FPG-AR-02
+Covers: FPG-HP-06, FPG-HP-09, FPG-EC-04, FPG-AR-02
 
 
 ```gherkin
@@ -107,6 +124,15 @@ When "check_epic_readiness.py solo_epic" and "package_epic.py solo_epic" run
 Then both exit 0
 And "solo_epic.md" Meta Data reads "- **Status**: Packaged"
 And no file matching "*.vi.md" or "*.en.md" exists under ".devtool/epic/solo_epic/"
+
+Scenario: [FPG-HP-09] [Tier C - Integration] Downstream verifiers read English-only epic documents
+Given epic "solo_epic" with "solo_epic.md" carrying an "Integration results" line and an amended "## Spec Errata" entry, "bdd_scenarios.md" with scenario "[SOLO-HP-01]", and no ".en.md" or ".vi.md" file
+When "generate_smoke_checklist.py --epic-dir solo_epic", "run_task_checks.py status" for a task covering "SOLO-HP-01", "audit_epic.py solo_epic", the local review epic slice and "integrate_branch.py" upstream epic detection run
+Then the smoke checklist lists "SOLO-HP-01"
+And the task status reports scenario "SOLO-HP-01" as covered
+And the audit reports the HLD amendment from "solo_epic.md"
+And the review slice includes "solo_epic.md" and "bdd_scenarios.md"
+And upstream epic detection names "solo_epic"
 
 Scenario: [FPG-EC-04] [Tier C - Integration] A legacy bilingual epic resolves the English file and never reads the mirror
 Given epic "legacy_epic" with "legacy_epic.en.md", a stale "legacy_epic.vi.md", "bdd_scenarios.en.md" and "bdd_scenarios.vi.md"
@@ -134,8 +160,9 @@ Then the same command exits 0
 | V1 | RED | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_english_only_and_ownership.py::test_fpg_ar_02_parallel_tasks_must_own_disjoint_files` | exit 1; contains "failed" | — |
 | V2 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_english_only_and_ownership.py tests/test_tto_bilingual_and_surgical.py tests/test_multi_epic_governance_acceptance.py tests/test_rsdh_orchestration.py` | exit 0; contains "passed" | — |
 | V3 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 skills/dev-implementation/resources/scripts/test_check_epic_readiness.py skills/dev-implementation/resources/scripts/test_sync_task_status.py skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py skills/dev-implementation/resources/scripts/test_check_task_contract.py` | exit 0 | — |
-| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/_epic_docs.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/package_epic.py skills/dev-implementation/resources/scripts/sync_task_status.py skills/dev-implementation/resources/scripts/check_bdd_traceability.py skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/check_task_contract.py` | exit 0 | — |
-| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py --ignore-missing-imports skills/dev-implementation/resources/scripts/_epic_docs.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/package_epic.py skills/dev-implementation/resources/scripts/sync_task_status.py skills/dev-implementation/resources/scripts/check_bdd_traceability.py skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/check_task_contract.py` | exit 0 | — |
+| V7 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 skills/dev-implementation/resources/scripts/test_audit_epic.py skills/dev-implementation/resources/scripts/test_local_review.py skills/dev-implementation/resources/scripts/test_run_task_checks.py skills/finishing-a-development-branch/resources/scripts/test_integrate_branch.py tests/test_smoke_checklist_generator.py` | exit 0 | — |
+| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/_epic_docs.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/package_epic.py skills/dev-implementation/resources/scripts/sync_task_status.py skills/dev-implementation/resources/scripts/check_bdd_traceability.py skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/audit_epic.py skills/dev-implementation/resources/scripts/local_review.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/task_contract.py skills/finishing-a-development-branch/resources/scripts/integrate_branch.py` | exit 0 | — |
+| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py --ignore-missing-imports skills/dev-implementation/resources/scripts/_epic_docs.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/package_epic.py skills/dev-implementation/resources/scripts/sync_task_status.py skills/dev-implementation/resources/scripts/check_bdd_traceability.py skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/audit_epic.py skills/dev-implementation/resources/scripts/local_review.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/task_contract.py skills/finishing-a-development-branch/resources/scripts/integrate_branch.py` | exit 0 | — |
 | V6 | TIER-C | `python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/fpg_task_04.xml tests/test_fpg_english_only_and_ownership.py` | exit 0; results build/test-results/fpg_task_04.xml | — |
 
 ## Stop and Report If
@@ -168,8 +195,9 @@ Then the same command exits 0
 
 ## Definition of Done
 
-- FPG-HP-06, FPG-EC-04 and FPG-AR-02 pass. (V2, V6)
+- FPG-HP-06, FPG-HP-09, FPG-EC-04 and FPG-AR-02 pass. (V2, V6)
 - Updated dev-implementation, bilingual and multi-epic suites pass. (V2, V3)
+- Audit, local review, task checks, branch integration and smoke checklist suites pass unchanged on legacy `.en.md` fixtures. (V7)
 - Ruff (including S110 in `package_epic.py`) and mypy pass on every touched script. (V4, V5)
 
 ## Dependencies & Blockers
