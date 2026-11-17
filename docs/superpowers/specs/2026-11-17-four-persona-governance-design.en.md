@@ -36,6 +36,7 @@
   - [8.2. Mandatory Checkpoint Events](#82-mandatory-checkpoint-events)
   - [8.3. Turn Budget](#83-turn-budget)
   - [8.4. Low-Quota Mode](#84-low-quota-mode)
+  - [8.5. Automatic Quota Gate](#85-automatic-quota-gate)
 - [9. check-tasks Dashboard Sync](#9-check-tasks-dashboard-sync)
 - [10. Testing Strategy](#10-testing-strategy)
 - [11. Dependencies, Assumptions, and Risks](#11-dependencies-assumptions-and-risks)
@@ -284,6 +285,7 @@ maps `/d3nexus:dev-config <args>` to the script.
 | `reset [<persona>] [--scope global\|project]` | Clears one or all overrides |
 | `low-quota on\|off [--for <hours>]` (alias `--low-quota`) | Toggles low-quota mode for the current profile, see [8.4](#84-low-quota-mode) |
 | `checkpoint --turns <n> [--scope global\|project]` | Sets `max_orchestrator_turns_before_checkpoint` |
+| `quota-check [--personas <list>]` | Runs the automatic quota gate ([8.5](#85-automatic-quota-gate)); exit 0 sufficient, 2 insufficient |
 | `resolve <persona> [--format json\|argv] [--mode read-only\|write]` | Machine interface used by every dispatch site |
 
 Writes are atomic (temp file plus rename) and validated before replacing the file. The resolver lives in
@@ -406,6 +408,7 @@ resumes from it.
 | `model_unavailable` | 2.2 or runner | On the first quota, auth or missing-CLI failure, before halting ([5.5](#55-unavailable-models)) |
 | `turn_budget` | 2.2 | When the turn budget in [8.3](#83-turn-budget) is reached |
 | `low_quota_stop` | 2.2 | At the safe point where low-quota mode stops ([8.4](#84-low-quota-mode)) |
+| `quota_low` | 2.2 or runner | When the automatic quota gate finds a persona's quota insufficient ([8.5](#85-automatic-quota-gate)) |
 
 These are written into the relevant SKILL.md steps (`dev-designer`, `dev-implementation`,
 `subagent-driven-development`, `cross-model-review`) and into `lifecycle_runner.py`.
@@ -437,6 +440,26 @@ roughly 15–20 %.
 - **Never skipped.** Gates, `gate4-verifier`, reviews required by selective gating, `/cross-model-review`
   rounds, and every halt criterion.
 
+### 8.5. Automatic Quota Gate
+
+Low-quota mode depends on the user noticing the bar. The quota gate does not: it reuses the quota
+machinery that `/cross-model-review --auto-quota` already has — `scripts/agy_quota.py` to fetch, and
+`evaluate_provider_quota()` with `.devtool/review_config.json["quota_thresholds"]` to judge — and applies it to
+persona bindings.
+
+- **When.** The Orchestrator (or the runner) runs `dev_config.py quota-check` before entering Stage 3,
+  before dispatching each wave, and before each `/cross-model-review` fix round. It checks the CLIs bound
+  to the personas the next step needs, plus the `orchestrator` binding, since that account runs the main
+  session.
+- **Insufficient.** Any checked persona below its threshold: the Orchestrator writes a `quota_low`
+  checkpoint, records `--pending-decision` with `decision_kind: quota` listing each persona's CLI, quota
+  line (for example `5H=12.0%, 7D=40.0%`) and the ready commands to recover (switch profile,
+  `/d3nexus:dev-config preset <name>` or `set …`), and stops calling tools. It starts no new wave; work
+  already dispatched is allowed to return and is checkpointed.
+- **Unknown.** When quota cannot be read (no fetcher data, unsupported CLI), the gate does not block; it
+  records a `quota_unknown` warning in the checkpoint, which the dashboard shows.
+- **Thresholds.** One source of truth: the existing `quota_thresholds`; no second threshold set is added.
+
 ## 9. check-tasks Dashboard Sync
 
 `/d3nexus:check-tasks` harvests lifecycle state into its CLI and web dashboard, so every new script and
@@ -457,6 +480,9 @@ state introduced here must surface there:
 - **Checkpoints.** The epic card shows the latest checkpoint event, its age and `next_step` from the
   heartbeat; the repository panel shows a low-quota badge with its expiry for the current profile; a
   `low_quota_stop` renders as human action.
+- **Quota stop.** A `decision_kind: quota` pending decision renders as a human-action alert on the repository
+  tab, the approval card and the epic card, showing each insufficient persona's quota line and the recovery
+  commands; a `quota_unknown` warning renders as a non-blocking notice.
 - **Telemetry.** Each dispatch appends an event to `events_<slug>.jsonl` carrying `persona`, `brief_role`,
   `model` and `effort`, so the epic history modal shows which persona and model did each step.
 
@@ -480,8 +506,12 @@ Tests are parametrised per the kit's anti-test-bloat rules.
   checkpoint precedes the halt and no retry is dispatched; low-quota mode completes the in-flight wave,
   starts no new one, and stops.
 - `dev-config low-quota`: per-profile storage, expiry, `off`.
+- Quota gate: parametrised over CLI × (sufficient, insufficient, unreadable) with a stub fetcher;
+  insufficient writes `quota_low` and a `quota` pending decision and dispatches nothing; unreadable warns and
+  continues.
 - check-tasks: HLD resolution never returns `.vi.md`; new role labels; persona panel with a valid and an
-  invalid config; `MODEL_UNAVAILABLE`, `ESCALATE` and `low_quota_stop` render as human action; checkpoint
+  invalid config; `MODEL_UNAVAILABLE`, `ESCALATE`, `low_quota_stop` and `quota` decisions render as human
+  action; checkpoint
   and low-quota badge render; dispatch events carry persona fields.
 - Contract tests (`test_lifecycle_document_contract.py`, `test_resume_context.py` and others asserting
   role strings) updated to the new numbering.
@@ -495,8 +525,10 @@ Tests are parametrised per the kit's anti-test-bloat rules.
   numbering remains in `skills/` and `rules/`.
 - **Interactive turn counting is best-effort.** Only the runner counts exactly; event checkpoints carry the
   guarantee in interactive sessions.
-- **A main session that is itself cut off cannot checkpoint.** Low-quota mode and the per-subagent
-  checkpoints bound the loss to the work since the last subagent return.
+- **A main session that is itself cut off cannot checkpoint.** The quota gate, low-quota mode and the
+  per-subagent checkpoints bound the loss to the work since the last subagent return.
+- **Quota data freshness.** The gate is only as current as `agy_quota.py`; a wave can still exhaust quota
+  mid-flight, which the `model_unavailable` path then catches.
 - **Main-session model is not enforceable.** The handoff prompt names the expected model; the kit cannot
   verify it.
 - **`agy` model naming.** The `{effort}` template assumes the current `agy` naming; a change in `agy`
@@ -511,7 +543,7 @@ Tests are parametrised per the kit's anti-test-bloat rules.
 ## 12. Open Items
 
 - Local Ollama as a persona binding — a future option, deliberately excluded from the catalogue now.
-- Quota-aware preset suggestion in `dev-config status` (reading `check-quota` data).
+- Choosing the best preset automatically from live quota; the quota gate only stops and lists commands.
 - A hard `Read(**/*.vi.md)` permission deny; not adopted, because it would also block reading a file the
   user names.
 
