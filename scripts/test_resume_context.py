@@ -7,7 +7,7 @@ Covers BDD scenarios:
 - CMM-EC-01: Enforcing the 20-Line Ceiling on Per-Epic State Snapshots
 - CMM-EC-02: Worktree-Aware Routing From Nested .worktrees/<epic_dir> Checkout
 - CMM-EC-03: Kanban Task Progress Calculation Across Active and Done Directories
-- CMM-ST-01: Tri-Role Persona Governance Banners and 4-Scenario Handoff Prompt Emission
+- CMM-ST-01: Four-Persona Governance Banners and Handoff Prompt Emission
 - CMM-AR-01: Exclusive File Locking Prevents Interleaved Writes Across Parallel Agents
 - CMM-FR-01: Automatic Migration of Legacy Flat assistant_state.md and activity_stream.log
 """
@@ -529,7 +529,7 @@ ag_run() {
 
         self.assertIn("name: resume-context", resume_skill.read_text(encoding="utf-8"))
         self.assertIn("name: save-context", save_skill.read_text(encoding="utf-8"))
-        self.assertIn("## 8. Mandatory Two-Tier Project Memory & Tri-Role Persona Discipline", critical_rules.read_text(encoding="utf-8"))
+        self.assertIn("## 8. Mandatory Two-Tier Project Memory & Four-Persona Discipline", critical_rules.read_text(encoding="utf-8"))
 
     def test_cmm_hp_03_skills_lifecycle_hooks_and_verify_harness(self) -> None:
         """[CMM-HP-03] End-to-End Skill Definitions, Dev-Lifecycle Hooks, and Release Verification Harness."""

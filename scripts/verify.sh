@@ -409,7 +409,7 @@ SUITES = [
     # 14. Shared contracts CLI engine is enforced
     ("14", "unittest", "skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py", 15, False),
     ("14", "unittest", "skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py", 25, False),
-    # 15. Context memory management CLI and Tri-Role governance are enforced
+    # 15. Context memory management CLI and four-persona governance are enforced
     ("15", "unittest", "scripts/test_resume_context.py", 25, False),
     # 16. Session refresh CLI engine and isolation contracts are enforced
     ("16", "unittest", "skills/refresh-session/resources/scripts/test_refresh_session.py", 2, False),

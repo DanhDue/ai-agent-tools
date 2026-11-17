@@ -9,7 +9,7 @@ Two-Tier Context Harvester, Multi-Epic Partitioning & Handoff Telemetry Tool.
   and refreshes .devtool/activity_stream.log rollup under fcntl.flock concurrency protection.
 - Compaction Mode (--complete <slug> "<summary>"): Appends permanent milestone to PROJECT_LEDGER.md,
   archives epic state and activity log to .devtool/archive/, and refreshes rollups.
-- Prompt Mode (--emit-prompt <mode>): Emits deterministic handoff prompts across Tri-Role personas.
+- Prompt Mode (--emit-prompt <mode>): Emits deterministic handoff prompts across the four-persona roles.
 """
 
 from __future__ import annotations
