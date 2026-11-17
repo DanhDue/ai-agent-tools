@@ -80,6 +80,7 @@ class VerifiableHandoffText(unittest.TestCase):
                            ("your report is the test evidence",))
         self.assert_present(SDD + "task-reviewer-prompt.md", (
             "run_task_checks.py status", "Critical",
+            "Role 2.1 AI Architect & Reviewer", "check_bdd_traceability.py",
         ))
 
     def test_vth_hp_13_review_choice_is_stated(self):

@@ -153,6 +153,10 @@ def test_handoff_template_resume_prompt_binds_assistant_orchestrator() -> None:
     text = HANDOFF_TEMPLATE.read_text(encoding="utf-8")
     resume_block = text.split("## Resume Prompt", 1)[1].split("## Execution Guardrails", 1)[0]
     assert ASSISTANT_BANNER in resume_block
-    assert "--role assistant" in resume_block
+    assert "Role 2.2 Orchestrator" in resume_block
+    assert "--role orchestrator" in resume_block
+    assert "--role assistant" not in resume_block
     assert "--role programmer" not in resume_block
+    assert "dev_config.py dispatch" in resume_block
+    assert "--checkpoint" in resume_block
     assert "orchestration-roles.md" in resume_block

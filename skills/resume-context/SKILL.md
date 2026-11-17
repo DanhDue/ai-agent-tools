@@ -1,6 +1,6 @@
 ---
 name: resume-context
-description: Restores project architectural awareness, active epic states, recent programmer activity, and Kanban task progress across multi-repository workspaces on session startup or account rotation while enforcing the Tri-Role Governance Model.
+description: Restores project architectural awareness, active epic states, recent programmer activity, and Kanban task progress across multi-repository workspaces on session startup or account rotation while enforcing the four-persona governance model.
 ---
 
 # Resume Context
@@ -32,13 +32,13 @@ Run the harvester from the workspace terminal or execute the shell alias:
 
 ```bash
 # Portable CLI across all repositories and linked worktrees (.worktrees/<epic_dir>)
-d3nexus resume-context [--role assistant|programmer] [--epic <slug>]
+d3nexus resume-context [--role architect|orchestrator|programmer] [--epic <slug>]
 
 # Or using the shell alias (configured via --sync-zshrc)
 resume
 
 # Or invoking the Python engine directly from ai-agent-tools
-python3 scripts/resume_context.py [--role assistant|programmer] [--epic <slug>]
+python3 scripts/resume_context.py [--role architect|orchestrator|programmer] [--epic <slug>]
 ```
 
 The CLI outputs 6 canonical sections:
@@ -49,19 +49,23 @@ The CLI outputs 6 canonical sections:
 4. `OPEN CONTRACT GAPS & RFCS` (`shared-contracts/*/gaps_and_rfcs.md`) — Active cross-repo RFCs.
 5. `ACTIVE TASKS` (`.devtool/features/task_*.md` & `done/`) — Progress ratios and in-flight Kanban tasks.
 
-## Step 2: Tri-Role Persona Governance
+## Step 2: Four-Persona Governance
 
-Every agent session operates under one of three governance roles:
+Every agent session operates under one of four personas (matrix: [orchestration-roles.md](../dev-lifecycle/references/orchestration-roles.md); models: `/d3nexus:dev-config`). `--role assistant` remains an alias of `--role architect` for existing state files. When a checkpoint exists, the harvest prints the latest one first; resume from its `next_step`.
 
-### 2.1 Human Architect (Developer)
-- Controls architectural strategy, reviews deliverables, and approves Gates 1–5.
+### 2.1 Role 1.0 Human Architect (Developer)
+- Controls architectural strategy, reviews deliverables, and approves Gates 1, 2 and 5, and every escalation.
 
-### 2.2 AI Assistant / Orchestrator (`--role assistant`)
-- Default persona for the main session across all stages: discussions, RCA, HLD/task authoring (`d3nexus:dev-brainstorming`, `d3nexus:dev-designer`), Principal Review (`d3nexus:principal-review`), Stage 3 orchestration (`d3nexus:dev-implementation`), Cross-Model Review (`d3nexus:cross-model-review`), and Stage 4 finish orchestration (`d3nexus:finishing-a-development-branch`).
-- **Hard Restriction:** Strictly prohibited from reading/editing `src/` or `tests/` or running test suites in the main session. Only design/epic docs (`docs/`, `.devtool/`, `shared-contracts/`), pool/lifecycle scripts, and independent verification are allowed; delegates code/test execution to Role 2.3 subagents.
+### 2.2 Role 2.1 AI Architect & Reviewer (`--role architect`)
+- Stages 1–2 main session: discussions, RCA, spec/HLD/BDD/task authoring (`d3nexus:dev-brainstorming`, `d3nexus:dev-designer`), Principal Review (`d3nexus:principal-review`) and packaging; in Stage 3 the `task-reviewer` and `fix-planner` subagents (`--mode read-only`).
+- **Hard Restriction:** Never edits `src/` or `tests/`, runs test suites, linters or type checkers, dispatches subagents, or manages the worker pool.
 
-### 2.3 AI Programmer (`--role programmer`)
-- Dispatched as isolated subagents (`agy` on `.devtool/review_config.json["providers"]["programmer"]`, via `--emit-prompt brief --brief-role <role>`) for `task-implementer`, `task-reviewer`, `review-fixer`, and `gate4-verifier`.
+### 2.3 Role 2.2 Orchestrator (`--role orchestrator`)
+- Stage 3 main session (`d3nexus:dev-implementation`, `d3nexus:cross-model-review`, Stage 4 orchestration via `d3nexus:finishing-a-development-branch`), opened from `--emit-prompt implement` on the `orchestrator` model.
+- **Hard Restriction:** Never reads or edits `src/` or `tests/`, edits HLD, BDD, Verification tables, DoD or `Allowed files`, or runs tests, linters, type checkers, `run_task_checks.py` or `verify-tier`. It owns the worker pool, dispatches Role 2.1 and Role 2.3 subagents, verifies their claims independently, writes checkpoints, and marks tasks `done`.
+
+### 2.4 Role 2.3 Programmer (`--role programmer`)
+- Dispatched as isolated subagents on the `programmer` binding (`dev_config.py dispatch`, briefs via `--emit-prompt brief --brief-role <task-implementer|task-reviewer|fix-planner|review-fixer|gate4-verifier>`) for `task-implementer`, `review-fixer` and `gate4-verifier`.
 - Operates inside isolated git worktrees (`d3nexus:using-git-worktrees`), writing code and tests with strict TDD (Red-Green-Refactor) and Clean Code standards.
 - **Hard Restriction:** Bound strictly to approved specifications, `Decisions Already Made`, and `Allowed files`. Never alters frozen architecture or `shared-contracts/` symlinks, and never calls `manage_worker_pool.py`.
 

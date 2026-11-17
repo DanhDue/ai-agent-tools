@@ -2533,7 +2533,7 @@ def auto_triage_section(
             f"Round {number}/{max_rounds} has {len(blocking_rows)} Critical/Important finding(s) and no Fix Loop or shared-contract conflict. "
             "Verify against source and approved design (Spec, HLD, bdd_scenarios.en.md, Decisions Already Made): "
             "if Valid (and zero CRITICAL_CONFLICT or Debatable trade-offs), auto-record decisions, "
-            "revise docs in Role 2.2 (or fix code in Role 2.3), run local quality gate, "
+            "revise docs in Role 2.1 AI Architect & Reviewer (or fix code in Role 2.3 Programmer), run local quality gate, "
             "and advance to next review round."
         )
     return [

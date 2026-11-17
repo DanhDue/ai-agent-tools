@@ -1,0 +1,259 @@
+{
+  "schema": 1,
+  "task": "task_06_four_persona_governance_text",
+  "runs": {
+    "red": {
+      "head": "33bde6d444be419d3e754d2cb82281f4072f2c02",
+      "tree": "446274a48f97ed8a72e0239526c364c8b8c3092e",
+      "patch_id": "495b7034c5e975d43d6f95b70abef960aeb88394",
+      "started": "2026-11-17T11:35:55Z",
+      "finished": "2026-11-17T11:35:55Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_governance_text.py::test_fpg_ar_03_governance_text_uses_four_personas",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T11:35:55Z",
+          "finished": "2026-11-17T11:35:55Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "______________ test_fpg_ar_03_governance_text_uses_four_personas _______________",
+            "tests/test_fpg_governance_text.py:108: in test_fpg_ar_03_governance_text_uses_four_personas",
+            "    assert not offenders, \"Old Tri-Role vocabulary remains:\\n\" + \"\\n\".join(offenders)",
+            "E   AssertionError: Old Tri-Role vocabulary remains:",
+            "E     rules/CRITICAL_RULES.md:62: Tri-Role",
+            "E     rules/CRITICAL_RULES.md:65: Tri-Role",
+            "E     rules/CRITICAL_RULES.md:66: Role 2.1 Human Architect",
+            "E     rules/CRITICAL_RULES.md:67: Role 2.2 AI Assistant",
+            "E     rules/CRITICAL_RULES.md:68: Role 2.3 AI Programmer",
+            "E     skills/dev-lifecycle/SKILL.md:63: Tri-Role",
+            "E     skills/dev-lifecycle/references/autonomous-mode.md:3: Tri-Role",
+            "E     skills/dev-lifecycle/references/autonomous-mode.md:5: Tri-Role",
+            "E     skills/resume-context/SKILL.md:3: Tri-Role",
+            "E     skills/resume-context/SKILL.md:52: Tri-Role",
+            "E   assert not ['rules/CRITICAL_RULES.md:62: Tri-Role', 'rules/CRITICAL_RULES.md:65: Tri-Role', 'rules/CRITICAL_RULES.md:66: Role 2.1...AI Assistant', 'rules/CRITICAL_RULES.md:68: Role 2.3 AI Programmer', 'skills/dev-lifecycle/SKILL.md:63: Tri-Role', ...]",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_fpg_governance_text.py::test_fpg_ar_03_governance_text_uses_four_personas",
+            "1 failed in 0.07s"
+          ],
+          "output_sha256": "300397322ea7f8ce91dee3f1476bdd7defa018659628e33ef682edd9c2a60bb8"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "33bde6d444be419d3e754d2cb82281f4072f2c02",
+      "tree": "6fe9bc0cd14bd14c085ad11426a70596753e8dc8",
+      "patch_id": "e7df35423dbcb2a8b97e4e507cd88875e8683653",
+      "started": "2026-11-17T12:01:54Z",
+      "finished": "2026-11-17T12:02:33Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_governance_text.py tests/test_tto_docs_and_slimming.py tests/test_assistant_orchestrator_handoff.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T12:01:54Z",
+          "finished": "2026-11-17T12:01:56Z",
+          "output_tail": [
+            "..................................                                       [100%]",
+            "34 passed in 1.76s"
+          ],
+          "output_sha256": "10975a723e237c1e1feed355046846ebab98f061d0fbe567578c6cf6e65c3fbe"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 scripts/test_lifecycle_document_contract.py scripts/test_verifiable_handoff_text.py skills/dev-implementation/resources/scripts/test_run_external_review.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T12:01:56Z",
+          "finished": "2026-11-17T12:02:32Z",
+          "output_tail": [
+            "..................................................................... [ 68%]",
+            "................................                                         [100%]",
+            "101 passed, 3 subtests passed in 36.57s"
+          ],
+          "output_sha256": "06ac67d2b89c0ece069bcdf94d77044d8bd24001200f93dbb50fa6628aa7125e"
+        },
+        {
+          "id": "V4",
+          "phase": "GREEN",
+          "command": "python3 skills/doc_quality_check/resources/scripts/check_document.py --require-toc skills/dev-lifecycle/references/orchestration-roles.md skills/dev-lifecycle/references/handoff-template.md",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T12:02:32Z",
+          "finished": "2026-11-17T12:02:32Z",
+          "output_tail": [
+            "  checked 2 documents, 0 findings"
+          ],
+          "output_sha256": "780cb1e9162bb11390ccef16375e9bcefdab9280a7547d85e8e934a240b5843d"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/run_external_review.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T12:02:32Z",
+          "finished": "2026-11-17T12:02:32Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/run_external_review.py --ignore-missing-imports",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T12:02:32Z",
+          "finished": "2026-11-17T12:02:33Z",
+          "output_tail": [
+            "Success: no issues found in 8 source files"
+          ],
+          "output_sha256": "157a09cfcdfdfb5977479c5a1c08345149263a3e990a2ec976ef28aaeec9cae6"
+        },
+        {
+          "id": "V7",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/fpg_task_06.xml tests/test_fpg_governance_text.py",
+          "expect": "exit 0; results build/test-results/fpg_task_06.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T12:02:33Z",
+          "finished": "2026-11-17T12:02:33Z",
+          "output_tail": [
+            "...........                                                              [100%]",
+            "11 passed in 0.06s"
+          ],
+          "output_sha256": "6a840c9afb8c0e0e613d2f47dddba1dbba0efc79f3d678114250febb27d74362",
+          "results": {
+            "path": "build/test-results/fpg_task_06.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 11,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_fpg_ar_03_governance_text_uses_four_personas",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_03_critical_rules_section_8_carries_checkpoint_and_quota_text",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_03_skills_name_new_personas_and_commands[skills/dev-lifecycle/SKILL.md]",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_03_skills_name_new_personas_and_commands[skills/dev-implementation/SKILL.md]",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_03_skills_name_new_personas_and_commands[skills/subagent-driven-development/SKILL.md]",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_03_skills_name_new_personas_and_commands[skills/cross-model-review/SKILL.md]",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_03_skills_name_new_personas_and_commands[skills/principal-review/SKILL.md]",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_03_skills_name_new_personas_and_commands[skills/resume-context/SKILL.md]",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_03_skills_name_new_personas_and_commands[skills/save-context/SKILL.md]",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_03_skills_name_new_personas_and_commands[skills/dev-lifecycle/references/orchestration-roles.md]",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_07_governance_text_routes_dispatch_through_pool_and_guards_ag_run",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "rules/CRITICAL_RULES.md",
+            "scripts/test_lifecycle_document_contract.py",
+            "scripts/test_verifiable_handoff_text.py",
+            "skills/cross-model-review/SKILL.md",
+            "skills/dev-implementation/SKILL.md",
+            "skills/dev-implementation/resources/scripts/run_external_review.py",
+            "skills/dev-implementation/resources/scripts/test_run_external_review.py",
+            "skills/dev-lifecycle/SKILL.md",
+            "skills/dev-lifecycle/references/autonomous-mode.md",
+            "skills/dev-lifecycle/references/governance-checklists.md",
+            "skills/dev-lifecycle/references/handoff-template.md",
+            "skills/dev-lifecycle/references/orchestration-roles.md",
+            "skills/dev-lifecycle/references/principal-review.md",
+            "skills/principal-review/SKILL.md",
+            "skills/principal-review/references/document-triage.md",
+            "skills/resume-context/SKILL.md",
+            "skills/save-context/SKILL.md",
+            "skills/subagent-driven-development/SKILL.md",
+            "skills/subagent-driven-development/task-reviewer-prompt.md",
+            "tests/test_assistant_orchestrator_handoff.py",
+            "tests/test_fpg_governance_text.py",
+            "tests/test_tto_docs_and_slimming.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

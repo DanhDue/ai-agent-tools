@@ -9,7 +9,7 @@ description: Use when an epic already has an approved HLD and Kanban task files 
 
 Runs an already-approved epic's Kanban tasks end-to-end: reload the epic's own docs for context, detect the platform (Flutter, Android Native, iOS Native, Web, Python, or Rust), compute a dependency-safe execution order with parallel batches, bootstrap the main epic worktree with an isolated 2-slot ephemeral worker pool, then orchestrate tasks with sub-agents—running independent tasks in parallel with zero storage overhead via APFS clone / shared cache.
 
-**Core principle:** AI Assistant (Role 2.2) acts as Implementation Orchestrator; Role 2.3 Programmer subagents execute tasks in a 2-slot ephemeral worker pool + shared cache; one commit per task, docs stay truthful.
+**Core principle:** Role 2.2 Orchestrator runs Stage 3; Role 2.3 Programmer subagents execute tasks in a 2-slot ephemeral worker pool + shared cache, Role 2.1 subagents review and plan fixes; one commit per task, docs stay truthful.
 
 **Announce at start:** "I'm using the dev-implementation skill to implement the `<epic_slug>` epic."
 
@@ -46,7 +46,8 @@ This skill is **Stage 3** of the Epic Lifecycle. The surrounding stages, the fiv
    - `.devtool/epic/<epic_dir>/handoff.md`, when present — packaging record and Open Notes (never edited manually; updated only via `package_epic.py <epic_dir> --revise --reason "<text>"`).
    - `.devtool/epic/<epic_dir>/<epic_dir>.en.md` — canonical HLD & Maintenance Map ("Prompt to Maintain"; never `.vi.md` for decisions). Read `Meta Data`, `Architecture, Feature Map & Technical Design`, `Integration Test Plan`, and `Verification Environment`.
    - Frontmatter, `Covers:`, and `Dependencies` of `.devtool/features/task_*.md` matching `epic: "<epic_slug>"` (read full task bodies one at a time in Phase 2).
-   - Restore context and window title: `python3 scripts/resume_context.py --role assistant --epic <epic_slug>`.
+   - Restore context and window title: `python3 scripts/resume_context.py --role orchestrator --epic <epic_slug>`.
+   - Before Stage 3, each wave and each fix round run `python3 scripts/dev_config.py quota-check`; exit `2`: checkpoint `quota_low`, record a `quota` pending decision, stop.
 
 #### Bounded Context Injection & Spec Fidelity
 
@@ -126,7 +127,7 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
    Check scan summary line (`Scanned N task_*.md files; M matched epic ...`). If `M` is smaller than expected, fix broken frontmatter before proceeding. Inspect the computed parallel batches.
 2. Read "Manual review advised" section (if any) and cross-check against Phase 0 context. Adjust flattened order by hand if a prose note should win.
 3. **Automated Gate 3 Bootstrap (Zero Manual Confirmation):**
-   The AI Assistant computes and resolves the execution order automatically via `compute_execution_order.py`.
+   The Orchestrator computes and resolves the execution order automatically via `compute_execution_order.py`.
    Record Gate 3 approval in the Gate Approval Ledger:
    ```bash
    python3 scripts/resume_context.py --gate 3 --epic <epic_slug> --approved "<execution order auto-resolved>"
@@ -177,9 +178,10 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
 
 <HARD-GATE>
 - **Orchestrator (Role 2.2)**: never reads/edits `src/`/`tests/` or runs tests, linters, `run_task_checks.py` or `verify-tier`; reads only subagent JSON summaries, epic docs and git metadata ([orchestration-roles.md](../dev-lifecycle/references/orchestration-roles.md)).
-- **Programmer (Role 2.3)**: implementation, review, Gate 4 and fixes run via `agy --model <model> --effort <effort> --mode auto` with `.devtool/review_config.json["providers"]["programmer"]` (default `gemini-4-hydrogen-xhigh`, `xhigh`). Never substitute a lighter model (e.g. `Model="flash"`); if unavailable, halt via `--pending-decision`.
 - **Pool state is Orchestrator-only**: subagents never call `manage_worker_pool.py`.
 </HARD-GATE>
+
+**Dispatch Role 2.3** with `python3 scripts/dev_config.py dispatch --persona programmer --mode write --prompt-file <file> --cwd <slot> --log <log> --epic <epic_slug> --task <task_id> --slot <n>`; the lease file `agy_profile_leases.json` records the `agy` profile in use. Exit code `2` means record a quota pending decision with the printed report and stop. Never hand-build the `agy` environment, substitute a lighter model, fall back or retry (checkpoint `model_unavailable`, record a blocker, stop); other personas use `dev_config.py resolve <persona>` (`programmer` default `gemini-4-hydrogen-xhigh`).
 
 Autonomous Mode: `lifecycle_runner.py` dispatches itself (`build_agy_command`, `start_new_session=True`, SIGTERM/SIGKILL supervision, per-task logs).
 
@@ -187,9 +189,9 @@ Autonomous Mode: `lifecycle_runner.py` dispatches itself (`build_agy_command`, `
 - **Slots**: `.worktrees/<epic_dir>-slot-1` / `-slot-2` share caches with the main worktree `.worktrees/<epic_dir>`.
 - **Pool CLI** (`python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py <cmd> --epic-dir <epic_dir> --epic-slug <epic_slug>`): `init [--wave <k>]` | `sync --slot <1|2> --task <task_id> [--wave <k>] [--status working|review|idle] [--no-reset]` | `merge --slot <1|2> --task <task_id>` | `cleanup` (keeps dirty/unmerged work)
 1. **Wave Setup (Orchestrator)**: Run `compute_execution_order.py <epic_slug> --parallel`, monitor `estimate_heartbeat.py`, and log wave (`resume_context.py --epic <epic_slug> --wave <k> --state --status "In progress: Wave <k>"`). For each task (max 2 per wave), run `manage_worker_pool.py sync ... --slot <1|2> --task <task_id> --wave <k> --status working` (single-worktree mode: `sync_task_status.py task <task_id> in-progress`), then dispatch the slot's `task-implementer`.
-2. **`task-implementer` (Role 2.3)**: Inside the slot, run `check_code_impact.py` (halt on `🔴 DIVERGENCE DETECTED`; add characterization tests on `⚠️ UNPROTECTED CODE`), write `RED` tests -> `GREEN` code, pass `run_task_checks.py verify`. If `needs_review` (step 2 below) is false and `done gate: PASS`, finalize: `sync_task_status.py task <task_id> done`, `git status`, `git add -A`, commit `[EPIC_NAME] <task_title>` (no trailers). Return the JSON summary.
-3. **`task-reviewer` (Role 2.3, fresh subagent)**: Dispatched by the Orchestrator only when Selective Gating triggers, after it runs `sync ... --status review`. Audits diff + AST + Zero Fakery, verifies `done gate: PASS` + `check_bdd_traceability.py`, marks `done`, commits in the slot, returns the JSON summary.
-4. **Merge & Cleanup (Orchestrator)**: see steps 4–5 below; `cleanup` before Phase 4; revisions use `package_epic.py --revise --reason "<text>" <epic_dir>`.
+2. **`task-implementer` (Role 2.3)**: Inside the slot, run `check_code_impact.py` (halt on `🔴 DIVERGENCE DETECTED`; add characterization tests on `⚠️ UNPROTECTED CODE`), write `RED` tests -> `GREEN` code, pass `run_task_checks.py verify`. If `needs_review` (step 2 below) is false and `done gate: PASS`, finalize: `sync_task_status.py task <task_id> done`, `git status`, `git add -A`, commit `[EPIC_NAME] <task_title>` (no trailers). Return the JSON summary, then `--checkpoint subagent_returned`.
+3. **`task-reviewer` (Role 2.1, fresh read-only subagent)**: Dispatched by the Orchestrator only when Selective Gating triggers, after it runs `sync ... --status review`. Audits diff + AST + Zero Fakery via `run_task_checks.py status` and `check_bdd_traceability.py` only; never edits or commits. On `PASS` the Orchestrator marks `done` and commits.
+4. **Merge & Cleanup (Orchestrator)**: see steps 4–5 below (then `--checkpoint wave_merged`); `cleanup` before Phase 4; revisions use `package_epic.py --revise --reason "<text>" <epic_dir>`.
 
    **Test Assertion Health, Anti-Bloat & Tiered Execution**: Never assert only inside `if path.exists()`; always assert `found > 0`. Enforce:
    - **Mandatory Parametrization**: Never copy-paste `def test_*` functions across input variations; consolidate into `@pytest.mark.parametrize` (or table tests).
@@ -355,8 +357,8 @@ python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run \
   --epic-dir <epic_dir> --base <base_ref> --auto-quota
 ```
 3. Commit `review_results.md` (`[EPIC_NAME] Record cross-model review round N`), run `python3 "$SKILL_DIR"/resources/scripts/run_external_review.py triage --epic-dir <epic_dir>`, and inspect `## Auto-Triage Gate`:
-   - **`AUTO_PASS_CLEAN` / `AUTO_PASS_FINAL_MINOR_SWEEP` / `AUTO_FIX_ELIGIBLE`**: The Orchestrator picks the fixer mode from the triage (`fast-track` only when every open finding is `Valid` and no escalation marker appears; otherwise `plan-first`, where the fixer writes `fix_plan_round<N>.md` and the Orchestrator rules `APPROVED` / `ADJUSTED` / `CRITICAL_CONFLICT` before a fresh fixer applies it). The Role 2.3 fixer applies code/test fixes, runs **Tier 1 scoped tests only** (`uv run pytest <changed_test_files> -n auto --timeout=30 -q --tb=short`), commits `[<EPIC_NAME>] Fix <what>`, records `fixed in <sha>` in `review_results.md`, and returns the `review-fixer` summary. The Orchestrator then checks `git diff --name-only <pre_sha>..HEAD` for out-of-scope paths. On convergence, a fresh `gate4-verifier` runs full Gate 4. Details: [orchestration-roles.md](../dev-lifecycle/references/orchestration-roles.md#4-independent-verification).
-   - **`CIRCUIT_BREAKER_HALT`**: Halts cleanly via `--pending-decision` on `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or Critical findings surviving Round 3.
+   - **`AUTO_PASS_CLEAN` / `AUTO_PASS_FINAL_MINOR_SWEEP` / `AUTO_FIX_ELIGIBLE`**: The Orchestrator routes by risk: low risk -> Role 2.3 `review-fixer` `fast-track`; high risk (any `Critical`, escalation marker, or the same Gate 4 check failing twice) -> Role 2.1 `fix-planner` (`--mode read-only`), whose `fix_plan_round<N>.md` is `PLANNED` (`review-fixer` runs `apply-plan`) or `ESCALATE` (`--pending-decision`, stop for Role 1.0). The fixer runs **Tier 1 scoped tests only** (`uv run pytest <changed_test_files> -n auto --timeout=30 -q --tb=short`), commits `[<EPIC_NAME>] Fix <what>`, records `fixed in <sha>` in `review_results.md`, and returns the `review-fixer` summary; the Orchestrator checks `git diff --name-only <pre_sha>..HEAD` for out-of-scope paths. On convergence a fresh `gate4-verifier` runs full Gate 4. Details: [orchestration-roles.md](../dev-lifecycle/references/orchestration-roles.md#4-independent-verification).
+   - **`CIRCUIT_BREAKER_HALT`**: Halts cleanly via `--pending-decision` on `CRITICAL_CONFLICT`, `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or Critical findings surviving Round 3.
 4. Once `/cross-model-review` completes (converged with 0 Critical findings) and Gate 4 passes on the latest candidate SHA:
    - Present the synthesized `## Top 3 Highest-Risk Findings (Executive Report)`.
    - Advance directly to **Phase 4.1 (Stage 4: Developer Kanban Review & Finish Decision — Gate 5)**.

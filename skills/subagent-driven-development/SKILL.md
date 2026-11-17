@@ -186,6 +186,8 @@ implementation.
 
 ## Model Selection
 
+**Inside an epic (`d3nexus:dev-implementation`), models are bound to personas, not chosen per task.** Resolve each subagent's binding with `python3 scripts/dev_config.py resolve <persona> --format argv --mode <read-only|write>`: Role 2.3 Programmer (`programmer`, `--mode write`) for `task-implementer`, `review-fixer` and `gate4-verifier`; Role 2.1 AI Architect & Reviewer (`ai_architect_reviewer`, `--mode read-only`) for `task-reviewer` and `fix-planner`. Dispatch Role 2.3 through `dev_config.py dispatch` (agy profile pool, lease file `agy_profile_leases.json`). Never substitute a lighter model, and never fall back or retry on a missing CLI, failed auth or exhausted quota: checkpoint `model_unavailable`, record a blocker with the fallback command, stop. The tiers below apply only to standalone use outside an epic.
+
 Use the least powerful model that can handle each role to conserve cost and increase speed.
 
 **Mechanical implementation tasks** (isolated functions, clear specs, 1-2 files): use a fast, cheap model. Most implementation tasks are mechanical when the plan is well-specified.
@@ -336,6 +338,7 @@ Per-task reviews are selective, task-scoped gates. The broad review happens once
   - *Single-worktree / non-pool mode*: `python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <id> review`
   If review enters Step 4 (fix loop), immediately return status to `in-progress` (`manage_worker_pool.py sync ... --status working --no-reset` in pool mode, or `sync_task_status.py task <id> in-progress` in single-worktree mode), then flip back to `review` (`--status review`) before re-review.
 
+- **Reviewer persona:** In an epic, `task-reviewer` is a Role 2.1 AI Architect & Reviewer subagent on the `ai_architect_reviewer` binding (`--mode read-only`). It reads the slot diff, `src/`/`tests/`, the task file and evidence, runs only `run_task_checks.py status` and `check_bdd_traceability.py`, and never edits, commits or runs test suites. On `PASS` the Orchestrator marks the task `done`.
 - **Selective `task-reviewer` gating:** Dispatch `task-reviewer` **ONLY** when `review_tier: "full"` in task frontmatter, OR task labels include any high-risk trigger (`security`, `architecture`, `concurrency`, `contract`), OR the task modifies `> 2` non-test modules. For trivial single-file or routine tasks without high-risk triggers (where `review_tier` is unset or `skip`), skip `task-reviewer` and rely on implementer self-review, `run_task_checks.py verify`, and the final whole-branch review. Whenever a `task-reviewer` IS dispatched, never accept a report missing either verdict — spec compliance AND task quality are both required.
 - **Rule 3 & Rule 5 discipline:** Require bounded reads (`StartLine`/`EndLine` or `sed -n 'X,Yp'` with symbol search on files `> 200` lines) and enforce the Zero-Fluff Output Cap for subagent narration while preserving Verdicts, Findings tables, gate results, and status contracts.
 - Hand the reviewer its diff as a file: run this skill's
@@ -399,7 +402,11 @@ Before the loop starts, two routes leave it immediately:
   the plan mandates it, and do not dispatch a fix that contradicts the plan
   without a recorded ruling.
 Everything else enters the loop. A fix round is one fix dispatch plus one
-scoped re-review. Five rounds maximum per task:
+scoped re-review. Five rounds maximum per task.
+
+**Epic lifecycle routing.** When the loop runs for review findings or a failed Gate 4 inside an epic, the Orchestrator routes by risk and never rules on plans. Low risk (every open finding `Valid`, no escalation marker, or the first failure of a check): a Role 2.3 `review-fixer` runs in `fast-track` mode. High risk (any `Critical`, any escalation marker, or the same check failing twice in a row): dispatch a Role 2.1 `fix-planner` (`--mode read-only`) that writes `fix_plan_round<N>.md` and returns `PLANNED` (a `review-fixer` applies it in `apply-plan` mode) or `ESCALATE` (a halt criterion is touched: record `--pending-decision` and stop for Role 1.0). Write `--checkpoint subagent_returned` after each return.
+
+The rounds below are the standalone loop:
 
 **Rounds 1-3 — resume the original implementer.** Send it the open findings
 verbatim. Its context is intact: it knows the task, the code, and its own

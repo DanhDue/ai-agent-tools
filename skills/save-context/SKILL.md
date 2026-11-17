@@ -49,7 +49,17 @@ python3 scripts/resume_context.py --log \
   --note "<deviations, trade-offs, or None>"
 ```
 
-### 3. Non-Destructive Checkpoint (`--complete --checkpoint`)
+### 3. Lifecycle Checkpoint (`--checkpoint <event>`)
+
+Writes a structured checkpoint block into the per-epic heartbeat (`.devtool/state/<epic_slug>.heartbeat.json`), updates `Next Immediate Step` in `.devtool/state/<epic_slug>.md`, and appends a `checkpoint` event to `events_<epic_slug>.jsonl`, all under the same lock. Plain `resume_context.py` prints the latest checkpoint first, so a fresh session resumes from it:
+
+```bash
+python3 scripts/resume_context.py --checkpoint <event> --epic <epic_slug> [--next "<next step>"]
+```
+
+Events: `gate2_tasks_locked` (Role 2.1, right after Gate 2), `subagent_returned` (Role 2.2, after each summary contract and before the next dispatch), `wave_merged` (Role 2.2, after every wave merge), `model_unavailable`, `turn_budget`, `low_quota_stop`, `quota_low`. In low-quota mode (`/d3nexus:dev-config low-quota on`) the Orchestrator writes `low_quota_stop`, prints `--emit-prompt implement`, records `--pending-decision`, and stops.
+
+### 3b. Non-Destructive Checkpoint (`--complete --checkpoint`)
 
 Saves in-flight state and logs without archiving the epic or adding milestones to the permanent ledger:
 
@@ -66,12 +76,12 @@ python3 scripts/resume_context.py --emit-prompt <mode> --epic <epic_slug> [--epi
 ```
 
 Supported modes:
-- `principal-review`: Emits **AI Assistant (Orchestrator)** prompt for Stage 2 Principal Review.
-- `implement`: Emits **AI Assistant (Orchestrator)** prompt for `/dev-implementation` (Stage 3; dispatches Role 2.3 subagents).
-- `cross-review`: Emits **AI Assistant (Orchestrator)** prompt for Cross-Model Review (Gate 4 PASS; dispatches Role 2.3 fixers/verifier).
-- `finish`: Emits **AI Assistant (Orchestrator)** prompt for `/finish` (Stage 4; dispatches Role 2.3 for rebase/`verify-tier` if needed).
-- `assistant`: Emits **AI Assistant (Orchestrator)** prompt for general architectural discussions.
-- `brief` (`--brief-role <task-implementer|task-reviewer|review-fixer|gate4-verifier>`): Emits **AI Programmer (Role 2.3)** subagent brief with summary JSON contract.
+- `principal-review`: Emits **Role 2.2 Orchestrator** prompt for Stage 2 Principal Review (Role 2.1 revisions).
+- `implement`: Emits **Role 2.2 Orchestrator** prompt for `/dev-implementation` (Stage 3; names the persona and its resolved model and effort; dispatches Role 2.1 and Role 2.3 subagents).
+- `cross-review`: Emits **Role 2.2 Orchestrator** prompt for Cross-Model Review (Gate 4 PASS; dispatches Role 2.1 `fix-planner` and Role 2.3 fixers/verifier).
+- `finish`: Emits **Role 2.2 Orchestrator** prompt for `/finish` (Stage 4; dispatches Role 2.3 for rebase/`verify-tier` if needed).
+- `assistant`: Emits **Role 2.1 AI Architect & Reviewer** prompt for general architectural discussions.
+- `brief` (`--brief-role <task-implementer|task-reviewer|fix-planner|review-fixer|gate4-verifier>`): Emits the subagent brief with its persona (Role 2.1 for `task-reviewer` and `fix-planner`, Role 2.3 otherwise) and summary JSON contract.
 
 ### 5. Feature Completion & Compaction (`--complete`)
 

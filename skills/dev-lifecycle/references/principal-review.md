@@ -1,11 +1,11 @@
 # Principal Review Loop Procedure
 
-Principal Review is a cross-model review of an epic's architecture and task designs against the source repository before implementation begins. It catches grounded misunderstandings, missing contracts, and scope regressions while fixing them in documents is cheap.
+Principal Review is a cross-model review of an epic's architecture and task designs against the source repository before implementation begins. Role 2.1 AI Architect & Reviewer runs this whole procedure (Stage 2) and owns its revisions; Role 2.2 Orchestrator starts only at Stage 3. It catches grounded misunderstandings, missing contracts, and scope regressions while fixing them in documents is cheap.
 
 ## Procedure
 
 1. **End of Stage 2 — Provider/Model Priority Choice (No Packaging Yet)**:
-   Once Gate 2 passes and readiness checks (`check_epic_readiness.py <epic_dir>`) succeed (design docs & tasks committed when `auto_commit: true`, Gate 2 recorded, and `resume_context.py --state --epic <epic_slug> --status "Stage 2: Ready for Principal Review"` saved), do **NOT** run `package_epic.py` or create `handoff.md` yet.
+   Once Gate 2 passes (write `python3 scripts/resume_context.py --checkpoint gate2_tasks_locked --epic <epic_slug>` right after recording it) and readiness checks (`check_epic_readiness.py <epic_dir>`) succeed (design docs & tasks committed when `auto_commit: true`, Gate 2 recorded, and `resume_context.py --state --epic <epic_slug> --status "Stage 2: Ready for Principal Review"` saved), do **NOT** run `package_epic.py` or create `handoff.md` yet.
    Read `.devtool/review_config.json` (auto-seeded from `DEFAULT_REVIEW_CONFIG` with `provider_priority: ["claude", "codex", "kiro", "agy"]` and `max_rounds: 3`), display each provider's configured `model` and `thinking_level` (`Claude CLI`, `Codex CLI`, `Kiro CLI`, `Antigravity CLI`), stop calling tools, and ask the developer for the **provider/model priority order** for `/principal-review`:
 
    > Gate 2 passed and Stage 2 design is saved (`/save-context`). What provider/model priority order should `/principal-review` use?
@@ -33,7 +33,7 @@ Principal Review is a cross-model review of an epic's architecture and task desi
      ```bash
      python3 "$SKILL_DIR"/resources/scripts/run_external_review.py triage --kind principal --epic-dir <epic_dir>
      ```
-     Verify every finding against source at the round's SHA and approved Spec/HLD per [document-triage.md](../../principal-review/references/document-triage.md). In **both** interactive and autonomous modes, auto-apply verified `Valid` fixes and advance cleanly to Round `N+1` without pausing — stop calling tools and escalate to the Human Architect **only** on `CRITICAL_CONFLICT`, `Debatable` trade-offs, `CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)`, `CIRCUIT_BREAKER_HALT (FIX_LOOP)`, or `CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)`.
+     Verify every finding against source at the round's SHA and approved Spec/HLD per [document-triage.md](../../principal-review/references/document-triage.md). In **both** interactive and autonomous modes, auto-apply verified `Valid` fixes as Role 2.1 (inline or a `principal-reviser` subagent on the `ai_architect_reviewer` binding) and advance cleanly to Round `N+1` without pausing — stop calling tools and escalate to the Human Architect **only** on `CRITICAL_CONFLICT`, `Debatable` trade-offs, `CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)`, `CIRCUIT_BREAKER_HALT (FIX_LOOP)`, or `CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)`.
    - If the round produces revisions (`AUTO_FIX_ELIGIBLE`, `AUTO_PASS_FINAL_*` sweep, or escalated fixes confirmed by the developer):
      - Commit the document revisions first:
        ```bash
@@ -63,6 +63,8 @@ Principal Review is a cross-model review of an epic's architecture and task desi
    > `/principal-review` passed and `<epic_slug>` is packaged (`handoff.md`). How do you want to proceed?
    > 1. **Triển khai (tự động)** — automatically enter Stage 3 (`d3nexus:dev-implementation`, automated Gate 3 & TDD).
    > 2. **Dừng lại** — Dừng lại ở đây để tôi lấy prompt cho một AI Agents khác triển khai.
+
+   State in the prompt that option 1 continues Stage 3 in this session, so Role 2.2 Orchestrator runs on this session's model, and name the configured `orchestrator` binding (`python3 scripts/dev_config.py status`). When the two differ, recommend option 2 and a new session opened on the `orchestrator` model with the printed prompt.
 
    - If the developer picks **1. Triển khai (tự động)**:
      Verify `python3 "$SKILL_DIR"/resources/scripts/run_external_review.py check --kind principal --epic-dir <epic_dir>` exits 0 and confirm via `git log -1 --format=%s -- .devtool/epic/<epic_dir>` that no un-packaged epic commit landed after `[<EPIC_NAME>] Package epic for handoff` (re-run `package_epic.py <epic_dir> --revise` if needed), then **automatically invoke `d3nexus:dev-implementation`**.

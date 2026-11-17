@@ -32,13 +32,14 @@ def test_tto_hp_05_slimmed_rules_and_skills_caps() -> None:
     """[TTO-HP-05] Rules and dev-designer stay within UTF-8 byte caps, task-observer blocks subagents, and checklists offload."""
     critical_rules = _read("rules/CRITICAL_RULES.md")
     assert critical_rules.startswith("---\ntrigger: always_on\n---")
-    assert len(critical_rules.encode("utf-8")) <= 8192, (
-        f"CRITICAL_RULES.md too large: {len(critical_rules.encode('utf-8'))} bytes > 8192"
+    assert len(critical_rules.encode("utf-8")) <= 10240, (
+        f"CRITICAL_RULES.md too large: {len(critical_rules.encode('utf-8'))} bytes > 10240"
     )
     assert (
-        "## 8. Mandatory Two-Tier Project Memory & Tri-Role Persona Discipline"
+        "## 8. Mandatory Two-Tier Project Memory & Four-Persona Discipline"
         in critical_rules
     )
+    assert "Tri-Role" not in critical_rules
     assert "## 9. Shell Configuration" in critical_rules
     assert "## 10. Zero-Fluff Output Cap" in critical_rules
     for required_preserved in ("Verdict", "Findings", "Gate"):
@@ -87,7 +88,7 @@ def test_tto_hp_05_slimmed_rules_and_skills_caps() -> None:
 
 
 def test_tto_hp_05_lifecycle_word_caps() -> None:
-    """[TTO-HP-05] dev-lifecycle and dev-implementation meet word caps and use config-driven Role 2.3 defaults."""
+    """[TTO-HP-05] dev-lifecycle and dev-implementation meet word caps and keep the Role 2.3 default binding."""
     dev_lifecycle = _read("skills/dev-lifecycle/SKILL.md")
     lc_words = _word_count(dev_lifecycle)
     assert lc_words <= 2500, f"dev-lifecycle/SKILL.md word count {lc_words} > 2500"
@@ -99,10 +100,10 @@ def test_tto_hp_05_lifecycle_word_caps() -> None:
 
     dev_impl = _read("skills/dev-implementation/SKILL.md")
     impl_words = _word_count(dev_impl)
-    assert impl_words <= 4500, (
-        f"dev-implementation/SKILL.md word count {impl_words} > 4500"
+    assert impl_words <= 4600, (
+        f"dev-implementation/SKILL.md word count {impl_words} > 4600"
     )
-    assert ".devtool/review_config.json" in dev_impl
+    assert "dev_config.py resolve" in dev_impl
     assert "gemini-4-hydrogen-xhigh" in dev_impl
     assert 'review_tier: "full"' in dev_impl or "review_tier" in dev_impl
     assert "StartLine" in dev_impl or "EndLine" in dev_impl

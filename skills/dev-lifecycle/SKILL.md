@@ -21,12 +21,13 @@ The orchestrator for epic-scale work. It owns **sequence and gates only** — ea
 Human-facing lifecycle and resume diagrams live in [lifecycles.en.md](../../docs/lifecycles.en.md) and [lifecycles.vi.md](../../docs/lifecycles.vi.md). Runtime sequence (Interactive & Autonomous Pipeline Mode):
 
 1. **Stage 1 (Inception & Spec)**: `dev-brainstorming` -> Gate 1 approval -> Route to `dev-designer` (epic) or `writing-plans` (non-epic).
-2. **Stage 2 (Architecture & Tasks)**: `dev-designer` -> Gate 2 approval -> Provider priority prompt -> `/principal-review` (Max 3 rounds; Role 2.2 `principal-reviser` subagent revises docs, Orchestrator re-checks readiness) -> Post-review Package (`package_epic.py`) & print implement prompt -> Choice (**Triển khai (tự động)** vs **Dừng lại**).
-3. **Stage 3 (Automated Execution & Audit)**: Role 2.2 Orchestrator coordinates only -> `dev-implementation` -> Automated Gate 3 (wave order & 2-slot pool) -> dispatches Role 2.3 Programmer subagents (`agy` on `.devtool/review_config.json["providers"]["programmer"]`, default `gemini-4-hydrogen-xhigh --effort xhigh`) for `task-implementer`, `task-reviewer`, `/cross-model-review` fixers (Max 3 rounds) and a fresh `gate4-verifier` -> full Gate 4 convergence.
+2. **Stage 2 (Architecture & Tasks)**: `dev-designer` (Role 2.1) -> Gate 2 approval (`--checkpoint gate2_tasks_locked`) -> Provider priority prompt -> `/principal-review` (Max 3 rounds; Role 2.1 `principal-reviser` revises docs) -> Post-review Package (`package_epic.py`) & print implement prompt -> Choice (**Triển khai (tự động)** vs **Dừng lại**).
+3. **Stage 3 (Automated Execution & Audit)**: Role 2.2 Orchestrator coordinates only -> `dev-implementation` -> Automated Gate 3 (wave order & 2-slot pool) -> dispatches Role 2.3 Programmer subagents (`dev_config.py dispatch`; default `gemini-4-hydrogen-xhigh`) for `task-implementer`, `review-fixer` and a fresh `gate4-verifier`, plus Role 2.1 `task-reviewer` and `fix-planner` (`/cross-model-review`, max 3 rounds) -> full Gate 4 convergence.
 4. **Stage 4 (Finish Decision, Integration & Archival)**: Prompt Human Architect for Finish Decision & Gate 5 Sign-off -> `finishing-a-development-branch` -> Archive tasks into `.devtool/epic/<slug>/`, rebase, verify by tier (`Test All` once), `--no-ff` or squash merge, explicit Git push confirmation.
 
 <HARD-GATE>
-- **Orchestrator boundary (Role 2.2, Stages 2–3)**: never read or edit `src/` / `tests/`, never edit task Verification tables / DoD / `Allowed files`, never run tests, linters, type checkers, `run_task_checks.py` or `verify-tier` in the main session. Delegate TDD tasks, reviews, fixes and Gate 4 to Role 2.3 subagents on the configured programmer model (never a lighter substitute such as `invoke_subagent` `Model="flash"`), and verify their claims independently. Full matrix: [orchestration-roles.md](references/orchestration-roles.md).
+- **Orchestrator boundary (Role 2.2, Stage 3)**: never read or edit `src/` / `tests/`, never edit task Verification tables / DoD / `Allowed files`, never run tests, linters, type checkers, `run_task_checks.py` or `verify-tier` in the main session. Delegate TDD tasks, fixes and Gate 4 to Role 2.3 subagents and reviews and fix plans to Role 2.1 subagents, each on its `dev_config.py resolve` binding (never a lighter substitute such as `Model="flash"`), and verify their claims independently. Full matrix: [orchestration-roles.md](references/orchestration-roles.md).
+- No automatic model fallback or retry (checkpoint `model_unavailable`, stop). Run `dev_config.py quota-check` before Stage 3, each wave and fix round; exit `2` stops.
 - Never create `implementation_plan.md`; specs live in `docs/superpowers/specs/` or `.devtool/epic/<epic_dir>/`.
 - Package (`package_epic.py`) only after `/principal-review` converges, then ask **Triển khai (tự động)** vs **Dừng lại**.
 - In **Triển khai (tự động)**, Gate 3, worktree bootstrap, and Gate 4 -> Cross-model review run automatically; Finish belongs in Stage 4 (Gate 5).
@@ -47,7 +48,7 @@ Every gate is a **human approval** except Gate 4 (machine verdict). Never cross 
 |------|------|----------|-------------|------------------|
 | **1** | Spec Approved | User | `dev-brainstorming` | `YYYY-MM-DD-<topic>-design.en.md` + `.vi.md` |
 | **2** | HLD & Task Breakdown | User | `dev-designer` | `<epic_dir>.en.md` + `.vi.md` + `bdd_scenarios.en.md` + `.vi.md` + `task_*.md` |
-| **3** | Execution Order | Automated (AI Assistant) | `dev-implementation` Phase 1 / Resume | auto-resolved order + bootstrapped worktree |
+| **3** | Execution Order | Automated (Role 2.2 Orchestrator) | `dev-implementation` Phase 1 / Resume | auto-resolved order + bootstrapped worktree |
 | **4** | Quality LGTM & Check 2 | `audit_epic.py` + `check_bdd_traceability.py` + `quality_check` | `dev-implementation` Phase 4 | `audit_epic.py` + 🟢 report + coverage + BDD traceability + merge-ready branch |
 | **5** | Developer Kanban Sign-Off & Finish | User | `dev-implementation` Phase 4.1 / Stage 4 | User confirmation for branch finishing and archival |
 
@@ -60,9 +61,9 @@ An epic whose `.devtool/epic/<epic_dir>/` holds `task_*.md` files is past Gate 2
 ### Autonomous Mode (`/dev-lifecycle --autonomous`)
 
 For hands-off execution, `lifecycle_runner.py` drives Stage 2 and Stage 3:
-- **Tri-Role**: 2.1 Architect (strategy/gates), 2.2 Assistant (HLD/fix-plan review), 2.3 Programmer (`.devtool/review_config.json`, default `gemini-4-hydrogen-xhigh`, `--effort xhigh`).
+- **Four personas**: 1.0 Human Architect, 2.1 AI Architect & Reviewer (`fix-planner`), 2.2 Orchestrator (the runner), 2.3 Programmer (default `gemini-4-hydrogen-xhigh`); bindings from `/d3nexus:dev-config`.
 - **Execution Hygiene & Checklists**: Enforce Rule 3 bounded reads (`StartLine`/`EndLine` on files > 200 lines) and Rule 5 Zero-Fluff Output Cap (preserve Verdicts, Findings, and gate results). Extended checklists: [governance-checklists.md](references/governance-checklists.md).
-- **Automation**: Auto Gate 3 order, process group timeouts, auto-triage, and Assistant fix plan review (`APPROVED`/`ADJUSTED`/`CRITICAL_CONFLICT`).
+- **Automation**: Auto Gate 3 order, process timeouts, auto-triage, risk routing to `fix-planner` (`PLANNED`/`ESCALATE`), turn-budget checkpoints, quota gate.
 - **Safety**: Circuit breakers on contract conflicts, fix loops, and max rounds; final Top 3 report halts at `AWAITING_FINISH`.
 - See [references/autonomous-mode.md](references/autonomous-mode.md).
 
@@ -86,9 +87,9 @@ Declare `- **Depends on epic**: <epic_slug_or_dir>[, ...]` in HLD Meta Data when
 
 Follow [references/principal-review.md](references/principal-review.md) across Stage 2 -> Principal Review -> Packaging -> Stage 3:
 
-- **Gate 2 Unified Confirmation (Tasks & AUTO MODE):** After Gate 2 and `check_epic_readiness.py <epic_dir>` pass, save Gate 2 & state (`--status "Stage 2: Ready for Principal Review"`), read `.devtool/review_config.json`, stop calling tools, and present the **provider/model priority** order for reviews (`/principal-review` and `/cross-model-review`):
-  1. **(Recommended) Phê duyệt & Chạy AUTO MODE xuyên suốt (Triển khai (tự động)):** Run `/principal-review` -> package `handoff.md` -> proceed automatically into `/dev-implementation` (2-slot pool) -> `/cross-model-review` without pausing. Halts ONLY on Circuit Breakers or at Gate 5 (Finish/Merge).
-  2. **Phê duyệt & Handoff Mode (Dừng lại):** Run `/principal-review` -> package `handoff.md` -> stop cleanly to copy implementation prompt for another profile.
+- **Gate 2 Unified Confirmation (Tasks & AUTO MODE):** After Gate 2 and `check_epic_readiness.py <epic_dir>` pass, save Gate 2 & state (`--status "Stage 2: Ready for Principal Review"`, `--checkpoint gate2_tasks_locked`), read `.devtool/review_config.json`, stop calling tools, and present the **provider/model priority** order for reviews (`/principal-review` and `/cross-model-review`):
+  1. **(Recommended) Phê duyệt & Chạy AUTO MODE xuyên suốt (Triển khai (tự động)):** Run `/principal-review` -> package `handoff.md` -> proceed automatically into `/dev-implementation` (2-slot pool) -> `/cross-model-review` without pausing; Stage 3 runs on this session's model (name the `orchestrator` binding). Halts ONLY on Circuit Breakers, `ESCALATE`, model/quota stops or Gate 5 (Finish/Merge).
+  2. **Phê duyệt & Handoff Mode (Dừng lại):** Run `/principal-review` -> package `handoff.md` -> stop cleanly (new session on the `orchestrator` model).
 - **Automatic `/principal-review`:** Once confirmed, automatically invoke `d3nexus:principal-review` (`--auto-quota` / `--provider-priority` / `--cli`, max 3 rounds; intermediate rounds run `check_epic_readiness.py`, never `package_epic.py`).
 - **End-of-Review Packaging:** Upon convergence, run `python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir> [--revise --reason "<reason>"]` (without `--revise` when `handoff.md` does not exist):
 1. **Preflight:** `python3 "$SCRIPTS"/check_epic_readiness.py <epic_dir>` (runs `check_task_contract.py --design`). First line prints task count.
@@ -110,12 +111,12 @@ Follow [references/principal-review.md](references/principal-review.md) across S
 
 - **Prerequisites & Concurrency Check**: If `Depends on epic:` is declared, verify prerequisites via `sync_task_status.py check-prereqs <epic_dir>`. If queued behind another epic, inspect conflicts via `sync_task_status.py check-conflicts <epic_dir>` and promote when confirmed via `sync_task_status.py promote <epic_dir> [--force]`.
 - **Gate 3 (Automated)**: The Orchestrator runs `compute_execution_order.py --parallel`, bootstraps worktree + 2-slot pool, and records `--gate 3` (halting ONLY on cyclic DAG or unresolvable prerequisites).
-- **Wave Execution (Orchestrator + Programmer Subagents)**: The Orchestrator owns every `manage_worker_pool.py` call (`sync working` before dispatch, `sync review`, `merge`, `cleanup`). Per slot it dispatches (1) `task-implementer` (`check_code_impact.py`, `RED -> GREEN`, `run_task_checks.py verify`; finalizes only when Selective Gating says no review) and (2) a fresh `task-reviewer` when gating triggers, recomputing the gating signals from `git diff --name-only`. After `cleanup` it dispatches a fresh `gate4-verifier` for the full Gate 4 suite.
+- **Wave Execution (Orchestrator + Subagents)**: The Orchestrator owns every `manage_worker_pool.py` call (`sync working` before dispatch, `sync review`, `merge`, `cleanup`). Per slot it dispatches (1) a Role 2.3 `task-implementer` (`check_code_impact.py`, `RED -> GREEN`, `run_task_checks.py verify`; finalizes only when Selective Gating says no review) and (2) a fresh Role 2.1 `task-reviewer` when gating triggers, recomputing the gating signals from `git diff --name-only`. After `cleanup` it dispatches a fresh `gate4-verifier` for the full Gate 4 suite.
 
 **Automated Review Pipeline (Gate 4 Local PASS → Automatic Cross-Model Review)**:
 When the Gate 4 subagent returns `PASS` (🟢 LGTM):
 1. **Zero-Pause Transition**: The Orchestrator records `--gate 4` and runs `run_external_review.py run --epic-dir <epic_dir> --base <base_ref> --auto-quota` & `triage`.
-2. **Fixer Loop (Max 3 Rounds)**: The Orchestrator picks `fast-track` (all findings `Valid`, no escalation marker) or `plan-first` (fixer writes `fix_plan_round<N>.md`, Orchestrator rules `APPROVED`/`ADJUSTED`/`CRITICAL_CONFLICT`). The Role 2.3 fixer applies fixes, runs **Tier 1 scoped tests only**, commits `[<EPIC_NAME>] Fix ...`, records `fixed in <sha>` in `review_results.md`; the Orchestrator scope-checks `git diff --name-only`. On convergence a fresh `gate4-verifier` runs full Gate 4. Halt on `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or Critical findings after Round 3.
+2. **Fixer Loop (Max 3 Rounds)**: The Orchestrator routes by risk: `fast-track` `review-fixer` (all `Valid`, no escalation marker) or Role 2.1 `fix-planner` writing `fix_plan_round<N>.md` (`PLANNED` -> `apply-plan`; `ESCALATE` -> stop for Role 1.0). The Role 2.3 fixer applies fixes, runs **Tier 1 scoped tests only**, commits `[<EPIC_NAME>] Fix ...`, records `fixed in <sha>` in `review_results.md`; the Orchestrator scope-checks `git diff --name-only`. On convergence a fresh `gate4-verifier` runs full Gate 4. Halt on `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or Critical findings after Round 3.
 3. **Transition to Stage 4**: On convergence + Gate 4 PASS, render Top 3 Highest-Risk Findings and prompt Human Architect for **Stage 4 Finish Decision & Gate 5 Sign-off**.
 
 - **Zero-Pause, Test Efficiency & Anti-Test-Bloat**: Finish belongs in Stage 4 / Gate 5. Require `@pytest.mark.parametrize` (no copy-pasted per-input tests), ban boilerplate language/Pydantic-default/getter tests, enforce `scope="module"`/`scope="session"` read-only/server/browser fixtures, and follow Tier 1 (`uv run pytest <changed_test_files> -n auto --timeout=30 -q --tb=short`), Tier 2 (`--ignore=tests/e2e -n auto --dist loadscope --timeout=30 -q --tb=short`), and Tier 3 (Tier 2 + session `tests/e2e` + `quality_check` once per epic). Never delete deps/reports or fake fixtures. See [governance-checklists.md](references/governance-checklists.md).
@@ -156,13 +157,13 @@ Never advance on a partial pass or re-run isolated checks.
 
 ## Red Flags
 
-- Writing to `implementation_plan.md` or any Antigravity native planning artifact.
+- Writing to `implementation_plan.md` or any native planning artifact.
 - Skipping `dev-brainstorming` because scope seems clear.
 - Routing an approved spec straight to implementation, skipping Stage 2 for epic-scale work.
-- Merging several sub-project specs into one epic directory.
-- Creating a worktree before resolving the dependency DAG (recreating an existing epic branch worktree in Resume Procedure is allowed).
+- Merging sub-project specs into one epic.
+- Creating a worktree before resolving the dependency DAG (recreating an existing epic worktree in Resume Procedure is allowed).
 - Running `package_epic.py` before `/principal-review` completes, or invoking `dev-implementation` without presenting the post-package Handoff Choice (**Triển khai (tự động)** vs **Dừng lại**).
-- Packaging an epic without preflight, or pushing without explicit permission.
+- Packaging without preflight, or pushing without explicit permission.
 - Redoing design of an epic whose task files exist; use Updating an Existing Epic.
 - Merging to `develop` without Gate 4 🟢.
 - Granting Gate 4 without a passing traceability check on the same SHA, or without a passing `audit_epic.py`.
@@ -171,8 +172,8 @@ Never advance on a partial pass or re-run isolated checks.
 - Prompting developer for intermediate Review Choice or Gate 3 confirmation pauses instead of running the automated pipeline.
 - Advancing to Stage 4 (Finish) without completing Cross-Model Review convergence and Gate 5 sign-off.
 - Reusing a Gate 4 PASS after review rounds, finding decisions, or Fix commits change SHA.
+- Launching `agy`, `ag_run` or `<profile>-cli` from an agent shell instead of `dev_config.py dispatch`.
 - Prohibited: picking the review CLI for the developer instead of prompting for Claude CLI, Codex CLI, or Antigravity CLI.
-- Picking the Principal Review CLI for the developer.
 - Picking the Ollama model for the developer instead of running `ollama list` and asking.
 - Acting on review findings before presenting the triage from `run_external_review.py triage` (every finding must first be verified against live source and approved Spec/HLD).
 - Acting on a Principal Review finding before verifying against source/Spec and running triage (once verified as `Valid` with zero halt triggers, auto-fix and advance without pausing).
@@ -181,7 +182,7 @@ Never advance on a partial pass or re-run isolated checks.
 - Starting a task while integration with `develop` is failing.
 - Invoking `finishing-a-development-branch` without Gate 5 user sign-off.
 - Archiving tasks from `.devtool/features/done/` prematurely before Gate 5 sign-off.
-- Leaving completed tasks or draft specs unarchived after branch integration.
+- Leaving completed tasks or draft specs unarchived after integration.
 - Translating `task_*.md`; task files remain English-only.
 
 ## Stage Skills
