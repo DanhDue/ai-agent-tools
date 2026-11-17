@@ -32,3 +32,28 @@ Raw output:
 ```text
 Verdict: CHANGES REQUIRED
 ```
+
+## Round 2
+
+- **Date**: 2026-11-17T02:39:56Z
+- **SHA**: 60408dba54edccab35e9c17087e9f30f432b2650
+- **Base**: b7383ec
+- **CLI**: codex
+- **Model**: gpt-6.1-sol
+- **Thinking**: high
+- **Status**: completed
+- **Verdict**: CHANGES REQUIRED
+- **Kind**: principal
+- **Scope**: delta from round 1 (e009b62)
+- **Raw log**: `build/reviews/four_persona_governance_principal_round2_60408db.raw.log`
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Important | .devtool/epic/four_persona_governance/task_01_persona_config_and_dev_config_cli.md:237 (Decisions Already Made) | [INCOMPLETE_FIX] Quota selection still depends on alias rather than the bound model, contrary to HLD Key Design Mechanics §3. A custom alias targeting `gemini-4-argon-high` selects `gemini5h`; the probe accepted 90% Gemini quota despite exhausted Argon quota. Proposed: derive the pool from model identity or validated catalogue metadata; cover custom aliases and replacement of built-in aliases. || fixed in 22e8fc3 |
+| 2 | Important | .devtool/epic/four_persona_governance/task_04_english_only_resolution_and_ownership_check.md:35 (Requirement Analysis, Remaining readers) | The mandated filesystem resolver lacks a revision-aware contract for Git-history readers. `integrate_branch.py:273–275` checks documents at `until`, potentially absent from the checkout; `audit_epic.py:232–234` reads both base and HEAD. Checkout resolution misses upstream-only documents and loses the old filename across `.en.md` → `.md` migration. Proposed: specify resolution against each requested Git revision and add upstream-only and cross-revision rename cases to FPG-HP-09. || fixed in 22e8fc3 |
+
+Raw output:
+
+```text
+Verdict: CHANGES REQUIRED
+```
