@@ -682,3 +682,169 @@ def test_profiles_discover_reports_python_version_on_load_error(
         dc._discover_agy_profiles(loader=failing_loader)
     assert "3.10" in str(err_info.value)
     assert "\n" not in str(err_info.value)
+
+
+_AGY_WITH_PROFILE = {"model": "hydrogen", "effort": "xhigh", "profile": "p1"}
+_AGY_PLAIN = {"model": "hydrogen", "effort": "xhigh"}
+_CODEX = {"model": "codex-gpt", "effort": "xhigh"}
+_KIRO = {"model": "kiro-sonnet", "effort": "high"}
+
+
+def _write_layers(
+    real_home: Path,
+    project: Path,
+    *,
+    global_override: dict[str, str] | None,
+    project_override: dict[str, str] | None,
+) -> None:
+    """Write the programmer override of the global and project layers (None writes no entry)."""
+    for path, override in (
+        (real_home / ".d3nexus" / "personas.json", global_override),
+        (project / ".agents" / "config" / "personas.json", project_override),
+    ):
+        if override is not None:
+            _write_json(path, {"schema_version": 1, "overrides": {"programmer": override}})
+
+
+@pytest.mark.parametrize(
+    ("global_override", "project_override", "cli_overrides", "expected_cli", "expected_profile"),
+    [
+        pytest.param(_AGY_WITH_PROFILE, _CODEX, None, "codex", None, id="global-profile-project-codex"),
+        pytest.param(_AGY_WITH_PROFILE, _KIRO, None, "kiro", None, id="global-profile-project-kiro"),
+        pytest.param(_AGY_WITH_PROFILE, None, _CODEX, "codex", None, id="global-profile-cli-codex"),
+        pytest.param(_AGY_WITH_PROFILE, _AGY_PLAIN, _CODEX, "codex", None, id="global-profile-project-agy-cli-codex"),
+        pytest.param(
+            {"model": "hydrogen", "effort": "xhigh", "profile": "p1"},
+            {"model": "hydrogen", "effort": "xhigh", "profile": "p2"},
+            _CODEX,
+            "codex",
+            None,
+            id="project-profile-cli-codex",
+        ),
+        pytest.param(_AGY_WITH_PROFILE, _AGY_PLAIN, None, "agy", "p1", id="global-profile-project-agy-keeps-profile"),
+        pytest.param(
+            _AGY_WITH_PROFILE,
+            None,
+            {"model": "hydrogen", "effort": "xhigh"},
+            "agy",
+            "p1",
+            id="global-profile-cli-agy-keeps-profile",
+        ),
+    ],
+)
+def test_fpg_se15_inherited_profile_is_ignored_for_a_higher_layer_non_agy_model(
+    tmp_path: Path,
+    global_override: dict[str, str],
+    project_override: dict[str, str] | None,
+    cli_overrides: dict[str, str] | None,
+    expected_cli: str,
+    expected_profile: str | None,
+) -> None:
+    """SE-15: a profile from a lower layer is dropped when a higher layer binds a non-agy model."""
+    pc = _persona_mod()
+    real_home = tmp_path / "real_home"
+    project = tmp_path / "project"
+    real_home.mkdir()
+    project.mkdir()
+    _write_layers(real_home, project, global_override=global_override, project_override=project_override)
+
+    binding = pc.resolve_persona("programmer", project, cli_overrides=cli_overrides, real_home=real_home)
+
+    assert binding.cli == expected_cli
+    assert binding.profile == expected_profile
+    if expected_profile is None:
+        assert "profile" not in binding.sources
+    else:
+        assert binding.sources["profile"] == "global"
+
+
+@pytest.mark.parametrize(
+    ("global_override", "project_override", "cli_overrides"),
+    [
+        pytest.param({**_CODEX, "profile": "p1"}, None, None, id="same-layer-global"),
+        pytest.param(None, {**_CODEX, "profile": "p1"}, None, id="same-layer-project"),
+        pytest.param(_AGY_PLAIN, None, {**_CODEX, "profile": "p1"}, id="one-command-cli-model-and-profile"),
+        pytest.param(_CODEX, {"profile": "p1"}, None, id="profile-in-a-higher-layer-than-the-model"),
+    ],
+)
+def test_fpg_se15_profile_with_a_non_agy_model_in_the_same_or_a_lower_layer_still_fails(
+    tmp_path: Path,
+    global_override: dict[str, str] | None,
+    project_override: dict[str, str] | None,
+    cli_overrides: dict[str, str] | None,
+) -> None:
+    """SE-10 kept by SE-15: only a profile inherited from a lower layer is ignored."""
+    pc = _persona_mod()
+    real_home = tmp_path / "real_home"
+    project = tmp_path / "project"
+    real_home.mkdir()
+    project.mkdir()
+    _write_layers(real_home, project, global_override=global_override, project_override=project_override)
+
+    with pytest.raises(pc.PersonaConfigError) as err_info:
+        pc.resolve_persona("programmer", project, cli_overrides=cli_overrides, real_home=real_home)
+    assert "profile" in str(err_info.value)
+
+
+@pytest.mark.parametrize(
+    "order",
+    [
+        pytest.param(("global-agy-profile", "project-codex"), id="global-first"),
+        pytest.param(("project-codex", "global-agy-profile"), id="project-first"),
+    ],
+)
+def test_fpg_se15_set_codex_in_project_after_a_global_profile_exits_zero(
+    tmp_path: Path, order: tuple[str, str]
+) -> None:
+    """SE-15: the command suggested by the exhaustion report works after a global --profile."""
+    real_home = tmp_path / "real_home"
+    project = tmp_path / "project"
+    bin_dir = tmp_path / "bin"
+    real_home.mkdir()
+    project.mkdir()
+    _make_stub_bin(bin_dir, ("agy", "claude", "codex", "kiro-cli"))
+    _make_pool(real_home, ("p1", "p2"))
+    commands = {
+        "global-agy-profile": ["set", "programmer", "hydrogen", "xhigh", "--profile", "p1", "--scope", "global"],
+        "project-codex": ["set", "programmer", "codex-gpt", "xhigh", "--scope", "project"],
+    }
+
+    for step in order:
+        res = _run_cli(commands[step], cwd=project, real_home=real_home, path_dir=bin_dir)
+        assert res.returncode == 0, (step, res.stdout, res.stderr)
+
+    resolved = _resolve(project, real_home, bin_dir)
+    assert resolved["cli"] == "codex"
+    assert resolved["profile"] is None
+    assert "profile" not in resolved["sources"]
+    global_cfg = json.loads((real_home / ".d3nexus" / "personas.json").read_text(encoding="utf-8"))
+    assert global_cfg["overrides"]["programmer"]["profile"] == "p1"
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        pytest.param(["set", "programmer", "codex-gpt", "xhigh", "--profile", "p1"], id="positional"),
+        pytest.param(
+            ["set", "programmer", "--provider", "codex", "--model", "codex-gpt", "--effort", "xhigh", "--profile", "p1"],
+            id="flags",
+        ),
+    ],
+)
+def test_fpg_se15_one_command_non_agy_model_with_profile_still_exits_one(
+    tmp_path: Path, args: list[str]
+) -> None:
+    """SE-15 keeps SE-10: --profile together with a non-agy model in one command is an error."""
+    real_home = tmp_path / "real_home"
+    project = tmp_path / "project"
+    bin_dir = tmp_path / "bin"
+    real_home.mkdir()
+    project.mkdir()
+    _make_stub_bin(bin_dir, ("agy", "claude", "codex", "kiro-cli"))
+    _make_pool(real_home, ("p1",))
+
+    res = _run_cli([*args, "--scope", "project"], cwd=project, real_home=real_home, path_dir=bin_dir)
+
+    assert res.returncode == 1, (res.stdout, res.stderr)
+    assert "profile" in res.stderr
+    assert not (project / ".agents" / "config" / "personas.json").exists()

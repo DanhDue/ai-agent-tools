@@ -465,7 +465,12 @@ def _resolve_from_layers(
     profile = values.get("profile")
     if profile is not None:
         _validate_profile_name(profile, f"persona '{persona}'")
-        if entry["cli"] != "agy":
+        if entry["cli"] != "agy" and _LAYER_RANK[sources["profile"]] < _LAYER_RANK[sources["model"]]:
+            # SE-15: a profile inherited from a lower layer is ignored when a higher layer
+            # binds a model that is not an agy model; it leaves the binding and `sources`.
+            profile = None
+            del sources["profile"]
+        elif entry["cli"] != "agy":
             raise PersonaConfigError(
                 f"Invalid profile '{profile}' for persona '{persona}' "
                 f"(set by the {sources['profile']} layer): a profile applies only to "
