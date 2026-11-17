@@ -8,7 +8,7 @@ Every cross-model review round (Claude CLI, Codex CLI, Kiro CLI, Antigravity CLI
    - Epic: `python3 skills/dev-implementation/resources/scripts/run_external_review.py triage --epic-dir <epic_dir>`
    - Ad-hoc: triage skeleton streams directly to stdout.
 2. Check `## Passes` (`none` or error means that slice was unreviewed — note in Next Steps).
-3. Verify every row in `## Top 3 Highest-Risk Findings (Executive Report)` and `## Findings` against candidate-SHA source AND approved `.en.md` HLD, `bdd_scenarios.en.md`, and `Decisions Already Made` (`d3nexus:receiving-code-review` discipline).
+3. Verify every row in `## Top 3 Highest-Risk Findings (Executive Report)` and `## Findings` against candidate-SHA source AND approved English HLD (`<epic_dir>.md`, legacy `<epic_dir>.en.md`), `bdd_scenarios.md` (legacy `bdd_scenarios.en.md`), and `Decisions Already Made` (`d3nexus:receiving-code-review` discipline).
 4. Fill `## Top 3 Highest-Risk Findings (Executive Report)` (`Design Anchor`, `Proposed action`) and each `## Findings` row:
    - **Assessment**: `Valid`, `Debatable`, `False positive`, or `Not shown`.
    - **Evidence**: exact `file:line` and HLD/Task contract reference checked.

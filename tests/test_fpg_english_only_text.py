@@ -105,3 +105,86 @@ def test_fpg_ar_04_dev_skills_are_english_only_and_isolate_mirrors() -> None:
     for skill in BILINGUAL_SKILLS:
         text = (REPO_ROOT / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
         assert "--require-bilingual" in text, f"{skill} lost its bilingual contract"
+
+
+SE01_INSTRUCTION_FILES = (
+    "skills/dev-implementation/SKILL.md",
+    "skills/dev-implementation/references/entry-point-and-resume.md",
+    "skills/dev-implementation/references/external-review-prompt.md",
+    "skills/principal-review/references/principal-review-prompt.md",
+    "skills/principal-review/references/principal-review-rules.md",
+    "skills/principal-review/references/document-triage.md",
+    "skills/cross-model-review/SKILL.md",
+    "skills/cross-model-review/references/review-triage.md",
+    "skills/dev-lifecycle/references/orchestration-roles.md",
+    "skills/dev-lifecycle/references/handoff-template.md",
+    "skills/dev-implementation/resources/scripts/run_external_review.py",
+)
+
+BARE_CLI_EN_MD_FLAG = re.compile(r"--(?:scenarios|hld)\s+[^\s`\"']+\.en\.md\b")
+STEM_PAIRS: tuple[tuple[re.Pattern[str], re.Pattern[str]], ...] = (
+    (re.compile(r"<epic_dir>\.en\.md\b"), re.compile(r"<epic_dir>\.md\b")),
+    (re.compile(r"\bbdd_scenarios\.en\.md\b"), re.compile(r"\bbdd_scenarios\.md\b")),
+    (re.compile(r"-design\.en\.md\b"), re.compile(r"-design\.md\b")),
+    (re.compile(r"<source spec>\.en\.md\b"), re.compile(r"<source spec>\.md\b")),
+    (
+        re.compile(r"(?<![A-Za-z0-9_-])\*\.en\.md\b"),
+        re.compile(r"(?<![A-Za-z0-9_-])\*\.md\b"),
+    ),
+    (re.compile(r"\.en\.md\s+HLD\b"), re.compile(r"<epic_dir>\.md\b")),
+)
+
+
+def _bare_en_md_instruction_lines(text: str) -> list[tuple[int, str]]:
+    """Return lines that hardcode an epic `.en.md` instruction without its canonical `.md` name."""
+    offenders: list[tuple[int, str]] = []
+    for number, line in enumerate(text.splitlines(), start=1):
+        if "docs/" in line:
+            continue
+        if BARE_CLI_EN_MD_FLAG.search(line):
+            offenders.append((number, line.strip()))
+            continue
+        if any(
+            en_pat.search(line) and not md_pat.search(line)
+            for en_pat, md_pat in STEM_PAIRS
+        ):
+            offenders.append((number, line.strip()))
+    return offenders
+
+
+def test_fpg_dev_skills_do_not_require_en_md_exclusively() -> None:
+    """[SE-01] Dev-lifecycle skills, prompts, and triage instructions resolve .md first (legacy .en.md)."""
+    scanned = [REPO_ROOT / rel for rel in SE01_INSTRUCTION_FILES]
+    assert len(scanned) > 0, "Expected SE-01 instruction files to scan"
+    for path in scanned:
+        assert path.is_file(), f"Missing SE-01 instruction file: {path}"
+
+    # Verify the scanner detects bare flags and exclusive .en.md instructions while allowing SE-01 style.
+    assert _bare_en_md_instruction_lines(
+        "--scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md"
+    )
+    assert _bare_en_md_instruction_lines(
+        "--hld .devtool/epic/<epic_dir>/<epic_dir>.en.md"
+    )
+    assert _bare_en_md_instruction_lines(
+        "Read `*.en.md`, `<epic_dir>.en.md`, and `task_*.md`."
+    )
+    assert not _bare_en_md_instruction_lines(
+        "Read `*.md` (legacy `*.en.md`) and `<epic_dir>.md` (legacy `<epic_dir>.en.md`)."
+    )
+
+    offenders: list[str] = []
+    for path in scanned:
+        rel = path.relative_to(REPO_ROOT).as_posix()
+        text = path.read_text(encoding="utf-8")
+        for number, line in _bare_en_md_instruction_lines(text):
+            offenders.append(f"{rel}:{number}: {line}")
+
+    assert not offenders, "Exclusive `.en.md` epic instructions remain:\n" + "\n".join(
+        offenders
+    )
+
+    entry_text = (
+        REPO_ROOT / "skills/dev-implementation/references/entry-point-and-resume.md"
+    ).read_text(encoding="utf-8")
+    assert "both `bdd_scenarios`, both HLD variants" not in entry_text

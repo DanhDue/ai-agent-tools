@@ -1590,7 +1590,7 @@ def delta_round_context(
         "Strictly honor all `dismissed: <rationale>` decisions and `fixed in <sha>` resolutions recorded in the "
         "Shared Context Ledger below. Do NOT ask to revert or rewrite a prior round's accepted fix (zero solution ping-pong) "
         "unless it introduces an objective runtime defect or violates a frozen contract in the approved HLD / "
-        "`bdd_scenarios.en.md` / `Decisions Already Made`.\n\n"
+        "`bdd_scenarios.md` (legacy `bdd_scenarios.en.md`) / `Decisions Already Made`.\n\n"
     )
     fixed_registry_block = (
         "### Previously Fixed Locations Registry (Verify-Then-Close)\n\n"
@@ -1631,7 +1631,7 @@ def delta_round_context(
         + handoff_block
         + fixed_registry_block
         + "1. **Approved-Design Anchoring**: Every verification and finding MUST be anchored strictly to the approved HLD "
-        "(`.devtool/epic/<epic_dir>/<epic_dir>.en.md`), `bdd_scenarios.en.md`, and `Decisions Already Made` in `task_*.md`.\n"
+        "(`.devtool/epic/<epic_dir>/<epic_dir>.md`, legacy `<epic_dir>.en.md`), `bdd_scenarios.md` (legacy `bdd_scenarios.en.md`), and `Decisions Already Made` in `task_*.md`.\n"
         "2. **Verify-Then-Close on Fixed Locations**: For each finding below marked `fixed in <sha>`, verify whether the revision "
         f"resolves the original defect at `{sha}`. If resolved, **close it silently (PASS)** — do NOT propose alternative "
         "implementations or secondary refactors on that fix.\n"
@@ -2449,7 +2449,7 @@ def top_risk_findings_section(latest: list[list[str]], limit: int = 3) -> list[s
     lines = [
         f"## Top {limit} Highest-Risk Findings (Executive Report)",
         "",
-        "> **Strict Approved-Design Anchoring & Forward-Alignment Rule**: Tier 1 (User-approved Spec `*-design.en.md` & HLD `<epic_dir>.en.md`) "
+        "> **Strict Approved-Design Anchoring & Forward-Alignment Rule**: Tier 1 (User-approved Spec `*-design.md` [legacy `*-design.en.md`] & HLD `<epic_dir>.md` [legacy `<epic_dir>.en.md`]) "
         "takes precedence over legacy `shared-contracts/` and legacy `src/` code. When Tier 1 intentionally changes steps/enums/schemas "
         "(e.g. 7 steps -> 5 steps) but `shared-contracts/` or `src/` still holds legacy values, NEVER propose reverting Tier 1 to the old design; "
         "always propose **Forward Alignment** (update `shared-contracts/` + `sync_contracts.py ack` and add affected `src/` files to task `Allowed files`).",
@@ -2531,7 +2531,7 @@ def auto_triage_section(
         action = "AUTO_FIX_ELIGIBLE"
         reason = (
             f"Round {number}/{max_rounds} has {len(blocking_rows)} Critical/Important finding(s) and no Fix Loop or shared-contract conflict. "
-            "Verify against source and approved design (Spec, HLD, bdd_scenarios.en.md, Decisions Already Made): "
+            "Verify against source and approved design (Spec, HLD, bdd_scenarios.md / legacy bdd_scenarios.en.md, Decisions Already Made): "
             "if Valid (and zero CRITICAL_CONFLICT or Debatable trade-offs), auto-record decisions, "
             "revise docs in Role 2.1 AI Architect & Reviewer (or fix code in Role 2.3 Programmer), run local quality gate, "
             "and advance to next review round."

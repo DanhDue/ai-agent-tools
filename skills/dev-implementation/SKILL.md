@@ -19,14 +19,14 @@ This skill uses two distinct placeholders, and **they are usually different stri
 
 | Placeholder | What it is | Where it appears | Worked example |
 |-------------|-----------|------------------|----------------|
-| `<epic_dir>` | The epic's directory name on disk | `.devtool/epic/<epic_dir>/<epic_dir>.en.md`, the worktree directory name | `logging_refactor` (underscores) |
+| `<epic_dir>` | The epic's directory name on disk | `.devtool/epic/<epic_dir>/<epic_dir>.md` (legacy `<epic_dir>.en.md`), the worktree directory name | `logging_refactor` (underscores) |
 | `<epic_slug>` | The epic's frontmatter `epic:` value | The calculator's CLI arg, matching `epic:` in `task_*.md`, the `epic/<epic_slug>` branch name, the `[EPIC_NAME]` commit prefix | `logging-refactor` (hyphens) |
 
 Read both values off disk at the start — never derive one from the other by guessing the separator.
 
 ## When to Use
 
-- The epic has a `.devtool/epic/<epic_dir>/<epic_dir>.en.md` HLD and one or more `.devtool/features/task_*.md` files with `epic: "<epic_slug>"` in frontmatter, and a human has already approved that design.
+- The epic has a `.devtool/epic/<epic_dir>/<epic_dir>.md` (legacy `<epic_dir>.en.md`) HLD and one or more `.devtool/features/task_*.md` files with `epic: "<epic_slug>"` in frontmatter, and a human has already approved that design.
 - You are about to implement more than one task from that epic in this session.
 - You are resuming an epic — packaged (`handoff.md` present, Status `Packaged`) or interrupted midway through Stage 3. Invoke this skill with the epic's directory name or slug; Entry-Point Detection in Phase 0 decides where to start.
 
@@ -103,18 +103,20 @@ Rows 4 and 5 only. **MANDATORY: read [references/entry-point-and-resume.md](refe
 
    Run BDD traceability plan check:
    ```bash
+   SCENARIOS=".devtool/epic/<epic_dir>/bdd_scenarios.md"; [ -f "$SCENARIOS" ] || SCENARIOS=".devtool/epic/<epic_dir>/bdd_scenarios.en.md"
    python3 "$SKILL_DIR"/resources/scripts/check_bdd_traceability.py plan \
-     --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \
+     --scenarios "$SCENARIOS" \
      --tasks .devtool/epic/<epic_dir>/task_*.md
    ```
    Proceed directly to worktree creation (Step 4) and task execution. Do NOT prompt the developer for manual confirmation on execution order. (Halt ONLY on cyclic DAG dependencies, malformed frontmatter, or unresolvable prerequisites).
    Verify Principal Review state: `python3 "$SKILL_DIR"/resources/scripts/run_external_review.py check --kind principal --epic-dir <epic_dir>`. Principal Review must be `not run`, `round <n>: PASS`, or `round <n>: decided`.
-   If needed, add bracketed identifiers to `bdd_scenarios.*.md`, `Covers:` lines to task files, and `Integration test roots:` to HLD. Commit as `[EPIC_NAME] Add BDD scenario identifiers`.
+   If needed, add bracketed identifiers to `bdd_scenarios.md` (legacy `bdd_scenarios.en.md`), `Covers:` lines to task files, and `Integration test roots:` to HLD. Commit as `[EPIC_NAME] Add BDD scenario identifiers`.
 
    Then check task contract:
    ```bash
+   HLD=".devtool/epic/<epic_dir>/<epic_dir>.md"; [ -f "$HLD" ] || HLD=".devtool/epic/<epic_dir>/<epic_dir>.en.md"
    python3 "$SKILL_DIR"/resources/scripts/check_task_contract.py \
-     --hld .devtool/epic/<epic_dir>/<epic_dir>.en.md \
+     --hld "$HLD" \
      --tasks .devtool/epic/<epic_dir>/task_*.md
    ```
    Do not create worktree until both checks exit 0 and developer has confirmed the order.
@@ -172,8 +174,9 @@ Autonomous Mode: `lifecycle_runner.py` dispatches itself (`build_agy_command`, `
    >    Never edit `.devtool/epic/<epic_dir>/evidence/<task_id>.json` by hand. `sync_task_status.py task <id> done` refuses unless evidence matches tree and table.
    >    When task has `Covers:` line, run traceability check (exit 0):
    >    ```bash
+   >    SCENARIOS=".devtool/epic/<epic_dir>/bdd_scenarios.md"; [ -f "$SCENARIOS" ] || SCENARIOS=".devtool/epic/<epic_dir>/bdd_scenarios.en.md"
    >    python3 "$SKILL_DIR"/resources/scripts/check_bdd_traceability.py tests \
-   >      --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \
+   >      --scenarios "$SCENARIOS" \
    >      --roots <Integration test roots from the HLD> \
    >      --ids <identifiers on the task's Covers: line>
    >    ```
@@ -258,12 +261,13 @@ Resolve candidate SHA (`git rev-parse HEAD`) on a clean tree:
 3. **HLD Integration results commands.** Run every `Integration results:` line of HLD Integration Test Plan.
 4. **Result-based traceability**: run `check_bdd_traceability.py tests --results` over those reports:
    ```bash
+   SCENARIOS=".devtool/epic/<epic_dir>/bdd_scenarios.md"; [ -f "$SCENARIOS" ] || SCENARIOS=".devtool/epic/<epic_dir>/bdd_scenarios.en.md"
    python3 "$SKILL_DIR"/resources/scripts/check_bdd_traceability.py tests \
-     --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \
+     --scenarios "$SCENARIOS" \
      --roots <Integration test roots from the HLD> \
      --results <reports written by Integration results commands>
    ```
-   Must exit 0: every scenario in `bdd_scenarios.en.md` is covered by at least one passing integration test. `--roots` and `--ids` accept space- or comma-separated values.
+   Must exit 0: every scenario in `bdd_scenarios.md` (legacy `bdd_scenarios.en.md`) is covered by at least one passing integration test. `--roots` and `--ids` accept space- or comma-separated values.
 5. **Quality check.** Run `@quality_check` on the same SHA:
    - Inputs:
      - `profile`: `"epic"`

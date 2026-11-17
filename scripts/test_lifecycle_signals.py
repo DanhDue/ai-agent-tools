@@ -126,6 +126,43 @@ class QueuedPackagingTest(SignalCase):
                 (epic / name).unlink()
 
 
+class EntryPointStatusSignalTest(SignalCase):
+    def test_entry_point_status_grep_matches_md_and_legacy_en_md(self) -> None:
+        """[SE-01] Entry-point Status check finds Done in <epic_dir>.md and legacy <epic_dir>.en.md."""
+        entry_text = (
+            ROOT / "skills/dev-implementation/references/entry-point-and-resume.md"
+        ).read_text(encoding="utf-8")
+        entry_section = entry_text.split("## Entry-Point Detection", 1)[1].split(
+            "\n## ", 1
+        )[0]
+        status_lines = [
+            line.strip()
+            for line in entry_section.splitlines()
+            if "Status" in line and "grep" in line
+        ]
+        self.assertEqual(len(status_lines), 1, f"Expected one Status grep command, got {status_lines!r}")
+        cmd_template = status_lines[0]
+        self.assertNotIn(".vi.md", cmd_template)
+        epic = self.repo / ".devtool/epic/todo_export"
+        epic.mkdir(parents=True, exist_ok=True)
+        (epic / "todo_export.vi.md").write_text(
+            "# Epic\n\n- **Status**: Draft\n", encoding="utf-8"
+        )
+        for name in ("todo_export.md", "todo_export.en.md"):
+            with self.subTest(overview=name):
+                (epic / name).write_text(
+                    "# Epic\n\n- **Status**: Done\n", encoding="utf-8"
+                )
+                matched = run(
+                    self.repo, cmd_template.replace("<epic_dir>", "todo_export")
+                )
+                self.assertEqual(
+                    matched.returncode, 0, f"{name}: {matched.stderr or matched.stdout}"
+                )
+                self.assertEqual(matched.stdout.strip(), "- **Status**: Done")
+                (epic / name).unlink()
+
+
 class TestReviewSkillDelegation(SignalCase):
     def test_srs_st_03_gate_3_enforces_zero_undecided_principal_findings(self) -> None:
         """[SRS-ST-03] Gate 3 execution order enforces zero undecided principal findings."""

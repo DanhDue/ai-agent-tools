@@ -18,7 +18,7 @@ Every architectural and design document review round — whether executed via Cl
 
 3. **Assess Validity & Strict Source-of-Truth Hierarchy (Forward Alignment vs Legacy Reversion)**:
    - **Source-of-Truth Hierarchy**:
-     1. **Tier 1 (Approved Design Intent)**: User-approved Spec (`*-design.en.md`) and HLD (`<epic_dir>.en.md`).
+     1. **Tier 1 (Approved Design Intent)**: User-approved Spec (`*-design.md`, legacy `*-design.en.md`) and HLD (`<epic_dir>.md`, legacy `<epic_dir>.en.md`).
      2. **Tier 2 (Cross-Repo Contract Baseline)**: `shared-contracts/<domain>/` (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md`).
      3. **Tier 3 (Current Code Baseline)**: Legacy code in `src/` and task `Allowed files`.
    - **Forward Alignment Rule (Never Revert User-Approved Design to Match Stale Contracts/Code)**:
