@@ -152,12 +152,10 @@ Autonomous Mode: `lifecycle_runner.py` dispatches itself (`build_agy_command`, `
 #### 2-Slot Ephemeral Worker Pool & Layer Workflow
 - **Slots**: `.worktrees/<epic_dir>-slot-1` / `-slot-2` share caches with the main worktree `.worktrees/<epic_dir>`.
 - **Pool CLI** (`python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py <cmd> --epic-dir <epic_dir> --epic-slug <epic_slug>`): `init [--wave <k>]` | `sync --slot <1|2> --task <task_id> [--wave <k>] [--status working|review|idle] [--no-reset]` | `merge --slot <1|2> --task <task_id>` | `cleanup` (keeps dirty/unmerged work)
-1. **Wave Setup (Orchestrator)**: Run `compute_execution_order.py <epic_slug> --parallel`, monitor `estimate_heartbeat.py`, and log wave (`resume_context.py --epic <epic_slug> --wave <k> --state --status "In progress: Wave <k>"`). For each task (max 2 per wave), run `manage_worker_pool.py sync ... --slot <1|2> --task <task_id> --wave <k> --status working` (single-worktree mode: `sync_task_status.py task <task_id> in-progress`), then dispatch the slot's `task-implementer`.
+1. **Wave Setup (Orchestrator)**: **MANDATORY: read [references/worker-execution-rules.md](references/worker-execution-rules.md) before dispatching or acting as a `task-implementer`** (test assertion health, anti-bloat and tiered test execution; the Tri-Persona model; anti-rationalization and doubt-driven verification). Run `compute_execution_order.py <epic_slug> --parallel`, monitor `estimate_heartbeat.py`, and log wave (`resume_context.py --epic <epic_slug> --wave <k> --state --status "In progress: Wave <k>"`). For each task (max 2 per wave), run `manage_worker_pool.py sync ... --slot <1|2> --task <task_id> --wave <k> --status working` (single-worktree mode: `sync_task_status.py task <task_id> in-progress`), then dispatch the slot's `task-implementer`.
 2. **`task-implementer` (Role 2.3)**: Inside the slot, run `check_code_impact.py` (halt on `🔴 DIVERGENCE DETECTED`; add characterization tests on `⚠️ UNPROTECTED CODE`), write `RED` tests -> `GREEN` code, pass `run_task_checks.py verify`. If `needs_review` (step 2 below) is false and `done gate: PASS`, finalize: `sync_task_status.py task <task_id> done`, `git status`, `git add -A`, commit `[EPIC_NAME] <task_title>` (no trailers). Return the JSON summary, then `--checkpoint subagent_returned`.
 3. **`task-reviewer` (Role 2.1, fresh read-only subagent)**: Dispatched by the Orchestrator only when Selective Gating triggers, after it runs `sync ... --status review`. Audits diff + AST + Zero Fakery via `run_task_checks.py status` and `check_bdd_traceability.py` only; never edits or commits. On `PASS` the Orchestrator marks `done` and commits.
 4. **Merge & Cleanup (Orchestrator)**: see steps 4–5 below (then `--checkpoint wave_merged`); `cleanup` before Phase 4; revisions use `package_epic.py --revise --reason "<text>" <epic_dir>`.
-
-   **Worker execution rules** (test assertion health, anti-bloat and tiered test execution; the Tri-Persona model; anti-rationalization and doubt-driven verification): read [references/worker-execution-rules.md](references/worker-execution-rules.md) before acting as, or dispatching, a `task-implementer`.
 
    > [!CRITICAL]
    > ### 🎯 MANDATORY 100% BDD-TO-TEST TRACEABILITY RULE
@@ -275,7 +273,7 @@ Resolve candidate SHA (`git rev-parse HEAD`) on a clean tree:
 
 #### Semantic Test Integrity Governance (Gate 4 Rules)
 
-Gate 4 rejects test fakery with **`FAIL`**: **No Reconstructed Logic** and **Immutable Real Artifacts**. Read [references/gate4-semantic-integrity.md](references/gate4-semantic-integrity.md) before running or judging Gate 4.
+**MANDATORY: read [references/gate4-semantic-integrity.md](references/gate4-semantic-integrity.md) before running or judging Gate 4.** Gate 4 rejects test fakery with **`FAIL`**: **No Reconstructed Logic** and **Immutable Real Artifacts**.
 
 ### Automated Transition to Cross-Model Review (Zero Intermediate Confirmation)
 

@@ -332,3 +332,62 @@ def test_critical_rules_external_review_commands_include_required_options(
     )
     parsed = external_review_parser.parse_args(tokens)
     assert parsed.mode == subcommand
+
+
+DEV_IMPL_MANDATORY_POINTERS: tuple[tuple[str, str], ...] = (
+    (
+        "references/entry-point-and-resume.md",
+        r"MANDATORY:\s*read\s+\[[^\]]+\]\(references/entry-point-and-resume\.md(?:#[^)]+)?\)\s+before\s+Phase\s+1",
+    ),
+    (
+        "references/worker-execution-rules.md",
+        r"MANDATORY:\s*read\s+\[[^\]]+\]\(references/worker-execution-rules\.md\)\s+before\s+(?:dispatching|acting)",
+    ),
+    (
+        "references/gate4-semantic-integrity.md",
+        r"MANDATORY:\s*read\s+\[[^\]]+\]\(references/gate4-semantic-integrity\.md\)\s+before\s+running\b",
+    ),
+)
+
+
+def _missing_mandatory_dev_impl_pointers(text: str) -> list[str]:
+    """Return reference paths lacking a matching MANDATORY: read ... before ... pointer."""
+    return [
+        ref_path
+        for ref_path, pattern in DEV_IMPL_MANDATORY_POINTERS
+        if not re.search(pattern, text)
+    ]
+
+
+@pytest.mark.parametrize(
+    ("ref_path", "pattern"),
+    DEV_IMPL_MANDATORY_POINTERS,
+    ids=[ref for ref, _ in DEV_IMPL_MANDATORY_POINTERS],
+)
+def test_dev_implementation_marks_reference_pointers_mandatory(
+    ref_path: str,
+    pattern: str,
+) -> None:
+    """dev-implementation/SKILL.md links all three references with MANDATORY: read ... before ... pointers."""
+    text = _read("skills/dev-implementation/SKILL.md")
+    assert f"({ref_path})" in text, f"dev-implementation/SKILL.md does not link {ref_path}"
+    assert ref_path not in _missing_mandatory_dev_impl_pointers(text), (
+        f"dev-implementation/SKILL.md does not mark {ref_path} as MANDATORY before its step"
+    )
+    # Verify check fails if the pointer is dropped from a copy of SKILL.md.
+    stripped = re.sub(pattern, "", text)
+    assert ref_path in _missing_mandatory_dev_impl_pointers(stripped)
+
+
+def test_dev_implementation_worker_rules_pointer_at_phase2_step1() -> None:
+    """Worker execution rules pointer appears in Phase 2 step 1 before task-implementer dispatch."""
+    text = _read("skills/dev-implementation/SKILL.md")
+    phase2 = text.split("### Phase 2", 1)[1].split("### Phase 3", 1)[0]
+    step1 = phase2.split("1. **Wave Setup (Orchestrator)**", 1)[1].split(
+        "2. **`task-implementer`", 1
+    )[0]
+    assert "references/worker-execution-rules.md" in step1
+    assert "MANDATORY: read [references/worker-execution-rules.md]" in step1
+    assert step1.index("references/worker-execution-rules.md") < step1.index(
+        "dispatch the slot's `task-implementer`"
+    )
