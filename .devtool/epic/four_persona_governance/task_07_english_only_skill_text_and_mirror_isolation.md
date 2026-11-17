@@ -1,12 +1,13 @@
 ---
 id: "task_07_english_only_skill_text_and_mirror_isolation"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T13:31:37Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T13:31:37Z"
 labels: ["governance", "english-only", "docs"]
 order: "a7"
 review_tier: "full"

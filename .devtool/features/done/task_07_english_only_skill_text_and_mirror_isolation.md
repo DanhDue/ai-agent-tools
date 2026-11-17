@@ -1,12 +1,13 @@
 ---
 id: "task_07_english_only_skill_text_and_mirror_isolation"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T13:31:37Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T13:31:37Z"
 labels: ["governance", "english-only", "docs"]
 order: "a7"
 review_tier: "full"
@@ -14,7 +15,7 @@ review_tier: "full"
 
 # Task 7: English-Only Dev-Lifecycle Skill Text and Vietnamese Mirror Isolation
 
-Epic: [four_persona_governance](../epic/four_persona_governance/four_persona_governance.en.md)
+Epic: [four_persona_governance](../../epic/four_persona_governance/four_persona_governance.en.md)
 
 ## Requirement Analysis
 
@@ -35,7 +36,7 @@ Rewrite the dev-lifecycle document contract to English-only (spec §6, [SE-01], 
    `sync-shared-contracts` (Stage 1 line), and the two review-prompt references
    `dev-implementation/references/external-review-prompt.md` and
    `principal-review/references/principal-review-prompt.md`
-   ([SE-14](../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)).
+   ([SE-14](../../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)).
 4. **Tests**: create `tests/test_fpg_english_only_text.py` for FPG-AR-04; update contract tests that pin the
    bilingual wording.
 
@@ -134,7 +135,7 @@ And the doc-lifecycle skills "doc-brainstorming", "doc-designer" and "doc-implem
   `finishing-a-development-branch`, `principal-review`, `cross-model-review`. In that set, `.vi.md` may
   appear only on a line that also contains `MUST NOT`, `never` or `not SSOT`; `--require-bilingual` and
   `--strict-bilingual` must not appear.
-- New contract ([SE-14](../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)): `skills/dev-implementation/references/external-review-prompt.md` and `skills/principal-review/references/principal-review-prompt.md` belong to the
+- New contract ([SE-14](../../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)): `skills/dev-implementation/references/external-review-prompt.md` and `skills/principal-review/references/principal-review-prompt.md` belong to the
   FPG-AR-04 scan set, and line 3 of each says "ignore `*.vi.md` mirrors", a line with none of `MUST NOT`, `never` or
   `not SSOT`. Reword that one clause in both files to "never read `*.vi.md` mirrors" and change nothing else in them.
   A repository search found no test that pins the old clause; if one appears, retarget that assertion to the new
@@ -156,11 +157,11 @@ And the doc-lifecycle skills "doc-brainstorming", "doc-designer" and "doc-implem
 
 ## Dependencies & Blockers
 
-Blocked by [Task 6](../epic/four_persona_governance/task_06_four_persona_governance_text.md).
+Blocked by [Task 6](../../epic/four_persona_governance/task_06_four_persona_governance_text.md).
 
 Downstream dependents (blocked by Task 7): `task_08`.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/four_persona_governance/four_persona_governance.en.md)
+- [Epic HLD](../../epic/four_persona_governance/four_persona_governance.en.md)
 - **Rollback**: Revert the task commit to restore the bilingual document contract text.
