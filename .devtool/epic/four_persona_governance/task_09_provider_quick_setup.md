@@ -1,12 +1,13 @@
 ---
 id: "task_09_provider_quick_setup"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T08:03:56Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T08:03:56Z"
 labels: ["config", "cli"]
 order: "a9"
 review_tier: "full"

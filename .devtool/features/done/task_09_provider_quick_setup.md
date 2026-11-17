@@ -1,12 +1,13 @@
 ---
 id: "task_09_provider_quick_setup"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T08:03:56Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T08:03:56Z"
 labels: ["config", "cli"]
 order: "a9"
 review_tier: "full"
@@ -14,11 +15,11 @@ review_tier: "full"
 
 # Task 9: Provider Quick-Setup Shortcut (`dev-config --provider`)
 
-Epic: [four_persona_governance](../epic/four_persona_governance/four_persona_governance.en.md)
+Epic: [four_persona_governance](../../epic/four_persona_governance/four_persona_governance.en.md)
 
 ## Requirement Analysis
 
-Add the one-command provider shortcut Role 1.0 requested on 2026-11-17 ([SE-07](../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)):
+Add the one-command provider shortcut Role 1.0 requested on 2026-11-17 ([SE-07](../../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)):
 `/d3nexus:dev-config --provider <agy|claude|codex>` binds all three personas to that provider's models.
 
 1. **Catalogue and presets (`scripts/personas.default.json`)**: add the catalogue alias `codex-terra`
@@ -175,11 +176,11 @@ And "ai_architect_reviewer" resolves to model_id "opus"
 
 ## Dependencies & Blockers
 
-Blocked by [Task 1](../epic/four_persona_governance/task_01_persona_config_and_dev_config_cli.md).
+Blocked by [Task 1](../../epic/four_persona_governance/task_01_persona_config_and_dev_config_cli.md).
 
 Downstream dependents (blocked by Task 9): `task_08`.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/four_persona_governance/four_persona_governance.en.md)
+- [Epic HLD](../../epic/four_persona_governance/four_persona_governance.en.md)
 - **Rollback**: Revert the task commit.
