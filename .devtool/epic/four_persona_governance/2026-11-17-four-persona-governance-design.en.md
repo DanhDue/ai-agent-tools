@@ -2,7 +2,7 @@
 
 - **Date**: 2026-11-17
 - **PIC**: danhdue
-- **Status**: Draft (awaiting Gate 1)
+- **Status**: Approved
 - **Epic**: `four_persona_governance`
 - **Next step**: `dev-designer` (epic-scale: rules, five skills, a new skill, lifecycle scripts, kit docs)
 
