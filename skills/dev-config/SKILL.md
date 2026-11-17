@@ -23,7 +23,8 @@ python3 scripts/dev_config.py <args>
 | `models remove ALIAS [--scope global\|project]` | Remove an alias from that layer (refused while any merged binding or fallback references it) |
 | `preset NAME [--scope global\|project]` | Set `active_preset` (`default`, `gemini-saver`, `claude-hybrid`, `all-hydrogen`, `codex-kiro`, `all-claude`, `all-codex`); warns when project settings mask a global change |
 | `--provider agy\|claude\|codex [--scope global\|project]` | One-command quick-setup that sets `active_preset` to the provider's mapped preset and prints the resulting bindings; warns per persona if an override or higher layer masks it |
-| `set PERSONA MODEL EFFORT [--fallback MODEL] [--scope global\|project]` | Override `ai_architect_reviewer`, `orchestrator`, or `programmer` |
+| `set PERSONA MODEL EFFORT [--fallback MODEL] [--scope global\|project]` | Override `ai_architect_reviewer`, `orchestrator`, or `programmer` (positional form) |
+| `set PERSONA [--provider agy\|claude\|codex\|kiro] --model M --effort E [--profile NAME\|auto] [--fallback MODEL] [--scope global\|project]` | Flag form of `set`: `--model` is a catalogue alias or a model id, `--provider` checks that the model belongs to that CLI, and `--profile` names a pool profile for `agy` (`auto` clears it). Do not mix it with positional `MODEL EFFORT` |
 | `reset [PERSONA] [--scope global\|project]` | Clear one or all persona overrides in the target layer |
 | `low-quota on\|off [--for HOURS] [--profile NAME]` (alias `--low-quota`) | Toggle profile-scoped low-quota mode in the global layer (default 5 hours; halves the turn budget) |
 | `checkpoint --turns N [--scope global\|project]` | Set `checkpoint_policy.max_orchestrator_turns_before_checkpoint` (default `8`) |
@@ -35,6 +36,7 @@ python3 scripts/dev_config.py <args>
 | `profiles release NAME [--force]` | Release leases on a profile (requires `--force` when a live lease is held) |
 | `profiles clear [NAME]` | Clear exhaustion timestamps and cached quota for one or all profiles without modifying leases |
 | `profiles probe [NAME]` | Probe quota for one or all pool profiles and refresh the sanitized cache |
+| `profiles discover [--json]` | List the Antigravity profiles you could add to the pool (read-only; fetches no quota and writes nothing) |
 | `dispatch --persona P [--mode write\|read-only] --prompt-file F --cwd D --log L [--epic E] [--task T] [--slot N] [--role orchestrator\|runner] [--wait SECONDS]` | Dispatch a persona task through the `agy` profile pool (or directly for `claude`/`codex`/`kiro`) and print JSON `DispatchResult` |
 
 Default `--scope` is `global` for `preset`, `--provider`, `set`, `reset`, `models add`, `models remove`, and `checkpoint`. Exit codes are `0` (success / sufficient or unknown quota), `1` (validation, usage, `task_failure`, `model_unavailable`, or `preflight_failed`), and `2` (insufficient quota, `no_profile`, or `quota_midrun`).
@@ -48,6 +50,23 @@ When the user invokes `/d3nexus:dev-config --models` (or `/d3nexus:dev-config --
 3. Ask whether to apply changes to `global` (default) or `project` scope.
 4. Run `python3 scripts/dev_config.py set <persona> <model> <effort> --scope <scope>` for each selected persona.
 5. Finish by running `python3 scripts/dev_config.py status` and showing the updated table.
+
+## Setting a Provider, Model, Effort and Preferred Profile
+
+Flag form of `set` names the provider, the model, the effort and, for `agy`, a preferred pool profile in one command:
+
+```bash
+python3 scripts/dev_config.py set programmer --provider kiro --model claude-sonnet-5.5 --effort high
+python3 scripts/dev_config.py set programmer --provider agy --profile p2 --model hydrogen --effort xhigh
+python3 scripts/dev_config.py set programmer codex-gpt xhigh        # positional form, unchanged
+```
+
+- `--model` is resolved as a catalogue alias first, then as the `id` of a catalogue entry (with `{effort}` replaced by `--effort`). `--provider` must match the model's CLI. With flags, `--model` and `--effort` are both required, and mixing them with positional `MODEL EFFORT` exits `1`.
+- `--provider` on `set` is an option of `set`. The top-level `--provider` quick-setup below still cannot be combined with a subcommand.
+- `--profile NAME` applies only to `agy` models and `NAME` must already be in the pool (`profiles add NAME`). The profile is a preference: dispatch tries it first, then rotates through the rest of the pool by priority when it is leased, exhausted, in use or out of quota. `--profile auto` removes the preference.
+- Every `set` replaces the persona's whole override entry in that scope, so a `set` without `--profile` clears a stored preference.
+- **Kiro Sonnet**: the catalogue ships `kiro-sonnet` (`claude-sonnet-5.5`, effort `high`). When every `agy` profile is out of quota, the exhaustion report offers `/d3nexus:dev-config set programmer kiro-sonnet high` next to the Codex option.
+- To find profiles to add, run `profiles discover`, then `profiles probe NAME` and `profiles add NAME`. Discover reuses the profile discovery of `d3nexus:check-quota`, marks the host profile, and never fetches quota or unlocks a keychain.
 
 ## Provider Quick-Setup (`--provider`)
 

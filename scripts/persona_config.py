@@ -26,7 +26,10 @@ DEFAULT_LOW_QUOTA_HOURS: float = 5.0
 
 KIT_DEFAULTS_PATH: Path = Path(__file__).resolve().with_name("personas.default.json")
 _LAYER_RANK: dict[str, int] = {"kit": 0, "global": 1, "project": 2, "cli": 3}
-_ALLOWED_OVERRIDE_FIELDS: frozenset[str] = frozenset({"model", "effort", "fallback_model"})
+_ALLOWED_OVERRIDE_FIELDS: frozenset[str] = frozenset(
+    {"model", "effort", "fallback_model", "profile"}
+)
+_PROFILE_NAME_RE: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9_-]+$")
 _ALLOWED_TOP_KEYS: frozenset[str] = frozenset(
     {
         "schema_version",
@@ -83,6 +86,7 @@ class PersonaBinding:
     quota_pool: str
     fallback_alias: str | None
     sources: dict[str, str]
+    profile: str | None = None
 
 
 def get_real_home(real_home: Path | str | None = None) -> Path:
@@ -249,6 +253,14 @@ def _validate_binding_ref(
         raise PersonaConfigError(f"Unknown fallback_model '{fallback}' in {context}")
 
 
+def _validate_profile_name(profile: Any, context: str) -> None:
+    if not isinstance(profile, str) or not _PROFILE_NAME_RE.fullmatch(profile):
+        raise PersonaConfigError(
+            f"Invalid profile '{profile}' in {context}; "
+            "expected characters matching ^[a-zA-Z0-9_-]+$"
+        )
+
+
 def _validate_presets_and_overrides(cfg: Mapping[str, Any], models: Mapping[str, Any]) -> None:
     presets = cfg.get("presets")
     if not isinstance(presets, Mapping) or not presets:
@@ -293,6 +305,8 @@ def _validate_presets_and_overrides(cfg: Mapping[str, Any], models: Mapping[str,
                 f"Unknown override field '{bad}' for persona '{persona_key}'"
             )
         _validate_binding_ref(f"overrides.{persona_key}", ov, models, partial=True)
+        if "profile" in ov:
+            _validate_profile_name(ov["profile"], f"overrides.{persona_key}")
 
 
 def _validate_policy_and_low_quota(cfg: Mapping[str, Any]) -> None:
@@ -409,7 +423,7 @@ def _resolve_from_layers(
         ov = layer_data.get("overrides", {}).get(persona)
         if not isinstance(ov, Mapping):
             continue
-        for field in ("model", "effort", "fallback_model"):
+        for field in ("model", "effort", "fallback_model", "profile"):
             if field in ov:
                 values[field] = ov[field]
                 sources[field] = layer_name
@@ -419,7 +433,7 @@ def _resolve_from_layers(
         if bad_cli_keys:
             bad = min(bad_cli_keys)
             raise PersonaConfigError(f"Unknown CLI override field '{bad}'")
-        for field in ("model", "effort", "fallback_model"):
+        for field in ("model", "effort", "fallback_model", "profile"):
             if field in cli_overrides and cli_overrides[field] is not None:
                 values[field] = cli_overrides[field]
                 sources[field] = "cli"
@@ -448,6 +462,15 @@ def _resolve_from_layers(
 
     model_id = str(entry["id"]).replace("{effort}", effort)
     quota_pool = derive_quota_pool(entry, alias)
+    profile = values.get("profile")
+    if profile is not None:
+        _validate_profile_name(profile, f"persona '{persona}'")
+        if entry["cli"] != "agy":
+            raise PersonaConfigError(
+                f"Invalid profile '{profile}' for persona '{persona}' "
+                f"(set by the {sources['profile']} layer): a profile applies only to "
+                f"an agy model, but '{alias}' uses '{entry['cli']}'"
+            )
     return PersonaBinding(
         persona=persona,
         alias=alias,
@@ -457,6 +480,7 @@ def _resolve_from_layers(
         quota_pool=quota_pool,
         fallback_alias=fallback_alias,
         sources=sources,
+        profile=profile,
     )
 
 

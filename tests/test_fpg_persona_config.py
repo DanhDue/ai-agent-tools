@@ -182,9 +182,11 @@ class Test_Integration:
             "claude-opus",
             "claude-sonnet",
             "codex-gpt",
+            "kiro-sonnet",
             "kiro-opus",
         }
         assert by_alias["codex-gpt"]["cli_on_path"] is False
+        assert by_alias["kiro-sonnet"]["cli_on_path"] is False
         assert by_alias["kiro-opus"]["cli_on_path"] is False
         assert by_alias["argon"]["cli_on_path"] is True
         assert by_alias["argon"]["used_by"] == ["ai_architect_reviewer"]

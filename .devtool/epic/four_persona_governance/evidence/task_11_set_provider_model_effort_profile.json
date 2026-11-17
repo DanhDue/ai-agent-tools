@@ -1,0 +1,215 @@
+{
+  "schema": 1,
+  "task": "task_11_set_provider_model_effort_profile",
+  "runs": {
+    "red": {
+      "head": "170e301574c3e0ef8515b8a3ccadc891217d8968",
+      "tree": "38dfbb43a04e813475b662ff3a9a4a71981bfb7d",
+      "patch_id": "13a868627328dfa1154e0c243d0fa5df99ac4c68",
+      "started": "2026-11-17T11:10:27Z",
+      "finished": "2026-11-17T11:10:27Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_set_provider_model_profile.py::test_fpg_hp_14_set_with_provider_model_effort_and_profile",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T11:10:27Z",
+          "finished": "2026-11-17T11:10:27Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "__________ test_fpg_hp_14_set_with_provider_model_effort_and_profile ___________",
+            "tests/test_fpg_set_provider_model_profile.py:205: in test_fpg_hp_14_set_with_provider_model_effort_and_profile",
+            "    assert res_kiro.returncode == 0, res_kiro.stderr",
+            "E   AssertionError: Error: Cannot combine --provider with subcommand 'set'",
+            "E     ",
+            "E   assert 1 == 0",
+            "E    +  where 1 = CompletedProcess(args=['/opt/homebrew/opt/python@3.15/bin/python3.15', '/Users/danhdueexoictif/AllProjects/ai-agent-to...-5.5', '--effort', 'high'], returncode=1, stdout='', stderr=\"Error: Cannot combine --provider with subcommand 'set'\\n\").returncode",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_fpg_set_provider_model_profile.py::test_fpg_hp_14_set_with_provider_model_effort_and_profile",
+            "1 failed in 0.14s"
+          ],
+          "output_sha256": "52de54d1271975a3e6251f78963dabb09ad60379a98dc20d99b618265cf10129"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "170e301574c3e0ef8515b8a3ccadc891217d8968",
+      "tree": "701e7901688d7829b33b7965144785be2e47cb89",
+      "patch_id": "23736993f6a1fe41b23e51274163f949b6d29e88",
+      "started": "2026-11-17T11:23:17Z",
+      "finished": "2026-11-17T11:23:27Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_set_provider_model_profile.py tests/test_fpg_persona_config.py tests/test_fpg_dispatch_and_quota.py tests/test_fpg_provider_shortcut.py tests/test_fpg_agy_profile_pool.py tests/test_fpg_agy_dispatch.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T11:23:17Z",
+          "finished": "2026-11-17T11:23:25Z",
+          "output_tail": [
+            "........................................................................ [ 61%]",
+            "..............................................                           [100%]",
+            "118 passed in 8.10s"
+          ],
+          "output_sha256": "c2709e6bef8c14d8daf4023c1e735adc2656749a2ccf712238d19ec057c5e707"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py scripts/persona_config.py scripts/dev_config.py scripts/agy_profile_pool.py scripts/agy_dispatch.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T11:23:25Z",
+          "finished": "2026-11-17T11:23:25Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py scripts/persona_config.py scripts/dev_config.py scripts/agy_profile_pool.py scripts/agy_dispatch.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T11:23:25Z",
+          "finished": "2026-11-17T11:23:25Z",
+          "output_tail": [
+            "Success: no issues found in 11 source files"
+          ],
+          "output_sha256": "049f51b850512be193c74d3fbb731e25fbc6374a66560d8ec0d6569d79c88ea6"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/fpg_task_11.xml tests/test_fpg_set_provider_model_profile.py",
+          "expect": "exit 0; results build/test-results/fpg_task_11.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T11:23:25Z",
+          "finished": "2026-11-17T11:23:26Z",
+          "output_tail": [
+            ".............                                                            [100%]",
+            "13 passed in 1.29s"
+          ],
+          "output_sha256": "41d6e5a996421915693767e931814d82fa7ecef46cd08cae9cf021c683dca7c4",
+          "results": {
+            "path": "build/test-results/fpg_task_11.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 13,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_fpg_hp_14_set_flags_end_to_end_with_stub_clis",
+                  "classname": "tests.test_fpg_set_provider_model_profile.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_14_set_with_provider_model_effort_and_profile",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_17_profiles_discover_cli_lists_candidates_from_a_temporary_home",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_15_preferred_profile_first_then_rotate",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_08_invalid_set_combinations_change_nothing[args0-expected0]",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_08_invalid_set_combinations_change_nothing[args1-expected1]",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_08_invalid_set_combinations_change_nothing[args2-expected2]",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_08_invalid_set_combinations_change_nothing[args3-expected3]",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_08_invalid_set_combinations_change_nothing[args4-expected4]",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_08_invalid_set_combinations_change_nothing[args5-expected5]",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_08_invalid_set_combinations_change_nothing[args6-expected6]",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_08_provider_shortcut_still_rejects_a_subcommand",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_08_exhaustion_report_offers_kiro_sonnet",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/agy_dispatch.py",
+            "scripts/agy_profile_pool.py",
+            "scripts/dev_config.py",
+            "scripts/persona_config.py",
+            "scripts/personas.default.json",
+            "skills/dev-config/SKILL.md",
+            "tests/test_fpg_agy_profile_pool.py",
+            "tests/test_fpg_persona_config.py",
+            "tests/test_fpg_set_provider_model_profile.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

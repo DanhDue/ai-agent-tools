@@ -524,8 +524,9 @@ def test_fpg_ec_07_invalid_pool_use_is_rejected(tmp_path: Path) -> None:
     )
     assert [entry["profile"] for entry in pool_cfg["pool"]] == ["real_p"]
 
-    # Acquire a live lease on real_p and try to remove -> exits 1 naming lease owner, lease file unchanged
-    now = datetime(2026, 11, 17, 10, 0, 0, tzinfo=timezone.utc)
+    # Acquire a live lease on real_p and try to remove -> exits 1 naming lease owner, lease file unchanged.
+    # The `profiles remove` subprocess reads the real clock, so the lease time comes from the real clock too.
+    now = datetime.now(timezone.utc).replace(microsecond=0)
     thresholds = {
         "5h_min_fraction": 0.15,
         "7d_min_fraction": 0.02,
@@ -1083,6 +1084,9 @@ def test_fpg_st_07_busy_report_cache_and_host_detection(tmp_path: Path) -> None:
     )
 
     fetch_count = 0
+    # `cmd_profiles_release` has no clock argument and reads the real clock, so every
+    # fixture timestamp in this test is an offset from one real "now".
+    t0 = datetime.now(timezone.utc).replace(microsecond=0)
 
     def counting_fetcher(_p: str) -> dict[str, Any]:
         nonlocal fetch_count
@@ -1090,8 +1094,14 @@ def test_fpg_st_07_busy_report_cache_and_host_detection(tmp_path: Path) -> None:
         return {
             "status": "ACTIVE",
             "email": "secret@example.invalid",
-            "gemini5h": {"fraction": 0.85, "resetTime": "2026-11-17T14:00:00Z"},
-            "geminiWeekly": {"fraction": 0.65, "resetTime": "2026-11-22T00:00:00Z"},
+            "gemini5h": {
+                "fraction": 0.85,
+                "resetTime": _iso_utc(t0 + timedelta(hours=4)),
+            },
+            "geminiWeekly": {
+                "fraction": 0.65,
+                "resetTime": _iso_utc(t0 + timedelta(days=5)),
+            },
         }
 
     thresholds = {
@@ -1099,7 +1109,6 @@ def test_fpg_st_07_busy_report_cache_and_host_detection(tmp_path: Path) -> None:
         "7d_min_fraction": 0.02,
         "agy_argon_min_fraction": 0.10,
     }
-    t0 = datetime(2026, 11, 17, 10, 0, 0, tzinfo=timezone.utc)
     a1 = pool_mod.acquire(
         {"epic": "e1", "task": "t1", "slot": 2, "role": "orchestrator"},
         real_home=real_home,
@@ -1132,7 +1141,11 @@ def test_fpg_st_07_busy_report_cache_and_host_detection(tmp_path: Path) -> None:
 
     # mark_exhausted must not touch leases
     pool_mod.mark_exhausted(
-        "p1", "2026-11-17T12:00:00Z", reason="5h", real_home=real_home, now=t0
+        "p1",
+        _iso_utc(t0 + timedelta(hours=2)),
+        reason="5h",
+        real_home=real_home,
+        now=t0,
     )
     st_after_mark = pool_mod.pool_status(real_home=real_home, now=t0)
     assert len(st_after_mark["profiles"][0]["leased_by"]) == 1
@@ -1194,3 +1207,78 @@ def test_fpg_st_07_busy_report_cache_and_host_detection(tmp_path: Path) -> None:
         encoding="utf-8"
     )
     assert "@example.invalid" not in leases_text
+
+
+def test_fpg_hp_17_profiles_discover_lists_candidates_not_in_the_pool(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """FPG-HP-17: profiles discover lists the profiles that could be added and fetches no quota."""
+    pool_mod = _pool_mod()
+    dc_mod = _dev_config_mod()
+    real_home = tmp_path / "real_home"
+    project = tmp_path / "project"
+    project.mkdir()
+    _make_profile_dirs(real_home, ("profile_b",))
+    _write_json(
+        real_home / ".d3nexus" / "agy_profiles.json",
+        {
+            "schema_version": 1,
+            "pool": [{"profile": "profile_b", "priority": 1}],
+            "lease_ttl_seconds": 180,
+            "heartbeat_seconds": 30,
+            "exhausted_recheck_seconds": 600,
+            "agy_extra_args": [],
+        },
+    )
+    pool_path = real_home / ".d3nexus" / "agy_profiles.json"
+    lease_path = real_home / ".d3nexus" / "agy_profile_leases.json"
+    pool_before = pool_path.read_bytes()
+
+    fetched: list[str] = []
+
+    def recording_fetcher(profile: str) -> dict[str, Any]:
+        fetched.append(profile)
+        return {}
+
+    monkeypatch.setattr(pool_mod, "default_fetcher", recording_fetcher)
+    monkeypatch.setenv("HOME", str(real_home))
+    monkeypatch.setenv("REAL_HOME", str(real_home))
+    monkeypatch.setenv("AGY_PROFILE", "profile_c")
+    monkeypatch.setattr(
+        dc_mod,
+        "_discover_agy_profiles",
+        lambda: ["profile_d", "profile_b", "profile_c", "profile_a"],
+    )
+
+    rc = dc_mod.main(["--project-root", str(project), "profiles", "discover", "--json"])
+    assert rc == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["candidates"] == [
+        {"profile": "profile_a", "host": False},
+        {"profile": "profile_c", "host": True},
+        {"profile": "profile_d", "host": False},
+    ]
+    assert payload["in_pool"] == ["profile_b"]
+    assert payload["source"] == "agy_quota.get_all_profiles"
+
+    rc_text = dc_mod.main(["--project-root", str(project), "profiles", "discover"])
+    assert rc_text == 0
+    lines = [line for line in capsys.readouterr().out.splitlines() if line.strip()]
+    candidate_lines = [
+        line for line in lines if "profile_" in line and "profiles " not in line
+    ]
+    assert [line.split()[0] for line in candidate_lines] == [
+        "profile_a",
+        "profile_c",
+        "profile_d",
+    ]
+    assert "profile_b" not in "\n".join(candidate_lines)
+    text = "\n".join(lines)
+    assert "profiles probe <name>" in text
+    assert "profiles add <name>" in text
+
+    assert fetched == []
+    assert pool_path.read_bytes() == pool_before
+    assert not lease_path.exists()

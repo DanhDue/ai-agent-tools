@@ -32,6 +32,11 @@
       "id": "gpt-6.1-terra",
       "efforts": ["medium", "high", "xhigh"]
     },
+    "kiro-sonnet": {
+      "cli": "kiro",
+      "id": "claude-sonnet-5.5",
+      "efforts": ["high"]
+    },
     "kiro-opus": {
       "cli": "kiro",
       "id": "claude-opus-5.5",

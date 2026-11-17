@@ -811,6 +811,18 @@ def _get_quota_for_candidate(
         return {}, False
 
 
+def _preferred_first(
+    pool: list[dict[str, Any]],
+    preferred_profile: str | None,
+) -> list[dict[str, Any]]:
+    """Move the preferred pool entry to the front; ignore a name that is not in the pool."""
+    if preferred_profile is None:
+        return pool
+    preferred = [entry for entry in pool if entry["profile"] == preferred_profile]
+    others = [entry for entry in pool if entry["profile"] != preferred_profile]
+    return preferred + others
+
+
 def _attempt_acquire_once(
     owner: Mapping[str, Any] | str,
     *,
@@ -825,8 +837,9 @@ def _attempt_acquire_once(
     current_host: str,
     owner_id: str,
     dry_run: bool,
+    preferred_profile: str | None = None,
 ) -> tuple[Acquisition | None, dict[str, str]]:
-    pool: list[dict[str, Any]] = list(cfg["pool"])
+    pool: list[dict[str, Any]] = _preferred_first(list(cfg["pool"]), preferred_profile)
     lease_ttl = float(cfg["lease_ttl_seconds"])
     recheck_sec = float(cfg["exhausted_recheck_seconds"])
     skipped: dict[str, str] = {}
@@ -977,8 +990,13 @@ def acquire(
     poll_seconds: float = 15,
     now: datetime | None = None,
     dry_run: bool = False,
+    preferred_profile: str | None = None,
 ) -> Acquisition:
-    """Acquire the highest-priority usable agy profile lease, or return skip details."""
+    """Acquire the highest-priority usable agy profile lease, or return skip details.
+
+    A `preferred_profile` that names a pool entry is tried first and the others follow in
+    (priority, profile) order; an unusable preferred profile is skipped with its normal reason.
+    """
     owner_id = (
         str(owner.get("owner_id") or "").strip()
         if isinstance(owner, Mapping)
@@ -1022,6 +1040,7 @@ def acquire(
             current_host=current_host,
             owner_id=owner_id,
             dry_run=dry_run,
+            preferred_profile=preferred_profile,
         )
         if acq is not None:
             return acq

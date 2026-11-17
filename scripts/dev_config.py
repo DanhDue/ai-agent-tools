@@ -276,6 +276,8 @@ def cmd_status(
     for persona in PERSONAS:
         b = bindings[persona]
         src_str = f"model={b.sources['model']}, effort={b.sources['effort']}"
+        if b.profile is not None:
+            src_str += f", profile={b.profile} ({b.sources['profile']})"
         cli_tag = b.cli if personas_payload[persona]["cli_on_path"] else f"{b.cli}(!)"
         fb = b.fallback_alias or "-"
         print(
@@ -581,31 +583,147 @@ def cmd_provider(
     return 0
 
 
+def _resolve_catalogue_alias(
+    models: Mapping[str, Any],
+    value: str,
+    effort: str,
+    provider: str | None,
+) -> str:
+    """Map an alias or a model id (with `{effort}` expanded) to one catalogue alias."""
+    if value in models:
+        return value
+    matches = [
+        str(alias)
+        for alias, entry in models.items()
+        if (provider is None or entry["cli"] == provider)
+        and str(entry["id"]).replace("{effort}", effort) == value
+    ]
+    if not matches:
+        raise PersonaConfigError(
+            f"Unknown model '{value}'; use a catalogue alias or model id, "
+            "or add one with 'models add'"
+        )
+    if len(matches) > 1:
+        raise PersonaConfigError(
+            f"Model '{value}' matches several catalogue entries ({', '.join(matches)}); "
+            "name one alias"
+        )
+    return matches[0]
+
+
+def _checked_set_profile(
+    profile: str | None,
+    *,
+    alias: str,
+    cli: str,
+    real_home: Path | None,
+) -> str | None:
+    """Validate `--profile` against the resolved cli and the agy pool allow-list."""
+    if profile is None or profile == "auto":
+        return None
+    if cli != "agy":
+        raise PersonaConfigError(
+            f"--profile applies only to agy models; '{alias}' uses '{cli}'"
+        )
+    _pool.validate_profile_name(profile)
+    pool_names = {str(item["profile"]) for item in _pool.load_pool_config(real_home=real_home)["pool"]}
+    if profile not in pool_names:
+        raise PersonaConfigError(
+            f"Profile '{profile}' is not in the agy pool; add it first with 'profiles add {profile}'"
+        )
+    return profile
+
+
+def _resolve_set_request(
+    project_root: Path,
+    *,
+    model: str | None,
+    effort: str | None,
+    provider: str | None,
+    flag_model: str | None,
+    flag_effort: str | None,
+    profile: str | None,
+    real_home: Path | None,
+) -> tuple[str, str, str | None]:
+    """Turn the `set` arguments into a checked (alias, effort, profile) triple."""
+    flagged = flag_model is not None or flag_effort is not None
+    if flagged and (model is not None or effort is not None):
+        raise PersonaConfigError(
+            "Cannot mix the positional MODEL EFFORT form with --model/--effort; use one form"
+        )
+    if flagged:
+        if flag_model is None or flag_effort is None:
+            raise PersonaConfigError("--model and --effort are both required when using flags")
+        model, effort = flag_model, flag_effort
+    elif model is None or effort is None:
+        raise PersonaConfigError(
+            "the following arguments are required: model, effort "
+            "(or use --model and --effort)"
+        )
+    if provider is not None and provider not in ALLOWED_CLIS:
+        raise PersonaConfigError(
+            f"Unknown provider '{provider}'; expected one of {', '.join(sorted(ALLOWED_CLIS))}"
+        )
+    if not flagged and provider is None and (profile is None or profile == "auto"):
+        return model, effort, None
+
+    models = _pc.load_persona_config(project_root, real_home=real_home)["models"]
+    alias = _resolve_catalogue_alias(models, model, effort, provider)
+    entry = models[alias]
+    if provider is not None and entry["cli"] != provider:
+        raise PersonaConfigError(f"{model} is not a {provider} model")
+    allowed_efforts = list(entry["efforts"])
+    if effort not in allowed_efforts:
+        raise PersonaConfigError(
+            f"Unsupported effort '{effort}' for model '{alias}'; "
+            f"allowed: {', '.join(allowed_efforts)}"
+        )
+    checked = _checked_set_profile(profile, alias=alias, cli=str(entry["cli"]), real_home=real_home)
+    return alias, effort, checked
+
+
 def cmd_set(
     project_root: Path,
     *,
     persona: str,
-    model: str,
-    effort: str,
+    model: str | None = None,
+    effort: str | None = None,
     fallback: str | None = None,
     scope: str = "global",
     real_home: Path | None = None,
+    provider: str | None = None,
+    flag_model: str | None = None,
+    flag_effort: str | None = None,
+    profile: str | None = None,
 ) -> int:
-    """Set persona model/effort override (and optional fallback_model) in target scope."""
+    """Set the persona override (model, effort, optional fallback and agy profile) in a scope."""
     _validate_scope(scope)
     _validate_persona_name(persona)
+    alias, resolved_effort, stored_profile = _resolve_set_request(
+        project_root,
+        model=model,
+        effort=effort,
+        provider=provider,
+        flag_model=flag_model,
+        flag_effort=flag_effort,
+        profile=profile,
+        real_home=real_home,
+    )
 
     def _mutate(layer: dict[str, Any]) -> None:
         overrides = layer.setdefault("overrides", {})
         if not isinstance(overrides, dict):
             raise PersonaConfigError("Invalid 'overrides' section; expected JSON object")
-        entry: dict[str, Any] = {"model": model, "effort": effort}
+        entry: dict[str, Any] = {"model": alias, "effort": resolved_effort}
         if fallback is not None:
             entry["fallback_model"] = fallback
+        if stored_profile is not None:
+            entry["profile"] = stored_profile
         overrides[persona] = entry
 
     _pc.locked_update_layer(project_root, scope, _mutate, real_home=real_home)
-    print(f"Set {persona} -> {model} ({effort}) in {scope} scope.")
+    suffix = f" profile {stored_profile}" if stored_profile is not None else ""
+    print(f"Set {persona} -> {alias} ({resolved_effort}){suffix} in {scope} scope.")
     return 0
 
 
@@ -947,6 +1065,46 @@ def cmd_profiles_clear(
     return 0
 
 
+def _discover_agy_profiles() -> list[str]:
+    """Return the Antigravity profiles found by the discovery behind the check-quota skill."""
+    mod = _load_module_by_path("agy_quota", _SCRIPTS_DIR / "agy_quota.py")
+    return [str(name) for name in mod.get_all_profiles()]
+
+
+def cmd_profiles_discover(
+    project_root: Path,
+    *,
+    json_output: bool = False,
+    discoverer: Callable[[], Sequence[str]] | None = None,
+    host_profile: str | None = None,
+    real_home: Path | None = None,
+) -> int:
+    """List discovered profiles that are not in the pool, without fetching quota or writing files."""
+    _ = project_root
+    find = discoverer if discoverer is not None else _discover_agy_profiles
+    host = host_profile if host_profile is not None else _pool.detect_host_profile()
+    in_pool = [str(item["profile"]) for item in _pool.load_pool_config(real_home=real_home)["pool"]]
+    candidates = sorted({str(name) for name in find()} - set(in_pool))
+    entries = [{"profile": name, "host": name == host} for name in candidates]
+    if json_output:
+        payload = {
+            "candidates": entries,
+            "in_pool": in_pool,
+            "source": "agy_quota.get_all_profiles",
+        }
+        print(json.dumps(payload, indent=2))
+        return 0
+    if not entries:
+        print("No profiles to add: every discovered profile is already in the pool.")
+        return 0
+    for item in entries:
+        print(f"  {item['profile']}{' (host)' if item['host'] else ''}")
+    print("Next steps:")
+    print("  profiles probe <name>   check the quota of one candidate")
+    print("  profiles add <name>     add the candidate to the pool")
+    return 0
+
+
 def cmd_profiles_probe(
     project_root: Path,
     *,
@@ -1104,8 +1262,12 @@ def _build_parser() -> _DevConfigParser:
 
     p_set = sub.add_parser("set", help="Override a persona model and effort.")
     p_set.add_argument("persona")
-    p_set.add_argument("model")
-    p_set.add_argument("effort")
+    p_set.add_argument("model", nargs="?", default=None)
+    p_set.add_argument("effort", nargs="?", default=None)
+    p_set.add_argument("--provider", dest="set_provider", default=None)
+    p_set.add_argument("--model", dest="flag_model", default=None)
+    p_set.add_argument("--effort", dest="flag_effort", default=None)
+    p_set.add_argument("--profile", dest="set_profile", default=None)
     p_set.add_argument("--fallback", default=None)
     p_set.add_argument("--scope", default=argparse.SUPPRESS)
 
@@ -1156,6 +1318,11 @@ def _build_parser() -> _DevConfigParser:
 
     p_pprb = profiles_sub.add_parser("probe", help="Probe quota and refresh cache.")
     p_pprb.add_argument("name", nargs="?", default=None)
+
+    p_pdisc = profiles_sub.add_parser(
+        "discover", help="List discovered profiles that could be added to the pool."
+    )
+    p_pdisc.add_argument("--json", action="store_true")
 
     p_disp = sub.add_parser("dispatch", help="Dispatch a persona task through the agy pool.")
     p_disp.add_argument("--persona", required=True)
@@ -1217,6 +1384,10 @@ def _dispatch_args(args: argparse.Namespace, project_root: Path) -> int:
             effort=args.effort,
             fallback=args.fallback,
             scope=scope,
+            provider=args.set_provider,
+            flag_model=args.flag_model,
+            flag_effort=args.flag_effort,
+            profile=args.set_profile,
         )
     if cmd == "reset":
         return cmd_reset(project_root, persona=args.persona, scope=scope)
@@ -1265,6 +1436,8 @@ def _dispatch_args(args: argparse.Namespace, project_root: Path) -> int:
             return cmd_profiles_clear(project_root, name=args.name)
         if action == "probe":
             return cmd_profiles_probe(project_root, name=args.name)
+        if action == "discover":
+            return cmd_profiles_discover(project_root, json_output=bool(args.json))
         raise AgyPoolError(f"Unknown profiles action '{action}'")
     if cmd == "dispatch":
         return cmd_dispatch(
@@ -1305,15 +1478,30 @@ def _dispatch_provider_shortcut(
     )
 
 
+def _has_top_level_provider(tokens: Sequence[str]) -> bool:
+    """Return True when `--provider` is the top-level shortcut and not an option of `set`."""
+    scan = list(tokens)
+    skip_next = False
+    for idx, tok in enumerate(scan):
+        if skip_next:
+            skip_next = False
+            continue
+        if tok in ("--provider", "--project-root", "--scope"):
+            skip_next = True
+            continue
+        if tok == "set":
+            scan = scan[:idx]
+            break
+    return any(tok == "--provider" or tok.startswith("--provider=") for tok in scan)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry point."""
     raw = sys.argv[1:] if argv is None else argv
     normalized = _normalize_argv(raw)
     parser = _build_parser()
     has_help = any(tok in ("-h", "--help") for tok in normalized)
-    has_provider = any(
-        tok == "--provider" or tok.startswith("--provider=") for tok in normalized
-    )
+    has_provider = _has_top_level_provider(normalized)
     try:
         if has_provider and not has_help:
             return _dispatch_provider_shortcut(normalized, parser)
