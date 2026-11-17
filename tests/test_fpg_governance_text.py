@@ -7,9 +7,13 @@ Covers BDD Scenarios:
 
 from __future__ import annotations
 
+import argparse
+import importlib.util
 from pathlib import Path
 import re
+import shlex
 import subprocess
+import sys
 
 import pytest
 
@@ -225,3 +229,106 @@ def test_fpg_ar_07_governance_text_routes_dispatch_through_pool_and_guards_ag_ru
     assert not offenders, (
         "Hand-built HOME or AGY_PROFILE in dispatch text:\n" + "\n".join(offenders)
     )
+
+
+class _CapturedParser(Exception):
+    """Sentinel raised from patched parse_args to capture the live ArgumentParser."""
+
+    def __init__(self, parser: argparse.ArgumentParser) -> None:
+        super().__init__("captured parser")
+        self.parser = parser
+
+
+def _load_external_review_parser() -> argparse.ArgumentParser:
+    """Load run_external_review.py by path and return its live ArgumentParser."""
+    scripts_dir = REPO_ROOT / "skills" / "dev-implementation" / "resources" / "scripts"
+    script_path = scripts_dir / "run_external_review.py"
+    added_sys_path = False
+    if str(scripts_dir) not in sys.path:
+        sys.path.insert(0, str(scripts_dir))
+        added_sys_path = True
+    mod_name = "_fpg_run_external_review_probe"
+    spec = importlib.util.spec_from_file_location(mod_name, script_path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[mod_name] = mod
+    orig_parse_args = argparse.ArgumentParser.parse_args
+
+    def _capture(self: argparse.ArgumentParser, *args: object, **kwargs: object) -> object:
+        raise _CapturedParser(self)
+
+    try:
+        spec.loader.exec_module(mod)
+        argparse.ArgumentParser.parse_args = _capture  # type: ignore[method-assign]
+        try:
+            mod.main([])
+        except _CapturedParser as captured:
+            return captured.parser
+    finally:
+        argparse.ArgumentParser.parse_args = orig_parse_args  # type: ignore[method-assign]
+        sys.modules.pop(mod_name, None)
+        if added_sys_path and str(scripts_dir) in sys.path:
+            sys.path.remove(str(scripts_dir))
+    raise AssertionError("run_external_review.main() did not invoke parse_args")
+
+
+def _extract_external_review_commands(text: str) -> list[tuple[str, str]]:
+    """Extract inline run_external_review.py <sub> ... commands from governance markdown."""
+    return [
+        (match.group(2), match.group(1))
+        for match in re.finditer(r"`(run_external_review\.py\s+(\S+)[^`\n]*)`", text)
+    ]
+
+
+def _required_subparser_option_groups(
+    parser: argparse.ArgumentParser, subcommand: str
+) -> list[tuple[str, ...]]:
+    """Return required option-string tuples from the real subparser for subcommand."""
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            subparser = action.choices[subcommand]
+            return [
+                tuple(sub_action.option_strings)
+                for sub_action in subparser._actions
+                if sub_action.required and sub_action.option_strings
+            ]
+    raise AssertionError(f"No subparsers found on {parser!r}")
+
+
+@pytest.fixture(scope="module")
+def external_review_parser() -> argparse.ArgumentParser:
+    """Module-scoped live ArgumentParser loaded from run_external_review.py."""
+    return _load_external_review_parser()
+
+
+@pytest.mark.parametrize(
+    ("subcommand", "command"),
+    _extract_external_review_commands(_read(RULES_REL)),
+    ids=[sub for sub, _ in _extract_external_review_commands(_read(RULES_REL))],
+)
+def test_critical_rules_external_review_commands_include_required_options(
+    external_review_parser: argparse.ArgumentParser,
+    subcommand: str,
+    command: str,
+) -> None:
+    """Each run_external_review.py command in CRITICAL_RULES.md supplies all required subparser options."""
+    extracted = _extract_external_review_commands(_read(RULES_REL))
+    assert {"run", "triage"} <= {sub for sub, _ in extracted}
+    tokens = shlex.split(command)[1:]
+    required_groups = _required_subparser_option_groups(
+        external_review_parser, subcommand
+    )
+    missing = [
+        "/".join(group)
+        for group in required_groups
+        if not any(
+            opt in tokens or any(tok.startswith(f"{opt}=") for tok in tokens)
+            for opt in group
+        )
+    ]
+    assert not missing, (
+        f"{RULES_REL} command {command!r} is missing required option(s) {missing} "
+        f"for subcommand {subcommand!r}"
+    )
+    parsed = external_review_parser.parse_args(tokens)
+    assert parsed.mode == subcommand

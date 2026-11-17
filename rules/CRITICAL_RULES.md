@@ -9,7 +9,7 @@ trigger: always_on
 
 ## 1. Mandatory Quality Gates
 
-After completing any workflow/skill, run the matching quality gate and fix all issues:
+After completing any workflow/skill, run its quality gate and fix all issues:
 - Shipped/build-affecting change -> `@quality_check`
 - Prose/documentation deliverable -> `@doc_quality_check`
 
@@ -38,7 +38,7 @@ Never create loose native plans (`implementation_plan.md`, Composer/Cascade/Code
 1. **Gate 2 Unified Confirmation**: After Gate 2 readiness passes, stop before `package_epic.py`, record Gate 2, read `.devtool/review_config.json`, record `--pending-decision` (Choice A), and present the provider priority:
    - **Option 1 (Recommended) — `Triển khai (tự động)`**: `/principal-review` -> `package_epic.py` -> Gate 3 -> `dev-implementation` (`--parallel`) -> Gate 4 -> `/cross-model-review`, pausing only on Circuit Breakers, `ESCALATE`, model/quota stops or Gate 5. Stage 3 runs in this session as Role 2.2 (`orchestrator`).
    - **Option 2 — `Dừng lại`**: Stops after packaging, printing `--emit-prompt implement`.
-2. **Cross-Model Review**: When tasks finish (after Gate 4 passes, Cross-model review must return to a full Gate 4 run), run `/cross-model-review` (`run_external_review.py run --epic-dir <epic_dir> --auto-quota`) with no Review Choice prompt.
+2. **Cross-Model Review**: When tasks finish (after Gate 4 passes, Cross-model review must return to a full Gate 4 run), run `/cross-model-review` (`run_external_review.py run --epic-dir <epic_dir> --auto-quota --base <ref>`) with no Review Choice prompt.
 3. **Stage 4 Finish & Gate 5**: After convergence and Gate 4 PASS on the latest SHA, record `--pending-decision`, stop, and ask the Human Architect for the merge strategy. Never auto-merge or auto-push.
 
 ## 6. Auto-Triage Gate, 3-Round Funnel & Remediation Protocol
@@ -78,7 +78,7 @@ External reviews use `max_rounds = 3` and Auto-Triage; details: [governance-chec
 
 ## 10. Zero-Fluff Output Cap
 
-- Keep discretionary prose, preamble, narration, and redundant recaps minimal during autonomous runs and worker handoffs.
+- Minimize discretionary prose, preamble, narration, and redundant recaps in autonomous runs and worker handoffs.
 - **Never** omit or truncate required structured outputs: machine Verdicts, Findings tables, JSON/provider gate results, worker status contracts, or human Gate prompts.
 
 ## 11. English SSOT and Vietnamese Mirror Isolation
