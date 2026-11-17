@@ -989,6 +989,407 @@ def test_ownership_transitive_blocking_and_path_normalization(tmp_path: Path) ->
     assert "R-OWN task_03 and task_04 both own scripts/foo.py" in fail_res.stdout
 
 
+def _setup_ownership_expansion_repo(
+    tmp_path: Path, *, init_git: bool = True
+) -> tuple[Path, Path, dict[str, str]]:
+    home_dir = tmp_path / "home"
+    home_dir.mkdir(parents=True, exist_ok=True)
+    iso_env = {"HOME": str(home_dir), "REAL_HOME": str(home_dir)}
+
+    repo = tmp_path / "repo"
+    repo.mkdir(parents=True, exist_ok=True)
+    if init_git:
+        _init_repo(repo)
+    else:
+        (repo / "README.md").write_text("# Demo Repo\n", encoding="utf-8")
+        (repo / "tool.py").write_text("print('ok')\n", encoding="utf-8")
+        (repo / "scripts").mkdir(parents=True, exist_ok=True)
+        (repo / "scripts" / "foo.py").write_text(
+            "def fn_0():\n    return 0\n", encoding="utf-8"
+        )
+    (repo / "scripts" / "persona_config.py").write_text(
+        "CONFIG = {}\n", encoding="utf-8"
+    )
+    (repo / "scripts" / "item_a.py").write_text("ITEM = 'a'\n", encoding="utf-8")
+    (repo / "scripts" / "item_b.py").write_text("ITEM = 'b'\n", encoding="utf-8")
+    (repo / "scripts" / "sub").mkdir(parents=True, exist_ok=True)
+    (repo / "scripts" / "sub" / "nested.py").write_text(
+        "NESTED = True\n", encoding="utf-8"
+    )
+
+    epic_dir = repo / ".devtool" / "epic" / "demo"
+    epic_dir.mkdir(parents=True, exist_ok=True)
+    hld_path = epic_dir / "demo.md"
+    hld_path.write_text(
+        "# Demo Epic\n\n"
+        "Protected paths: scripts/verify.sh\n\n"
+        "Integration results: python3 tool.py int -> build/test-results/int.xml\n\n"
+        "## Verification Environment\n\nTemp dir.\n",
+        encoding="utf-8",
+    )
+    if init_git:
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "Add expansion fixture files")
+    return repo, hld_path, iso_env
+
+
+@pytest.mark.parametrize(
+    ("case_id", "allowed_1", "allowed_2", "blocked", "expect_r_own", "expected_tokens"),
+    [
+        (
+            "glob_vs_literal",
+            "- `scripts/*.py`",
+            "- `scripts/persona_config.py`",
+            False,
+            True,
+            (
+                "R-OWN",
+                "task_01",
+                "task_02",
+                "scripts/*.py",
+                "scripts/persona_config.py",
+            ),
+        ),
+        (
+            "glob_vs_glob_shared_file",
+            "- `scripts/*.py`",
+            "- `scripts/persona_*`",
+            False,
+            True,
+            (
+                "R-OWN",
+                "task_01",
+                "task_02",
+                "scripts/*.py",
+                "scripts/persona_*",
+                "scripts/persona_config.py",
+            ),
+        ),
+        (
+            "bracket_glob_vs_question_glob",
+            "- `scripts/item_[ab].py`",
+            "- `scripts/item_?.py`",
+            False,
+            True,
+            (
+                "R-OWN",
+                "task_01",
+                "task_02",
+                "scripts/item_[ab].py",
+                "scripts/item_?.py",
+                "scripts/item_a.py",
+            ),
+        ),
+        (
+            "double_star_glob_vs_nested_literal",
+            "- `scripts/**/*.py`",
+            "- `scripts/sub/nested.py`",
+            False,
+            True,
+            ("R-OWN", "task_01", "task_02", "scripts/**/*.py", "scripts/sub/nested.py"),
+        ),
+        (
+            "dir_trailing_slash_vs_file",
+            "- `scripts/`",
+            "- `scripts/foo.py`",
+            False,
+            True,
+            ("R-OWN", "task_01", "task_02", "scripts/", "scripts/foo.py"),
+        ),
+        (
+            "dir_no_trailing_slash_vs_file",
+            "- `scripts`",
+            "- `scripts/foo.py`",
+            False,
+            True,
+            ("R-OWN", "task_01", "task_02", "scripts", "scripts/foo.py"),
+        ),
+        (
+            "leading_dot_slash_globs",
+            "- `./scripts/*.py`",
+            "- `./scripts/persona_*`",
+            False,
+            True,
+            (
+                "R-OWN",
+                "task_01",
+                "task_02",
+                "scripts/*.py",
+                "scripts/persona_*",
+                "scripts/persona_config.py",
+            ),
+        ),
+        (
+            "new_literal_vs_matching_glob",
+            "- `scripts/*.py`",
+            "- `scripts/new_mod.py` (new)",
+            False,
+            True,
+            ("R-OWN", "task_01", "task_02", "scripts/*.py", "scripts/new_mod.py"),
+        ),
+        (
+            "new_literal_vs_dir",
+            "- `scripts/`",
+            "- `scripts/new_mod.py` (new)",
+            False,
+            True,
+            ("R-OWN", "task_01", "task_02", "scripts/", "scripts/new_mod.py"),
+        ),
+        (
+            "literal_vs_literal_old_message",
+            "- `scripts/foo.py` (L1-L2)",
+            "- `scripts/foo.py`",
+            False,
+            True,
+            (
+                "R-OWN task_01 and task_02 both own scripts/foo.py with no Blocked by path between them",
+            ),
+        ),
+        (
+            "blocked_by_glob_vs_glob",
+            "- `scripts/*.py`",
+            "- `scripts/persona_*`",
+            True,
+            False,
+            (),
+        ),
+        (
+            "blocked_by_glob_vs_literal",
+            "- `scripts/*.py`",
+            "- `scripts/persona_config.py`",
+            True,
+            False,
+            (),
+        ),
+        (
+            "blocked_by_dir_no_r_own",
+            "- `scripts/`",
+            "- `scripts/foo.py`",
+            True,
+            False,
+            (),
+        ),
+        (
+            "disjoint_globs",
+            "- `scripts/item_*.py`",
+            "- `scripts/persona_*`",
+            False,
+            False,
+            (),
+        ),
+        (
+            "single_star_respects_slash_boundary",
+            "- `scripts/*.py`",
+            "- `scripts/sub/*.py`",
+            False,
+            False,
+            (),
+        ),
+        (
+            "disjoint_bracket_globs",
+            "- `scripts/item_[a].py`",
+            "- `scripts/item_[b].py`",
+            False,
+            False,
+            (),
+        ),
+    ],
+)
+def test_se17_ownership_expansion_claims(
+    case_id: str,
+    allowed_1: str,
+    allowed_2: str,
+    blocked: bool,
+    expect_r_own: bool,
+    expected_tokens: tuple[str, ...],
+    tmp_path: Path,
+) -> None:
+    """[SE-17] Ownership check expands globs and directories against tracked files plus all literal entries."""
+    repo, hld_path, iso_env = _setup_ownership_expansion_repo(tmp_path, init_git=True)
+    epic_dir = hld_path.parent
+    t1 = epic_dir / "task_01.md"
+    t2 = epic_dir / "task_02.md"
+    deps_2 = "- Blocked by [Task 01](task_01.md)" if blocked else "- None."
+    t1.write_text(
+        _task_markdown("task_01", "demo", "demo.md", allowed=allowed_1),
+        encoding="utf-8",
+    )
+    t2.write_text(
+        _task_markdown(
+            "task_02", "demo", "demo.md", allowed=allowed_2, dependencies=deps_2
+        ),
+        encoding="utf-8",
+    )
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", f"Add case {case_id}")
+
+    res = _run_py(
+        DEV_IMPL_SCRIPTS / "check_task_contract.py",
+        repo,
+        "--design",
+        "--hld",
+        str(hld_path),
+        "--tasks",
+        str(t1),
+        str(t2),
+        extra_env=iso_env,
+    )
+    if expect_r_own:
+        assert res.returncode == 1, res.stdout + res.stderr
+        r_own_lines = [line for line in res.stdout.splitlines() if "R-OWN" in line]
+        assert r_own_lines, (
+            f"Expected R-OWN in output for {case_id}, got:\n{res.stdout}"
+        )
+        assert any(
+            all(token in line for token in expected_tokens) for line in r_own_lines
+        ), (
+            f"Expected one R-OWN line containing all of {expected_tokens!r} for {case_id}, got:\n{res.stdout}"
+        )
+    else:
+        assert "R-OWN" not in res.stdout, (
+            f"Unexpected R-OWN for {case_id}:\n{res.stdout}"
+        )
+        if "dir" not in case_id:
+            assert res.returncode == 0, res.stdout + res.stderr
+
+
+@pytest.mark.parametrize(
+    ("allowed_1", "allowed_2", "expect_r_own", "expected_tokens"),
+    [
+        (
+            "- `scripts/*.py`",
+            "- `scripts/persona_*`",
+            True,
+            (
+                "R-OWN",
+                "task_01",
+                "task_02",
+                "scripts/*.py",
+                "scripts/persona_*",
+                "scripts/persona_config.py",
+            ),
+        ),
+        (
+            "- `scripts`",
+            "- `scripts/foo.py`",
+            True,
+            ("R-OWN", "task_01", "task_02", "scripts", "scripts/foo.py"),
+        ),
+        (
+            "- `scripts/*.py`",
+            "- `scripts/sub/*.py`",
+            False,
+            (),
+        ),
+    ],
+)
+def test_se17_ownership_expansion_non_git_walks_tree(
+    allowed_1: str,
+    allowed_2: str,
+    expect_r_own: bool,
+    expected_tokens: tuple[str, ...],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """[SE-17] Outside a git repository, ownership expansion walks the repository file tree."""
+    repo, hld_path, iso_env = _setup_ownership_expansion_repo(tmp_path, init_git=False)
+    monkeypatch.setenv("HOME", iso_env["HOME"])
+    monkeypatch.setenv("REAL_HOME", iso_env["REAL_HOME"])
+
+    epic_dir = hld_path.parent
+    t1 = epic_dir / "task_01.md"
+    t2 = epic_dir / "task_02.md"
+    t1_text = _task_markdown("task_01", "demo", "demo.md", allowed=allowed_1)
+    t2_text = _task_markdown("task_02", "demo", "demo.md", allowed=allowed_2)
+    t1.write_text(t1_text, encoding="utf-8")
+    t2.write_text(t2_text, encoding="utf-8")
+
+    ctc = _load_script(
+        "check_task_contract", DEV_IMPL_SCRIPTS / "check_task_contract.py"
+    )
+    check = ctc.Checker(repo)
+    ctc.check_exclusive_ownership(check, {t1: t1_text, t2: t2_text})
+
+    r_own_lines = [line for line in check.problems if "R-OWN" in line]
+    if expect_r_own:
+        assert any(
+            all(token in line for token in expected_tokens) for line in r_own_lines
+        ), (
+            f"Expected one R-OWN problem containing {expected_tokens!r}, got: {check.problems}"
+        )
+    else:
+        assert r_own_lines == [], f"Unexpected R-OWN problems: {r_own_lines}"
+
+
+def test_se17_two_globs_conflict_via_third_task_new_literal(tmp_path: Path) -> None:
+    """[SE-17] A (new) literal entry on any task joins the expansion universe for all globs."""
+    repo, hld_path, iso_env = _setup_ownership_expansion_repo(tmp_path, init_git=True)
+    # Remove persona_config.py so tracked files have no overlap between scripts/*.py and scripts/persona_*.
+    _git(repo, "rm", "-q", "scripts/persona_config.py")
+    (repo / "scripts" / "persona_other.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+    _git(repo, "add", "scripts/persona_other.sh")
+    _git(
+        repo,
+        "commit",
+        "-q",
+        "-m",
+        "Replace persona_config.py with non-py persona_other.sh",
+    )
+
+    epic_dir = hld_path.parent
+    t1 = epic_dir / "task_01.md"
+    t2 = epic_dir / "task_02.md"
+    t3 = epic_dir / "task_03.md"
+    t1.write_text(
+        _task_markdown("task_01", "demo", "demo.md", allowed="- `scripts/*.py`"),
+        encoding="utf-8",
+    )
+    t2.write_text(
+        _task_markdown("task_02", "demo", "demo.md", allowed="- `scripts/persona_*`"),
+        encoding="utf-8",
+    )
+    t3.write_text(
+        _task_markdown(
+            "task_03",
+            "demo",
+            "demo.md",
+            allowed="- `scripts/persona_added.py` (new)",
+            dependencies="- Blocked by [Task 01](task_01.md)\n- Blocked by [Task 02](task_02.md)",
+        ),
+        encoding="utf-8",
+    )
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "Add 3-task new-literal expansion case")
+
+    res = _run_py(
+        DEV_IMPL_SCRIPTS / "check_task_contract.py",
+        repo,
+        "--design",
+        "--hld",
+        str(hld_path),
+        "--tasks",
+        str(t1),
+        str(t2),
+        str(t3),
+        extra_env=iso_env,
+    )
+    assert res.returncode == 1, res.stdout + res.stderr
+    r_own_lines = [line for line in res.stdout.splitlines() if "R-OWN" in line]
+    assert any(
+        all(
+            tok in line
+            for tok in (
+                "task_01",
+                "task_02",
+                "scripts/*.py",
+                "scripts/persona_*",
+                "scripts/persona_added.py",
+            )
+        )
+        for line in r_own_lines
+    ), res.stdout
+
+
 def _setup_vi_task_mirror_repo(
     tmp_path: Path, *, commit_vi: bool = True
 ) -> tuple[Path, Path, str]:
