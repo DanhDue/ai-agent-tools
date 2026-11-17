@@ -1,6 +1,6 @@
-# Two-Tier Project Memory & Tri-Role Governance Telemetry
+# Two-Tier Project Memory & Four-Persona Governance Telemetry
 
-To maintain full project-wide architectural awareness across account rotations and among the **Human Architect**, **AI Assistant**, and **AI Programmer** personas without context bloat, enforce this 2-tier disk-backed state architecture.
+To maintain full project-wide architectural awareness across account rotations and among the **Human Architect**, **AI Architect & Reviewer**, **Orchestrator**, and **Programmer** personas without context bloat, enforce this 2-tier disk-backed state architecture.
 
 ## 1. Tier 1 — Permanent Project Ledger (`.devtool/PROJECT_LEDGER.md`)
 
@@ -29,22 +29,25 @@ To support concurrent AI agents without cross-epic state overwrites or premature
   `[YYYY-MM-DD HH:MM] [<repo>/<epic_slug>/<task_id>] Request: <summary> | Action: <files & tests> | Note: <deviations or None>`
 - **Auto-Rollup:** Every `--log` write refreshes `.devtool/activity_stream.log` with the last 50 entries across all active epic logs.
 
-## 3. Tri-Role Governance Model
+## 3. Four-Persona Governance Model
 
-1. **Role 2.1 — Human Architect (Developer):**
-   - Strategic direction, Gate approvals (Gate 1, 2, 3, 5), and decisions at Review Choice.
-2. **Role 2.2 — AI Assistant (`[PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]`):**
-   - Problem analysis, RFC drafting, HLD / Kanban task design, Principal Review, Cross-Model Review.
-   - **Hard Restriction:** **STRICTLY PROHIBITED from modifying production code or application tests.** Only design docs (`docs/`, `.devtool/`, `shared-contracts/`) may be edited.
-3. **Role 2.3 — AI Programmer (`[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]`):**
-   - Execution of Kanban tasks inside isolated git worktrees following strict TDD (Red-Green-Refactor) and Clean Code standards.
-   - **Hard Restriction:** **STRICTLY BOUND to approved specifications, `Decisions Already Made`, and `Allowed files`.** No speculative abstractions or unapproved contract changes.
+1. **Role 1.0 Human Architect (Developer):**
+   - Vision, strategic direction, Gate approvals (Gates 1, 2, 5), Stage 4 Finish, and every escalation.
+2. **Role 2.1 AI Architect & Reviewer (`[PERSONA: Role 2.1 AI Architect & Reviewer]`, `--role architect`; `assistant` remains an alias):**
+   - Stages 1–2 design (`dev-brainstorming`, `dev-designer`), Principal Review (`principal-review`), and packaging; Stage 3 `task-reviewer` and `fix-planner` subagents (`--mode read-only`).
+   - **Hard Restriction:** **STRICTLY PROHIBITED from editing `src/` or `tests/`, running test suites, linters, or type checkers, dispatching subagents, or managing the worker pool.**
+3. **Role 2.2 Orchestrator (`[PERSONA: Role 2.2 Orchestrator]`, `--role orchestrator`):**
+   - Stage 3–4 orchestration: Gate 3, worker pool management (`manage_worker_pool.py`), dispatching Role 2.1 and Role 2.3 subagents, independent verification, lifecycle checkpoints, `/cross-model-review`, and marking tasks `done`.
+   - **Hard Restriction:** **STRICTLY PROHIBITED from reading or editing `src/` or `tests/`, editing HLD, BDD scenarios, Verification tables, DoD, or `Allowed files`, or running tests, linters, type checkers, `run_task_checks.py`, or `verify-tier`.**
+4. **Role 2.3 Programmer (`[PERSONA: Role 2.3 Programmer — Senior TDD Software Engineer]`, `--role programmer`):**
+   - Isolated `task-implementer`, `review-fixer`, and `gate4-verifier` subagent execution inside git worktrees following strict TDD (Red-Green-Refactor) and Clean Code standards.
+   - **Hard Restriction:** **STRICTLY BOUND to approved specifications, `Decisions Already Made`, and `Allowed files`.** Never alters HLD, BDD scenarios, `shared-contracts/`, Verification tables, DoD, or `Allowed files`, and never calls `manage_worker_pool.py`.
 
 ## 4. CLI Capabilities & Workflow Cheatsheet
 
 ```bash
 # 1. Startup Context Restoration
-python3 scripts/resume_context.py [--role assistant|programmer] [--epic <slug>]
+python3 scripts/resume_context.py [--role architect|orchestrator|programmer] [--epic <slug>]
 
 # 2. Persist State Snapshot (<= 20 lines)
 python3 scripts/resume_context.py --state --epic <slug> --decisions "<text>" --status "<text>" --next "<text>"

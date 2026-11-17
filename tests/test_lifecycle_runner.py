@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Tests for Autonomous Lifecycle Runner state machine, persistence, and probing."""
 
+import contextlib
 import fcntl
 import importlib.util
 import json
@@ -12,24 +13,24 @@ import tempfile
 import threading
 import time
 import unittest
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 # Add skills/dev-lifecycle/resources/scripts to sys.path
-SCRIPTS_DIR = (
-    Path(__file__).resolve().parent.parent
-    / "skills"
-    / "dev-lifecycle"
-    / "resources"
-    / "scripts"
-)
-if str(SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS_DIR))
+REPO_ROOT = Path(__file__).resolve().parent.parent
+SCRIPTS_DIR = REPO_ROOT / "skills" / "dev-lifecycle" / "resources" / "scripts"
+DEV_IMPL_SCRIPTS = REPO_ROOT / "skills" / "dev-implementation" / "resources" / "scripts"
+for _dir in (str(SCRIPTS_DIR), str(DEV_IMPL_SCRIPTS)):
+    if _dir not in sys.path:
+        sys.path.insert(0, _dir)
 
 import lifecycle_runner
 from lifecycle_runner import (
-    FixPlanVerdict,
+    HALT_CRITERIA,
     LifecycleRunner,
     ModelDispatcher,
     PipelineState,
@@ -38,10 +39,119 @@ from lifecycle_runner import (
 )
 
 
-class TestLifecycleRunner_Integration(unittest.TestCase):
+_PROFILE_ENV_VARS = (
+    "AGY_PROFILE",
+    "ANTIGRAVITY_PROFILE",
+    "AGY_PROGRAMMER_MODEL",
+    "AGY_PROGRAMMER_EFFORT",
+    "AGY_ASSISTANT_MODEL",
+)
+_HOST_HOME = os.environ.get("HOME")
+_active_isolations = 0
+
+
+def _load_run_external_review() -> Any:
+    """Return the shared ``run_external_review`` module, loading it once by path."""
+    rer_path = DEV_IMPL_SCRIPTS / "run_external_review.py"
+    if not rer_path.is_file():
+        return None
+    rer_mod = sys.modules.get("run_external_review")
+    if rer_mod is None:
+        spec = importlib.util.spec_from_file_location("run_external_review", rer_path)
+        if spec is not None and spec.loader is not None:
+            rer_mod = importlib.util.module_from_spec(spec)
+            sys.modules["run_external_review"] = rer_mod
+            spec.loader.exec_module(rer_mod)
+    return rer_mod
+
+
+@contextlib.contextmanager
+def _isolated_host_env() -> Iterator[Path]:
+    """Isolate HOME, REAL_HOME, profile env vars, and quota fetching from host stores.
+
+    This is the single isolation mechanism for both runners. pytest reaches it through
+    the autouse fixture below (module-level tests), unittest and pytest both reach it
+    through ``_HostIsolatedTestCase.setUp`` (TestCase tests). Pytest fixtures do not run
+    under ``python3 -m unittest``, so a fixture alone would let the runner read the
+    machine's live quota and real HOME there.
+    """
+    global _active_isolations
+    with (
+        tempfile.TemporaryDirectory(
+            prefix="lifecycle_runner_home_", ignore_cleanup_errors=True
+        ) as tmp,
+        contextlib.ExitStack() as stack,
+    ):
+        fake_home = Path(tmp) / "_isolated_home"
+        fake_home.mkdir(parents=True, exist_ok=True)
+        stack.enter_context(
+            patch.dict(
+                os.environ, {"HOME": str(fake_home), "REAL_HOME": str(fake_home)}
+            )
+        )
+        for var in _PROFILE_ENV_VARS:
+            os.environ.pop(var, None)
+        rer_mod = _load_run_external_review()
+        if rer_mod is not None and hasattr(rer_mod, "_default_quota_fetcher"):
+            stack.enter_context(
+                patch.object(rer_mod, "_default_quota_fetcher", lambda _cli: {})
+            )
+        _active_isolations += 1
+        try:
+            yield fake_home
+        finally:
+            _active_isolations -= 1
+
+
+class _HostIsolatedTestCase(unittest.TestCase):
+    """Base class that applies the host isolation to every test under any runner."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        stack = contextlib.ExitStack()
+        self.addCleanup(stack.close)
+        self.isolated_home: Path = stack.enter_context(_isolated_host_env())
+
+
+@pytest.fixture(autouse=True)
+def _isolate_host_env(request: pytest.FixtureRequest) -> Iterator[Path | None]:
+    """Isolate module-level pytest tests; TestCase tests isolate themselves in setUp."""
+    if isinstance(request.instance, _HostIsolatedTestCase):
+        yield None
+        return
+    with _isolated_host_env() as fake_home:
+        yield fake_home
+
+
+class TestHostIsolation(_HostIsolatedTestCase):
+    """The isolation applies once, under both unittest and pytest."""
+
+    def test_home_and_profile_env_are_isolated(self) -> None:
+        self.assertEqual(os.environ["HOME"], str(self.isolated_home))
+        self.assertEqual(os.environ["REAL_HOME"], str(self.isolated_home))
+        self.assertNotEqual(os.environ["HOME"], _HOST_HOME)
+        for var in _PROFILE_ENV_VARS:
+            self.assertNotIn(var, os.environ)
+
+    def test_quota_fetcher_is_stubbed_and_isolation_applied_once(self) -> None:
+        rer_mod = _load_run_external_review()
+        self.assertEqual(rer_mod._default_quota_fetcher("agy"), {})
+        self.assertEqual(_active_isolations, 1)
+
+
+def test_module_level_tests_are_isolated_once(_isolate_host_env: Path | None) -> None:
+    assert _isolate_host_env is not None
+    assert os.environ["HOME"] == str(_isolate_host_env)
+    assert os.environ["HOME"] != _HOST_HOME
+    assert _active_isolations == 1
+    assert _load_run_external_review()._default_quota_fetcher("agy") == {}
+
+
+class TestLifecycleRunner_Integration(_HostIsolatedTestCase):
     """Test suite covering ALR-ST-03, ALR-AR-02, and Task 1 requirements."""
 
     def setUp(self) -> None:
+        super().setUp()
         self.temp_dir = tempfile.mkdtemp()
         self.root = Path(self.temp_dir)
         self.epic_slug = "autonomous_lifecycle_runner"
@@ -130,25 +240,51 @@ class TestLifecycleRunner_Integration(unittest.TestCase):
         self.assertEqual(loaded.principal_round, 3)
 
     def test_runner_config_assistant_model_precedence(self) -> None:
-        """Assistant model resolution follows CLI -> review_config.json -> fallback precedence."""
-        # 1. Fallback default
+        """AI Architect & Reviewer model resolution follows CLI > --config > persona_config (ignoring legacy files)."""
+        # 1. Kit fallback via persona_config (argon high -> gemini-4-argon-high)
         cfg = RunnerConfig()
-        self.assertEqual(
-            cfg.resolve_assistant_model(self.root), "claude-sonnet-5-5-high"
-        )
+        self.assertEqual(cfg.resolve_assistant_model(self.root), "gemini-4-argon-high")
 
-        # 2. Config file precedence
+        # 2. Legacy review_config.json and AGY_ASSISTANT_MODEL are ignored
         review_config_file = self.root / ".devtool" / "review_config.json"
         review_config_file.parent.mkdir(parents=True, exist_ok=True)
         review_config_file.write_text(
             json.dumps({"providers": {"assistant": {"model": "Opus 5.5"}}}),
             encoding="utf-8",
         )
-        self.assertEqual(cfg.resolve_assistant_model(self.root), "Opus 5.5")
+        with patch.dict(os.environ, {"AGY_ASSISTANT_MODEL": "legacy-env-model"}):
+            self.assertEqual(
+                cfg.resolve_assistant_model(self.root), "gemini-4-argon-high"
+            )
 
-        # 3. Explicit CLI config override takes top precedence
-        cfg_cli = RunnerConfig(assistant_model="gpt-6.1-sol")
-        self.assertEqual(cfg_cli.resolve_assistant_model(self.root), "gpt-6.1-sol")
+        # 3. Project persona_config overrides kit default
+        personas_file = self.root / ".agents" / "config" / "personas.json"
+        personas_file.parent.mkdir(parents=True, exist_ok=True)
+        personas_file.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "overrides": {
+                        "ai_architect_reviewer": {
+                            "model": "claude-opus",
+                            "effort": "high",
+                        }
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        self.assertEqual(cfg.resolve_assistant_model(self.root), "opus")
+
+        # 4. --config architect_model beats persona_config; CLI beats --config
+        cfg_file = RunnerConfig(config_architect_model="codex-gpt")
+        self.assertEqual(cfg_file.resolve_assistant_model(self.root), "gpt-6.1-sol")
+        cfg_cli = RunnerConfig(
+            architect_model="claude-sonnet", config_architect_model="codex-gpt"
+        )
+        self.assertEqual(cfg_cli.resolve_assistant_model(self.root), "sonnet")
+        cfg_alias = RunnerConfig(assistant_model="gpt-6.1-sol")
+        self.assertEqual(cfg_alias.resolve_assistant_model(self.root), "gpt-6.1-sol")
 
     def test_alr_hp_02(self) -> None:
         """[ALR-HP-02] Headless dispatch of AI Programmer with Gemini 3.8 Flash High."""
@@ -438,7 +574,7 @@ class TestLifecycleRunner_Integration(unittest.TestCase):
             )
 
     def test_alr_fr_04(self) -> None:
-        """[ALR-FR-04] AI Assistant rejects fix plan with CRITICAL_CONFLICT and halts pipeline."""
+        """[ALR-FR-04] Role 2.1 fix-planner escalates on CRITICAL_CONFLICT / halt criteria and fails closed."""
         runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
 
         mock_triage = (
@@ -453,41 +589,48 @@ class TestLifecycleRunner_Integration(unittest.TestCase):
             mock_proc.stdout = mock_triage
             mock_run.return_value = mock_proc
 
-            with (
-                patch.object(runner, "_draft_fix_plan", return_value="Draft fix plan"),
-                patch.object(
-                    runner,
-                    "evaluate_programmer_fix_plan",
-                    return_value=(
-                        FixPlanVerdict.CRITICAL_CONFLICT,
-                        "Attempted unilateral contract modification",
-                    ),
-                ),
+            with patch.object(
+                runner,
+                "_draft_fix_plan",
+                return_value=("ESCALATE", ["CRITICAL_CONFLICT"], ""),
             ):
                 ok = runner.step_cross_model_review()
                 self.assertFalse(ok)
                 self.assertEqual(runner.state.active_stage, StageName.HALTED.value)
-                self.assertIn("CRITICAL_CONFLICT", str(runner.state.halt_reason))
+                self.assertEqual(runner.state.halt_reason, "FIX_PLAN_ESCALATE")
+                pd_file = self.state_dir / "pending_decision.json"
+                pd_data = json.loads(pd_file.read_text(encoding="utf-8"))
+                self.assertEqual(
+                    pd_data["decisions"][self.epic_slug]["kind"], "blocker"
+                )
+                self.assertIn(
+                    "CRITICAL_CONFLICT", pd_data["decisions"][self.epic_slug]["reason"]
+                )
 
-        # Direct evaluation fail-closed checks
+        # Direct fix-planner fail-closed checks
+        runner_direct = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
+        runner_direct.state.active_stage = StageName.CROSS_MODEL_REVIEW.value
         with patch.object(
-            runner.dispatcher, "dispatch", return_value=(124, "", "Process timed out")
+            runner_direct.dispatcher,
+            "dispatch",
+            return_value=(124, "", "Process timed out"),
         ):
-            verdict, rationale = runner.evaluate_programmer_fix_plan(1)
-            self.assertEqual(verdict, FixPlanVerdict.CRITICAL_CONFLICT)
-            self.assertIn("timed out", rationale)
+            status, criteria, _ = runner_direct._draft_fix_plan(1, mock_triage)
+            self.assertEqual(status, "ESCALATE")
+            self.assertEqual(criteria, ["UNPARSEABLE"])
 
         with patch.object(
-            runner.dispatcher,
+            runner_direct.dispatcher,
             "dispatch",
             return_value=(0, "Unrecognized rambling reply", ""),
         ):
-            verdict, rationale = runner.evaluate_programmer_fix_plan(1)
-            self.assertEqual(verdict, FixPlanVerdict.CRITICAL_CONFLICT)
-            self.assertIn("Unparseable fix plan verdict", rationale)
+            status, criteria, _ = runner_direct._draft_fix_plan(1, mock_triage)
+            self.assertEqual(status, "ESCALATE")
+            self.assertEqual(criteria, ["UNPARSEABLE"])
+        self.assertIn("CRITICAL_CONFLICT", HALT_CRITERIA)
 
     def test_alr_ec_03(self) -> None:
-        """[ALR-EC-03] AI Assistant adjusts AI Programmer fix plan without rejecting."""
+        """[ALR-EC-03] Role 2.1 fix-planner plans fix_plan_round1.md and review-fixer applies it."""
         runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
 
         mock_triage_r1 = (
@@ -520,12 +663,12 @@ class TestLifecycleRunner_Integration(unittest.TestCase):
             ]
 
             with (
-                patch.object(runner, "_draft_fix_plan", return_value="Draft fix plan"),
                 patch.object(
                     runner,
-                    "evaluate_programmer_fix_plan",
+                    "_draft_fix_plan",
                     return_value=(
-                        FixPlanVerdict.ADJUSTED,
+                        "PLANNED",
+                        [],
                         "Add edge-case assertion for null payload",
                     ),
                 ),
@@ -535,17 +678,16 @@ class TestLifecycleRunner_Integration(unittest.TestCase):
             ):
                 ok = runner.step_cross_model_review()
                 self.assertTrue(ok)
-                self.assertEqual(
-                    runner.state.last_verdict, FixPlanVerdict.ADJUSTED.value
-                )
+                self.assertEqual(runner.state.last_verdict, "PLANNED")
                 mock_apply.assert_called_once()
                 self.assertIn(
                     "Add edge-case assertion",
                     mock_apply.call_args[1].get("plan_text", ""),
                 )
+                self.assertEqual(mock_apply.call_args[1].get("mode"), "apply-plan")
 
     def test_alr_hp_04(self) -> None:
-        """[ALR-HP-04] AI Assistant approves AI Programmer fix plan in Cross-Model Review without Human stop."""
+        """[ALR-HP-04] Role 2.1 fix-planner outputs PLANNED and review-fixer applies without Human stop."""
         runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
 
         mock_triage_r1 = (
@@ -578,14 +720,10 @@ class TestLifecycleRunner_Integration(unittest.TestCase):
             ]
 
             with (
-                patch.object(runner, "_draft_fix_plan", return_value="Draft fix plan"),
                 patch.object(
                     runner,
-                    "evaluate_programmer_fix_plan",
-                    return_value=(
-                        FixPlanVerdict.APPROVED,
-                        "Fix plan adheres to HLD",
-                    ),
+                    "_draft_fix_plan",
+                    return_value=("PLANNED", [], "Fix plan adheres to HLD"),
                 ),
                 patch.object(runner, "_apply_code_fixes") as mock_apply,
                 patch.object(runner, "_record_review_decisions"),
@@ -596,9 +734,7 @@ class TestLifecycleRunner_Integration(unittest.TestCase):
                 self.assertEqual(
                     runner.state.active_stage, StageName.AWAITING_FINISH.value
                 )
-                self.assertEqual(
-                    runner.state.last_verdict, FixPlanVerdict.APPROVED.value
-                )
+                self.assertEqual(runner.state.last_verdict, "PLANNED")
                 mock_apply.assert_called_once()
 
     def test_alr_fr_03(self) -> None:
@@ -616,43 +752,53 @@ class TestLifecycleRunner_Integration(unittest.TestCase):
     def test_alr_st_02(self) -> None:
         """[ALR-ST-02] Gate Ledger synchronization on autonomous state transitions."""
         runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
+        pass_payload = json.dumps(
+            {
+                "candidate_sha": "HEAD",
+                "verdict": "PASS",
+                "audit_exit": 0,
+                "quality_check_report": "ok",
+                "failures": [],
+            }
+        )
 
         with (
             patch.object(runner, "sync_gate_ledger", return_value=True) as mock_sync,
-            patch("subprocess.run") as mock_run,
+            patch.object(
+                runner.dispatcher,
+                "dispatch",
+                return_value=(0, f"```json\n{pass_payload}\n```\n", ""),
+            ),
         ):
-            mock_proc = MagicMock()
-            mock_proc.returncode = 0
-            mock_proc.stdout = "OK"
-            mock_run.return_value = mock_proc
-
             ok, msg = runner.run_gate4()
             self.assertTrue(ok)
             self.assertIn("PASS", msg)
             mock_sync.assert_called_with(4, unittest.mock.ANY)
 
-        # Gate 4 fails deterministically when audit fails
-        audit_file = (
-            self.root
-            / "skills"
-            / "dev-implementation"
-            / "resources"
-            / "scripts"
-            / "audit_epic.py"
+        # Gate 4 fails deterministically when verifier reports audit failure
+        fail_payload = json.dumps(
+            {
+                "candidate_sha": "HEAD",
+                "verdict": "FAIL",
+                "audit_exit": 2,
+                "quality_check_report": "fail",
+                "failures": ["Audit failure: missing task evidence"],
+            }
         )
-        audit_file.parent.mkdir(parents=True, exist_ok=True)
-        audit_file.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
-
-        with patch("subprocess.run") as mock_run:
-            mock_proc = MagicMock()
-            mock_proc.returncode = 2
-            mock_proc.stderr = "Audit failure: missing task evidence"
-            mock_proc.stdout = ""
-            mock_run.return_value = mock_proc
-
+        with (
+            patch.object(runner, "sync_gate_ledger", return_value=True) as mock_sync,
+            patch.object(
+                runner.dispatcher,
+                "dispatch",
+                return_value=(0, f"```json\n{fail_payload}\n```\n", ""),
+            ),
+            patch.object(runner, "_apply_code_fixes", return_value=False),
+        ):
             ok, err = runner.run_gate4()
             self.assertFalse(ok)
             self.assertIn("failed", err.lower())
+            self.assertIn("missing task evidence", err)
+            mock_sync.assert_not_called()
 
     def test_alr_hp_01(self) -> None:
         """[ALR-HP-01] Complete autonomous pipeline executes from handoff to final executive report."""
@@ -725,11 +871,10 @@ class TestLifecycleRunner_Integration(unittest.TestCase):
             ]
 
             with (
-                patch.object(runner, "_draft_fix_plan", return_value="Draft fix plan"),
                 patch.object(
                     runner,
-                    "evaluate_programmer_fix_plan",
-                    return_value=(FixPlanVerdict.APPROVED, "Fix plan adheres to HLD"),
+                    "_draft_fix_plan",
+                    return_value=("PLANNED", [], "Fix plan adheres to HLD"),
                 ),
                 patch.object(runner, "_apply_code_fixes"),
                 patch.object(runner, "_record_review_decisions"),
@@ -816,97 +961,95 @@ def _load_pool_module() -> Any:
 
 
 def test_tto_hp_04_runner_config_precedence() -> None:
-    """[TTO-HP-04] Verify programmer model/effort precedence CLI -> --config -> review_config -> env -> fallback."""
+    """[TTO-HP-04] Verify programmer model/effort precedence CLI -> --config -> persona_config (project > global > kit)."""
     with tempfile.TemporaryDirectory() as tmp:
-        root = Path(tmp)
+        fake_home = Path(tmp) / "real_home"
+        fake_home.mkdir(parents=True, exist_ok=True)
+        root = Path(tmp) / "repo"
         (root / ".devtool").mkdir(parents=True, exist_ok=True)
         review_cfg_path = root / ".devtool" / "review_config.json"
 
         clean_env = {
             k: v
             for k, v in os.environ.items()
-            if k not in {"AGY_PROGRAMMER_MODEL", "AGY_PROGRAMMER_EFFORT"}
+            if k
+            not in {
+                "AGY_PROGRAMMER_MODEL",
+                "AGY_PROGRAMMER_EFFORT",
+                "AGY_PROFILE",
+                "ANTIGRAVITY_PROFILE",
+            }
         }
+        clean_env["HOME"] = str(fake_home)
+        clean_env["REAL_HOME"] = str(fake_home)
 
-        # 1. Pure fallback when nothing is configured
+        # 1. Pure kit fallback via persona_config
         with patch.dict(os.environ, clean_env, clear=True):
             cfg = RunnerConfig()
             assert cfg.resolve_programmer_model(root) == "gemini-4-hydrogen-xhigh"
             assert cfg.resolve_programmer_effort(root) == "xhigh"
 
-        # 2. Environment fallback + legacy upgrade without disk mutation
-        env_only = dict(clean_env)
-        env_only["AGY_PROGRAMMER_MODEL"] = "gemini-3.8-flash"
-        env_only["AGY_PROGRAMMER_EFFORT"] = "high"
-        with patch.dict(os.environ, env_only, clear=True):
-            cfg = RunnerConfig()
-            assert cfg.resolve_programmer_model(root) == "gemini-4-hydrogen-xhigh"
-            assert cfg.resolve_programmer_effort(root) == "xhigh"
-
-        # 3. review_config.json beats env; legacy aliases upgrade in-memory only
+        # 2. Legacy AGY_PROGRAMMER_* env vars and .devtool/review_config.json are ignored
         legacy_cfg_text = json.dumps(
             {
                 "providers": {
                     "programmer": {
                         "cli": "agy",
-                        "model": "gemini-3.8-flash-high",
-                        "effort": "high",
+                        "model": "custom-prog-v2",
+                        "effort": "low",
                     }
                 }
             },
             indent=2,
         )
         review_cfg_path.write_text(legacy_cfg_text, encoding="utf-8")
-        custom_env = dict(clean_env)
-        custom_env["AGY_PROGRAMMER_MODEL"] = "env-fallback-model"
-        custom_env["AGY_PROGRAMMER_EFFORT"] = "low"
-        with patch.dict(os.environ, custom_env, clear=True):
+        legacy_env = dict(clean_env)
+        legacy_env["AGY_PROGRAMMER_MODEL"] = "env-legacy-model"
+        legacy_env["AGY_PROGRAMMER_EFFORT"] = "low"
+        with patch.dict(os.environ, legacy_env, clear=True):
             cfg = RunnerConfig()
             assert cfg.resolve_programmer_model(root) == "gemini-4-hydrogen-xhigh"
             assert cfg.resolve_programmer_effort(root) == "xhigh"
             assert review_cfg_path.read_text(encoding="utf-8") == legacy_cfg_text
 
-        # Custom review_config.json with thinking_level="extra" normalizes to xhigh and beats env
-        review_cfg_path.write_text(
+        # 3. Global persona_config overrides kit; project persona_config overrides global
+        global_personas = fake_home / ".d3nexus" / "personas.json"
+        global_personas.parent.mkdir(parents=True, exist_ok=True)
+        global_personas.write_text(
             json.dumps(
                 {
-                    "providers": {
-                        "programmer": {
-                            "cli": "agy",
-                            "model": "gemini-4-hydrogen-xhigh",
-                            "thinking_level": "extra",
-                        }
-                    }
+                    "schema_version": 1,
+                    "overrides": {
+                        "programmer": {"model": "hydrogen", "effort": "high"}
+                    },
                 }
             ),
             encoding="utf-8",
         )
-        with patch.dict(os.environ, custom_env, clear=True):
+        with patch.dict(os.environ, legacy_env, clear=True):
             cfg = RunnerConfig()
-            assert cfg.resolve_programmer_model(root) == "gemini-4-hydrogen-xhigh"
-            assert cfg.resolve_programmer_effort(root) == "xhigh"
+            assert cfg.resolve_programmer_model(root) == "gemini-4-hydrogen-high"
+            assert cfg.resolve_programmer_effort(root) == "high"
 
-        # Custom review_config.json overrides env cleanly
-        review_cfg_path.write_text(
+        project_personas = root / ".agents" / "config" / "personas.json"
+        project_personas.parent.mkdir(parents=True, exist_ok=True)
+        project_personas.write_text(
             json.dumps(
                 {
-                    "providers": {
-                        "programmer": {
-                            "cli": "agy",
-                            "model": "custom-prog-v2",
-                            "effort": "medium",
-                        }
-                    }
+                    "schema_version": 1,
+                    "overrides": {
+                        "programmer": {"model": "codex-gpt", "effort": "medium"}
+                    },
                 }
             ),
             encoding="utf-8",
         )
-        with patch.dict(os.environ, custom_env, clear=True):
+        with patch.dict(os.environ, legacy_env, clear=True):
             cfg = RunnerConfig()
-            assert cfg.resolve_programmer_model(root) == "custom-prog-v2"
+            assert cfg.resolve_programmer_model(root) == "gpt-6.1-sol"
             assert cfg.resolve_programmer_effort(root) == "medium"
 
-            # 4. --config JSON beats .devtool/review_config.json via main()
+            # 4. --config JSON beats persona_config via main()
             runner_cfg_file = root / "runner_cfg.json"
             runner_cfg_file.write_text(
                 json.dumps(
@@ -953,7 +1096,7 @@ def test_tto_hp_04_runner_config_precedence() -> None:
             )
             assert captured_configs[0].resolve_programmer_effort(root) == "xhigh"
 
-            # 5. CLI beats --config, review_config.json, and env
+            # 5. CLI beats --config, persona_config, review_config.json, and env
             captured_configs.clear()
             with (
                 patch.object(
@@ -988,7 +1131,7 @@ def test_tto_hp_04_runner_config_precedence() -> None:
             )
             assert captured_configs[0].resolve_programmer_effort(root) == "low"
 
-            # 6. Default main() without --programmer-model respects review_config.json and probes it
+            # 6. Default run() probes the persona_config-resolved binding
             runner = LifecycleRunner(root=root, epic_slug="demo", config=RunnerConfig())
             runner.state.active_stage = StageName.INITIALIZED.value
             runner.save_state()
@@ -997,7 +1140,7 @@ def test_tto_hp_04_runner_config_precedence() -> None:
             ) as mock_probe:
                 rc = runner.run(dry_run=False)
                 assert rc == 1
-                mock_probe.assert_called_once_with("agy", "custom-prog-v2")
+                mock_probe.assert_called_once_with("codex", "gpt-6.1-sol")
 
 
 def test_tto_ec_04_effort_normalization_and_cli_args() -> None:
@@ -1027,28 +1170,29 @@ def test_tto_ec_04_effort_normalization_and_cli_args() -> None:
 
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        (root / ".devtool").mkdir(parents=True, exist_ok=True)
-        (root / ".devtool" / "review_config.json").write_text(
-            json.dumps(
-                {
-                    "providers": {
-                        "programmer": {
-                            "cli": "agy",
-                            "model": "gemini-4-hydrogen-xhigh",
-                            "effort": "extra-high",
-                        }
-                    }
-                }
-            ),
-            encoding="utf-8",
+        runner = LifecycleRunner(
+            root=root,
+            epic_slug="demo",
+            config=RunnerConfig(programmer_effort="extra-high"),
         )
-        runner = LifecycleRunner(root=root, epic_slug="demo", config=RunnerConfig())
-        recorded_args: list[list[str]] = []
+        recorded: list[tuple[str, list[str]]] = []
 
         def fake_dispatch(
             cli: str, args: list[str], prompt: str
         ) -> tuple[int, str, str]:
-            recorded_args.append(list(args))
+            recorded.append((cli, list(args)))
+            if "fix-planner" in prompt:
+                return (
+                    0,
+                    '```json\n{"round": 1, "status": "PLANNED", "halt_criteria": [], "plan_markdown": "# Plan\\n"}\n```\n',
+                    "",
+                )
+            if "task-implementer" in prompt:
+                return (
+                    0,
+                    '```json\n{"task_id": "task_01_demo", "slot": 1, "status": "DONE", "head_sha": "abc", "verify": "PASS", "changed_files": ["src/a.py"], "non_test_modules_changed": 1, "review_tier": "standard", "labels": [], "finalized": false}\n```\n',
+                    "",
+                )
             return 0, "ok", ""
 
         with (
@@ -1056,17 +1200,25 @@ def test_tto_ec_04_effort_normalization_and_cli_args() -> None:
             patch.object(runner, "_run_scoped_tests", return_value=(True, "ok")),
         ):
             assert runner._execute_single_task("task_01_demo")
-            runner._draft_fix_plan(1, "find")
+            status, _, _ = runner._draft_fix_plan(1, "find")
+            assert status == "PLANNED"
             assert runner._apply_code_fixes(1, plan_text="plan")
 
-        assert len(recorded_args) == 3
-        for args in recorded_args:
+        assert len(recorded) == 3
+        for idx_call in (0, 2):
+            _, args = recorded[idx_call]
             assert "--effort" in args
             idx = args.index("--effort")
             assert args[idx + 1] == "xhigh"
             assert "--model" in args
             m_idx = args.index("--model")
             assert args[m_idx + 1] == "gemini-4-hydrogen-xhigh"
+        # _draft_fix_plan uses ai_architect_reviewer (argon high) in read-only mode
+        _, plan_args = recorded[1]
+        assert "--sandbox" in plan_args
+        assert "--model" in plan_args
+        assert plan_args[plan_args.index("--model") + 1] == "gemini-4-argon-high"
+        assert plan_args[plan_args.index("--effort") + 1] == "high"
 
 
 def test_tto_fr_03_tail_lines_caps_gate4_and_intermediate_errors() -> None:
@@ -1087,28 +1239,24 @@ def test_tto_fr_03_tail_lines_caps_gate4_and_intermediate_errors() -> None:
         root = Path(tmp)
         (root / ".devtool" / "epic" / "demo").mkdir(parents=True, exist_ok=True)
         (root / ".devtool" / "features").mkdir(parents=True, exist_ok=True)
-        (root / ".devtool" / "epic" / "demo" / "demo.en.md").write_text(
+        (root / ".devtool" / "epic" / "demo" / "demo.md").write_text(
             "# Demo HLD\nIntegration results: echo ok -> PASS\n",
             encoding="utf-8",
         )
-        (root / ".devtool" / "epic" / "demo" / "bdd_scenarios.en.md").write_text(
+        (root / ".devtool" / "epic" / "demo" / "bdd_scenarios.md").write_text(
             "# BDD\n", encoding="utf-8"
         )
-        (root / "scripts").mkdir(parents=True, exist_ok=True)
         (root / "skills" / "dev-implementation" / "resources" / "scripts").mkdir(
             parents=True, exist_ok=True
         )
-        for name in (
-            "generate_smoke_checklist.py",
-            "run_external_review.py",
-            "audit_epic.py",
-            "check_bdd_traceability.py",
-        ):
-            (
-                root / "skills" / "dev-implementation" / "resources" / "scripts" / name
-            ).write_text("# stub\n", encoding="utf-8")
-        verify_sh = root / "scripts" / "verify.sh"
-        verify_sh.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+        (
+            root
+            / "skills"
+            / "dev-implementation"
+            / "resources"
+            / "scripts"
+            / "run_external_review.py"
+        ).write_text("# stub\n", encoding="utf-8")
 
         runner = LifecycleRunner(root=root, epic_slug="demo")
         verbose_err = (
@@ -1116,40 +1264,26 @@ def test_tto_fr_03_tail_lines_caps_gate4_and_intermediate_errors() -> None:
             + "\nFAIL: final_summary_error"
         )
 
-        # verify.sh must receive --quiet and cap output to <= 25 trailing lines
-        with patch("subprocess.run") as mock_run:
-            ok_proc = MagicMock(returncode=0, stdout="ok", stderr="")
-            fail_proc = MagicMock(returncode=1, stdout="", stderr=verbose_err)
-            mock_run.side_effect = [
-                ok_proc,
-                ok_proc,
-                ok_proc,
-                ok_proc,
-                ok_proc,
-                fail_proc,
-            ]
+        # gate4-verifier brief must carry verify.sh --quiet and cap verifier failures to <= 25 trailing lines
+        captured_prompts: list[str] = []
 
+        def fail_verifier(
+            cli: str, args: list[str], prompt: str
+        ) -> tuple[int, str, str]:
+            captured_prompts.append(prompt)
+            return 1, "", verbose_err
+
+        with (
+            patch.object(runner.dispatcher, "dispatch", side_effect=fail_verifier),
+            patch.object(runner, "_apply_code_fixes", return_value=False),
+        ):
             ok, msg = runner.run_gate4()
             assert not ok
             assert "final_summary_error" in msg
             assert "line_001" not in msg
             assert len(msg.splitlines()) <= 26
-            last_cmd = mock_run.call_args_list[-1][0][0]
-            assert "--quiet" in last_cmd
-
-        # Earlier Gate 4 failure branches + intermediate check also cap output
-        for fail_step in range(5):
-            with patch("subprocess.run") as mock_run:
-                ok_proc = MagicMock(returncode=0, stdout="ok", stderr="")
-                fail_proc = MagicMock(returncode=1, stdout=verbose_err, stderr="")
-                side_effects = [ok_proc] * fail_step + [fail_proc]
-                mock_run.side_effect = side_effects
-
-                ok, msg = runner.run_gate4()
-                assert not ok
-                assert "final_summary_error" in msg
-                assert "line_001" not in msg
-                assert len(msg.splitlines()) <= 26
+            assert "--quiet" in captured_prompts[0]
+            assert "echo ok" in captured_prompts[0]
 
         # Run intermediate check failure cap
         with patch("subprocess.run") as mock_run:
@@ -1164,7 +1298,7 @@ def test_tto_fr_03_tail_lines_caps_gate4_and_intermediate_errors() -> None:
 
 
 def test_tto_hp_07_streamlined_code_fix_and_real_executive_report() -> None:
-    """[TTO-HP-07] Fast-track verified bug in Cross-Model Review, fail cleanly on error, and render real report."""
+    """[TTO-HP-07] Fast-track verified non-Critical bug in Cross-Model Review, refuse Critical, and render real report."""
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         epic_dir = root / ".devtool" / "epic" / "demo_epic"
@@ -1194,7 +1328,7 @@ def test_tto_hp_07_streamlined_code_fix_and_real_executive_report() -> None:
             "- Candidate SHA: `222bbbb`\n\n"
             "| ID | Severity | File / Target | Problem | Status |\n"
             "| --- | --- | --- | --- | --- |\n"
-            "| CR-01 | Critical | `src/app.py:4` | Null token causes crash in parse_token | Open |\n"
+            "| CR-01 | Important | `src/app.py:4` | Null token causes crash in parse_token | Open |\n"
             "| CR-02 | Important | `src/app.py:10` | Missing timeout bound on retry loop | fixed in 333cccc |\n\n"
             "```text\n"
             "Raw output:\n"
@@ -1204,11 +1338,22 @@ def test_tto_hp_07_streamlined_code_fix_and_real_executive_report() -> None:
         )
 
         runner = LifecycleRunner(root=root, epic_slug="demo_epic")
+        assert not runner._can_fast_track_code_findings(
+            [
+                {
+                    "severity": "Critical",
+                    "target": "src/app.py:4",
+                    "problem": "Crash",
+                    "status": "Open",
+                }
+            ],
+            "## Auto-Triage Gate\n- **Action**: AUTO_FIX_ELIGIBLE\n",
+        )
         triage_r1 = (
             "## Auto-Triage Gate\n\n"
             "- **Action**: AUTO_FIX_ELIGIBLE\n"
             "- **Round**: 1 / 3\n"
-            "- **Directive**: 1 Critical finding.\n"
+            "- **Directive**: 1 Important finding.\n"
         )
         triage_r2 = (
             "## Auto-Triage Gate\n\n"
@@ -1224,7 +1369,6 @@ def test_tto_hp_07_streamlined_code_fix_and_real_executive_report() -> None:
 
             with (
                 patch.object(runner, "_draft_fix_plan") as mock_draft,
-                patch.object(runner, "evaluate_programmer_fix_plan") as mock_eval,
                 patch.object(
                     runner, "_apply_code_fixes", return_value=True
                 ) as mock_apply,
@@ -1239,7 +1383,6 @@ def test_tto_hp_07_streamlined_code_fix_and_real_executive_report() -> None:
                 ok = runner.step_cross_model_review()
                 assert ok
                 mock_draft.assert_not_called()
-                mock_eval.assert_not_called()
                 mock_apply.assert_called_once()
                 mock_rec.assert_called_once()
                 mock_scoped.assert_called_once()
@@ -1250,7 +1393,12 @@ def test_tto_hp_07_streamlined_code_fix_and_real_executive_report() -> None:
         runner_fail = LifecycleRunner(root=root, epic_slug="demo_epic")
         with patch("subprocess.run") as mock_run:
             p1 = MagicMock(returncode=0, stdout=triage_r1, stderr="")
-            mock_run.side_effect = [p1, p1]
+            non_review_proc = MagicMock(returncode=1, stdout="", stderr="")
+            mock_run.side_effect = lambda cmd, **_kw: (
+                p1
+                if any("run_external_review.py" in str(part) for part in cmd)
+                else non_review_proc
+            )
             with (
                 patch.object(
                     runner_fail.dispatcher, "dispatch", return_value=(1, "", "boom")
@@ -1286,7 +1434,7 @@ def test_tto_hp_07_streamlined_code_fix_and_real_executive_report() -> None:
 
 
 def test_tto_st_04_cross_model_escalation_on_contract_or_ambiguity() -> None:
-    """[TTO-ST-04] Escalate or route through Role 2.2 on shared-contracts, debatable, or unverified findings."""
+    """[TTO-ST-04] Escalate or route through Role 2.1 fix-planner on shared-contracts, debatable, or unverified findings."""
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         epic_dir = root / ".devtool" / "epic" / "demo_epic"
@@ -1313,7 +1461,7 @@ def test_tto_st_04_cross_model_escalation_on_contract_or_ambiguity() -> None:
             "- **Directive**: 0 findings.\n"
         )
 
-        # Case 1: shared-contracts conflict refuses fast-track and halts on CRITICAL_CONFLICT
+        # Case 1: shared-contracts conflict refuses fast-track and halts on FIX_PLAN_ESCALATE
         (epic_dir / "review_results.md").write_text(
             "## Round 1\n\n"
             "| ID | Severity | File / Target | Problem | Status |\n"
@@ -1324,32 +1472,28 @@ def test_tto_st_04_cross_model_escalation_on_contract_or_ambiguity() -> None:
         runner = LifecycleRunner(root=root, epic_slug="demo_epic")
         with patch("subprocess.run") as mock_run:
             p1 = MagicMock(returncode=0, stdout=triage_r1, stderr="")
-            mock_run.side_effect = [p1, p1]
+            non_review_proc = MagicMock(returncode=1, stdout="", stderr="")
+            mock_run.side_effect = lambda cmd, **_kw: (
+                p1
+                if any("run_external_review.py" in str(part) for part in cmd)
+                else non_review_proc
+            )
             with (
                 patch.object(
-                    runner, "_draft_fix_plan", return_value="Draft plan"
-                ) as mock_draft,
-                patch.object(
                     runner,
-                    "evaluate_programmer_fix_plan",
-                    return_value=(
-                        FixPlanVerdict.CRITICAL_CONFLICT,
-                        "Touches shared-contracts",
-                    ),
-                ) as mock_eval,
+                    "_draft_fix_plan",
+                    return_value=("ESCALATE", ["SHARED_CONTRACT_CONFLICT"], ""),
+                ) as mock_draft,
                 patch.object(
                     runner, "_apply_code_fixes", return_value=True
                 ) as mock_apply,
             ):
                 ok = runner.step_cross_model_review()
                 assert not ok
+                mock_draft.assert_called_once()
                 mock_apply.assert_not_called()
-                assert (
-                    mock_draft.called
-                    or runner.state.active_stage == StageName.HALTED.value
-                )
-                if mock_draft.called:
-                    mock_eval.assert_called_once()
+                assert runner.state.active_stage == StageName.HALTED.value
+                assert runner.state.halt_reason == "FIX_PLAN_ESCALATE"
 
         # Case 2: Debatable / ambiguous architectural state transition refuses fast-track
         (epic_dir / "review_results.md").write_text(
@@ -1367,13 +1511,8 @@ def test_tto_st_04_cross_model_escalation_on_contract_or_ambiguity() -> None:
             mock_run.side_effect = [p1, p1, p2, p2]
             with (
                 patch.object(
-                    runner2, "_draft_fix_plan", return_value="Draft plan"
+                    runner2, "_draft_fix_plan", return_value=("PLANNED", [], "Plan")
                 ) as mock_draft,
-                patch.object(
-                    runner2,
-                    "evaluate_programmer_fix_plan",
-                    return_value=(FixPlanVerdict.APPROVED, "OK"),
-                ) as mock_eval,
                 patch.object(runner2, "_apply_code_fixes", return_value=True),
                 patch.object(runner2, "_record_review_decisions"),
                 patch.object(
@@ -1384,7 +1523,6 @@ def test_tto_st_04_cross_model_escalation_on_contract_or_ambiguity() -> None:
                 ok = runner2.step_cross_model_review()
                 assert ok
                 mock_draft.assert_called_once()
-                mock_eval.assert_called_once()
 
         # Case 3: Unverified / missing file target refuses fast-track
         (epic_dir / "review_results.md").write_text(
@@ -1402,13 +1540,8 @@ def test_tto_st_04_cross_model_escalation_on_contract_or_ambiguity() -> None:
             mock_run.side_effect = [p1, p1, p2, p2]
             with (
                 patch.object(
-                    runner3, "_draft_fix_plan", return_value="Draft plan"
+                    runner3, "_draft_fix_plan", return_value=("PLANNED", [], "Plan")
                 ) as mock_draft,
-                patch.object(
-                    runner3,
-                    "evaluate_programmer_fix_plan",
-                    return_value=(FixPlanVerdict.APPROVED, "OK"),
-                ) as mock_eval,
                 patch.object(runner3, "_apply_code_fixes", return_value=True),
                 patch.object(runner3, "_record_review_decisions"),
                 patch.object(
@@ -1419,7 +1552,6 @@ def test_tto_st_04_cross_model_escalation_on_contract_or_ambiguity() -> None:
                 ok = runner3.step_cross_model_review()
                 assert ok
                 mock_draft.assert_called_once()
-                mock_eval.assert_called_once()
 
 
 def test_tto_ar_01_parallel_pool_dispatch_and_path_only_prompts() -> None:
@@ -1510,6 +1642,7 @@ def test_tto_ar_01_parallel_pool_dispatch_and_path_only_prompts() -> None:
             / "scripts"
         )
         for script_name in (
+            "_epic_docs.py",
             "compute_execution_order.py",
             "manage_worker_pool.py",
             "slug_utils.py",

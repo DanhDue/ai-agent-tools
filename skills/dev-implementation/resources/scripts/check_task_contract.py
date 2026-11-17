@@ -2,8 +2,11 @@
 """Check the task files and HLD a designer wrote against the task contract, before Gate 2 closes.
 
 Usage:
-  check_task_contract.py [--design] --hld <epic_dir>.en.md --tasks <task_*.md ...>
+  check_task_contract.py [--design] --hld <epic_dir>.md --tasks <task_*.md ...>
 
+Accepts `<epic_dir>.md` or legacy `<epic_dir>.en.md` for `--hld`, and resolves
+`bdd_scenarios` English-only via `_epic_docs.resolve_epic_doc` (`bdd_scenarios.md`,
+else legacy `bdd_scenarios.en.md`; Vietnamese `*.vi.md` mirrors are never read).
 Prints problems as `<task stem>:<row or section>: <problem>` or `<hld file name>: <problem>`, the
 implicit protected paths, and a Result line. Exit codes: 0 no problem; 1 problems; 2 usage error.
 Python 3 standard library only.
@@ -12,20 +15,25 @@ from __future__ import annotations
 
 import argparse
 import ast
+import fnmatch
 import importlib
 import json
+import os
 import re
 import shlex
 import shutil
 import subprocess
 import sys
+from functools import cache
 from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _epic_docs import resolve_epic_doc
 tc: Any = importlib.import_module("task_contract")
 cb: Any = importlib.import_module("check_bdd_traceability")
 sts: Any = importlib.import_module("sync_task_status")
+ceo: Any = importlib.import_module("compute_execution_order")
 UsageError: type[Exception] = cb.UsageError
 covers_of: Any = cb.covers_of
 read_text: Any = cb.read_text
@@ -33,7 +41,7 @@ read_text: Any = cb.read_text
 SECTIONS = ("Files", "Verification", "Definition of Done", "Stop and Report If", "Decisions Already Made")
 ROW_PREFIX = re.compile(r"^Verification row [^:]+: ")
 STATUS = re.compile(r'^status:\s*"?([A-Za-z_-]+)"?\s*$', re.MULTILINE)
-GLOB_CHARS = re.compile(r"[*?]")
+GLOB_CHARS = re.compile(r"[*?\[]")
 WEAK_ASSERTION_RE = re.compile(r"\b(should be truthy|is valid|should work|returns non-empty)\b", re.IGNORECASE)
 RESERVED_RUNNER_EVIDENCE = re.compile(r"^task_.*\.json$")
 NON_PORTABLE_PATH_RE = re.compile(r"(?:/Users/|/home/|~/|\.claude/plugins/cache/|\.gemini/config/plugins/)")
@@ -61,8 +69,9 @@ class Checker:
         self.root = root
         self.problems: list[str] = []
         self.warnings: list[str] = []
-        listed = subprocess.run(["git", "ls-files", "-z"], check=False, cwd=root, capture_output=True, text=True).stdout
-        self.tracked = set(listed.split("\0")) - {""}
+        proc = subprocess.run(["git", "ls-files", "-z"], check=False, cwd=root, capture_output=True, text=True)
+        self.in_git_repo = proc.returncode == 0
+        self.tracked = set(proc.stdout.split("\0")) - {""}
 
     def ignored(self, path: str) -> bool:
         return subprocess.run(["git", "check-ignore", "-q", "--", path], check=False, cwd=self.root,
@@ -75,7 +84,7 @@ class Checker:
         return path in self.tracked
 
     def matches_tracked(self, pattern: str) -> bool:
-        return any(tc.path_matches(pattern, name) for name in self.tracked)
+        return any(_glob_matches(pattern, name) for name in self.tracked)
 
 
 def read_file(path: Path) -> str:
@@ -178,9 +187,11 @@ def check_allowed(
             for p in prereq_files
         ):
             pass
-        elif pattern.endswith("/") or (not GLOB_CHARS.search(pattern) and (check.root / pattern).is_dir()):
+        elif pattern.endswith("/") or (
+            not check.is_tracked(pattern) and not GLOB_CHARS.search(pattern) and (check.root / pattern).is_dir()
+        ):
             check.problem(f"{stem}:Files", f"{pattern} is a directory; list files or a glob")
-        elif GLOB_CHARS.search(pattern):
+        elif not check.is_tracked(pattern) and GLOB_CHARS.search(pattern):
             if not check.matches_tracked(pattern):
                 check.problem(f"{stem}:Files", f"{pattern} matches no tracked file")
         elif not check.is_tracked(pattern):
@@ -226,6 +237,220 @@ def _normalize_rel_claim(pattern: str) -> str:
     while norm.startswith("./"):
         norm = norm[2:]
     return norm
+
+
+def _normalize_ownership_path(raw: str) -> str:
+    """Normalize an Allowed files entry by stripping annotations, symbols, backticks, and leading ./."""
+    item = raw.strip()
+    if item.startswith("`"):
+        m = re.match(r"^`([^`]+)`", item)
+        candidate = m.group(1) if m else item.replace("`", "")
+    else:
+        candidate = item.replace("`", "")
+    candidate = re.split(
+        r"\s+(?:::|—|–|-)\s+|:(?:\s+|(?=L\d+))", candidate, maxsplit=1
+    )[0]
+    candidate = re.sub(r"\s*\([^)]*\)\s*", " ", candidate).strip()
+    candidate = candidate.replace("`", "").strip()
+    if candidate:
+        candidate = candidate.split()[0]
+    while candidate.startswith("./"):
+        candidate = candidate[2:]
+    return candidate
+
+
+def _allowed_ownership_paths(text: str) -> list[str]:
+    body = tc.section(text, "Files") or ""
+    paths: list[str] = []
+    listing = False
+    for line in body.splitlines():
+        stripped = line.strip()
+        if not listing:
+            listing = stripped == "Allowed files:"
+            continue
+        if stripped.startswith(("- ", "* ")):
+            norm = _normalize_ownership_path(stripped[2:])
+            if norm and norm not in paths:
+                paths.append(norm)
+        elif stripped:
+            break
+    return paths
+
+
+def _task_id_map(tasks: dict[Path, str]) -> dict[str, str]:
+    mapping: dict[str, str] = {}
+    for path, text in tasks.items():
+        stem = path.stem
+        mapping[stem] = stem
+        if text.startswith("---"):
+            fm = text.split("\n---", 1)[0]
+            m = re.search(r'^id:\s*"?([^"\n]+)"?', fm, re.MULTILINE)
+            if m:
+                mapping.setdefault(m.group(1).strip(), stem)
+    return mapping
+
+
+def _glob_matches(pattern: str, path: str) -> bool:
+    """Match a POSIX path against an fnmatch-style glob respecting '/' boundaries.
+
+    '*', '?', and '[...]' (fnmatch '[!...]' negation) match within one path segment and
+    never cross '/'. A standalone '**' segment matches zero or more path segments,
+    except a trailing '/**' requires at least one child segment.
+    """
+    if pattern.endswith("/"):
+        pattern = pattern + "**"
+    pat_parts = pattern.split("/")
+    path_parts = path.split("/")
+    trailing_double_star = len(pat_parts) > 1 and pat_parts[-1] == "**"
+
+    @cache
+    def _match(pi: int, si: int) -> bool:
+        if pi == len(pat_parts):
+            return si == len(path_parts)
+        seg = pat_parts[pi]
+        if seg == "**":
+            if pi == len(pat_parts) - 1:
+                return si < len(path_parts) if trailing_double_star else True
+            return _match(pi + 1, si) or (si < len(path_parts) and _match(pi, si + 1))
+        if si >= len(path_parts) or not fnmatch.fnmatchcase(path_parts[si], seg):
+            return False
+        return _match(pi + 1, si + 1)
+
+    return _match(0, 0)
+
+
+def _ownership_repo_files(check: Checker) -> set[str]:
+    """Return repo-relative POSIX paths from git ls-files, or by walking root outside git."""
+    in_git = getattr(check, "in_git_repo", None)
+    if in_git is True:
+        return set(check.tracked)
+    if in_git is None:
+        if check.tracked:
+            return set(check.tracked)
+        probe = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            check=False,
+            cwd=check.root,
+            capture_output=True,
+            text=True,
+        )
+        if probe.returncode == 0:
+            return set(check.tracked)
+    files: set[str] = set()
+    for dirpath, dirnames, filenames in os.walk(check.root):
+        dirnames[:] = sorted(d for d in dirnames if d != ".git")
+        for fname in sorted(filenames):
+            files.add((Path(dirpath) / fname).relative_to(check.root).as_posix())
+    return files
+
+
+def _classify_ownership_entry(check: Checker, entry: str, repo_files: set[str]) -> str:
+    """Classify a normalized ownership entry as 'glob', 'dir', or 'literal'."""
+    if entry not in repo_files and GLOB_CHARS.search(entry):
+        return "glob"
+    if entry.endswith("/") or (check.root / entry).is_dir():
+        return "dir"
+    return "literal"
+
+
+def _expand_ownership_entry(entry: str, kind: str, universe: list[str]) -> set[str]:
+    """Expand a glob or directory entry against the sorted universe; literals keep {entry}."""
+    if kind == "literal":
+        return {entry}
+    if kind == "dir":
+        prefix = "" if entry in (".", "./") else entry.rstrip("/") + "/"
+        return {p for p in universe if p.startswith(prefix)}
+    return {p for p in universe if _glob_matches(entry, p)}
+
+
+def _blocked_ancestors(tasks: dict[Path, str], ordered_paths: list[Path]) -> dict[str, set[str]]:
+    """Build transitive Blocked-by ancestor map keyed by task stem."""
+    id_map = _task_id_map(tasks)
+    direct_blockers: dict[str, set[str]] = {}
+    for path in ordered_paths:
+        dep_section = ceo.parse_dependencies_section(tasks[path])
+        blockers = ceo.parse_blockers(dep_section)
+        direct_blockers[path.stem] = {id_map.get(b, b) for b in blockers}
+    ancestors: dict[str, set[str]] = {}
+    for stem, blockers_set in direct_blockers.items():
+        seen: set[str] = set()
+        stack = list(blockers_set)
+        while stack:
+            cur = stack.pop()
+            if cur in seen or cur == stem:
+                continue
+            seen.add(cur)
+            stack.extend(direct_blockers.get(cur, ()))
+        ancestors[stem] = seen
+    return ancestors
+
+
+def _emit_pair_ownership_problems(
+    check: Checker,
+    task_a: str,
+    entries_a: list[tuple[str, str, set[str]]],
+    task_b: str,
+    entries_b: list[tuple[str, str, set[str]]],
+) -> None:
+    """Report R-OWN for overlapping literal or expanded entries between two parallel tasks."""
+    literal_shared: list[str] = []
+    expanded_conflicts: list[tuple[str, str, str]] = []
+    for entry_a, kind_a, set_a in entries_a:
+        for entry_b, kind_b, set_b in entries_b:
+            if kind_a == "literal" and kind_b == "literal":
+                if entry_a == entry_b and entry_a not in literal_shared:
+                    literal_shared.append(entry_a)
+                continue
+            overlap = sorted(set_a & set_b)
+            if overlap:
+                expanded_conflicts.append((entry_a, entry_b, overlap[0]))
+    if literal_shared:
+        check.problem(
+            f"{task_a}:Ownership",
+            f"R-OWN {task_a} and {task_b} both own {', '.join(literal_shared)} with no Blocked by path between them",
+        )
+    for entry_a, entry_b, shared_path in expanded_conflicts:
+        check.problem(
+            f"{task_a}:Ownership",
+            f"R-OWN {task_a} and {task_b} both own {shared_path} (via {entry_a} and {entry_b}) with no Blocked by path between them",
+        )
+
+
+def check_exclusive_ownership(check: Checker, tasks: dict[Path, str]) -> None:
+    """Fail with R-OWN when parallel tasks without a Blocked by path claim overlapping Allowed files.
+
+    Globs ('*', '?', '[') and directories (trailing '/' or existing repository directory)
+    expand deterministically against tracked files (or walked tree outside git) plus every
+    literal entry of every task. Matching respects '/' boundaries ('*' does not cross '/';
+    standalone '**' segments match zero or more segments).
+    """
+    ordered_paths = sorted(tasks.keys(), key=lambda p: p.stem)
+    ancestors = _blocked_ancestors(tasks, ordered_paths)
+    repo_files = _ownership_repo_files(check)
+    raw_entries = {path.stem: _allowed_ownership_paths(tasks[path]) for path in ordered_paths}
+    classified = {
+        stem: [(entry, _classify_ownership_entry(check, entry, repo_files)) for entry in entries]
+        for stem, entries in raw_entries.items()
+    }
+    all_literals = {
+        entry for items in classified.values() for entry, kind in items if kind == "literal"
+    }
+    universe = sorted(repo_files | all_literals)
+    expanded = {
+        stem: [
+            (entry, kind, _expand_ownership_entry(entry, kind, universe))
+            for entry, kind in items
+        ]
+        for stem, items in classified.items()
+    }
+    stems = [p.stem for p in ordered_paths]
+    for idx, task_a in enumerate(stems):
+        for task_b in stems[idx + 1 :]:
+            if task_b in ancestors[task_a] or task_a in ancestors[task_b]:
+                continue
+            _emit_pair_ownership_problems(
+                check, task_a, expanded[task_a], task_b, expanded[task_b]
+            )
 
 
 def check_duplicate_new_claims(check: Checker, tasks: dict[Path, str]) -> None:
@@ -670,7 +895,7 @@ def check_surgical_anchors(check: Checker, stem: str, text: str) -> None:
     section_bodies = _collect_anchor_section_bodies(text)
     for entry in tc.parse_allowed_files(text):
         pattern = entry.pattern
-        if entry.new or GLOB_CHARS.search(pattern) or pattern.endswith("/"):
+        if entry.new or (not check.is_tracked(pattern) and GLOB_CHARS.search(pattern)) or pattern.endswith("/"):
             continue
         if not check.is_tracked(pattern):
             continue
@@ -772,7 +997,8 @@ def check_hld(check: Checker, hld_path: Path, text: str, tasks: dict[Path, str])
             for need in row.needs:
                 if need not in environment:
                     check.problem(f"{path.stem}:{row.id}", f"Needs {need} is not named in the Verification Environment section")
-    for bdd_path in sorted(hld_path.parent.glob("bdd_scenarios*.md")):
+    bdd_path = resolve_epic_doc(hld_path.parent, "bdd_scenarios")
+    if bdd_path is not None:
         try:
             content = read_file(bdd_path)
             check_weak_bdd(check, bdd_path.name, content)
@@ -782,9 +1008,9 @@ def check_hld(check: Checker, hld_path: Path, text: str, tasks: dict[Path, str])
 
 def check_r2_r3_parity(check: Checker, hld_path: Path, tasks: dict[Path, str]) -> None:
     epic_dir = hld_path.parent.name
-    bdd_path = hld_path.parent / "bdd_scenarios.en.md"
+    bdd_path = resolve_epic_doc(hld_path.parent, "bdd_scenarios")
     canonical_blocks: dict[str, list[str]] = {}
-    if bdd_path.is_file():
+    if bdd_path is not None and bdd_path.is_file():
         try:
             canonical_blocks = sts.extract_scenario_blocks(read_file(bdd_path))
         except UsageError:
@@ -803,7 +1029,8 @@ def check_r2_r3_parity(check: Checker, hld_path: Path, tasks: dict[Path, str]) -
             for cid in covers:
                 if cid in canonical_blocks:
                     if cid in task_blocks and task_blocks[cid] != canonical_blocks[cid]:
-                        check.problem(f"{stem}:BDD", f"scenario {cid} differs from bdd_scenarios.en.md (R3)")
+                        assert bdd_path is not None
+                        check.problem(f"{stem}:BDD", f"scenario {cid} differs from {bdd_path.name} (R3)")
 
         # R2: Mirror parity check if mirror exists
         features_dir = check.root / ".devtool" / "features"
@@ -867,6 +1094,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         check_hld(check, args.hld, hld_text, tasks)
         if args.design:
+            check_exclusive_ownership(check, tasks)
             check_r2_r3_parity(check, args.hld, tasks)
     except UsageError as error:
         print(f"error: {error}", file=sys.stderr)

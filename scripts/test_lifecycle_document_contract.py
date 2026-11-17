@@ -11,12 +11,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 EXPECTED: dict[str, tuple[str, ...]] = {
     "skills/dev-brainstorming/SKILL.md": (
-        "YYYY-MM-DD-<topic>-design.en.md",
-        "YYYY-MM-DD-<topic>-design.vi.md",
+        "YYYY-MM-DD-<topic>-design.md",
         "--require-toc",
-        "--require-bilingual",
         "## Shared Contract Warnings",
-        "## Cảnh báo Shared Contract",
         "check and warn only",
         "Silence is never consent",
     ),
@@ -27,12 +24,9 @@ EXPECTED: dict[str, tuple[str, ...]] = {
         "--require-bilingual",
     ),
     "skills/dev-designer/SKILL.md": (
-        "<epic_name>.en.md",
-        "<epic_name>.vi.md",
-        "bdd_scenarios.en.md",
-        "bdd_scenarios.vi.md",
+        "<epic_name>.md",
+        "bdd_scenarios.md",
         "--require-toc",
-        "--require-bilingual",
         "Task files are English-only",
         "check_bdd_traceability.py plan",
         "Covers:",
@@ -56,10 +50,8 @@ EXPECTED: dict[str, tuple[str, ...]] = {
         "diff-check",
     ),
     "skills/writing-plans/SKILL.md": (
-        "YYYY-MM-DD-<feature-name>.en.md",
-        "YYYY-MM-DD-<feature-name>.vi.md",
+        "YYYY-MM-DD-<feature-name>.md",
         "--require-toc",
-        "--require-bilingual",
     ),
     "skills/doc-designer/SKILL.md": (
         "<doc_dir>.en.md",
@@ -90,6 +82,8 @@ EXPECTED: dict[str, tuple[str, ...]] = {
         "Resume Procedure",
         "handoff.md",
         "space- or comma-separated values",  # LF-HP-04
+    ),
+    "skills/dev-implementation/references/entry-point-and-resume.md": (
         "re-enters at Phase 2 step 2",  # LF-ST-04
         "may ride along in that commit",  # LF-ST-06
     ),
@@ -179,7 +173,7 @@ class LifecycleDocumentContractTest(unittest.TestCase):
         """[CDG-HP-04] Lifecycle document contracts enforce read-only brainstorming warnings, designer contract ordering, and diff-check template/CLI references."""
         brainstorming_text = (ROOT / "skills/dev-brainstorming/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("## Shared Contract Warnings", brainstorming_text)
-        self.assertIn("## Cảnh báo Shared Contract", brainstorming_text)
+        self.assertNotIn("## Cảnh báo Shared Contract", brainstorming_text)
         self.assertIn("check and warn only", brainstorming_text.lower())
         self.assertIn("silence is never consent", brainstorming_text.lower())
         self.assertIn("include in this epic", brainstorming_text)
@@ -274,7 +268,7 @@ class LifecycleDocumentContractTest(unittest.TestCase):
 
     def test_mvls_fr_04_gate_4_semantic_test_fakery_rejected(self) -> None:
         """[MVLS-FR-04] Gate 4 rejects semantic test fakery without claiming universal mechanical coverage."""
-        impl_path = ROOT / "skills/dev-implementation/SKILL.md"
+        impl_path = ROOT / "skills/dev-implementation/references/gate4-semantic-integrity.md"
         text = impl_path.read_text(encoding="utf-8")
         self.assertIn("No Reconstructed Logic", text)
         self.assertIn("Immutable Real Artifacts", text)
@@ -356,6 +350,9 @@ class PrincipalReviewWorkflowTest(unittest.TestCase):
         self.assertIn("1. **Triển khai (tự động)**", ref_text)
         self.assertIn("2. **Dừng lại**", ref_text)
         self.assertIn("Dừng lại ở đây để tôi lấy prompt cho một AI Agents khác triển khai", ref_text)
+        self.assertIn("Role 2.1 AI Architect & Reviewer", ref_text)
+        self.assertIn("`orchestrator` binding", ref_text)
+        self.assertIn("gate2_tasks_locked", ref_text)
 
     def test_prv_ec_07_handoff_template_reads_first_principal_review(self) -> None:
         """[PRV-EC-07] Read First lists principal_review.md."""
@@ -397,7 +394,8 @@ class PrincipalReviewWorkflowTest(unittest.TestCase):
         self.assertIn("round <n>: PASS", phase1_section)
         self.assertIn("round <n>: decided", phase1_section)
 
-        resume_section = text.split("#### Resume Procedure", 1)[1].split("### Phase 1", 1)[0]
+        entry_ref = ROOT / "skills/dev-implementation/references/entry-point-and-resume.md"
+        resume_section = entry_ref.read_text(encoding="utf-8").split("## Resume Procedure", 1)[1]
         self.assertIn("Principal Review", resume_section)
         self.assertIn("not run", resume_section)
         self.assertIn("round <n>: PASS", resume_section)
@@ -472,6 +470,10 @@ class TestReviewSkillContracts(unittest.TestCase):
             "skills/test-driven-development/SKILL.md",
         ):
             text = (ROOT / rel).read_text(encoding="utf-8")
+            if rel == "skills/dev-implementation/SKILL.md":
+                text += (ROOT / "skills/dev-implementation/references/worker-execution-rules.md").read_text(
+                    encoding="utf-8"
+                )
             for token in ("@pytest.mark.parametrize", "Tier 1", "Tier 2", "Tier 3", 'scope="session"'):
                 self.assertIn(token, text, f"{rel} missing test efficiency token: {token}")
 

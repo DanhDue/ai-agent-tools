@@ -424,15 +424,16 @@ class SyncEpicTests(unittest.TestCase):
             en_doc.write_text(
                 "# Epic: Logging Refactor\n\n## 1. Meta Data\n- **Status**: Planned\n"
             )
-            vi_doc.write_text(
+            vi_orig = (
                 "# Epic: Tái cấu trúc Logging\n\n## 1. Meta Data\n- **Status**: Planned\n"
             )
+            vi_doc.write_text(vi_orig)
 
             matched, written = sync_epic([root], "logging_refactor", "In Progress")
-            self.assertEqual(len(matched), 2)
-            self.assertEqual(len(written), 2)
+            self.assertEqual(len(matched), 1)
+            self.assertEqual(len(written), 1)
             self.assertIn("- **Status**: In Progress", en_doc.read_text())
-            self.assertIn("- **Status**: In Progress", vi_doc.read_text())
+            self.assertEqual(vi_doc.read_text(), vi_orig)
 
     def test_updates_a_status_line_with_the_colon_inside_the_bold(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -444,15 +445,14 @@ class SyncEpicTests(unittest.TestCase):
             en_doc.write_text(
                 "# Epic: Logging Refactor\n\n- **Epic:** `logging_refactor`\n- **Status:** Planned\n"
             )
-            vi_doc.write_text(
-                "# Epic: Tái cấu trúc\n\n- **Trạng thái:** Đã lên kế hoạch\n"
-            )
+            vi_orig = "# Epic: Tái cấu trúc\n\n- **Trạng thái:** Đã lên kế hoạch\n"
+            vi_doc.write_text(vi_orig)
 
             matched, written = sync_epic([root], "logging_refactor", "Done")
-            self.assertEqual(len(written), 2)
+            self.assertEqual(len(written), 1)
             self.assertIn("- **Status:** Done", en_doc.read_text())
             self.assertIn("- **Epic:** `logging_refactor`", en_doc.read_text())
-            self.assertIn("- **Trạng thái:** Done", vi_doc.read_text())
+            self.assertEqual(vi_doc.read_text(), vi_orig)
 
     def test_handles_vietnamese_meta_data_label(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -460,14 +460,21 @@ class SyncEpicTests(unittest.TestCase):
             epic_dir = root / ".devtool" / "epic" / "logging_refactor"
             epic_dir.mkdir(parents=True, exist_ok=True)
             vi_doc = epic_dir / "logging_refactor.vi.md"
-            vi_doc.write_text(
-                "# Epic: Tái cấu trúc\n\n- **Trạng thái**: Đã lên kế hoạch\n"
-            )
+            vi_orig = "# Epic: Tái cấu trúc\n\n- **Trạng thái**: Đã lên kế hoạch\n"
+            vi_doc.write_text(vi_orig)
 
-            matched, written = sync_epic([root], "logging_refactor", "Đang thực hiện")
-            self.assertEqual(len(matched), 1)
-            self.assertEqual(len(written), 1)
-            self.assertIn("- **Trạng thái**: Đang thực hiện", vi_doc.read_text())
+            matched, written = sync_epic([root], "logging_refactor", "In Progress")
+            self.assertEqual(matched, [])
+            self.assertEqual(written, [])
+            self.assertEqual(vi_doc.read_text(), vi_orig)
+
+            plain_doc = epic_dir / "logging_refactor.md"
+            plain_doc.write_text("# Epic: Logging Refactor\n\n- **Status**: Planned\n")
+            matched2, written2 = sync_epic([root], "logging_refactor", "In Progress")
+            self.assertEqual(matched2, [plain_doc])
+            self.assertEqual(written2, [plain_doc])
+            self.assertIn("- **Status**: In Progress", plain_doc.read_text())
+            self.assertEqual(vi_doc.read_text(), vi_orig)
 
     def test_missing_doc_skipped(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -485,51 +492,47 @@ class SyncEpicTests(unittest.TestCase):
                     "| Status | Ready for implementation |\n",
                     "| Trạng thái | Sẵn sàng triển khai |\n",
                     "| Status | Done |\n",
-                    "| Trạng thái | Done |\n",
                 ),
                 (
                     "table_bold_meta",
                     "| **Status** | Design |\n",
                     "| **Trạng thái** | Thiết kế |\n",
                     "| **Status** | Done |\n",
-                    "| **Trạng thái** | Done |\n",
                 ),
                 (
                     "blockquote_meta",
                     "> **Status:** In Progress  \n",
                     "> **Trạng thái:** Đang triển khai  \n",
                     "> **Status:** Done\n",
-                    "> **Trạng thái:** Done\n",
                 ),
                 (
                     "unbulleted_bold_meta",
                     "**Status**: In Progress\n",
                     "**Trạng Thái**: `todo`\n",
                     "**Status**: Done\n",
-                    "**Trạng Thái**: Done\n",
                 ),
                 (
                     "yaml_meta",
                     "```yaml\nKind: document\nStatus: Queued (backlog)\n```\n",
                     "```yaml\nKind: document\nStatus: Queued (backlog)\n```\n",
                     "```yaml\nKind: document\nStatus: Done\n```\n",
-                    "```yaml\nKind: document\nStatus: Done\n```\n",
                 ),
             ]
-            for slug, en_in, vi_in, en_expected, vi_expected in cases:
+            for slug, en_in, vi_in, en_expected in cases:
                 with self.subTest(slug=slug):
                     epic_dir = root / ".devtool" / "epic" / slug
                     epic_dir.mkdir(parents=True, exist_ok=True)
                     en_doc = epic_dir / f"{slug}.en.md"
                     vi_doc = epic_dir / f"{slug}.vi.md"
                     en_doc.write_text(f"# {slug}\n\n{en_in}", encoding="utf-8")
-                    vi_doc.write_text(f"# {slug}\n\n{vi_in}", encoding="utf-8")
+                    vi_orig = f"# {slug}\n\n{vi_in}"
+                    vi_doc.write_text(vi_orig, encoding="utf-8")
 
                     matched, written = sync_epic([root], slug, "Done")
-                    self.assertEqual(len(matched), 2)
-                    self.assertEqual(len(written), 2)
+                    self.assertEqual(len(matched), 1)
+                    self.assertEqual(len(written), 1)
                     self.assertIn(en_expected.strip(), en_doc.read_text(encoding="utf-8"))
-                    self.assertIn(vi_expected.strip(), vi_doc.read_text(encoding="utf-8"))
+                    self.assertEqual(vi_doc.read_text(encoding="utf-8"), vi_orig)
 
 
 class LinkFixTests(unittest.TestCase):
@@ -1080,7 +1083,7 @@ detached
         self.assertEqual(branches[2], (self.base / "wt_detached", None))
 
     def test_prv_hp_05_own_worktree_updated(self) -> None:
-        """PRV-HP-05: epic updates the main checkout and the epic's own worktree."""
+        """PRV-HP-05: epic updates the main checkout and the epic's own worktree English doc only."""
         res = run_py(SYNC, self.main, "epic", "demo_epic", "Packaged")
         self.assertEqual(res.returncode, 0, res.stderr)
 
@@ -1092,7 +1095,7 @@ detached
                 wt / ".devtool" / "epic" / "demo_epic" / "demo_epic.vi.md"
             ).read_text(encoding="utf-8")
             self.assertIn("- **Status**: Packaged", en_text)
-            self.assertIn("- **Trạng thái**: Packaged", vi_text)
+            self.assertIn("- **Trạng thái**: Planned", vi_text)
 
     def test_prv_fr_05_other_epics_untouched(self) -> None:
         """PRV-FR-05: Another epic's worktree stays byte-identical and task sync still mirrors everywhere."""

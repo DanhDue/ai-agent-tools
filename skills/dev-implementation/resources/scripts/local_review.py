@@ -11,6 +11,7 @@ import math
 import os
 import re
 import socket
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -20,6 +21,11 @@ from pathlib import Path
 from string import Template
 from typing import Any, TextIO
 
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+from _epic_docs import resolve_design_specs, resolve_epic_doc
 from check_bdd_traceability import FENCE, LEADING_TAG, SCENARIO_LINE, covers_of
 from task_contract import git_run, section
 
@@ -236,7 +242,10 @@ def task_slice(root: Path, epic_path: str, task: str, commit: str, excludes: tup
     task_path = root / epic_path / f"{task}.md"
     short = git_text(root, "rev-parse", "--short", commit).strip()
     diff_section = f"## Diff of {short}"
-    scenarios = (root / epic_path / "bdd_scenarios.en.md").read_text(encoding="utf-8")
+    bdd_doc = resolve_epic_doc(root / epic_path, "bdd_scenarios")
+    if bdd_doc is None:
+        raise FileNotFoundError(root / epic_path / "bdd_scenarios.md")
+    scenarios = bdd_doc.read_text(encoding="utf-8")
     evidence = json.loads((root / epic_path / "evidence" / f"{task}.json").read_text(encoding="utf-8"))
     diffs = file_diffs(root, commit, excludes)
     ranks = {path: rank for rank, (path, _) in enumerate(sorted(diffs, key=lambda item: -len(item[1])))}
@@ -252,8 +261,10 @@ def task_slice(root: Path, epic_path: str, task: str, commit: str, excludes: tup
 def epic_slice(root: Path, epic_path: str, base: str, sha: str, audit_output: str, results_output: str,
                outside: list[str], excludes: tuple[str, ...]) -> Slice:
     folder = root / epic_path
-    hld = folder / f"{Path(epic_path).name}.en.md"
-    specs = sorted(folder.glob("*-design.en.md"))
+    hld = resolve_epic_doc(folder, Path(epic_path).name)
+    if hld is None:
+        raise FileNotFoundError(folder / f"{Path(epic_path).name}.md")
+    specs = resolve_design_specs(folder)
     stat = git_text(root, "diff", "--stat", f"{base}...{sha}", "--", ".", ":(exclude).devtool/**").strip()
     parts: list[Part] = []
     paths: list[str] = []

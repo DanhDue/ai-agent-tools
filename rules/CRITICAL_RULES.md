@@ -5,13 +5,11 @@ trigger: always_on
 # Critical Rules
 
 > [!CRITICAL]
-> Mandatory engineering rules for ALL AI Agent plugins, orchestrators, and subagents. These rules supersede built-in agent behaviors and never weaken or get bypassed.
-
-Extended checklists live in [governance-checklists.md](../skills/dev-lifecycle/references/governance-checklists.md).
+> Mandatory engineering rules for ALL AI Agent plugins, orchestrators, and subagents; they supersede built-in behavior and never weaken or get bypassed.
 
 ## 1. Mandatory Quality Gates
 
-After completing any workflow or skill, run the matching quality gate and fix every issue raised:
+After completing any workflow/skill, run its quality gate and fix all issues:
 - Shipped/build-affecting change -> `@quality_check`
 - Prose/documentation deliverable -> `@doc_quality_check`
 
@@ -24,7 +22,7 @@ After completing any workflow or skill, run the matching quality gate and fix ev
 - subtask title 02
 ```
 
-- `[SCOPE]` is the uppercase epic name or area touched (`[TOOLS]`). Title is one imperative line, no trailing period. Omit the body when the commit does one thing; otherwise pass two `-m` flags (`git commit -m "..." -m "..."`).
+- `[SCOPE]` is the uppercase epic name or area touched (`[TOOLS]`). Title is one imperative line, no trailing period.
 - **Never append trailer lines** (`Co-Authored-By:`, `Generated with`, or tool attribution).
 
 ## 3. Git Push Operations (No Unauthorized Push)
@@ -37,45 +35,52 @@ Never create loose native plans (`implementation_plan.md`, Composer/Cascade/Code
 
 ## 5. Automated Execution, Cross-Model Review & Stage 4 Finish Gate
 
-1. **Gate 2 Unified Confirmation**: After Gate 2 readiness checks pass, stop before `package_epic.py`, record Gate 2, read `.devtool/review_config.json`, call `resume_context.py --pending-decision` for Choice A pause, and present Gate 2 Choices (`Claude -> Codex -> Kiro -> Argon`):
-   - **Option 1 (Recommended) — `Triển khai (tự động)` (AUTO MODE)**: Runs `/principal-review` -> `package_epic.py` -> Gate 3 -> `dev-implementation` (wave-parallel `--parallel`, `manage_worker_pool.py` + `cleanup`) -> Gate 4 -> `/cross-model-review` with zero intermediate confirmation pauses (halting only on Circuit Breakers or Gate 5).
-   - **Option 2 — Handoff Mode**: Runs `/principal-review` -> `package_epic.py` -> prints `--emit-prompt implement` -> stops.
-2. **Automated Cross-Model Review**: When tasks finish (after Gate 4 passes, Cross-model review must return to a full Gate 4 run), immediately run `/cross-model-review` (`run_external_review.py run --epic-dir <epic_dir> --auto-quota`) with zero intermediate Review Choice prompt.
-3. **Stage 4 Finish & Gate 5 Sign-Off**: Stage 4 (`finishing-a-development-branch`) owns `Finish`. After cross-model convergence and Gate 4 PASS on the latest SHA, record `resume_context.py --pending-decision`, stop calling tools, and ask the Human Architect for Gate 5 Finish/merge strategy (`Squash`, `--no-ff`, `Rebase`). Never auto-merge or auto-push.
+1. **Gate 2 Unified Confirmation**: After Gate 2 readiness passes, stop before `package_epic.py`, record Gate 2, read `.devtool/review_config.json`, record `--pending-decision` (Choice A), and present the provider priority:
+   - **Option 1 (Recommended) — `Triển khai (tự động)`**: `/principal-review` -> `package_epic.py` -> Gate 3 -> `dev-implementation` (`--parallel`) -> Gate 4 -> `/cross-model-review`, pausing only on Circuit Breakers, `ESCALATE`, model/quota stops or Gate 5. Stage 3 runs in this session as Role 2.2 (`orchestrator`).
+   - **Option 2 — `Dừng lại`**: Stops after packaging, printing `--emit-prompt implement`.
+2. **Cross-Model Review**: When tasks finish (after Gate 4 passes, Cross-model review must return to a full Gate 4 run), run `/cross-model-review` (`run_external_review.py run --epic-dir <epic_dir> --auto-quota --base <ref>`) with no Review Choice prompt.
+3. **Stage 4 Finish & Gate 5**: After convergence and Gate 4 PASS on the latest SHA, record `--pending-decision`, stop, and ask the Human Architect for the merge strategy. Never auto-merge or auto-push.
 
 ## 6. Auto-Triage Gate, 3-Round Funnel & Remediation Protocol
 
-External reviews (`/principal-review`, `/cross-model-review`) enforce `max_rounds = 3`, quota priority (`Claude -> Codex -> Kiro -> Argon`), and Auto-Triage (details in [governance-checklists.md](../skills/dev-lifecycle/references/governance-checklists.md)):
+External reviews use `max_rounds = 3` and Auto-Triage; details: [governance-checklists.md](../skills/dev-lifecycle/references/governance-checklists.md).
 
-- **`AUTO_PASS_CLEAN` / `AUTO_PASS_FINAL_MINOR_SWEEP` (`0 Critical`, `0 Important`)**: Verify against source + approved Spec/HLD, fix valid `Minor` items once, run local gate, and complete without another external round.
-- **`AUTO_FIX_ELIGIBLE` (Rounds 1–2)**:
-  - **Stage 2 `/principal-review` (BOTH Interactive Mode and Autonomous `/dev-lifecycle` Mode)**: Run `run_external_review.py triage --kind principal --epic-dir <epic_dir>` and verify findings against source + Spec/HLD first. If all blockers verify `Valid` (or objective `False positive`) with zero halt triggers, apply Role 2.2 revisions (main session or reviser subagent), commit, run `check_epic_readiness.py <epic_dir>`, and run Round `N+1`. Halt on `CRITICAL_CONFLICT`, `Debatable`, `Not shown`, or Circuit Breakers.
-  - **Stage 3 `/cross-model-review` Autonomous Mode**: Unambiguous source-grounded code defects (non-`.md`/non-`shared-contracts/`, zero escalation/trade-off triggers) fast-track via Role 2.3 (`_apply_code_fixes`), commits, **scoped tests only**, and Round `N+1`; ambiguities route through Role 2.2 `fix_plan_round<N>.md` (`APPROVED`/`ADJUSTED`/`CRITICAL_CONFLICT`). Interactive mode (or `Debatable`/`False positive`/halt) pauses after triage.
-- **Circuit Breakers (`CIRCUIT_BREAKER_HALT`)**: Halt via `--pending-decision` on `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING`. If Round 3 ends with `0 Critical`, apply `AUTO_PASS_FINAL_SWEEP` and pass Gate 4 in full.
-- **Remediation Hygiene**: Intermediate rounds run static checks + targeted pytest only (full Gate 4/`tests/e2e/` at Final Convergence). Never delete dependencies/reports instead of `uv lock`/regeneration or fake fixtures; run `uv run playwright install chromium` after Playwright upgrades.
+- **`AUTO_PASS_CLEAN` / `AUTO_PASS_FINAL_MINOR_SWEEP`**: verify against source + Spec/HLD, fix valid `Minor` items once.
+- **`AUTO_FIX_ELIGIBLE`** (Rounds 1–2):
+  - **Stage 2 `/principal-review` (BOTH Interactive Mode and Autonomous `/dev-lifecycle` Mode)**: run `run_external_review.py triage --kind principal --epic-dir <epic_dir>` and verify findings against source + Spec/HLD. If every blocker is `Valid` with no halt trigger, Role 2.1 revises, runs `check_epic_readiness.py <epic_dir>`, and starts Round `N+1`.
+  - **Stage 3 `/cross-model-review` Autonomous Mode**: low risk (all `Valid`, no escalation marker, or a Gate 4 check's first failure): Role 2.3 `review-fixer` `fast-track`. High risk (any `Critical`, escalation marker, or the same check failing twice): Role 2.1 `fix-planner` returns `plan_markdown`; `PLANNED` -> `review-fixer` `apply-plan`; `ESCALATE` -> `--pending-decision`, stop for Role 1.0.
+- **Halt criteria (`CIRCUIT_BREAKER_HALT`)**: `CRITICAL_CONFLICT`, `Debatable`/`Not shown`, `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, `MAX_ROUNDS_CRITICAL_REMAINING`.
 
 ## 7. Multi-Repo Boundaries, Symlink Isolation & Contract Governance
 
-- Never stage/commit outside the active git tree. Keep `shared-contracts/` symlinks read-only in satellite git (omit from `Files Allowed`; never autonomously commit in adjacent repos).
-- Inspect `api_contract.md`, `architecture_and_flow.md`, and `gaps_and_rfcs.md` before changing wire contracts; log `GAP-XX`/`RFC-XXX` rather than making breaking changes. Satellite workers stay stateless (HTTP REST/SSE only; no direct `DATABASE_URL`).
+- Never stage/commit outside the active git tree. Keep `shared-contracts/` symlinks read-only in satellite git (omit from `Files Allowed`; never commit in adjacent repos autonomously).
+- Inspect `api_contract.md`, `architecture_and_flow.md`, and `gaps_and_rfcs.md` before changing wire contracts; log `GAP-XX`/`RFC-XXX` instead of breaking changes. Satellite workers stay stateless (HTTP REST/SSE only; no direct `DATABASE_URL`).
 
-## 8. Mandatory Two-Tier Project Memory & Tri-Role Persona Discipline
+## 8. Mandatory Two-Tier Project Memory & Four-Persona Discipline
 
-1. **Startup Context**: Run `python3 scripts/resume_context.py` once on entering dev lifecycle work (`dev-lifecycle`, `dev-brainstorming`, `dev-designer`, `dev-implementation`) and summarize in 5–10 bullets. Exempt `/refresh-session`, `/setup_keybindings`, and quick queries.
-2. **Tri-Role Boundaries**:
-   - **Role 2.1 Human Architect**: Owns Gates 1, 2, 5, escalations, and Stage 4 Finish.
-   - **Role 2.2 AI Assistant**: Designs/reviews (`docs/`, `.devtool/`, `shared-contracts/` only); **STRICTLY PROHIBITED** from modifying production or test code.
-   - **Role 2.3 AI Programmer**: Executes TDD tasks in worktrees; resolves model via `.devtool/review_config.json["providers"]["programmer"]` (default `gemini-4-hydrogen-xhigh`, `--effort xhigh --mode auto`), bounded strictly to Specs, `Decisions Already Made`, and `Allowed files`.
-   - **Orchestration**: Role 2.2 never touches `src/`/`tests/` or runs tests in main session; dispatches Role 2.3 on the configured model (no lighter substitute) and verifies independently ([orchestration-roles.md](../skills/dev-lifecycle/references/orchestration-roles.md)).
-3. **Checkpoints, Choice A & English SSOT**: Record Choice A pauses (`--pending-decision`, cleared on `--gate`/non-paused `--state`/`--revise`), creator PIC (`--detect-profile`), and English-only internal docs/code/commits; `--complete` at Stage 4; sync `window.title` per [governance-checklists.md](../skills/dev-lifecycle/references/governance-checklists.md).
+1. **Startup Context**: Run `python3 scripts/resume_context.py` once on entering dev lifecycle work and summarize in 5–10 bullets (exempt `/refresh-session`).
+2. **Four Personas** ([orchestration-roles.md](../skills/dev-lifecycle/references/orchestration-roles.md)):
+   - **Role 1.0 Human Architect**: Vision, Gates 1, 2, 5, Stage 4 Finish, escalations.
+   - **Role 2.1 AI Architect & Reviewer** (`ai_architect_reviewer`): Stage 1–2 design, packaging; Stage 3 `task-reviewer`, `fix-planner`. Never edits `src/`/`tests/`, runs tests, dispatches subagents, or manages the pool.
+   - **Role 2.2 Orchestrator** (`orchestrator`): Gate 3, worker pool, dispatches 2.1/2.3 subagents, verifies claims, marks tasks `done`. Never reads/edits `src/`/`tests/` or HLD/BDD/Verification tables/DoD/`Allowed files`, or runs tests, linters, `run_task_checks.py`.
+   - **Role 2.3 Programmer** (`programmer`, default `gemini-4-hydrogen-xhigh`): `task-implementer`, `review-fixer`, `gate4-verifier` in `Allowed files`; no pool calls.
+3. **Session map & models**: Role 1.0 opens Stages 1–2 on the `ai_architect_reviewer` model, Stage 3 on the `orchestrator` model (`--emit-prompt implement`). Subagents use their persona's binding from `python3 scripts/dev_config.py resolve <persona> --format argv --mode <read-only|write>` (switch via `/d3nexus:dev-config`). Model unavailable (CLI, auth, quota): no fallback, no retry; checkpoint, `--pending-decision`, stop.
+4. **Checkpoints** (`resume_context.py --checkpoint <event> --epic <slug>`): `gate2_tasks_locked` (2.1), `subagent_returned`, `wave_merged` (2.2), `model_unavailable`, `turn_budget`, `low_quota_stop`, `quota_low`.
+5. **Turn budget & quota gate**: `checkpoint_policy.max_orchestrator_turns_before_checkpoint` (default 8) caps tool calls between checkpoints; `/d3nexus:dev-config low-quota on` halves it and stops after the wave in flight. `dev_config.py quota-check` runs before Stage 3, each wave and each fix round; exit `2` checkpoints `quota_low`, records a `quota` pending decision, stops.
+6. **Choice A & English SSOT**: Record Choice A pauses (`--pending-decision`, cleared on `--gate`/non-paused `--state`/`--revise`) and creator PIC (`--detect-profile`); `--complete` at Stage 4; low-quota, `window.title`: [checklists](../skills/dev-lifecycle/references/governance-checklists.md). Persisted dev artefacts are English-only; chat with Role 1.0 may use Vietnamese; Vietnamese files only on explicit Role 1.0 request.
 
 ## 9. Shell Configuration (`.zshrc`) & Multi-Profile OS Boundary Safety
 
-- Back up `~/.zshrc` before edits and run `zsh -n ~/.zshrc` after; avoid duplicate blocks.
+- Back up `~/.zshrc` before edits and run `zsh -n ~/.zshrc` after.
 - Never mutate `security default-keychain` / `list-keychains -s` or export `HOME`/`AGY_PROFILE`/`TMPDIR` at top-level `~/.zshrc` (keep `$HOME == $REAL_HOME` in IDE terminals).
-- Symlink host toolchains from `$REAL_HOME`; keep `.gemini/antigravity`, `state.vscdb`, Keychain, and unique telemetry IDs isolated per profile (`ag_run` strips IPC handles per [governance-checklists.md](../skills/dev-lifecycle/references/governance-checklists.md)).
+- `ag_run` and any `<profile>-cli` alias must be launched through `zsh -ic` and never from an agent runtime's own shell, because `ag_run` deletes a profile's symlinks when its underscore helper functions are missing.
+- Symlink host toolchains from `$REAL_HOME`; keep `.gemini/antigravity`, `state.vscdb`, Keychain, and telemetry IDs isolated per profile ([checklists](../skills/dev-lifecycle/references/governance-checklists.md)).
 
 ## 10. Zero-Fluff Output Cap
 
-- Keep discretionary prose, preamble, narration, and redundant recaps minimal during autonomous runs and worker handoffs.
-- **Never** omit or truncate required structured outputs: machine Verdicts (`PASS`/`FAIL`/`BLOCKED`, `🟢 LGTM`/`🟡 CONCERNS`/`🔴 BLOCKED`), Findings tables, JSON/provider gate results (`run_external_review.py`, `run_task_checks.py`), worker status contracts, or human Gate prompts.
+- Minimize discretionary prose, preamble, narration, and redundant recaps in autonomous runs and worker handoffs.
+- **Never** omit or truncate required structured outputs: machine Verdicts, Findings tables, JSON/provider gate results, worker status contracts, or human Gate prompts.
+
+## 11. English SSOT and Vietnamese Mirror Isolation
+
+Agents MUST NOT open, grep, glob or list `*.vi.md` files into context; searches over epic or doc directories MUST exclude `*.vi.md`; subagent briefs and review bundles MUST NOT name them. Exceptions are limited to (a) a file Role 1.0 names explicitly and (b) writing the `.vi.md` variant of a doc-lifecycle document.

@@ -14,7 +14,9 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-IMPLEMENTATION = (ROOT / "skills/dev-implementation/SKILL.md").read_text()
+IMPLEMENTATION = (ROOT / "skills/dev-implementation/SKILL.md").read_text() + (
+    ROOT / "skills/dev-implementation/references/entry-point-and-resume.md"
+).read_text()
 LIFECYCLE = (ROOT / "skills/dev-lifecycle/SKILL.md").read_text()
 TEMPLATE = (ROOT / "skills/dev-lifecycle/references/handoff-template.md").read_text()
 SYNC = ROOT / "skills/dev-implementation/resources/scripts/sync_task_status.py"
@@ -106,21 +108,59 @@ class QueuedPackagingTest(SignalCase):
     def test_lf_st_03_queued_epic_keeps_its_queue_and_the_grep_still_matches(self) -> None:
         self.assertIn('`"Packaged (queued behind <epic>)"`', LIFECYCLE)
         grep = skill_line(LIFECYCLE, "   grep -n -E '^- ").strip().rstrip("\\").strip()
+        self.assertNotIn(".vi.md", grep + skill_line(LIFECYCLE, "     .devtool/epic/<epic_dir>/<epic_dir>."))
+        for name in ("todo_export.md", "todo_export.en.md"):
+            with self.subTest(overview=name):
+                epic = self.repo / ".devtool/epic/todo_export"
+                epic.mkdir(parents=True, exist_ok=True)
+                (epic / name).write_text(
+                    "# Epic\n\n- **Status**: Queued (backlog) — behind logging-refactor\n")
+                synced = subprocess.run(["python3", str(SYNC), "epic", "todo_export",
+                                         "Packaged (queued behind logging-refactor)"],
+                                        check=False, cwd=self.repo, capture_output=True, text=True)
+                self.assertEqual(synced.returncode, 0, synced.stderr)
+                matched = run(self.repo, f"{grep} .devtool/epic/todo_export/{name}")
+                self.assertEqual(matched.returncode, 0, matched.stderr)
+                self.assertEqual(len(matched.stdout.splitlines()), 1)
+                self.assertIn("Packaged (queued behind logging-refactor)", matched.stdout)
+                (epic / name).unlink()
+
+
+class EntryPointStatusSignalTest(SignalCase):
+    def test_entry_point_status_grep_matches_md_and_legacy_en_md(self) -> None:
+        """[SE-01] Entry-point Status check finds Done in <epic_dir>.md and legacy <epic_dir>.en.md."""
+        entry_text = (
+            ROOT / "skills/dev-implementation/references/entry-point-and-resume.md"
+        ).read_text(encoding="utf-8")
+        entry_section = entry_text.split("## Entry-Point Detection", 1)[1].split(
+            "\n## ", 1
+        )[0]
+        status_lines = [
+            line.strip()
+            for line in entry_section.splitlines()
+            if "Status" in line and "grep" in line
+        ]
+        self.assertEqual(len(status_lines), 1, f"Expected one Status grep command, got {status_lines!r}")
+        cmd_template = status_lines[0]
+        self.assertNotIn(".vi.md", cmd_template)
         epic = self.repo / ".devtool/epic/todo_export"
-        epic.mkdir(parents=True)
-        (epic / "todo_export.en.md").write_text(
-            "# Epic\n\n- **Status**: Queued (backlog) — behind logging-refactor\n")
+        epic.mkdir(parents=True, exist_ok=True)
         (epic / "todo_export.vi.md").write_text(
-            "# Epic\n\n- **Trạng thái**: Queued (backlog) — behind logging-refactor\n")
-        synced = subprocess.run(["python3", str(SYNC), "epic", "todo_export",
-                                 "Packaged (queued behind logging-refactor)"],
-                                check=False, cwd=self.repo, capture_output=True, text=True)
-        self.assertEqual(synced.returncode, 0, synced.stderr)
-        paths = " ".join(f".devtool/epic/todo_export/todo_export.{lang}.md" for lang in ("en", "vi"))
-        matched = run(self.repo, f"{grep} {paths}")
-        self.assertEqual(matched.returncode, 0, matched.stderr)
-        self.assertEqual(len(matched.stdout.splitlines()), 2)
-        self.assertIn("Packaged (queued behind logging-refactor)", matched.stdout)
+            "# Epic\n\n- **Status**: Draft\n", encoding="utf-8"
+        )
+        for name in ("todo_export.md", "todo_export.en.md"):
+            with self.subTest(overview=name):
+                (epic / name).write_text(
+                    "# Epic\n\n- **Status**: Done\n", encoding="utf-8"
+                )
+                matched = run(
+                    self.repo, cmd_template.replace("<epic_dir>", "todo_export")
+                )
+                self.assertEqual(
+                    matched.returncode, 0, f"{name}: {matched.stderr or matched.stdout}"
+                )
+                self.assertEqual(matched.stdout.strip(), "- **Status**: Done")
+                (epic / name).unlink()
 
 
 class TestReviewSkillDelegation(SignalCase):

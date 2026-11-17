@@ -1,0 +1,572 @@
+{
+  "schema": 1,
+  "task": "task_09_provider_quick_setup",
+  "runs": {
+    "red": {
+      "head": "3802d7e9da11fdb98012c22c7704e3c5c79d345f",
+      "tree": "bf73a6517d322d9679519cdc6079a7674c50b505",
+      "patch_id": "a05665e870d7c5e69753fdc5fc8c2d5b593272c6",
+      "started": "2026-11-17T07:54:40Z",
+      "finished": "2026-11-17T07:54:40Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_provider_shortcut.py::test_fpg_hp_10_provider_shortcut_binds_all_personas",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T07:54:40Z",
+          "finished": "2026-11-17T07:54:40Z",
+          "output_tail": [
+            "FFF",
+            "=================================== FAILURES ===================================",
+            "_________ test_fpg_hp_10_provider_shortcut_binds_all_personas[claude] __________",
+            "tests/test_fpg_provider_shortcut.py:172: in test_fpg_hp_10_provider_shortcut_binds_all_personas",
+            "    assert hasattr(dc_mod, \"PROVIDER_PRESETS\")",
+            "E   AssertionError: assert False",
+            "E    +  where False = hasattr(<module 'dev_config' from '/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/four_persona_governance-slot-1/scripts/dev_config.py'>, 'PROVIDER_PRESETS')",
+            "__________ test_fpg_hp_10_provider_shortcut_binds_all_personas[codex] __________",
+            "tests/test_fpg_provider_shortcut.py:172: in test_fpg_hp_10_provider_shortcut_binds_all_personas",
+            "    assert hasattr(dc_mod, \"PROVIDER_PRESETS\")",
+            "E   AssertionError: assert False",
+            "E    +  where False = hasattr(<module 'dev_config' from '/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/four_persona_governance-slot-1/scripts/dev_config.py'>, 'PROVIDER_PRESETS')",
+            "___________ test_fpg_hp_10_provider_shortcut_binds_all_personas[agy] ___________",
+            "tests/test_fpg_provider_shortcut.py:172: in test_fpg_hp_10_provider_shortcut_binds_all_personas",
+            "    assert hasattr(dc_mod, \"PROVIDER_PRESETS\")",
+            "E   AssertionError: assert False",
+            "E    +  where False = hasattr(<module 'dev_config' from '/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/four_persona_governance-slot-1/scripts/dev_config.py'>, 'PROVIDER_PRESETS')",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_fpg_provider_shortcut.py::test_fpg_hp_10_provider_shortcut_binds_all_personas[claude]",
+            "FAILED tests/test_fpg_provider_shortcut.py::test_fpg_hp_10_provider_shortcut_binds_all_personas[codex]",
+            "FAILED tests/test_fpg_provider_shortcut.py::test_fpg_hp_10_provider_shortcut_binds_all_personas[agy]",
+            "!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 3 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!",
+            "3 failed in 0.20s"
+          ],
+          "output_sha256": "9cdc1cc0d02d493cc0f84edc46317eacc57d49d6fbf6d5a58664c1ca25231714"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "3802d7e9da11fdb98012c22c7704e3c5c79d345f",
+      "tree": "e69bb0223eb3fef493734ea29a5fca3737391c23",
+      "patch_id": "4b9fcd209615d707ef3217296edb45aeecb0d3f4",
+      "started": "2026-11-17T07:58:09Z",
+      "finished": "2026-11-17T07:58:16Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_provider_shortcut.py tests/test_fpg_persona_config.py tests/test_fpg_dispatch_and_quota.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T07:58:09Z",
+          "finished": "2026-11-17T07:58:12Z",
+          "output_tail": [
+            "........................................................................ [ 86%]",
+            "...........                                                              [100%]",
+            "83 passed in 3.15s"
+          ],
+          "output_sha256": "0b01d96d949c630907dca2881febd9fff66e29826dbfba2b5825a0b43f4108b0"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py scripts/persona_config.py scripts/dev_config.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T07:58:12Z",
+          "finished": "2026-11-17T07:58:12Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py scripts/persona_config.py scripts/dev_config.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T07:58:12Z",
+          "finished": "2026-11-17T07:58:12Z",
+          "output_tail": [
+            "Success: no issues found in 9 source files"
+          ],
+          "output_sha256": "46984ca20bf69f7b14ec1fd9bd82101d56a4e109e68f016fd2a04f22481b09b3"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/fpg_task_09.xml tests/test_fpg_provider_shortcut.py tests/test_fpg_persona_config.py tests/test_fpg_dispatch_and_quota.py",
+          "expect": "exit 0; results build/test-results/fpg_task_09.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T07:58:12Z",
+          "finished": "2026-11-17T07:58:16Z",
+          "output_tail": [
+            "........................................................................ [ 86%]",
+            "...........                                                              [100%]",
+            "83 passed in 3.08s"
+          ],
+          "output_sha256": "816df22e8f2c9b1e8e6a1544241031a334b2ca09e57e7ad91975c6d26bd040cb",
+          "results": {
+            "path": "build/test-results/fpg_task_09.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 83,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_fpg_hp_10_provider_shortcut_binds_all_personas[claude]",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_10_provider_shortcut_binds_all_personas[codex]",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_10_provider_shortcut_binds_all_personas[agy]",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_10_sequential_provider_switches_and_catalogue",
+                  "classname": "tests.test_fpg_provider_shortcut.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_06_invalid_provider_use_and_masked_override_warning",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_06_rejected_provider_invocations_leave_files_unchanged[args0-kiro]",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_06_rejected_provider_invocations_leave_files_unchanged[args1-status]",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_06_rejected_provider_invocations_leave_files_unchanged[args2-models]",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_06_rejected_provider_invocations_leave_files_unchanged[args3-low-quota]",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_06_rejected_provider_invocations_leave_files_unchanged[args4-resolve]",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_06_rejected_provider_invocations_leave_files_unchanged[args5-workspace]",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_06_rejected_provider_invocations_leave_files_unchanged[args6---provider]",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_06_preserves_other_sections_and_warns_for_preset_or_effort_masking",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_01_layered_resolution_reports_sources",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_02_dev_config_models_and_bindable_alias",
+                  "classname": "tests.test_fpg_persona_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_02_cli_subcommands_aliases_and_fallback_guard",
+                  "classname": "tests.test_fpg_persona_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_invalid_writes_rejected_file_unchanged[args0-xhigh]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_invalid_writes_rejected_file_unchanged[args1-nosuchmodel]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_invalid_writes_rejected_file_unchanged[args2-reviewer]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_invalid_writes_rejected_file_unchanged[args3-ollama]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_invalid_writes_rejected_file_unchanged[args4-provider]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_invalid_writes_rejected_file_unchanged[args5-gemini5h]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_invalid_writes_rejected_file_unchanged[args6-nosuchpreset]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_invalid_writes_rejected_file_unchanged[args7-0]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_rejects_bad_schema_and_file",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_02_legacy_model_settings_ignored_and_reported",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_01_low_quota_per_profile_expiry_and_turn_budget",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_05_concurrent_writers_never_lose_updates",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_01_all_five_presets_resolve[default-expected0]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_01_all_five_presets_resolve[gemini-saver-expected1]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_01_all_five_presets_resolve[claude-hybrid-expected2]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_01_all_five_presets_resolve[all-hydrogen-expected3]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_01_all_five_presets_resolve[codex-kiro-expected4]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload0-schema_version]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload1-unknown_top]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload2-missing-preset]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload3-orchestrator]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload4-reviewer]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload5-extra]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload6-ghost]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload7-ollama]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload8-efforts]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload9-argonWeekly]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload10-monthly]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload11-True]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload12--2]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload13-enabled]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload14-not-a-date]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_corrupt_json_and_cli_usage_errors",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_03_dispatch_argv_per_cli_and_mode",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_01_quota_gate_stops_on_insufficient_and_tolerates_unknown",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1--HTTP 429 Too Many Requests-model_unavailable]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1--RESOURCE_EXHAUSTED: quota exceeded-model_unavailable]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1--ResourceExhausted from backend-model_unavailable]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1--CLI binary 'agy' not found on PATH-model_unavailable]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[127--agy: command not found-model_unavailable]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1--401 Unauthorized: please log in-model_unavailable]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1--403 Forbidden: access denied-model_unavailable]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1--Failed to spawn process: permission denied-model_unavailable]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1--Error: usage limit reached; login required-model_unavailable]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1--not authenticated; please sign in-model_unavailable]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1-3 failed, 10 passed--task_failure]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1-401 failed, 403 passed--task_failure]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1-FAILED tests/test_x.py::test_quota_check--task_failure]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1-HTTP 429 Too Many Requests-AssertionError: boom-task_failure]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[0-rate limit handled--None]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[0--HTTP 429 Too Many Requests-None]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases[argon-agy-gemini-4-argon-high-high-read-only-expected_argv0]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases[hydrogen-agy-gemini-4-hydrogen-xhigh-xhigh-write-expected_argv1]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases[claude-opus-claude-opus-high-read-only-expected_argv2]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases[claude-sonnet-claude-sonnet-medium-write-expected_argv3]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases[codex-gpt-codex-gpt-6.1-sol-medium-read-only-expected_argv4]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases[codex-gpt-codex-gpt-6.1-sol-xhigh-write-expected_argv5]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases[kiro-opus-kiro-claude-opus-5.5-high-read-only-expected_argv6]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases[kiro-opus-kiro-claude-opus-5.5-high-write-expected_argv7]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_01_provider_and_error_payloads[codex-gpt-payload0-0-True-5H=50.0%, 7D=10.0%, status=ACTIVE-None]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_01_provider_and_error_payloads[codex-gpt-payload1-2-False-5H=14.0%-None]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_01_provider_and_error_payloads[codex-gpt-payload2-2-False-7D=2.0%-None]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_01_provider_and_error_payloads[kiro-opus-payload3-0-True-monthly=20.0% (200.0 credits)-None]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_01_provider_and_error_payloads[kiro-opus-payload4-2-False-10.0 credits-None]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_01_provider_and_error_payloads[hydrogen-payload5-0-True--quota_unknown]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_additional_stderr_signatures",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_01_review_config_thresholds_and_default_fetcher_hook",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/dev_config.py",
+            "scripts/personas.default.json",
+            "skills/dev-config/SKILL.md",
+            "tests/test_fpg_provider_shortcut.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

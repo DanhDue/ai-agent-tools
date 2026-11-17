@@ -1,0 +1,166 @@
+{
+  "schema_version": 1,
+  "active_preset": "default",
+  "models": {
+    "argon": {
+      "cli": "agy",
+      "id": "gemini-4-argon-{effort}",
+      "efforts": ["low", "medium", "high"]
+    },
+    "hydrogen": {
+      "cli": "agy",
+      "id": "gemini-4-hydrogen-{effort}",
+      "efforts": ["low", "medium", "high", "xhigh"]
+    },
+    "claude-opus": {
+      "cli": "claude",
+      "id": "opus",
+      "efforts": ["medium", "high", "xhigh"]
+    },
+    "claude-sonnet": {
+      "cli": "claude",
+      "id": "sonnet",
+      "efforts": ["medium", "high"]
+    },
+    "codex-gpt": {
+      "cli": "codex",
+      "id": "gpt-6.1-sol",
+      "efforts": ["medium", "high", "xhigh"]
+    },
+    "codex-terra": {
+      "cli": "codex",
+      "id": "gpt-6.1-terra",
+      "efforts": ["medium", "high", "xhigh"]
+    },
+    "kiro-sonnet": {
+      "cli": "kiro",
+      "id": "claude-sonnet-5.5",
+      "efforts": ["high"]
+    },
+    "kiro-opus": {
+      "cli": "kiro",
+      "id": "claude-opus-5.5",
+      "efforts": ["high"]
+    }
+  },
+  "presets": {
+    "default": {
+      "ai_architect_reviewer": {
+        "model": "argon",
+        "effort": "high",
+        "fallback_model": "claude-opus"
+      },
+      "orchestrator": {
+        "model": "hydrogen",
+        "effort": "high",
+        "fallback_model": "claude-sonnet"
+      },
+      "programmer": {
+        "model": "hydrogen",
+        "effort": "xhigh",
+        "fallback_model": "claude-sonnet"
+      }
+    },
+    "gemini-saver": {
+      "ai_architect_reviewer": {
+        "model": "argon",
+        "effort": "medium",
+        "fallback_model": "claude-opus"
+      },
+      "orchestrator": {
+        "model": "hydrogen",
+        "effort": "medium",
+        "fallback_model": "claude-sonnet"
+      },
+      "programmer": {
+        "model": "hydrogen",
+        "effort": "high",
+        "fallback_model": "claude-sonnet"
+      }
+    },
+    "claude-hybrid": {
+      "ai_architect_reviewer": {
+        "model": "claude-opus",
+        "effort": "high",
+        "fallback_model": "argon"
+      },
+      "orchestrator": {
+        "model": "hydrogen",
+        "effort": "high",
+        "fallback_model": "claude-sonnet"
+      },
+      "programmer": {
+        "model": "hydrogen",
+        "effort": "xhigh",
+        "fallback_model": "claude-sonnet"
+      }
+    },
+    "all-hydrogen": {
+      "ai_architect_reviewer": {
+        "model": "hydrogen",
+        "effort": "xhigh",
+        "fallback_model": "claude-opus"
+      },
+      "orchestrator": {
+        "model": "hydrogen",
+        "effort": "high",
+        "fallback_model": "claude-sonnet"
+      },
+      "programmer": {
+        "model": "hydrogen",
+        "effort": "xhigh",
+        "fallback_model": "claude-sonnet"
+      }
+    },
+    "codex-kiro": {
+      "ai_architect_reviewer": {
+        "model": "kiro-opus",
+        "effort": "high",
+        "fallback_model": "claude-opus"
+      },
+      "orchestrator": {
+        "model": "codex-gpt",
+        "effort": "medium",
+        "fallback_model": "claude-sonnet"
+      },
+      "programmer": {
+        "model": "codex-gpt",
+        "effort": "xhigh",
+        "fallback_model": "claude-sonnet"
+      }
+    },
+    "all-claude": {
+      "ai_architect_reviewer": {
+        "model": "claude-opus",
+        "effort": "high"
+      },
+      "orchestrator": {
+        "model": "claude-sonnet",
+        "effort": "high"
+      },
+      "programmer": {
+        "model": "claude-sonnet",
+        "effort": "high"
+      }
+    },
+    "all-codex": {
+      "ai_architect_reviewer": {
+        "model": "codex-gpt",
+        "effort": "high"
+      },
+      "orchestrator": {
+        "model": "codex-terra",
+        "effort": "medium"
+      },
+      "programmer": {
+        "model": "codex-terra",
+        "effort": "medium"
+      }
+    }
+  },
+  "overrides": {},
+  "checkpoint_policy": {
+    "max_orchestrator_turns_before_checkpoint": 8
+  },
+  "low_quota": {}
+}

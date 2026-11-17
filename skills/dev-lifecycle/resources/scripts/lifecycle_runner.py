@@ -4,9 +4,13 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable, Mapping, Sequence
+import contextlib
 import copy
 import fcntl
 import importlib.util
+import inspect
+import io
 import json
 import os
 import re
@@ -14,19 +18,93 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
+KIT_ROOT = Path(__file__).resolve().parents[4]
 DEFAULT_PROGRAMMER_MODEL = "gemini-4-hydrogen-xhigh"
 DEFAULT_PROGRAMMER_EFFORT = "xhigh"
 LEGACY_PROGRAMMER_MODELS = frozenset({"gemini-3.8-flash", "gemini-3.8-flash-high"})
 EXTRA_EFFORT_ALIASES = frozenset({"extra", "extra-high", "extra_high", "xhigh"})
+HALT_CRITERIA: tuple[str, ...] = (
+    "CRITICAL_CONFLICT",
+    "Debatable",
+    "SHARED_CONTRACT_CONFLICT",
+    "FIX_LOOP",
+    "MAX_ROUNDS_CRITICAL_REMAINING",
+)
+_HIGH_RISK_LABELS: frozenset[str] = frozenset(
+    {"security", "architecture", "concurrency", "contract"}
+)
+_MODULE_LOAD_LOCK = threading.Lock()
+
+
+def _load_kit_module(name: str, rel_path: str) -> Any:
+    """Load a sibling kit Python module by path, reusing sys.modules when present."""
+    with _MODULE_LOAD_LOCK:
+        existing = sys.modules.get(name)
+        if existing is not None:
+            return existing
+        target = KIT_ROOT / rel_path
+        if not target.is_file():
+            raise RuntimeError(f"Required kit module not found: {target}")
+        spec = importlib.util.spec_from_file_location(name, str(target))
+        if spec is None or spec.loader is None:
+            raise RuntimeError(f"Failed to create module spec for {target}")
+        mod = importlib.util.module_from_spec(spec)
+        parent_str = str(target.parent)
+        inserted = False
+        if parent_str not in sys.path:
+            sys.path.insert(0, parent_str)
+            inserted = True
+        try:
+            sys.modules[name] = mod
+            spec.loader.exec_module(mod)
+        except Exception:
+            sys.modules.pop(name, None)
+            raise
+        finally:
+            if inserted:
+                with contextlib.suppress(ValueError):
+                    sys.path.remove(parent_str)
+        return mod
+
+
+def _persona_config() -> Any:
+    return _load_kit_module("persona_config", "scripts/persona_config.py")
+
+
+def _dev_config() -> Any:
+    return _load_kit_module("dev_config", "scripts/dev_config.py")
+
+
+def _agy_dispatch() -> Any:
+    return _load_kit_module("agy_dispatch", "scripts/agy_dispatch.py")
+
+
+def _agy_pool() -> Any:
+    return _load_kit_module("agy_profile_pool", "scripts/agy_profile_pool.py")
+
+
+def _state_envelope() -> Any:
+    return _load_kit_module("_state_envelope", "scripts/_state_envelope.py")
+
+
+def _resume_context() -> Any:
+    return _load_kit_module("resume_context", "scripts/resume_context.py")
+
+
+def _epic_docs() -> Any:
+    return _load_kit_module(
+        "_epic_docs", "skills/dev-implementation/resources/scripts/_epic_docs.py"
+    )
 
 
 def normalize_agy_effort(raw: str) -> str:
@@ -50,30 +128,116 @@ def build_agy_command(model: str, effort: str, mode: str = "auto") -> list[str]:
     ]
 
 
-def _upgrade_legacy_programmer_pair(
-    model: str | None,
-    effort: str | None,
-) -> tuple[str | None, str | None]:
-    """Upgrade legacy 3.8 programmer aliases in-memory without mutating files."""
-    clean_model = model.strip() if isinstance(model, str) and model.strip() else None
-    clean_effort = (
-        effort.strip() if isinstance(effort, str) and effort.strip() else None
+def _extract_last_fenced_json(text: str) -> dict[str, Any] | None:
+    """Return the parsed JSON object from the last fenced ```json block, or None."""
+    if not text:
+        return None
+    blocks = re.findall(
+        r"```json\s*\n?(.*?)\n?```", text, flags=re.DOTALL | re.IGNORECASE
     )
+    if not blocks:
+        return None
+    try:
+        parsed = json.loads(blocks[-1].strip())
+    except json.JSONDecodeError:
+        return None
+    return parsed if isinstance(parsed, dict) else None
 
-    if clean_model in LEGACY_PROGRAMMER_MODELS:
-        clean_model = DEFAULT_PROGRAMMER_MODEL
-        if (
-            clean_effort is None
-            or clean_effort.lower() in {"high"} | EXTRA_EFFORT_ALIASES
-        ):
-            clean_effort = DEFAULT_PROGRAMMER_EFFORT
-        else:
-            clean_effort = normalize_agy_effort(clean_effort)
-        return clean_model, clean_effort
 
-    if clean_effort is not None:
-        clean_effort = normalize_agy_effort(clean_effort)
-    return clean_model, clean_effort
+def _strip_yaml_inline_comment(value: str) -> str:
+    """Strip an unquoted trailing `# ...` YAML comment while preserving quoted `#` characters."""
+    in_single = False
+    in_double = False
+    escaped = False
+    for idx, ch in enumerate(value):
+        if escaped:
+            escaped = False
+            continue
+        if in_double:
+            if ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_double = False
+            continue
+        if in_single:
+            if ch == "'":
+                in_single = False
+            continue
+        if ch == '"':
+            in_double = True
+        elif ch == "'":
+            in_single = True
+        elif ch == "#":
+            return value[:idx].strip()
+    return value.strip()
+
+
+def _parse_task_frontmatter(task_file: Path | None) -> tuple[str, set[str]]:
+    """Extract (review_tier, labels) from task markdown YAML frontmatter."""
+    if task_file is None or not task_file.is_file():
+        return "", set()
+    try:
+        lines = task_file.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return "", set()
+    if not lines or lines[0].strip() != "---":
+        return "", set()
+    fm_lines: list[str] = []
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
+        fm_lines.append(line)
+
+    review_tier = ""
+    labels: set[str] = set()
+    in_labels = False
+    for raw in fm_lines:
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.startswith("review_tier:"):
+            in_labels = False
+            raw_val = _strip_yaml_inline_comment(stripped.split(":", 1)[1])
+            review_tier = raw_val.strip("'\"").lower()
+            continue
+        if stripped.startswith("labels:"):
+            val = _strip_yaml_inline_comment(stripped.split(":", 1)[1])
+            if val.startswith("[") and val.endswith("]"):
+                in_labels = False
+                for item in val[1:-1].split(","):
+                    tok = item.strip().strip("'\"")
+                    if tok:
+                        labels.add(tok.lower())
+            elif not val:
+                in_labels = True
+            else:
+                in_labels = False
+                tok = val.strip("'\"").lower()
+                if tok:
+                    labels.add(tok)
+            continue
+        if in_labels and stripped.startswith("- "):
+            tok = _strip_yaml_inline_comment(stripped[2:]).strip("'\"").lower()
+            if tok:
+                labels.add(tok)
+            continue
+        if not raw.startswith((" ", "\t")):
+            in_labels = False
+    return review_tier, labels
+
+
+def _is_non_test_module(rel_path: str) -> bool:
+    """Return True when `rel_path` denotes a non-test implementation module."""
+    norm = rel_path.strip().strip('"').replace("\\", "/")
+    if not norm:
+        return False
+    if norm.startswith((".devtool/", "build/", ".git/")):
+        return False
+    parts = [p for p in norm.split("/") if p]
+    if any(part in ("tests", "test", "__tests__") for part in parts):
+        return False
+    name = Path(norm).name.lower()
+    return not (name.startswith("test_") or "_test." in name or ".test." in name)
 
 
 def _tail_lines(text: str, limit: int = 25) -> str:
@@ -99,14 +263,6 @@ class StageName(str, Enum):
     HALTED = "halted"
 
 
-class FixPlanVerdict(str, Enum):
-    """AI Assistant fix plan evaluation verdicts."""
-
-    APPROVED = "APPROVED"
-    ADJUSTED = "ADJUSTED"
-    CRITICAL_CONFLICT = "CRITICAL_CONFLICT"
-
-
 @dataclass
 class RunnerConfig:
     """Configuration settings for the Autonomous Lifecycle Runner."""
@@ -115,115 +271,152 @@ class RunnerConfig:
     programmer_effort: str | None = None
     config_programmer_model: str | None = None
     config_programmer_effort: str | None = None
+    architect_model: str | None = None
+    architect_effort: str | None = None
+    config_architect_model: str | None = None
+    config_architect_effort: str | None = None
     assistant_model: str | None = None
-    assistant_effort: str = "high"
+    assistant_effort: str | None = None
+    real_home: Path | None = None
     timeout_seconds: int = 1800
     max_review_rounds: int = 3
     provider_priority: list[str] | None = None
     base_branch: str = "main"
 
-    def _read_review_config_programmer(
-        self, root: Path | None
-    ) -> tuple[str | None, str | None]:
-        """Read-only lookup of providers.programmer from .devtool/review_config.json."""
-        if not root:
-            return None, None
-        review_config_file = root / ".devtool" / "review_config.json"
-        if not review_config_file.is_file():
-            return None, None
-        try:
-            data = json.loads(review_config_file.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return None, None
+    def resolve_binding(self, persona: str, root: Path | None = None) -> Any:
+        """Resolve PersonaBinding via CLI > --config > persona_config (project > global > kit)."""
+        project_root = root if root is not None else Path.cwd()
+        pc = _persona_config()
 
-        if not isinstance(data, dict):
-            return None, None
-        prog = data.get("providers", {}).get("programmer", {})
-        if not isinstance(prog, dict):
-            return None, None
+        if persona == "programmer":
+            cli_model, cfg_model = self.programmer_model, self.config_programmer_model
+            cli_effort, cfg_effort = (
+                self.programmer_effort,
+                self.config_programmer_effort,
+            )
+        elif persona == "ai_architect_reviewer":
+            cli_model = self.architect_model or self.assistant_model
+            cfg_model = self.config_architect_model
+            cli_effort = self.architect_effort or self.assistant_effort
+            cfg_effort = self.config_architect_effort
+        else:
+            cli_model = cfg_model = cli_effort = cfg_effort = None
 
-        raw_model = prog.get("model") if isinstance(prog.get("model"), str) else None
-        raw_effort_val = (
-            prog.get("effort")
-            if prog.get("effort") is not None
-            else prog.get("thinking_level")
+        raw_model = next(
+            (m.strip() for m in (cli_model, cfg_model) if isinstance(m, str) and m.strip()),
+            None,
         )
-        raw_effort = raw_effort_val if isinstance(raw_effort_val, str) else None
-        return _upgrade_legacy_programmer_pair(raw_model, raw_effort)
+        raw_effort = next(
+            (
+                e.strip()
+                for e in (cli_effort, cfg_effort)
+                if isinstance(e, str) and e.strip()
+            ),
+            None,
+        )
+        norm_effort = normalize_agy_effort(raw_effort) if raw_effort is not None else None
+
+        cfg = pc.load_persona_config(project_root, real_home=self.real_home)
+        base_binding = pc.resolve_persona(
+            persona, project_root, real_home=self.real_home
+        )
+        if raw_model is None and norm_effort is None:
+            return base_binding
+
+        models: Mapping[str, Any] = cfg["models"]
+        if raw_model is None:
+            assert norm_effort is not None
+            return pc.resolve_persona(
+                persona,
+                project_root,
+                cli_overrides={"effort": norm_effort},
+                real_home=self.real_home,
+            )
+
+        if raw_model in models:
+            allowed = list(models[raw_model]["efforts"])
+            chosen_effort = (
+                norm_effort
+                if norm_effort is not None
+                else (
+                    base_binding.effort
+                    if base_binding.effort in allowed
+                    else allowed[-1]
+                )
+            )
+            return pc.resolve_persona(
+                persona,
+                project_root,
+                cli_overrides={"model": raw_model, "effort": chosen_effort},
+                real_home=self.real_home,
+            )
+
+        # Check if raw_model matches a catalogue model id (exact or template)
+        for alias, entry in models.items():
+            template = str(entry["id"])
+            efforts = list(entry["efforts"])
+            if "{effort}" in template:
+                pattern = re.escape(template).replace(r"\{effort\}", r"([A-Za-z0-9_-]+)")
+                match = re.fullmatch(pattern, raw_model)
+                if match is not None:
+                    raw_matched = match.group(1)
+                    matched_eff = (
+                        raw_matched
+                        if raw_matched in efforts
+                        else normalize_agy_effort(raw_matched)
+                    )
+                    chosen_effort = (
+                        matched_eff
+                        if matched_eff not in efforts
+                        else (norm_effort or matched_eff)
+                    )
+                    return pc.resolve_persona(
+                        persona,
+                        project_root,
+                        cli_overrides={"model": alias, "effort": chosen_effort},
+                        real_home=self.real_home,
+                    )
+            elif template == raw_model:
+                chosen_effort = norm_effort or (
+                    base_binding.effort
+                    if base_binding.effort in efforts
+                    else efforts[-1]
+                )
+                return pc.resolve_persona(
+                    persona,
+                    project_root,
+                    cli_overrides={"model": alias, "effort": chosen_effort},
+                    real_home=self.real_home,
+                )
+
+        # Fallback kept strictly for uncatalogued custom raw model IDs (e.g. legacy/test IDs)
+
+        sources = dict(base_binding.sources)
+        sources["model"] = "cli"
+        if norm_effort is not None:
+            sources["effort"] = "cli"
+        return pc.PersonaBinding(
+            persona=persona,
+            alias=raw_model,
+            cli=base_binding.cli,
+            model_id=raw_model,
+            effort=norm_effort or base_binding.effort,
+            quota_pool=base_binding.quota_pool,
+            fallback_alias=base_binding.fallback_alias,
+            sources=sources,
+        )
 
     def resolve_programmer_model(self, root: Path | None = None) -> str:
-        """Resolve Programmer model: CLI -> --config -> review_config.json -> env -> fallback."""
-        if self.programmer_model and self.programmer_model.strip():
-            return self.programmer_model.strip()
-
-        if self.config_programmer_model and self.config_programmer_model.strip():
-            cfg_model, _ = _upgrade_legacy_programmer_pair(
-                self.config_programmer_model, self.config_programmer_effort
-            )
-            if cfg_model:
-                return cfg_model
-
-        rc_model, _ = self._read_review_config_programmer(root)
-        if rc_model:
-            return rc_model
-
-        env_model_raw = os.environ.get("AGY_PROGRAMMER_MODEL", "")
-        env_effort_raw = os.environ.get("AGY_PROGRAMMER_EFFORT", "")
-        env_model, _ = _upgrade_legacy_programmer_pair(
-            env_model_raw, env_effort_raw or None
-        )
-        if env_model:
-            return env_model
-
-        return DEFAULT_PROGRAMMER_MODEL
+        """Resolve Programmer model ID via RunnerConfig -> persona_config precedence."""
+        return str(self.resolve_binding("programmer", root).model_id)
 
     def resolve_programmer_effort(self, root: Path | None = None) -> str:
-        """Resolve Programmer effort: CLI -> --config -> review_config.json -> env -> fallback."""
-        if self.programmer_effort and self.programmer_effort.strip():
-            return normalize_agy_effort(self.programmer_effort)
-
-        if self.config_programmer_effort and self.config_programmer_effort.strip():
-            _, cfg_effort = _upgrade_legacy_programmer_pair(
-                self.config_programmer_model, self.config_programmer_effort
-            )
-            if cfg_effort:
-                return cfg_effort
-
-        _, rc_effort = self._read_review_config_programmer(root)
-        if rc_effort:
-            return rc_effort
-
-        env_model_raw = os.environ.get("AGY_PROGRAMMER_MODEL", "")
-        env_effort_raw = os.environ.get("AGY_PROGRAMMER_EFFORT", "")
-        _, env_effort = _upgrade_legacy_programmer_pair(
-            env_model_raw or None, env_effort_raw
-        )
-        if env_effort:
-            return env_effort
-
-        return DEFAULT_PROGRAMMER_EFFORT
+        """Resolve Programmer reasoning effort via RunnerConfig -> persona_config precedence."""
+        return str(self.resolve_binding("programmer", root).effort)
 
     def resolve_assistant_model(self, root: Path | None = None) -> str:
-        """Resolve Assistant model following precedence: CLI -> review_config.json -> profile -> fallback."""
-        if self.assistant_model:
-            return self.assistant_model
-
-        if root:
-            review_config_file = root / ".devtool" / "review_config.json"
-            if review_config_file.is_file():
-                try:
-                    data = json.loads(review_config_file.read_text(encoding="utf-8"))
-                    model = data.get("providers", {}).get("assistant", {}).get("model")
-                    if model and isinstance(model, str):
-                        return model
-                except (json.JSONDecodeError, OSError):
-                    pass
-
-        profile_model = os.environ.get("AGY_ASSISTANT_MODEL")
-        if profile_model:
-            return profile_model
-
-        return "claude-sonnet-5-5-high"
+        """Resolve AI Architect & Reviewer model ID via RunnerConfig -> persona_config precedence."""
+        return str(self.resolve_binding("ai_architect_reviewer", root).model_id)
 
 
 @dataclass
@@ -262,19 +455,134 @@ class PipelineState:
         )
 
 
+def _extract_attempt_output_from_log(log_path: Path) -> str:
+    """Extract stdout/stderr captured for the latest attempt in an agy_dispatch log."""
+    if not log_path.is_file():
+        return ""
+    try:
+        lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return ""
+    start_idx: int | None = None
+    for idx, line in enumerate(lines):
+        if line.startswith("dispatch-profile: "):
+            start_idx = idx + 1
+    if start_idx is None:
+        return "\n".join(lines)
+    collected: list[str] = []
+    for line in lines[start_idx:]:
+        if line.startswith("agy-profile="):
+            break
+        collected.append(line)
+    return "\n".join(collected)
+
+
 class ModelDispatcher:
     """Supervises and dispatches headless model processes in isolated process groups."""
 
-    def __init__(self, worktree_dir: Path, timeout_seconds: int = 1800) -> None:
+    def __init__(
+        self,
+        worktree_dir: Path,
+        timeout_seconds: int = 1800,
+        *,
+        real_home: Path | None = None,
+        pool_dispatcher: Any = None,
+    ) -> None:
         self.worktree_dir = worktree_dir
         self.timeout_seconds = timeout_seconds
+        self.real_home = real_home
+        self.pool_dispatcher: Any = (
+            pool_dispatcher
+            if pool_dispatcher is not None
+            else _agy_dispatch().run_on_pool
+        )
+        self._ctx_local = threading.local()
+        self.last_dispatch_result: Any = None
+
+    def set_dispatch_context(
+        self,
+        *,
+        binding: Any,
+        mode: str,
+        owner: dict[str, Any],
+        log_path: Path | None = None,
+    ) -> None:
+        """Bind persona metadata on the current thread for the next dispatch call."""
+        self._ctx_local.context = {
+            "binding": binding,
+            "mode": mode,
+            "owner": dict(owner),
+            "log_path": log_path,
+        }
+
+    def clear_dispatch_context(self) -> None:
+        """Clear thread-local persona dispatch metadata."""
+        self._ctx_local.context = None
+
+    def consume_last_dispatch_result(self) -> Any:
+        """Return and clear the DispatchResult produced by the last dispatch on this thread."""
+        res = getattr(self._ctx_local, "last_result", None)
+        self._ctx_local.last_result = None
+        return res
+
+    def _resolve_pool_metadata(
+        self, cli: str, args: list[str]
+    ) -> tuple[Any, str, dict[str, Any], Path | None]:
+        ctx = getattr(self._ctx_local, "context", None)
+        if isinstance(ctx, dict):
+            return (
+                ctx["binding"],
+                str(ctx["mode"]),
+                dict(ctx["owner"]),
+                ctx.get("log_path"),
+            )
+        pc = _persona_config()
+        mode = (
+            "read-only"
+            if ("--sandbox" in args or "plan" in args or "read-only" in args)
+            else "write"
+        )
+        model_id = (
+            args[args.index("--model") + 1]
+            if "--model" in args and args.index("--model") + 1 < len(args)
+            else DEFAULT_PROGRAMMER_MODEL
+        )
+        effort = (
+            args[args.index("--effort") + 1]
+            if "--effort" in args and args.index("--effort") + 1 < len(args)
+            else DEFAULT_PROGRAMMER_EFFORT
+        )
+        quota_pool = pc.derive_quota_pool({"cli": cli, "id": model_id}, model_id)
+        binding = pc.PersonaBinding(
+            persona="programmer",
+            alias=model_id,
+            cli=cli,
+            model_id=model_id,
+            effort=effort,
+            quota_pool=quota_pool,
+            fallback_alias=None,
+            sources={"model": "cli", "effort": "cli"},
+        )
+        owner = {
+            "repo": self.worktree_dir.name,
+            "epic": "",
+            "task": "",
+            "slot": None,
+            "role": "runner",
+        }
+        return binding, mode, owner, None
 
     def probe_model(self, cli: str, model: str) -> tuple[bool, str]:
         """Verify model capabilities via headless CLI before state initialization."""
-        if cli == "agy":
-            cmd = [cli, "models"]
+        resolved_cli = (
+            "kiro-cli"
+            if cli == "kiro" and (shutil.which("kiro-cli") or not shutil.which("kiro"))
+            else cli
+        )
+        if resolved_cli == "agy":
+            cmd = [resolved_cli, "models"]
         else:
-            cmd = [cli, "--version"]
+            cmd = [resolved_cli, "--version"]
         try:
             res = subprocess.run(
                 cmd,
@@ -291,7 +599,7 @@ class ModelDispatcher:
                 )
                 return False, err
 
-            if cli == "agy":
+            if resolved_cli == "agy":
                 clean_target = model.strip().lower()
                 clean_output = res.stdout.lower()
                 if (
@@ -304,17 +612,83 @@ class ModelDispatcher:
 
             return True, "OK"
         except FileNotFoundError:
-            return False, f"CLI binary '{cli}' not found on PATH"
+            return False, f"CLI binary '{resolved_cli}' not found on PATH"
         except Exception as exc:
             return False, f"Probing exception: {exc}"
 
+    def _dispatch_via_pool(
+        self, cli: str, args: list[str], prompt: str
+    ) -> tuple[int, str, str]:
+        pc = _persona_config()
+        resolved_home = pc.get_real_home(self.real_home)
+        binding, mode, owner, explicit_log = self._resolve_pool_metadata(cli, args)
+        with tempfile.TemporaryDirectory(prefix="d3_pool_disp_") as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            prompt_path = tmp_path / "prompt.txt"
+            prompt_path.write_text(prompt, encoding="utf-8")
+            log_path = explicit_log if explicit_log is not None else (tmp_path / "dispatch.log")
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            res = self.pool_dispatcher(
+                binding,
+                mode,
+                prompt_file=prompt_path,
+                cwd=self.worktree_dir,
+                log=log_path,
+                owner=owner,
+                real_home=resolved_home,
+                timeout_seconds=self.timeout_seconds,
+            )
+            self._ctx_local.last_result = res
+            self.last_dispatch_result = res
+            status = str(getattr(res, "status", ""))
+            report = list(getattr(res, "report", []) or [])
+            reason = getattr(res, "reason", None)
+            rc = int(getattr(res, "exit_code", 0))
+            log_output = _extract_attempt_output_from_log(log_path)
+
+        if status == "ok":
+            return 0, log_output, ""
+        if status == "task_failure":
+            if reason == "timeout":
+                timeout_err = (
+                    "\n".join(report)
+                    if report
+                    else (
+                        log_output.strip()
+                        or f"Process timeout: execution timed out after {self.timeout_seconds}s"
+                    )
+                )
+                return (rc or 1), log_output, timeout_err
+            return (rc or 1), log_output, ""
+        if status == "quota_midrun":
+            return (rc or 1), log_output, "quota_midrun"
+        if status in ("model_unavailable", "preflight_failed"):
+            err_msg = "\n".join(report) if report else str(reason or status)
+            return (rc or 1), "", err_msg
+        if status == "no_profile":
+            err_msg = "\n".join(report) if report else str(reason or "no_profile")
+            return (rc or 2), "", err_msg
+        return (rc or 1), log_output, "\n".join(report) if report else str(reason or "")
+
     def dispatch(self, cli: str, args: list[str], prompt: str) -> tuple[int, str, str]:
-        """Dispatch headless process with process group isolation and timeout supervision."""
+        """Dispatch headless process with pool routing, dispatch env, process group isolation, and timeout supervision."""
+        self._ctx_local.last_result = None
+        self.last_dispatch_result = None
+
+        pc = _persona_config()
+        if cli == "agy":
+            resolved_home = pc.get_real_home(self.real_home)
+            pool_cfg = _agy_pool().load_pool_config(real_home=resolved_home)
+            if pool_cfg.get("pool"):
+                return self._dispatch_via_pool(cli, args, prompt)
+
         cmd = [cli] + args
+        launch_env = pc.build_dispatch_env(cmd, os.environ)
         try:
             proc = subprocess.Popen(
                 cmd,
                 cwd=self.worktree_dir,
+                env=launch_env,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -376,8 +750,445 @@ class LifecycleRunner:
         self.dispatcher = ModelDispatcher(
             worktree_dir=self.root,
             timeout_seconds=self.config.timeout_seconds,
+            real_home=self.config.real_home,
         )
+        self.quota_gate: Any = _dev_config().cmd_quota_check
+        self.checkpoint_writer: Any = _state_envelope().update_epic_checkpoint
+        self._turns_since_budget_checkpoint: int = 0
+        self._checkpoint_lock = threading.Lock()
+        self._halted_by_stop: bool = False
+        self._pending_quota_warning: str | None = None
         self.state = self.load_or_init_state()
+
+    @property
+    def pool_dispatcher(self) -> Any:
+        """Delegate pool_dispatcher access to the underlying ModelDispatcher."""
+        return self.dispatcher.pool_dispatcher
+
+    @pool_dispatcher.setter
+    def pool_dispatcher(self, value: Any) -> None:
+        self.dispatcher.pool_dispatcher = value
+
+    def _detect_profile(self) -> str:
+        resolved_home = _persona_config().get_real_home(self.config.real_home)
+        profile = str(
+            _resume_context().detect_current_profile(
+                self.root, real_home=resolved_home
+            )
+            or ""
+        ).strip()
+        return profile or os.environ.get("USER", "").strip() or "default"
+
+    def _is_low_quota_active(self) -> bool:
+        profile = self._detect_profile()
+        return (
+            _persona_config().low_quota_state(
+                self.root, profile, real_home=self.config.real_home
+            )
+            is not None
+        )
+
+    def _effective_turn_budget(self) -> int:
+        profile = self._detect_profile()
+        return int(
+            _persona_config().effective_turn_budget(
+                self.root, profile, real_home=self.config.real_home
+            )
+        )
+
+    def _git_head_sha(self, target: Path | None = None) -> str:
+        cwd = target or self.root
+        if not self._is_git_repo(cwd):
+            return ""
+        res = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return res.stdout.strip() if res.returncode == 0 else ""
+
+    def _write_checkpoint(
+        self,
+        event: str,
+        *,
+        persona: str = "orchestrator",
+        wave: int | None = None,
+        tasks_in_flight: Sequence[str] | None = None,
+        next_step: str = "",
+        turns_since_checkpoint: int | None = None,
+        warning: str | None = None,
+        extra: Mapping[str, Any] | None = None,
+    ) -> None:
+        turns_val = (
+            self._turns_since_budget_checkpoint
+            if turns_since_checkpoint is None
+            else turns_since_checkpoint
+        )
+        payload: dict[str, Any] = {
+            "event": event,
+            "at": _state_envelope()._utc_now_iso(),
+            "persona": persona,
+            "head_sha": self._git_head_sha(),
+            "wave": wave,
+            "tasks_done": list(self.state.completed_tasks),
+            "tasks_in_flight": list(tasks_in_flight or []),
+            "next_step": next_step,
+            "turns_since_checkpoint": turns_val,
+            "low_quota": self._is_low_quota_active(),
+        }
+        effective_warning = warning or self._pending_quota_warning
+        if effective_warning:
+            payload["warning"] = effective_warning
+            self._pending_quota_warning = None
+        if extra:
+            for key in ("brief_role", "model", "effort"):
+                val = extra.get(key)
+                if isinstance(val, str) and val.strip():
+                    payload[key] = val.strip()
+        self.checkpoint_writer(self.root, self.epic_slug, payload)
+
+    def _halt_with_decision(
+        self,
+        *,
+        halt_reason: str,
+        checkpoint_event: str,
+        decision_kind: str,
+        decision_reason: str,
+        persona: str = "orchestrator",
+        wave: int | None = None,
+        tasks_in_flight: Sequence[str] | None = None,
+    ) -> None:
+        self._write_checkpoint(
+            checkpoint_event,
+            persona=persona,
+            wave=wave,
+            tasks_in_flight=tasks_in_flight,
+            next_step=halt_reason,
+        )
+        _state_envelope().record_pending_decision(
+            self.root,
+            self.epic_slug,
+            decision_reason,
+            kind=decision_kind,
+            stage=self.state.active_stage,
+            worktree=self.root,
+        )
+        self.state.active_stage = StageName.HALTED.value
+        self.state.halt_reason = halt_reason
+        self.state.last_error = decision_reason
+        self._halted_by_stop = True
+        self.save_state()
+        print(f"\n🛑 {halt_reason}: {decision_reason}\n")
+
+    def _fallback_command_hint(self, persona: str, binding: Any) -> str:
+        fallback_alias = getattr(binding, "fallback_alias", None)
+        if not fallback_alias:
+            return f"/d3nexus:dev-config set {persona} <model> <effort>"
+        pc = _persona_config()
+        chosen_effort = str(binding.effort)
+        try:
+            cfg = pc.load_persona_config(self.root, real_home=self.config.real_home)
+            meta = cfg.get("models", {}).get(fallback_alias, {})
+            efforts = [str(e) for e in meta.get("efforts", []) if isinstance(e, str)]
+            if efforts and chosen_effort not in efforts:
+                chosen_effort = efforts[-1]
+        except (OSError, ValueError, KeyError, TypeError, pc.PersonaConfigError):
+            chosen_effort = str(binding.effort)
+        return f"/d3nexus:dev-config set {persona} {fallback_alias} {chosen_effort}"
+
+    def _invoke_quota_gate(self, personas: tuple[str, ...]) -> tuple[Any, str]:
+        buf = io.StringIO()
+        gate_fn = self.quota_gate
+        kwargs: dict[str, Any] = {}
+        try:
+            sig = inspect.signature(gate_fn)
+            params = sig.parameters
+            accepts_var_kw = any(
+                p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values()
+            )
+            if accepts_var_kw or "personas" in params:
+                kwargs["personas"] = personas
+            if accepts_var_kw or "json_output" in params:
+                kwargs["json_output"] = True
+            if accepts_var_kw or "real_home" in params:
+                kwargs["real_home"] = self.config.real_home
+            accepts_pos = any(
+                p.kind
+                in (
+                    inspect.Parameter.POSITIONAL_ONLY,
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    inspect.Parameter.VAR_POSITIONAL,
+                )
+                for p in params.values()
+            )
+        except (TypeError, ValueError):
+            accepts_pos = True
+            kwargs = {
+                "personas": personas,
+                "json_output": True,
+                "real_home": self.config.real_home,
+            }
+
+        with contextlib.redirect_stdout(buf):
+            if accepts_pos:
+                raw_res = gate_fn(self.root, **kwargs)
+            else:
+                raw_res = gate_fn(**kwargs)
+        return raw_res, buf.getvalue()
+
+    def _run_quota_gate(
+        self, personas: tuple[str, ...], *, wave: int | None = None
+    ) -> bool:
+        raw_res, captured = self._invoke_quota_gate(personas)
+        extra_detail = ""
+        if type(raw_res) is bool:
+            sufficient = raw_res
+        elif isinstance(raw_res, int):
+            sufficient = raw_res == 0
+        elif isinstance(raw_res, tuple):
+            sufficient = bool(raw_res[0])
+            if len(raw_res) > 1:
+                extra_detail = str(raw_res[1])
+        elif isinstance(raw_res, Mapping):
+            sufficient = bool(raw_res.get("sufficient", True))
+        else:
+            sufficient = bool(raw_res)
+
+        warnings_list: list[str] = []
+        insufficient_lines: list[str] = []
+        if captured.strip():
+            try:
+                payload = json.loads(captured)
+            except json.JSONDecodeError:
+                payload = None
+            if isinstance(payload, Mapping):
+                for item in payload.get("personas", []):
+                    if not isinstance(item, Mapping):
+                        continue
+                    warn = item.get("warning")
+                    if isinstance(warn, str) and warn.strip():
+                        warnings_list.append(warn.strip())
+                    if not item.get("sufficient", True):
+                        p_name = str(item.get("persona") or "")
+                        cli_name = str(item.get("cli") or "")
+                        alias = str(item.get("alias") or "")
+                        q_line = str(item.get("quota_line") or "insufficient")
+                        insufficient_lines.append(
+                            f"{p_name} ({cli_name}/{alias}): {q_line}"
+                        )
+
+        if warnings_list:
+            self._pending_quota_warning = "; ".join(warnings_list)
+
+        if sufficient:
+            return True
+
+        if insufficient_lines:
+            reason = (
+                "Quota insufficient: "
+                + "; ".join(insufficient_lines)
+                + ". Recover via profile switch or /d3nexus:dev-config preset <name>."
+            )
+        elif extra_detail:
+            reason = extra_detail
+        elif captured.strip():
+            reason = captured.strip()
+        else:
+            reason = f"Quota insufficient for {', '.join(personas)}."
+
+        self._halt_with_decision(
+            halt_reason="QUOTA_LOW",
+            checkpoint_event="quota_low",
+            decision_kind="quota",
+            decision_reason=reason,
+            wave=wave,
+        )
+        return False
+
+    def _check_low_quota_stop(
+        self, *, wave: int | None = None, context: str = "before wave"
+    ) -> bool:
+        if not self._is_low_quota_active():
+            return False
+        self._halt_with_decision(
+            halt_reason="LOW_QUOTA_STOP",
+            checkpoint_event="low_quota_stop",
+            decision_kind="blocker",
+            decision_reason=(
+                f"Low-quota mode enabled ({context}); stopped safely at checkpoint."
+            ),
+            wave=wave,
+        )
+        return True
+
+    def _dispatch_persona(
+        self,
+        persona: str,
+        mode: str,
+        prompt: str,
+        *,
+        brief_role: str = "",
+        task_id: str = "",
+        slot: int | None = None,
+        wave: int | None = None,
+        dispatcher: ModelDispatcher | None = None,
+        log_path: Path | None = None,
+        allow_quota_midrun_retry: bool = True,
+    ) -> tuple[int, str, str, bool]:
+        """Dispatch a persona binding with pool routing, failure classification, checkpoints, and turn budget."""
+        pc = _persona_config()
+        binding = self.config.resolve_binding(persona, self.root)
+        cmd = pc.build_dispatch_argv(binding, mode)
+        active_dispatcher = dispatcher or self.dispatcher
+        max_attempts = 2 if allow_quota_midrun_retry else 1
+
+        for attempt_idx in range(max_attempts):
+            with self._checkpoint_lock:
+                if self._halted_by_stop or self.state.active_stage == StageName.HALTED.value:
+                    return 1, "", self.state.halt_reason or "halted", False
+
+            owner = {
+                "repo": self.root.name,
+                "epic": self.epic_slug,
+                "task": task_id or brief_role,
+                "slot": slot,
+                "role": "runner",
+            }
+            if isinstance(active_dispatcher, ModelDispatcher):
+                active_dispatcher.set_dispatch_context(
+                    binding=binding,
+                    mode=mode,
+                    owner=owner,
+                    log_path=log_path,
+                )
+            try:
+                exit_code, stdout, stderr = active_dispatcher.dispatch(
+                    cli=cmd[0],
+                    args=cmd[1:],
+                    prompt=prompt,
+                )
+            finally:
+                if isinstance(active_dispatcher, ModelDispatcher):
+                    active_dispatcher.clear_dispatch_context()
+
+            dispatch_res = (
+                active_dispatcher.consume_last_dispatch_result()
+                if isinstance(active_dispatcher, ModelDispatcher)
+                else None
+            )
+
+            with self._checkpoint_lock:
+                already_halted = (
+                    self._halted_by_stop
+                    or self.state.active_stage == StageName.HALTED.value
+                )
+                res_status = (
+                    str(getattr(dispatch_res, "status", ""))
+                    if dispatch_res is not None
+                    else ""
+                )
+                profile_used = (
+                    getattr(dispatch_res, "profile_used", None)
+                    if dispatch_res is not None
+                    else None
+                )
+                is_no_profile = dispatch_res is not None and res_status == "no_profile"
+                is_model_unavail = (
+                    dispatch_res is not None
+                    and res_status in ("model_unavailable", "preflight_failed")
+                ) or (
+                    dispatch_res is None
+                    and pc.classify_dispatch_failure(exit_code, stdout, stderr)
+                    == "model_unavailable"
+                )
+
+                if already_halted and (is_no_profile or is_model_unavail):
+                    return exit_code, stdout, stderr, False
+
+                self._turns_since_budget_checkpoint += 1
+
+                if not already_halted and is_no_profile:
+                    report_lines = list(getattr(dispatch_res, "report", []) or [])
+                    reason_text = (
+                        "\n".join(report_lines)
+                        if report_lines
+                        else str(getattr(dispatch_res, "reason", None) or "no_profile")
+                    )
+                    print(reason_text)
+                    self._halt_with_decision(
+                        halt_reason="QUOTA_LOW",
+                        checkpoint_event="quota_low",
+                        decision_kind="quota",
+                        decision_reason=reason_text,
+                        persona=persona,
+                        wave=wave,
+                        tasks_in_flight=[task_id] if task_id else None,
+                    )
+                    return exit_code, stdout, stderr, False
+
+                if not already_halted and is_model_unavail:
+                    hint_cmd = self._fallback_command_hint(persona, binding)
+                    detail = _tail_lines(stderr, 10) or f"exit={exit_code}"
+                    reason_text = (
+                        f"{persona} model '{binding.alias}' unavailable ({detail}). "
+                        f"Fallback: {hint_cmd}"
+                    )
+                    self._halt_with_decision(
+                        halt_reason="MODEL_UNAVAILABLE",
+                        checkpoint_event="model_unavailable",
+                        decision_kind="blocker",
+                        decision_reason=reason_text,
+                        persona=persona,
+                        wave=wave,
+                        tasks_in_flight=[task_id] if task_id else None,
+                    )
+                    return exit_code, stdout, stderr, False
+
+                profile_part = f" profile={profile_used}" if profile_used else ""
+                role_label = brief_role or persona
+                target_label = task_id or "epic"
+                self._write_checkpoint(
+                    "subagent_returned",
+                    persona=persona,
+                    wave=wave,
+                    tasks_in_flight=[task_id] if task_id else None,
+                    next_step=f"{role_label}:{target_label}{profile_part}",
+                    extra={
+                        "brief_role": brief_role,
+                        "model": str(getattr(binding, "model_id", "") or ""),
+                        "effort": str(getattr(binding, "effort", "") or ""),
+                    },
+                )
+                budget = self._effective_turn_budget()
+                if self._turns_since_budget_checkpoint >= budget:
+                    self._write_checkpoint(
+                        "turn_budget",
+                        persona="orchestrator",
+                        wave=wave,
+                        tasks_in_flight=[task_id] if task_id else None,
+                        next_step=f"Turn budget ({budget}) reached",
+                        turns_since_checkpoint=0,
+                    )
+                    self._turns_since_budget_checkpoint = 0
+
+                if already_halted:
+                    ret_code = (
+                        (exit_code or 1)
+                        if dispatch_res is not None and res_status == "quota_midrun"
+                        else exit_code
+                    )
+                    return ret_code, stdout, stderr, False
+
+                if dispatch_res is not None and res_status == "quota_midrun":
+                    if attempt_idx == 0 and allow_quota_midrun_retry:
+                        continue
+                    return (exit_code or 1), stdout, stderr, False
+
+                return exit_code, stdout, stderr, True
+
+        return 1, "", "quota_midrun retry exhausted", False
 
     def state_file(self) -> Path:
         """Return the absolute path to the persistent state JSON file."""
@@ -455,8 +1266,13 @@ class LifecycleRunner:
 
         if self.state.active_stage == StageName.INITIALIZED.value:
             if not dry_run:
-                prog_model = self.config.resolve_programmer_model(self.root)
-                ok, err = self.dispatcher.probe_model("agy", prog_model)
+                prog_binding = self.config.resolve_binding("programmer", self.root)
+                probe_cli = _persona_config().build_dispatch_argv(
+                    prog_binding, "write"
+                )[0]
+                ok, err = self.dispatcher.probe_model(
+                    probe_cli, prog_binding.model_id
+                )
                 if not ok:
                     self.state.last_error = f"Programmer probe failed: {err}"
                     self.save_state()
@@ -504,6 +1320,10 @@ class LifecycleRunner:
                 ok = self.step_implementation()
                 if not ok:
                     return 1
+                if self.state.active_stage == StageName.IMPLEMENTATION.value:
+                    gate4_ok, _ = self.run_gate4()
+                    if not gate4_ok:
+                        return 1
                 self.state.active_stage = StageName.CROSS_MODEL_REVIEW.value
                 self.save_state()
 
@@ -689,6 +1509,32 @@ class LifecycleRunner:
 
         return list(targets_by_path.values())
 
+    def _resolve_epic_anchor_rels(self, exec_root: Path) -> list[str]:
+        """Resolve English-only epic artefact paths relative to exec_root/self.root."""
+        ed = _epic_docs()
+        anchors: list[str] = []
+        seen: set[str] = set()
+        for base in dict.fromkeys([exec_root, self.root]):
+            epic_dir = base / ".devtool" / "epic" / self.epic_slug
+            if not epic_dir.is_dir():
+                continue
+            for stem in ("handoff", self.epic_slug, "hld", "bdd_scenarios"):
+                doc = ed.resolve_epic_doc(epic_dir, stem)
+                if doc is None or doc.name.endswith(".vi.md"):
+                    continue
+                rel = f".devtool/epic/{self.epic_slug}/{doc.name}"
+                if rel not in seen:
+                    seen.add(rel)
+                    anchors.append(rel)
+            for spec_doc in ed.resolve_design_specs(epic_dir):
+                if spec_doc.name.endswith(".vi.md"):
+                    continue
+                rel = f".devtool/epic/{self.epic_slug}/{spec_doc.name}"
+                if rel not in seen:
+                    seen.add(rel)
+                    anchors.append(rel)
+        return anchors
+
     def _build_task_prompt(
         self,
         task_slug: str,
@@ -713,20 +1559,10 @@ class LifecycleRunner:
             except OSError:
                 target_refs = []
 
-        anchor_candidates = [
-            f".devtool/epic/{self.epic_slug}/handoff.md",
-            f".devtool/epic/{self.epic_slug}/{self.epic_slug}.en.md",
-            f".devtool/epic/{self.epic_slug}/hld.en.md",
-            f".devtool/epic/{self.epic_slug}/bdd_scenarios.en.md",
-        ]
-        existing_anchors = [
-            rel
-            for rel in anchor_candidates
-            if (exec_root / rel).is_file() or (self.root / rel).is_file()
-        ]
+        existing_anchors = self._resolve_epic_anchor_rels(exec_root)
 
         lines = [
-            f"Implement task `{task_slug}` inside workspace `{exec_root}` using strict TDD.",
+            f"Implement task `{task_slug}` inside workspace `{exec_root}` using strict TDD (`task-implementer`).",
             f"- Task spec path (read directly bounded): `{task_rel}`",
         ]
         if existing_anchors:
@@ -747,22 +1583,202 @@ class LifecycleRunner:
         )
         return "\n".join(lines) + "\n"
 
+    def _changed_files_for_gating(
+        self,
+        exec_root: Path,
+        pre_task_sha: str,
+        impl_head_sha: str,
+        summary: Mapping[str, Any] | None,
+    ) -> list[str]:
+        """Collect changed file paths via git diff (or working tree / summary fallback)."""
+        if self._is_git_repo(exec_root):
+            paths: list[str] = []
+            diff_ok = False
+            if impl_head_sha:
+                valid_res = subprocess.run(
+                    ["git", "cat-file", "-e", f"{impl_head_sha}^{{commit}}"],
+                    cwd=exec_root,
+                    capture_output=True,
+                    check=False,
+                )
+                if valid_res.returncode == 0:
+                    base_ref = ""
+                    if pre_task_sha:
+                        if pre_task_sha != impl_head_sha:
+                            base_ref = pre_task_sha
+                    else:
+                        base_check = subprocess.run(
+                            [
+                                "git",
+                                "rev-parse",
+                                "--verify",
+                                "--quiet",
+                                self.config.base_branch,
+                            ],
+                            cwd=exec_root,
+                            capture_output=True,
+                            check=False,
+                        )
+                        if base_check.returncode == 0:
+                            base_ref = self.config.base_branch
+                    if base_ref:
+                        diff_res = subprocess.run(
+                            [
+                                "git",
+                                "diff",
+                                "--name-only",
+                                f"{base_ref}..{impl_head_sha}",
+                            ],
+                            cwd=exec_root,
+                            capture_output=True,
+                            text=True,
+                            check=False,
+                        )
+                        if diff_res.returncode == 0:
+                            paths.extend(
+                                ln.strip()
+                                for ln in diff_res.stdout.splitlines()
+                                if ln.strip()
+                            )
+                            diff_ok = True
+                    elif pre_task_sha == impl_head_sha:
+                        diff_ok = True
+            st_res = subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=exec_root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if st_res.returncode == 0:
+                for line in st_res.stdout.splitlines():
+                    if len(line) >= 4:
+                        rel = line[3:].strip().split(" -> ")[-1].strip('"')
+                        if rel and rel not in paths:
+                            paths.append(rel)
+            if diff_ok or paths:
+                return paths
+
+        if isinstance(summary, Mapping) and isinstance(
+            summary.get("changed_files"), list
+        ):
+            return [str(p) for p in summary["changed_files"] if str(p).strip()]
+        return []
+
+    def _task_requires_architect_review(
+        self,
+        task_file: Path | None,
+        exec_root: Path,
+        pre_task_sha: str,
+        impl_head_sha: str,
+        summary: Mapping[str, Any] | None,
+    ) -> bool:
+        """Recompute selective review gating from task frontmatter and git diff."""
+        review_tier, labels = _parse_task_frontmatter(task_file)
+        if review_tier == "full" or bool(labels & _HIGH_RISK_LABELS):
+            return True
+        changed = self._changed_files_for_gating(
+            exec_root, pre_task_sha, impl_head_sha, summary
+        )
+        non_test = [p for p in changed if _is_non_test_module(p)]
+        return len(non_test) > 2
+
+    def _build_task_reviewer_prompt(
+        self,
+        task_slug: str,
+        task_file: Path | None,
+        exec_root: Path,
+        impl_head_sha: str,
+    ) -> str:
+        """Build read-only Role 2.1 task-reviewer brief for selective gating."""
+        task_rel = f".devtool/features/{task_slug}.md"
+        if task_file is not None:
+            try:
+                task_rel = str(task_file.relative_to(exec_root))
+            except ValueError:
+                task_rel = str(task_file)
+        anchors = self._resolve_epic_anchor_rels(exec_root)
+        anchor_text = ", ".join(anchors) if anchors else "(none)"
+        return (
+            f"You are Role 2.1 AI Architect & Reviewer (`task-reviewer`, read-only).\n"
+            f"Review task `{task_slug}` in `{exec_root}` at candidate head_sha `{impl_head_sha}`.\n"
+            f"- Task spec: `{task_rel}`\n"
+            f"- English SSOT epic docs: {anchor_text}\n"
+            f"- Boundaries: Read-only. Do NOT edit files, mark tasks done, or commit.\n"
+            f'- End with fenced json: `{{"task_id": "{task_slug}", "verdict": "PASS|FAIL", "head_sha": "{impl_head_sha}", "done_gate": "PASS|FAIL", "findings": []}}`\n'
+        )
+
+    def _finalize_task_done(
+        self,
+        task_slug: str,
+        exec_root: Path,
+        sync_script: Path,
+        *,
+        commit_title: str,
+    ) -> bool:
+        """Mark task done via sync_task_status.py and commit changes inside exec_root."""
+        if sync_script.is_file():
+            sync_res = subprocess.run(
+                [sys.executable, "-B", str(sync_script), "task", task_slug, "done"],
+                cwd=exec_root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if sync_res.returncode != 0:
+                raw_err = sync_res.stderr or sync_res.stdout or ""
+                if isinstance(raw_err, bytes):
+                    raw_err = raw_err.decode("utf-8", errors="replace")
+                detail = _tail_lines(str(raw_err), 10) or f"exit={sync_res.returncode}"
+                self.state.last_error = (
+                    f"sync_task_status failed for {task_slug}: {detail}"
+                )
+                return False
+
+        if self._is_git_repo(exec_root):
+            status_res = subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=exec_root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if status_res.returncode == 0 and status_res.stdout.strip():
+                add_res = subprocess.run(
+                    ["git", "add", "-A"],
+                    cwd=exec_root,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                if add_res.returncode != 0:
+                    return False
+                commit_res = subprocess.run(
+                    ["git", "commit", "-m", commit_title],
+                    cwd=exec_root,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                if commit_res.returncode != 0:
+                    return False
+        return True
+
     def _execute_single_task(
         self,
         task_slug: str,
         worktree_dir: Path | None = None,
         dispatcher: ModelDispatcher | None = None,
+        *,
+        slot: int | None = None,
+        wave: int | None = None,
     ) -> bool:
         """Dispatch headless programmer subprocess for a single task inside `worktree_dir`."""
         exec_root = worktree_dir or self.root
         task_file = self._find_task_file(
             task_slug, root=exec_root
         ) or self._find_task_file(task_slug, root=self.root)
-        prompt = self._build_task_prompt(task_slug, task_file, exec_root)
-
-        prog_model = self.config.resolve_programmer_model(self.root)
-        prog_effort = self.config.resolve_programmer_effort(self.root)
-        cmd = build_agy_command(prog_model, prog_effort, mode="auto")
+        base_prompt = self._build_task_prompt(task_slug, task_file, exec_root)
         sync_script = (
             exec_root
             / "skills"
@@ -785,68 +1801,159 @@ class LifecycleRunner:
                 capture_output=True,
                 check=False,
             )
-        active_dispatcher = dispatcher or self.dispatcher
-        exit_code, stdout, stderr = active_dispatcher.dispatch(
-            cli=cmd[0],
-            args=cmd[1:],
-            prompt=prompt,
-        )
 
-        # Keep task logs under self.root (epic worktree), never polluting isolated slot commits
+        pre_task_sha = self._git_head_sha(exec_root)
         log_dir = self.root / ".devtool" / "logs" / "tasks"
         log_dir.mkdir(parents=True, exist_ok=True)
         log_file = log_dir / f"{task_slug}.log"
-        try:
-            log_file.write_text(
-                f"=== STDOUT ===\n{stdout}\n=== STDERR ===\n{stderr}\n",
-                encoding="utf-8",
-            )
-        except OSError:
-            pass
+        retry_note = ""
 
-        if exit_code != 0:
-            return False
-
-        # Mark task done via sync_task_status.py if present in exec_root
-        if sync_script.is_file():
-            subprocess.run(
-                [sys.executable, "-B", str(sync_script), "task", task_slug, "done"],
-                cwd=exec_root,
-                capture_output=True,
-                check=False,
+        for _attempt in range(2):
+            prompt = (
+                base_prompt
+                if not retry_note
+                else f"{base_prompt}\nReviewer feedback to address:\n{retry_note}\n"
             )
-
-        # Commit task changes inside exec_root if git repository
-        if self._is_git_repo(exec_root):
-            status_res = subprocess.run(
-                ["git", "status", "--porcelain"],
-                cwd=exec_root,
-                capture_output=True,
-                text=True,
-                check=False,
+            exit_code, stdout, stderr, disp_ok = self._dispatch_persona(
+                "programmer",
+                "write",
+                prompt,
+                brief_role="task-implementer",
+                task_id=task_slug,
+                slot=slot,
+                wave=wave,
+                dispatcher=dispatcher,
+                log_path=log_dir / f"{task_slug}.pool.log",
             )
-            if status_res.returncode == 0 and status_res.stdout.strip():
-                add_res = subprocess.run(
-                    ["git", "add", "-A"],
-                    cwd=exec_root,
-                    capture_output=True,
-                    text=True,
-                    check=False,
+            try:
+                log_file.write_text(
+                    f"=== STDOUT ===\n{stdout}\n=== STDERR ===\n{stderr}\n",
+                    encoding="utf-8",
                 )
-                if add_res.returncode != 0:
-                    return False
-                commit_title = f"[{self.epic_slug.upper()}] Execute {task_slug}"
-                commit_res = subprocess.run(
-                    ["git", "commit", "-m", commit_title],
-                    cwd=exec_root,
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
-                if commit_res.returncode != 0:
-                    return False
+            except OSError:
+                pass
 
-        return True
+            if not disp_ok or exit_code != 0:
+                return False
+
+            impl_summary = _extract_last_fenced_json(stdout)
+            if impl_summary is not None:
+                impl_status = str(impl_summary.get("status") or "").strip().upper()
+                if impl_status and impl_status != "DONE":
+                    self.state.last_error = (
+                        f"Task {task_slug} returned status '{impl_status}'"
+                    )
+                    return False
+                if "verify" in impl_summary:
+                    impl_verify = str(impl_summary.get("verify") or "").strip().upper()
+                    if impl_verify != "PASS":
+                        self.state.last_error = (
+                            f"Task {task_slug} returned verify '{impl_verify or 'missing'}'"
+                        )
+                        return False
+                impl_head_sha = str(impl_summary.get("head_sha") or "").strip()
+                if self._is_git_repo(exec_root):
+                    real_head = self._git_head_sha(exec_root)
+                    if real_head and impl_head_sha != real_head:
+                        self.state.last_error = (
+                            f"Task {task_slug} reported head_sha '{impl_head_sha or 'missing'}' "
+                            f"!= HEAD '{real_head}'"
+                        )
+                        return False
+            else:
+                impl_head_sha = ""
+            if not impl_head_sha and self._is_git_repo(exec_root):
+                impl_head_sha = self._git_head_sha(exec_root)
+
+            needs_review = self._task_requires_architect_review(
+                task_file, exec_root, pre_task_sha, impl_head_sha, impl_summary
+            )
+            if not needs_review:
+                return self._finalize_task_done(
+                    task_slug,
+                    exec_root,
+                    sync_script,
+                    commit_title=f"[{self.epic_slug.upper()}] Execute {task_slug}",
+                )
+
+            rev_prompt = self._build_task_reviewer_prompt(
+                task_slug, task_file, exec_root, impl_head_sha
+            )
+            rev_code, rev_out, rev_err, rev_disp_ok = self._dispatch_persona(
+                "ai_architect_reviewer",
+                "read-only",
+                rev_prompt,
+                brief_role="task-reviewer",
+                task_id=task_slug,
+                slot=slot,
+                wave=wave,
+                dispatcher=dispatcher,
+                log_path=log_dir / f"{task_slug}.review.log",
+            )
+            if not rev_disp_ok:
+                return False
+
+            rev_summary = _extract_last_fenced_json(rev_out)
+            rev_verdict = (
+                str(rev_summary.get("verdict") or "").strip().upper()
+                if rev_summary is not None
+                else ""
+            )
+            rev_sha = (
+                str(rev_summary.get("head_sha") or "").strip()
+                if rev_summary is not None
+                else ""
+            )
+            rev_done_gate = (
+                str(rev_summary.get("done_gate") or "").strip().upper()
+                if rev_summary is not None
+                else ""
+            )
+            rev_task_id_present = (
+                rev_summary is not None
+                and "task_id" in rev_summary
+                and rev_summary.get("task_id") is not None
+            )
+            rev_task_id = (
+                str(rev_summary.get("task_id") or "").strip()
+                if rev_task_id_present and rev_summary is not None
+                else ""
+            )
+            task_id_ok = (not rev_task_id_present) or (rev_task_id == task_slug)
+            if (
+                rev_code == 0
+                and rev_verdict == "PASS"
+                and rev_done_gate == "PASS"
+                and task_id_ok
+                and bool(impl_head_sha)
+                and rev_sha == impl_head_sha
+            ):
+                return self._finalize_task_done(
+                    task_slug,
+                    exec_root,
+                    sync_script,
+                    commit_title=(
+                        f"[{self.epic_slug.upper()}] Mark {task_slug} done after Architect review"
+                    ),
+                )
+
+            findings_text = (
+                json.dumps(rev_summary.get("findings"))
+                if rev_summary is not None and rev_summary.get("findings") is not None
+                else _tail_lines(rev_err or rev_out, 10)
+            )
+            retry_note = (
+                f"Architect task-reviewer did not PASS for head_sha '{impl_head_sha}' "
+                f"(verdict={rev_verdict or 'UNPARSEABLE'}, done_gate={rev_done_gate or 'missing'}, "
+                f"task_id={rev_task_id or 'none'}, reviewer_sha={rev_sha or 'none'}, "
+                f"findings={findings_text})."
+            )
+
+        if not self._halted_by_stop:
+            self.state.last_error = (
+                f"Task {task_slug} failed Architect task-reviewer verification"
+            )
+        return False
 
     def _has_domain_or_critical_conflict(self, text: str) -> bool:
         """Check if review triage indicates critical risks or business/domain conflicts."""
@@ -863,21 +1970,17 @@ class LifecycleRunner:
     def _apply_minor_fixes(self, round_num: int) -> bool:
         """Apply minor review revisions and commit changes."""
         prompt = (
-            f"You are the AI Assistant (Role 2.2). Apply minor revisions for Principal Review round {round_num}.\n"
+            f"You are the AI Architect & Reviewer (Role 2.1). Apply minor revisions for Principal Review round {round_num}.\n"
             f"Update the architectural specifications in .devtool/epic/{self.epic_slug}/ to address all minor review findings.\n"
         )
-        self.dispatcher.dispatch(
-            cli="agy",
-            args=[
-                "--model",
-                self.config.resolve_assistant_model(self.root),
-                "--effort",
-                self.config.assistant_effort,
-                "--mode",
-                "accept-edits",
-            ],
-            prompt=prompt,
+        _, _, _, disp_ok = self._dispatch_persona(
+            "ai_architect_reviewer",
+            "write",
+            prompt,
+            brief_role="principal-reviser",
         )
+        if not disp_ok:
+            return False
         # 1. Commit technical revision edits first
         status_res = subprocess.run(
             ["git", "status", "--porcelain"],
@@ -953,21 +2056,17 @@ class LifecycleRunner:
     def _apply_aligned_fixes(self, round_num: int) -> bool:
         """Apply aligned technical revisions and commit changes."""
         prompt = (
-            f"You are the AI Assistant (Role 2.2). Apply aligned technical revisions for Principal Review round {round_num}.\n"
+            f"You are the AI Architect & Reviewer (Role 2.1). Apply aligned technical revisions for Principal Review round {round_num}.\n"
             f"Update the architectural specifications in .devtool/epic/{self.epic_slug}/ to align with verified findings.\n"
         )
-        self.dispatcher.dispatch(
-            cli="agy",
-            args=[
-                "--model",
-                self.config.resolve_assistant_model(self.root),
-                "--effort",
-                self.config.assistant_effort,
-                "--mode",
-                "accept-edits",
-            ],
-            prompt=prompt,
+        _, _, _, disp_ok = self._dispatch_persona(
+            "ai_architect_reviewer",
+            "write",
+            prompt,
+            brief_role="principal-reviser",
         )
+        if not disp_ok:
+            return False
         # 1. Commit aligned revision edits first
         status_res = subprocess.run(
             ["git", "status", "--porcelain"],
@@ -1221,7 +2320,9 @@ class LifecycleRunner:
                 print(
                     "AUTO_PASS_FINAL_MINOR_SWEEP: 0 Critical and 0 Important findings"
                 )
-                self._apply_minor_fixes(round_num)
+                if not self._apply_minor_fixes(round_num):
+                    self.save_state()
+                    return False
                 self._run_package_epic_revise()
                 self.state.active_stage = StageName.IMPLEMENTATION.value
                 self.save_state()
@@ -1230,7 +2331,9 @@ class LifecycleRunner:
             if action == "AUTO_PASS_FINAL_SWEEP":
                 print("AUTO_PASS_FINAL_SWEEP: Final review round sweep")
                 self._emit_review_phase_status("principal", "fixing", round_num)
-                self._apply_aligned_fixes(round_num)
+                if not self._apply_aligned_fixes(round_num):
+                    self.save_state()
+                    return False
                 self._emit_review_phase_status("principal", "verifying", round_num)
                 self._run_package_epic_revise()
                 self.state.active_stage = StageName.IMPLEMENTATION.value
@@ -1259,7 +2362,9 @@ class LifecycleRunner:
                     self.save_state()
 
                 self._emit_review_phase_status("principal", "fixing", round_num)
-                self._apply_aligned_fixes(round_num)
+                if not self._apply_aligned_fixes(round_num):
+                    self.save_state()
+                    return False
                 self._emit_review_phase_status("principal", "verifying", round_num)
 
         self.state.active_stage = StageName.HALTED.value
@@ -1346,7 +2451,18 @@ class LifecycleRunner:
         return ModelDispatcher(
             worktree_dir=slot_path,
             timeout_seconds=self.config.timeout_seconds,
+            real_home=self.dispatcher.real_home,
+            pool_dispatcher=self.dispatcher.pool_dispatcher,
         )
+
+    def _wave_personas(self, batch: Sequence[str]) -> tuple[str, ...]:
+        """Return persona bindings required before executing a wave."""
+        for task_slug in batch:
+            task_file = self._find_task_file(task_slug)
+            review_tier, labels = _parse_task_frontmatter(task_file)
+            if review_tier == "full" or bool(labels & _HIGH_RISK_LABELS):
+                return ("orchestrator", "programmer", "ai_architect_reviewer")
+        return ("orchestrator", "programmer")
 
     def _run_pool_batch(
         self,
@@ -1382,6 +2498,8 @@ class LifecycleRunner:
                 task_slug,
                 worktree_dir=slot_path,
                 dispatcher=slot_dispatcher,
+                slot=slot_idx,
+                wave=wave_num,
             )
             return slot_idx, task_slug, ok
 
@@ -1409,8 +2527,12 @@ class LifecycleRunner:
                     base_ref=epic_branch,
                     status="idle",
                 )
-                self.state.last_error = f"Task execution failed: {task_slug}"
-                self.save_state()
+                if (
+                    not self._halted_by_stop
+                    and self.state.active_stage != StageName.HALTED.value
+                ):
+                    self.state.last_error = f"Task execution failed: {task_slug}"
+                    self.save_state()
                 return False
 
             with merge_lock:
@@ -1460,19 +2582,46 @@ class LifecycleRunner:
                     self.save_state()
                     return False
 
-            for task_slug in self.state.task_order:
-                if task_slug in self.state.completed_tasks:
-                    continue
+            pending_seq = [
+                t for t in self.state.task_order if t not in self.state.completed_tasks
+            ]
+            for wave_num, task_slug in enumerate(pending_seq, start=1):
+                if self._check_low_quota_stop(
+                    wave=wave_num, context=f"before task {task_slug}"
+                ):
+                    return False
+                if not self._run_quota_gate(
+                    self._wave_personas([task_slug]), wave=wave_num
+                ):
+                    return False
+                if self._check_low_quota_stop(
+                    wave=wave_num, context=f"before task {task_slug}"
+                ):
+                    return False
 
                 success = self._execute_single_task(task_slug)
                 if not success:
-                    self.state.last_error = f"Task execution failed: {task_slug}"
-                    self.save_state()
+                    if (
+                        not self._halted_by_stop
+                        and self.state.active_stage != StageName.HALTED.value
+                    ):
+                        self.state.last_error = f"Task execution failed: {task_slug}"
+                        self.save_state()
                     return False
 
                 if task_slug not in self.state.completed_tasks:
                     self.state.completed_tasks.append(task_slug)
                 self.save_state()
+                self._write_checkpoint(
+                    "wave_merged",
+                    persona="orchestrator",
+                    wave=wave_num,
+                    next_step=f"Wave {wave_num} merged: {task_slug}",
+                )
+                if self._check_low_quota_stop(
+                    wave=wave_num, context=f"after task {task_slug}"
+                ):
+                    return False
 
             return True
 
@@ -1505,6 +2654,19 @@ class LifecycleRunner:
         )
         try:
             for wave_num, pending_batch in pending_batches:
+                if self._check_low_quota_stop(
+                    wave=wave_num, context=f"before wave {wave_num}"
+                ):
+                    return False
+                if not self._run_quota_gate(
+                    self._wave_personas(pending_batch), wave=wave_num
+                ):
+                    return False
+                if self._check_low_quota_stop(
+                    wave=wave_num, context=f"before wave {wave_num}"
+                ):
+                    return False
+
                 if not self._run_pool_batch(
                     pool_mod,
                     repo_root,
@@ -1512,6 +2674,17 @@ class LifecycleRunner:
                     epic_branch,
                     pending_batch,
                     wave_num=wave_num,
+                ):
+                    return False
+
+                self._write_checkpoint(
+                    "wave_merged",
+                    persona="orchestrator",
+                    wave=wave_num,
+                    next_step=f"Wave {wave_num} merged: {', '.join(pending_batch)}",
+                )
+                if self._check_low_quota_stop(
+                    wave=wave_num, context=f"after wave {wave_num} merged"
                 ):
                     return False
         finally:
@@ -1524,203 +2697,240 @@ class LifecycleRunner:
 
         return True
 
+    def _build_gate4_verifier_prompt(self, attempt_num: int) -> str:
+        """Build the Role 2.3 gate4-verifier brief carrying Gate 4 commands verbatim."""
+        ed = _epic_docs()
+        epic_dir = self.root / ".devtool" / "epic" / self.epic_slug
+        hld_doc = ed.resolve_epic_doc(epic_dir, self.epic_slug) or ed.resolve_epic_doc(
+            epic_dir, "hld"
+        )
+        scenarios_doc = ed.resolve_epic_doc(epic_dir, "bdd_scenarios")
+
+        hld_integ_cmds: list[str] = []
+        hld_report_paths: list[str] = []
+        if hld_doc is not None and hld_doc.is_file():
+            try:
+                for line in hld_doc.read_text(encoding="utf-8").splitlines():
+                    if line.startswith("Integration results:"):
+                        cmd_part = line[len("Integration results:") :].strip()
+                        if "->" in cmd_part:
+                            cmd_str, rhs = cmd_part.split("->", 1)
+                            cmd_str = cmd_str.strip()
+                            for tok in re.split(r"[\s,]+", rhs.strip()):
+                                cleaned = tok.strip("`'\"")
+                                if not cleaned:
+                                    continue
+                                low = cleaned.lower()
+                                if (
+                                    "/" in cleaned
+                                    or "*" in cleaned
+                                    or low.endswith((".xml", ".json"))
+                                ):
+                                    if cleaned not in hld_report_paths:
+                                        hld_report_paths.append(cleaned)
+                        else:
+                            cmd_str = cmd_part
+                        if cmd_str:
+                            hld_integ_cmds.append(cmd_str)
+            except OSError:
+                pass
+
+        scenarios_rel = (
+            f".devtool/epic/{self.epic_slug}/{scenarios_doc.name}"
+            if scenarios_doc is not None
+            else f".devtool/epic/{self.epic_slug}/bdd_scenarios.md"
+        )
+        results_opt = (
+            f" --results {' '.join(hld_report_paths)}" if hld_report_paths else ""
+        )
+        bdd_cmd = (
+            f"python3 skills/dev-implementation/resources/scripts/check_bdd_traceability.py "
+            f"tests --roots tests --scenarios {scenarios_rel}{results_opt}"
+        )
+
+        lines = [
+            f"You are Role 2.3 Programmer (`gate4-verifier`, attempt {attempt_num}) inside `{self.root}`.",
+            "Execute the complete Stage 3 Gate 4 verification sequence without modifying source or test files (commit only any generated smoke checklist so the working tree is clean):",
+            f"1. `python3 skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --epic-dir {self.epic_slug}`",
+            f"2. `python3 skills/dev-implementation/resources/scripts/run_external_review.py check --epic-dir {self.epic_slug} --kind code`",
+            f"3. `python3 skills/dev-implementation/resources/scripts/audit_epic.py --epic-dir {self.epic_slug} --base {self.config.base_branch}`",
+        ]
+        if hld_integ_cmds:
+            for icmd in hld_integ_cmds:
+                lines.append(f"4a. HLD Integration results command: `{icmd}`")
+        else:
+            lines.append("4a. Execute any `Integration results:` command declared in the epic HLD.")
+        lines.extend(
+            [
+                f"4b. `{bdd_cmd}`",
+                "5. `bash scripts/verify.sh --quiet`",
+                "Ensure `git status --porcelain` is empty and report `candidate_sha` equal to `git rev-parse HEAD`.",
+                'End your response with one fenced `json` block: `{"candidate_sha": "...", "verdict": "PASS|FAIL", "audit_exit": 0, "quality_check_report": "...", "failures": []}`',
+            ]
+        )
+        return "\n".join(lines) + "\n"
+
+    def _validate_gate4_report(
+        self, raw_report: Any, candidate_sha: str
+    ) -> tuple[bool, str]:
+        """Validate Gate 4 quality_check_report, checking SHA binding when path-like."""
+        if not isinstance(raw_report, str) or not raw_report.strip():
+            return False, "quality_check_report=missing"
+        report_val = raw_report.strip()
+        if report_val.lower() == "fail":
+            return False, "quality_check_report='fail'"
+        looks_like_path = "/" in report_val or report_val.lower().endswith(
+            (".json", ".md", ".xml")
+        )
+        if not looks_like_path:
+            return True, ""
+        report_path = Path(report_val)
+        if not report_path.is_absolute():
+            report_path = self.root / report_path
+        if not report_path.is_file():
+            return False, f"quality_check_report missing: {report_val}"
+        try:
+            content = report_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return False, f"quality_check_report unreadable: {report_val}"
+        if not candidate_sha or candidate_sha not in content:
+            return False, f"quality_check_report unbound to SHA {candidate_sha}"
+        return True, ""
+
     def run_gate4(self) -> tuple[bool, str]:
-        """Execute complete Stage 3 Gate 4 verification sequence on candidate SHA."""
-        # 1. Smoke checklist generation
-        smoke_script = (
-            self.root
-            / "skills"
-            / "dev-implementation"
-            / "resources"
-            / "scripts"
-            / "generate_smoke_checklist.py"
-        )
-        if smoke_script.is_file():
-            res = subprocess.run(
-                [sys.executable, str(smoke_script), "--epic-dir", self.epic_slug],
-                cwd=self.root,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            if res.returncode != 0:
-                raw_err = (
-                    res.stderr.strip()
-                    or res.stdout.strip()
-                    or f"exit code {res.returncode}"
-                )
-                err = self._tail_lines(raw_err, 25) or raw_err
-                return False, f"Smoke checklist generation failed: {err}"
+        """Execute Stage 3 Gate 4 via a fresh Role 2.3 gate4-verifier with SHA and clean-tree checks."""
+        max_attempts = max(4, self.config.max_review_rounds + 1)
+        prev_checks: set[str] = set()
+        last_detail = "Gate 4 verification failed"
 
-        # 2. Review decisions check
-        review_script = (
-            self.root
-            / "skills"
-            / "dev-implementation"
-            / "resources"
-            / "scripts"
-            / "run_external_review.py"
-        )
-        if review_script.is_file():
-            chk_res = subprocess.run(
-                [
-                    sys.executable,
-                    str(review_script),
-                    "check",
-                    "--epic-dir",
-                    self.epic_slug,
-                    "--kind",
-                    "code",
-                ],
-                cwd=self.root,
-                capture_output=True,
-                text=True,
-                check=False,
+        for attempt_idx in range(max_attempts):
+            prompt = self._build_gate4_verifier_prompt(attempt_idx + 1)
+            exit_code, stdout, stderr, disp_ok = self._dispatch_persona(
+                "programmer",
+                "write",
+                prompt,
+                brief_role="gate4-verifier",
+                task_id="gate4",
             )
-            if chk_res.returncode != 0:
-                raw_err = (
-                    chk_res.stderr.strip()
-                    or chk_res.stdout.strip()
-                    or f"exit code {chk_res.returncode}"
-                )
-                err = self._tail_lines(raw_err, 25) or raw_err
-                return False, f"Review decisions check failed: {err}"
+            if not disp_ok:
+                return False, self.state.halt_reason or last_detail
 
-        # 3. Code and security audit checks via audit_epic.py
-        audit_script = (
-            self.root
-            / "skills"
-            / "dev-implementation"
-            / "resources"
-            / "scripts"
-            / "audit_epic.py"
-        )
-        if audit_script.is_file():
-            audit_res = subprocess.run(
-                [
-                    sys.executable,
-                    str(audit_script),
-                    "--epic-dir",
-                    self.epic_slug,
-                    "--base",
-                    self.config.base_branch,
-                ],
-                cwd=self.root,
-                capture_output=True,
-                text=True,
-                check=False,
+            summary = _extract_last_fenced_json(stdout)
+            verdict = (
+                str(summary.get("verdict") or "").strip().upper()
+                if summary is not None
+                else ("PASS" if exit_code == 0 and not stdout.strip() else "FAIL")
             )
-            if audit_res.returncode != 0:
-                raw_err = (
-                    audit_res.stderr.strip()
-                    or audit_res.stdout.strip()
-                    or f"exit code {audit_res.returncode}"
-                )
-                err = self._tail_lines(raw_err, 25) or raw_err
-                return False, f"Epic audit failed: {err}"
-
-        # 4. HLD Integration results and result-based BDD traceability
-        hld_file = (
-            self.root / ".devtool" / "epic" / self.epic_slug / f"{self.epic_slug}.en.md"
-        )
-        if hld_file.is_file():
-            content = hld_file.read_text(encoding="utf-8")
-            for line in content.splitlines():
-                if line.startswith("Integration results:"):
-                    cmd_part = line[len("Integration results:") :].strip()
-                    cmd_str = (
-                        cmd_part.split("->")[0].strip()
-                        if "->" in cmd_part
-                        else cmd_part
+            if exit_code == 0 and summary is not None and verdict == "PASS":
+                candidate_sha = str(summary.get("candidate_sha") or "").strip()
+                if self._is_git_repo(self.root):
+                    head_sha = self._git_head_sha(self.root)
+                    st_res = subprocess.run(
+                        ["git", "status", "--porcelain"],
+                        cwd=self.root,
+                        capture_output=True,
+                        text=True,
+                        check=False,
                     )
-                    if cmd_str:
-                        integ_res = subprocess.run(
-                            cmd_str,
-                            shell=True,
-                            cwd=self.root,
-                            capture_output=True,
-                            text=True,
-                            check=False,
-                        )
-                        if integ_res.returncode != 0:
-                            raw_err = (
-                                integ_res.stderr.strip()
-                                or integ_res.stdout.strip()
-                                or f"exit code {integ_res.returncode}"
-                            )
-                            err = self._tail_lines(raw_err, 25) or raw_err
-                            return False, f"Integration test execution failed: {err}"
+                    clean_tree = (
+                        st_res.returncode == 0 and not st_res.stdout.strip()
+                    )
+                else:
+                    head_sha = candidate_sha or "HEAD"
+                    clean_tree = True
 
-        bdd_script = (
-            self.root
-            / "skills"
-            / "dev-implementation"
-            / "resources"
-            / "scripts"
-            / "check_bdd_traceability.py"
-        )
-        if bdd_script.is_file():
-            scenarios_file = (
-                self.root / ".devtool" / "epic" / self.epic_slug / "bdd_scenarios.en.md"
-            )
-            bdd_cmd = [sys.executable, str(bdd_script), "tests", "--roots", "tests"]
-            if scenarios_file.is_file():
-                bdd_cmd.extend(["--scenarios", str(scenarios_file)])
-            report_file = (
-                self.root / "build" / "test-results" / "autonomous-lifecycle-runner.xml"
-            )
-            if report_file.is_file():
-                bdd_cmd.extend(["--results", str(report_file)])
-            bdd_res = subprocess.run(
-                bdd_cmd,
-                cwd=self.root,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            if bdd_res.returncode != 0:
-                raw_err = (
-                    bdd_res.stderr.strip()
-                    or bdd_res.stdout.strip()
-                    or f"exit code {bdd_res.returncode}"
+                reasons: list[str] = []
+                if not candidate_sha or candidate_sha != head_sha:
+                    reasons.append(
+                        f"candidate_sha={candidate_sha or 'missing'} != head={head_sha or 'unknown'}"
+                    )
+                if not clean_tree:
+                    reasons.append("clean_tree=False")
+                audit_exit = summary.get("audit_exit")
+                if (
+                    isinstance(audit_exit, bool)
+                    or not isinstance(audit_exit, int)
+                    or audit_exit != 0
+                ):
+                    reasons.append(f"audit_exit={audit_exit!r}")
+                raw_failures = summary.get("failures")
+                if not isinstance(raw_failures, list) or any(
+                    str(item).strip() for item in raw_failures
+                ):
+                    reasons.append(f"failures={raw_failures!r}")
+                report_ok, report_reason = self._validate_gate4_report(
+                    summary.get("quality_check_report"), candidate_sha
                 )
-                err = self._tail_lines(raw_err, 25) or raw_err
-                return False, f"BDD traceability check failed: {err}"
+                if not report_ok:
+                    reasons.append(report_reason)
 
-        # 5. Quality check verification
-        verify_script = self.root / "scripts" / "verify.sh"
-        if verify_script.is_file():
-            q_res = subprocess.run(
-                ["bash", str(verify_script), "--quiet"],
-                cwd=self.root,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            if q_res.returncode != 0:
-                raw_err = (
-                    q_res.stderr.strip()
-                    or q_res.stdout.strip()
-                    or f"exit code {q_res.returncode}"
+                if not reasons:
+                    self.state.last_commit_sha = candidate_sha
+                    self.sync_gate_ledger(
+                        4, f"Gate 4 verification passed for candidate SHA {candidate_sha}"
+                    )
+                    self.save_state()
+                    return True, "Gate 4 PASS"
+
+                last_detail = (
+                    "Gate 4 candidate verification rejected ("
+                    + ", ".join(reasons)
+                    + ")"
                 )
-                err = self._tail_lines(raw_err, 25) or raw_err
-                return False, f"Quality check verification failed: {err}"
+                continue
 
-        rev_res = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=self.root,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        candidate_sha = rev_res.stdout.strip() if rev_res.returncode == 0 else "HEAD"
-        self.state.last_commit_sha = candidate_sha
-        self.sync_gate_ledger(
-            4, f"Gate 4 verification passed for candidate SHA {candidate_sha}"
-        )
-        self.save_state()
+            raw_failures = summary.get("failures") if summary is not None else None
+            failure_lines = (
+                [str(item) for item in raw_failures if str(item).strip()]
+                if isinstance(raw_failures, list)
+                else []
+            )
+            raw_err = (
+                "\n".join(failure_lines)
+                or stderr.strip()
+                or stdout.strip()
+                or f"exit code {exit_code}"
+            )
+            err = self._tail_lines(raw_err, 25) or raw_err
+            last_detail = f"Gate 4 verification failed: {err}"
+            if attempt_idx == max_attempts - 1:
+                break
 
-        return True, "Gate 4 PASS"
+            curr_checks = {
+                (
+                    item.split(":", 1)[0].strip().lower()
+                    if ":" in item
+                    else item.strip().lower()
+                )
+                for item in (failure_lines or [err])
+                if item.strip()
+            }
+            repeated = bool(prev_checks & curr_checks)
+            prev_checks = curr_checks
+            if repeated:
+                plan_status, criteria, plan_md = self._draft_fix_plan(
+                    attempt_idx + 1, last_detail
+                )
+                if plan_status == "HALTED":
+                    return False, self.state.halt_reason or last_detail
+                if plan_status == "ESCALATE":
+                    self._escalate_fix_plan(attempt_idx + 1, criteria)
+                    return False, self.state.halt_reason or last_detail
+                fixer_ok = self._apply_code_fixes(
+                    attempt_idx + 1,
+                    plan_text=plan_md,
+                    mode="apply-plan",
+                )
+            else:
+                fixer_ok = self._apply_code_fixes(
+                    attempt_idx + 1,
+                    plan_text=last_detail,
+                    mode="fast-track",
+                )
+            if not fixer_ok:
+                return False, self.state.last_error or last_detail
+
+        return False, last_detail
 
     def run_intermediate_check(self) -> tuple[bool, str]:
         """Execute fast scoped checks during intermediate review-remediation rounds.
@@ -1764,39 +2974,109 @@ class LifecycleRunner:
                 return False, f"Review decisions check failed: {err}"
         return True, "Intermediate scoped check PASS"
 
-    def _draft_fix_plan(self, round_num: int, triage_stdout: str) -> str:
-        """Draft fix plan markdown file for the given review round via AI Programmer dispatch."""
-        file = (
-            self.root
-            / ".devtool"
-            / "epic"
-            / self.epic_slug
-            / f"fix_plan_round{round_num}.md"
-        )
-        file.parent.mkdir(parents=True, exist_ok=True)
+    def _draft_fix_plan(
+        self, round_num: int, triage_stdout: str
+    ) -> tuple[str, list[str], str]:
+        """Dispatch Role 2.1 fix-planner (read-only) and persist fix_plan_round<N>.md when PLANNED."""
+        epic_dir = self.root / ".devtool" / "epic" / self.epic_slug
+        plan_file = epic_dir / f"fix_plan_round{round_num}.md"
+        anchors = self._resolve_epic_anchor_rels(self.root)
+        anchor_text = ", ".join(anchors) if anchors else "(none)"
+        criteria_list = ", ".join(HALT_CRITERIA)
         prompt = (
-            f"You are the AI Programmer (Role 2.3). Draft an actionable fix plan for Cross-Model Review Round {round_num}.\n"
+            f"You are Role 2.1 AI Architect & Reviewer (`fix-planner`, read-only) for Cross-Model Review Round {round_num}.\n"
+            f"- Epic docs (English SSOT): {anchor_text}\n"
+            f"- Halt criteria: {criteria_list}\n"
+            f"- Boundaries: Read-only. Do NOT edit files or commit.\n"
             f"Triage Findings:\n\n{triage_stdout}\n\n"
-            f"Specify exact file modifications, functions, and unit tests to add/update.\n"
+            f"End your response with one fenced `json` block: "
+            f'`{{"round": {round_num}, "status": "PLANNED|ESCALATE", "halt_criteria": [], "plan_markdown": "..."}}`\n'
         )
-        prog_model = self.config.resolve_programmer_model(self.root)
-        prog_effort = self.config.resolve_programmer_effort(self.root)
-        cmd = build_agy_command(prog_model, prog_effort, mode="plan")
-        code, stdout, _ = self.dispatcher.dispatch(
-            cli=cmd[0],
-            args=cmd[1:],
-            prompt=prompt,
+        exit_code, stdout, _stderr, disp_ok = self._dispatch_persona(
+            "ai_architect_reviewer",
+            "read-only",
+            prompt,
+            brief_role="fix-planner",
+            task_id=f"fix-plan-round-{round_num}",
         )
-        content = (
-            stdout.strip()
-            if (code == 0 and stdout.strip())
-            else f"# Fix Plan Round {round_num}\n\n## Triaged Findings\n\n{triage_stdout}\n"
+        if not disp_ok:
+            return "HALTED", [], ""
+
+        summary = _extract_last_fenced_json(stdout)
+        if exit_code != 0 or summary is None:
+            return "ESCALATE", ["UNPARSEABLE"], ""
+
+        raw_round = summary.get("round")
+        raw_status = summary.get("status")
+        status = raw_status.strip().upper() if isinstance(raw_status, str) else ""
+        raw_criteria = summary.get("halt_criteria")
+        criteria = (
+            [str(c).strip() for c in raw_criteria if str(c).strip()]
+            if isinstance(raw_criteria, list)
+            else []
         )
-        try:
-            file.write_text(content, encoding="utf-8")
-        except OSError:
-            pass
-        return content
+        raw_plan = summary.get("plan_markdown")
+        plan_markdown = raw_plan if isinstance(raw_plan, str) else ""
+
+        schema_ok = (
+            isinstance(raw_round, int)
+            and not isinstance(raw_round, bool)
+            and status in {"PLANNED", "ESCALATE"}
+            and isinstance(raw_criteria, list)
+            and isinstance(raw_plan, str)
+        )
+        if (
+            schema_ok
+            and status == "PLANNED"
+            and not criteria
+            and bool(plan_markdown.strip())
+        ):
+            epic_dir.mkdir(parents=True, exist_ok=True)
+            body = plan_markdown if plan_markdown.endswith("\n") else f"{plan_markdown}\n"
+            plan_file.write_text(body, encoding="utf-8")
+            if self._is_git_repo(self.root):
+                subprocess.run(
+                    ["git", "add", str(plan_file)],
+                    cwd=self.root,
+                    capture_output=True,
+                    check=False,
+                )
+                commit_title = (
+                    f"[{self.epic_slug.upper()}] Add fix plan for Cross-Model Review round {round_num}"
+                )
+                subprocess.run(
+                    ["git", "commit", "-m", commit_title],
+                    cwd=self.root,
+                    capture_output=True,
+                    check=False,
+                )
+            return "PLANNED", [], plan_markdown
+
+        if not criteria:
+            criteria = ["CRITICAL_CONFLICT"] if status == "ESCALATE" else ["UNPARSEABLE"]
+        return "ESCALATE", criteria, ""
+
+    def _escalate_fix_plan(self, round_num: int, criteria: list[str]) -> None:
+        """Record FIX_PLAN_ESCALATE blocker pending decision and halt pipeline."""
+        criteria_str = ", ".join(criteria) if criteria else "UNPARSEABLE"
+        reason = (
+            f"FIX_PLAN_ESCALATE ({criteria_str}): high-risk fix plan escalated in round {round_num}."
+        )
+        _state_envelope().record_pending_decision(
+            self.root,
+            self.epic_slug,
+            reason,
+            kind="blocker",
+            stage=self.state.active_stage,
+            worktree=self.root,
+        )
+        self.state.active_stage = StageName.HALTED.value
+        self.state.halt_reason = "FIX_PLAN_ESCALATE"
+        self.state.last_verdict = "ESCALATE"
+        self.state.last_error = reason
+        self._halted_by_stop = True
+        self.save_state()
+        print(f"\n🛑 FIX_PLAN_ESCALATE ({criteria_str})\n")
 
     def _run_scoped_tests(
         self,
@@ -1915,30 +3195,42 @@ class LifecycleRunner:
         plan_text: str = "",
         findings: list[dict[str, str]] | None = None,
         review_artifact: Path | None = None,
+        mode: str | None = None,
     ) -> bool:
         """Apply verified code fixes aligned to HLD/BDD/specs, run scoped tests, and commit."""
+        ed = _epic_docs()
         epic_dir = self.root / ".devtool" / "epic" / self.epic_slug
-        anchor_candidates = [
-            epic_dir / f"{self.epic_slug}.en.md",
-            epic_dir / "hld.en.md",
-            epic_dir / "bdd_scenarios.en.md",
-            review_artifact or (epic_dir / "review_results.md"),
-        ]
+        anchor_candidates: list[Path] = []
         if epic_dir.is_dir():
-            for extra in sorted(epic_dir.glob("*design*.md")):
-                if extra not in anchor_candidates:
-                    anchor_candidates.append(extra)
+            for stem in (self.epic_slug, "hld", "bdd_scenarios"):
+                doc = ed.resolve_epic_doc(epic_dir, stem)
+                if doc is not None and not doc.name.endswith(".vi.md"):
+                    anchor_candidates.append(doc)
+            for spec_doc in ed.resolve_design_specs(epic_dir):
+                if not spec_doc.name.endswith(".vi.md"):
+                    anchor_candidates.append(spec_doc)
+        rev_art = review_artifact or (epic_dir / "review_results.md")
+        if rev_art.is_file() and rev_art not in anchor_candidates:
+            anchor_candidates.append(rev_art)
+        fixer_mode = mode or ("apply-plan" if plan_text.strip() else "fast-track")
+        plan_path = epic_dir / f"fix_plan_round{round_num}.md"
+        if fixer_mode == "apply-plan" and plan_path.is_file() and plan_path not in anchor_candidates:
+            anchor_candidates.append(plan_path)
 
         anchors: list[str] = []
+        seen_anchors: set[str] = set()
         for candidate in anchor_candidates:
-            if candidate.is_file():
+            if candidate.is_file() and not candidate.name.endswith(".vi.md"):
                 try:
-                    anchors.append(str(candidate.relative_to(self.root)))
+                    rel_str = str(candidate.relative_to(self.root))
                 except ValueError:
-                    anchors.append(str(candidate))
+                    rel_str = str(candidate)
+                if rel_str not in seen_anchors:
+                    seen_anchors.add(rel_str)
+                    anchors.append(rel_str)
 
         prompt_parts = [
-            f"You are the AI Programmer (Role 2.3). Implement verified fixes for Cross-Model Review Round {round_num}.",
+            f"You are Role 2.3 Programmer (`review-fixer`, mode `{fixer_mode}`). Implement verified fixes for Round {round_num}.",
         ]
         if anchors:
             prompt_parts.append(
@@ -1963,15 +3255,16 @@ class LifecycleRunner:
         )
         prompt = "\n".join(prompt_parts) + "\n"
 
-        prog_model = self.config.resolve_programmer_model(self.root)
-        prog_effort = self.config.resolve_programmer_effort(self.root)
         self._emit_review_phase_status("code", "fixing", round_num)
-        cmd = build_agy_command(prog_model, prog_effort, mode="accept-edits")
-        exit_code, stdout, stderr = self.dispatcher.dispatch(
-            cli=cmd[0],
-            args=cmd[1:],
-            prompt=prompt,
+        exit_code, stdout, stderr, disp_ok = self._dispatch_persona(
+            "programmer",
+            "write",
+            prompt,
+            brief_role="review-fixer",
+            task_id=f"review-round-{round_num}",
         )
+        if not disp_ok:
+            return False
         if exit_code != 0:
             raw_err = stderr.strip() or stdout.strip() or f"exit code {exit_code}"
             self.state.last_error = f"Code fix dispatch failed in round {round_num}: {_tail_lines(raw_err, 25) or raw_err}"
@@ -2253,7 +3546,7 @@ class LifecycleRunner:
 
         for item in findings:
             sev = item.get("severity", "").strip().lower()
-            if sev not in {"critical", "important", "minor"}:
+            if sev not in {"important", "minor"}:
                 return False
 
             combined = " ".join(
@@ -2303,64 +3596,8 @@ class LifecycleRunner:
 
         return True
 
-    def evaluate_programmer_fix_plan(
-        self, round_num: int
-    ) -> tuple[FixPlanVerdict, str]:
-        """Evaluate AI Programmer fix plan against approved HLD."""
-        file = (
-            self.root
-            / ".devtool"
-            / "epic"
-            / self.epic_slug
-            / f"fix_plan_round{round_num}.md"
-        )
-        plan_text = file.read_text(encoding="utf-8") if file.is_file() else ""
-        prompt = (
-            f"Evaluate the following fix plan for round {round_num} against the approved HLD and BDD scenarios.\n"
-            f"Emit on the FIRST line one of: APPROVED, ADJUSTED, or CRITICAL_CONFLICT, followed by your rationale.\n\n"
-            f"{plan_text}\n"
-        )
-        assistant_model = self.config.resolve_assistant_model(self.root)
-        code, stdout, stderr = self.dispatcher.dispatch(
-            cli="agy",
-            args=[
-                "--model",
-                assistant_model,
-                "--effort",
-                self.config.assistant_effort,
-                "--mode",
-                "auto",
-            ],
-            prompt=prompt,
-        )
-        if code != 0 or not stdout.strip():
-            err_msg = (
-                stderr.strip() or f"Assistant dispatch failed with exit code {code}"
-            )
-            return (
-                FixPlanVerdict.CRITICAL_CONFLICT,
-                f"Fix plan evaluation failed: {err_msg}",
-            )
-
-        first_line = stdout.strip().splitlines()[0].strip().upper()
-        rationale = (
-            "\n".join(stdout.strip().splitlines()[1:]).strip()
-            if "\n" in stdout.strip()
-            else stdout.strip()
-        )
-        if "CRITICAL_CONFLICT" in first_line:
-            return FixPlanVerdict.CRITICAL_CONFLICT, rationale
-        if "ADJUSTED" in first_line:
-            return FixPlanVerdict.ADJUSTED, rationale
-        if "APPROVED" in first_line:
-            return FixPlanVerdict.APPROVED, rationale
-        return (
-            FixPlanVerdict.CRITICAL_CONFLICT,
-            f"Unparseable fix plan verdict from Assistant (expected APPROVED, ADJUSTED, or CRITICAL_CONFLICT): {first_line}\n{rationale}",
-        )
-
     def step_cross_model_review(self) -> bool:
-        """Execute Stage 3 Cross-Model Review loop with verified fast-track code fixes."""
+        """Execute Stage 3 Cross-Model Review loop with risk-routed fix planning."""
         self.state.active_stage = StageName.CROSS_MODEL_REVIEW.value
         review_script = (
             self.root
@@ -2441,12 +3678,15 @@ class LifecycleRunner:
                 print(
                     "AUTO_PASS_FINAL_MINOR_SWEEP: Sweeping minor findings in single pass..."
                 )
+                if not self._run_quota_gate(("orchestrator", "programmer")):
+                    return False
                 if not self._apply_code_fixes(
                     round_num,
                     findings=findings or None,
                     review_artifact=review_artifact
                     if review_artifact.is_file()
                     else None,
+                    mode="fast-track",
                 ):
                     self.save_state()
                     return False
@@ -2460,12 +3700,15 @@ class LifecycleRunner:
 
             if action == "AUTO_PASS_FINAL_SWEEP":
                 print("AUTO_PASS_FINAL_SWEEP: Final review round sweep...")
+                if not self._run_quota_gate(("orchestrator", "programmer")):
+                    return False
                 if not self._apply_code_fixes(
                     round_num,
                     findings=findings or None,
                     review_artifact=review_artifact
                     if review_artifact.is_file()
                     else None,
+                    mode="fast-track",
                 ):
                     self.save_state()
                     return False
@@ -2478,36 +3721,46 @@ class LifecycleRunner:
                 return False
 
             if action == "AUTO_FIX_ELIGIBLE":
-                if self._can_fast_track_code_findings(findings, triage_stdout):
+                fast_track = self._can_fast_track_code_findings(
+                    findings, triage_stdout
+                )
+                gate_personas = (
+                    ("orchestrator", "programmer")
+                    if fast_track
+                    else ("orchestrator", "programmer", "ai_architect_reviewer")
+                )
+                if not self._run_quota_gate(gate_personas):
+                    return False
+
+                if fast_track:
                     applied = self._apply_code_fixes(
                         round_num,
                         findings=findings,
                         review_artifact=review_artifact
                         if review_artifact.is_file()
                         else None,
+                        mode="fast-track",
                     )
                 else:
-                    self._draft_fix_plan(round_num, triage_stdout)
-                    verdict, rationale = self.evaluate_programmer_fix_plan(round_num)
-                    self.state.last_verdict = verdict.value
-                    self.save_state()
-
-                    if verdict == FixPlanVerdict.CRITICAL_CONFLICT:
-                        self.state.active_stage = StageName.HALTED.value
-                        self.state.halt_reason = f"CRITICAL_CONFLICT: {rationale}"
-                        self.save_state()
-                        print(f"\n🛑 CRITICAL_CONFLICT in fix plan: {rationale}\n")
+                    plan_status, criteria, plan_md = self._draft_fix_plan(
+                        round_num, triage_stdout
+                    )
+                    if plan_status == "HALTED":
+                        return False
+                    if plan_status == "ESCALATE":
+                        self._escalate_fix_plan(round_num, criteria)
                         return False
 
+                    self.state.last_verdict = "PLANNED"
+                    self.save_state()
                     applied = self._apply_code_fixes(
                         round_num,
-                        plan_text=rationale
-                        if verdict == FixPlanVerdict.ADJUSTED
-                        else "",
+                        plan_text=plan_md,
                         findings=findings or None,
                         review_artifact=review_artifact
                         if review_artifact.is_file()
                         else None,
+                        mode="apply-plan",
                     )
 
                 if not applied:
@@ -2685,7 +3938,11 @@ def main() -> int:
         help="CLI override reasoning effort for Programmer",
     )
     parser.add_argument(
-        "--assistant-model", default=None, help="Model override for Assistant"
+        "--architect-model",
+        "--assistant-model",
+        dest="architect_model",
+        default=None,
+        help="CLI override model for AI Architect & Reviewer (--assistant-model alias)",
     )
     parser.add_argument(
         "--dry-run",
@@ -2697,7 +3954,7 @@ def main() -> int:
     cfg = RunnerConfig(
         programmer_model=args.programmer_model,
         programmer_effort=args.programmer_effort,
-        assistant_model=args.assistant_model,
+        architect_model=args.architect_model,
         base_branch=args.base,
     )
     if args.config and args.config.is_file():
@@ -2713,12 +3970,12 @@ def main() -> int:
                 cfg.config_programmer_effort = cdata["programmer_effort"]
             elif "thinking_level" in cdata and isinstance(cdata["thinking_level"], str):
                 cfg.config_programmer_effort = cdata["thinking_level"]
-            if "assistant_model" in cdata and cfg.assistant_model is None:
-                cfg.assistant_model = cdata["assistant_model"]
-            if "assistant_effort" in cdata and isinstance(
-                cdata["assistant_effort"], str
-            ):
-                cfg.assistant_effort = cdata["assistant_effort"]
+            arch_cfg_model = cdata.get("architect_model", cdata.get("assistant_model"))
+            if isinstance(arch_cfg_model, str):
+                cfg.config_architect_model = arch_cfg_model
+            arch_cfg_effort = cdata.get("architect_effort", cdata.get("assistant_effort"))
+            if isinstance(arch_cfg_effort, str):
+                cfg.config_architect_effort = arch_cfg_effort
             if "timeout_seconds" in cdata:
                 cfg.timeout_seconds = int(cdata["timeout_seconds"])
             if "max_review_rounds" in cdata:

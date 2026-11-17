@@ -390,6 +390,19 @@ SUITES = [
     ("11", "pytest",   "tests/test_tto_bilingual_and_surgical.py", 15, False),
     ("11", "pytest",   "tests/test_tto_docs_and_slimming.py", 5, True),
     ("11", "pytest",   "tests/test_token_throttling_acceptance.py", 60, True),
+    ("11", "pytest",   "tests/test_fpg_persona_config.py", 15, False),
+    ("11", "pytest",   "tests/test_fpg_dispatch_and_quota.py", 15, False),
+    ("11", "pytest",   "tests/test_fpg_provider_shortcut.py", 10, False),
+    ("11", "pytest",   "tests/test_fpg_agy_profile_pool.py", 20, False),
+    ("11", "pytest",   "tests/test_fpg_agy_dispatch.py", 15, False),
+    ("11", "pytest",   "tests/test_fpg_set_provider_model_profile.py", 15, False),
+    ("11", "pytest",   "tests/test_fpg_checkpoint_and_briefs.py", 20, False),
+    ("11", "pytest",   "tests/test_fpg_runner_personas.py", 35, False),
+    ("11", "pytest",   "tests/test_fpg_english_only_and_ownership.py", 20, False),
+    ("11", "pytest",   "tests/test_fpg_dashboard_sync.py", 20, False),
+    ("11", "pytest",   "tests/test_fpg_governance_text.py", 5, True),
+    ("11", "pytest",   "tests/test_fpg_english_only_text.py", 5, True),
+    ("11", "pytest",   "tests/test_fpg_acceptance.py", 25, False),
     # Section 12: Branch integration script
     ("12", "unittest", "skills/finishing-a-development-branch/resources/scripts/test_integrate_branch.py", 80, False),
     # Section 13: Quality provider contracts, schemas, aggregation, and platform capabilities
@@ -409,7 +422,7 @@ SUITES = [
     # 14. Shared contracts CLI engine is enforced
     ("14", "unittest", "skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py", 15, False),
     ("14", "unittest", "skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py", 25, False),
-    # 15. Context memory management CLI and Tri-Role governance are enforced
+    # 15. Context memory management CLI and four-persona governance are enforced
     ("15", "unittest", "scripts/test_resume_context.py", 25, False),
     # 16. Session refresh CLI engine and isolation contracts are enforced
     ("16", "unittest", "skills/refresh-session/resources/scripts/test_refresh_session.py", 2, False),

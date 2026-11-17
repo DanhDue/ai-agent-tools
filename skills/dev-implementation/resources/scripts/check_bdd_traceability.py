@@ -2,8 +2,8 @@
 """Check that every epic BDD scenario is assigned to a task and covered by an integration test.
 
 Usage:
-  check_bdd_traceability.py plan  --scenarios <bdd_scenarios.en.md> --tasks <task_*.md ...> [--strict-bilingual]
-  check_bdd_traceability.py tests --scenarios <bdd_scenarios.en.md> --roots <dir ...> [--ids <ID ...>]
+  check_bdd_traceability.py plan  --scenarios <bdd_scenarios.md> --tasks <task_*.md ...> [--strict-bilingual]
+  check_bdd_traceability.py tests --scenarios <bdd_scenarios.md> --roots <dir ...> [--ids <ID ...>]
                                   [--results <report file|dir|glob ...>] [--strict-bilingual]
 
 Exit codes: 0 all covered; 1 traceability failure; 2 usage error.
@@ -17,6 +17,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+from _epic_docs import resolve_epic_doc
 from result_reports import ReportError, load_reports, reference_pattern, verdicts
 
 ID_SHAPE = re.compile(r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]+")
@@ -81,25 +86,13 @@ def scenario_ids(path: Path) -> tuple[list[str], list[str]]:
 
 
 def load_scenarios(path: Path, *, strict_bilingual: bool = False) -> tuple[list[str], list[str]]:
-    """Validate the scenario document and, under strict_bilingual, its Vietnamese sibling."""
+    """Validate the English scenario document; ``strict_bilingual`` is a deprecated no-op."""
+    _ = strict_bilingual
     if not path.is_file():
         raise UsageError(f"scenario document not found: {path}")
     ids, problems = scenario_ids(path)
     if not ids and not problems:
         problems.append(f"{path}: no scenarios found inside gherkin fences")
-    if strict_bilingual and path.name.endswith(".en.md"):
-        sibling = path.with_name(path.name[: -len(".en.md")] + ".vi.md")
-        if not sibling.is_file():
-            problems.append(f"{sibling}: missing Vietnamese scenario document (--strict-bilingual)")
-        else:
-            vi_ids, vi_problems = scenario_ids(sibling)
-            problems.extend(vi_problems)
-            missing = sorted(set(ids) - set(vi_ids))
-            extra = sorted(set(vi_ids) - set(ids))
-            if missing:
-                problems.append(f"{sibling}: missing identifiers {', '.join(missing)}")
-            if extra:
-                problems.append(f"{sibling}: identifiers not in {path.name}: {', '.join(extra)}")
     return ids, problems
 
 
@@ -237,7 +230,7 @@ def main(argv: list[str] | None = None) -> int:
     plan.add_argument(
         "--strict-bilingual",
         action="store_true",
-        help="require .vi.md sibling presence and exact scenario ID parity",
+        help="deprecated no-op (ignored)",
     )
     tests = modes.add_parser("tests", help="every scenario has at least one integration test")
     tests.add_argument("--scenarios", required=True, type=Path)
@@ -247,11 +240,21 @@ def main(argv: list[str] | None = None) -> int:
     tests.add_argument(
         "--strict-bilingual",
         action="store_true",
-        help="require .vi.md sibling presence and exact scenario ID parity",
+        help="deprecated no-op (ignored)",
     )
     args = parser.parse_args(argv)
+    if args.strict_bilingual:
+        print("warning: --strict-bilingual is deprecated and ignored", file=sys.stderr)
+    scenarios_path = args.scenarios
+    if scenarios_path.name.endswith(".vi.md") or (
+        not scenarios_path.is_file()
+        and scenarios_path.name in ("bdd_scenarios.md", "bdd_scenarios.en.md")
+    ):
+        resolved_scenarios = resolve_epic_doc(scenarios_path.parent, "bdd_scenarios")
+        if resolved_scenarios is not None:
+            scenarios_path = resolved_scenarios
     try:
-        ids, problems = load_scenarios(args.scenarios, strict_bilingual=args.strict_bilingual)
+        ids, problems = load_scenarios(scenarios_path)
         if problems:
             print("\n".join(problems))
             print("Result: scenario document invalid — FAIL")

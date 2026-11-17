@@ -38,6 +38,16 @@ from pathlib import Path
 from string import Template
 from typing import Any
 
+SCRIPTS = Path(__file__).resolve().parent
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
+
+from _epic_docs import (
+    is_task_markdown,
+    iter_task_files,
+    resolve_design_specs,
+    resolve_epic_doc,
+)
 import local_review
 from check_bdd_traceability import load_scenarios
 from task_contract import (
@@ -46,8 +56,6 @@ from task_contract import (
     parse_integration_results,
     parse_integration_result_specs,
 )
-
-SCRIPTS = Path(__file__).resolve().parent
 PROMPT = SCRIPTS.parent.parent / "references" / "external-review-prompt.md"
 RULES = SCRIPTS.parent.parent / "references" / "review-rules.md"
 KINDS = ("code", "principal", "epic")
@@ -390,27 +398,27 @@ def principal_artefact_lines(root: Path, epic_dir: str) -> str:
     epic_path = root / ".devtool" / "epic" / epic_dir
     lines: list[str] = []
 
-    # 1. English design specs (*-design.en.md only; exclude *.vi.md)
-    for f in sorted(epic_path.glob("*-design.en.md")):
+    # 1. English design specs (*-design.md then *-design.en.md; never *.vi.md)
+    for f in resolve_design_specs(epic_path):
         lines.append(f"- `.devtool/epic/{epic_dir}/{f.name}`")
 
-    # 2. <epic_dir>.en.md (exclude *.vi.md)
-    hld_doc = epic_path / f"{epic_dir}.en.md"
-    if hld_doc.is_file():
+    # 2. <epic_dir>.md / <epic_dir>.en.md (exclude *.vi.md)
+    hld_doc = resolve_epic_doc(epic_path, epic_dir)
+    if hld_doc is not None:
         line = f"- `.devtool/epic/{epic_dir}/{hld_doc.name}`"
         if line not in lines:
             lines.append(line)
 
-    # 3. bdd_scenarios.en.md (exclude *.vi.md)
-    bdd_doc = epic_path / "bdd_scenarios.en.md"
-    if bdd_doc.is_file():
+    # 3. bdd_scenarios.md / bdd_scenarios.en.md (exclude *.vi.md)
+    bdd_doc = resolve_epic_doc(epic_path, "bdd_scenarios")
+    if bdd_doc is not None:
         line = f"- `.devtool/epic/{epic_dir}/{bdd_doc.name}`"
         if line not in lines:
             lines.append(line)
 
-    # 4. every task_*.md, sorted
-    for t in sorted(epic_path.glob("task_*.md")):
-        if not t.name.endswith(".vi.md"):
+    # 4. every task_*.md, sorted (never *.vi.md)
+    for t in iter_task_files(epic_path):
+        if hld_doc is None or t != hld_doc:
             lines.append(f"- `.devtool/epic/{epic_dir}/{t.name}`")
 
     # 5. handoff.md when present
@@ -691,7 +699,10 @@ def collect_facts(
     roots = re.search(r"^Integration test roots:\s*(.+)$", hld_text, re.MULTILINE)
     if roots:
         roots_list = [r.strip("`") for r in roots.group(1).strip().split()]
-        scenarios_file = root / ".devtool" / "epic" / epic_dir / "bdd_scenarios.en.md"
+        scenarios_file = (
+            resolve_epic_doc(root / ".devtool" / "epic" / epic_dir, "bdd_scenarios")
+            or (root / ".devtool" / "epic" / epic_dir / "bdd_scenarios.md")
+        )
 
         if skipped_live_commands:
             # 1. Static check across 100% of scenarios without --results
@@ -849,10 +860,17 @@ def collect_facts(
 def artefact_lines(root: Path, epic_dir: str) -> str:
     folder = root / ".devtool" / "epic" / epic_dir
     names = sorted(p.name for p in folder.glob("*.md") if not p.name.endswith(".vi.md"))
-    spec = [
+    hld_doc = resolve_epic_doc(folder, epic_dir)
+    bdd_doc = resolve_epic_doc(folder, "bdd_scenarios")
+    resolved_specs = [p.name for p in resolve_design_specs(folder)]
+    excluded = set(resolved_specs) | {
+        p.name for p in (hld_doc, bdd_doc) if p is not None
+    }
+    other_spec = [
         n
         for n in names
-        if not n.startswith(
+        if n not in excluded
+        and not n.startswith(
             (
                 "task_",
                 "bdd_",
@@ -863,10 +881,19 @@ def artefact_lines(root: Path, epic_dir: str) -> str:
             )
         )
     ]
+    core_docs = [
+        hld_doc.name if hld_doc is not None else f"{epic_dir}.md",
+        bdd_doc.name if bdd_doc is not None else "bdd_scenarios.md",
+    ]
     paths = (
-        spec
-        + [f"{epic_dir}.en.md", "bdd_scenarios.en.md"]
-        + [n for n in names if n.startswith("task_")]
+        resolved_specs
+        + other_spec
+        + core_docs
+        + [
+            n
+            for n in names
+            if is_task_markdown(n) and (hld_doc is None or n != hld_doc.name)
+        ]
         + ["evidence/"]
     )
     return "\n".join(f"- `.devtool/epic/{epic_dir}/{p}`" for p in paths)
@@ -1563,7 +1590,7 @@ def delta_round_context(
         "Strictly honor all `dismissed: <rationale>` decisions and `fixed in <sha>` resolutions recorded in the "
         "Shared Context Ledger below. Do NOT ask to revert or rewrite a prior round's accepted fix (zero solution ping-pong) "
         "unless it introduces an objective runtime defect or violates a frozen contract in the approved HLD / "
-        "`bdd_scenarios.en.md` / `Decisions Already Made`.\n\n"
+        "`bdd_scenarios.md` (legacy `bdd_scenarios.en.md`) / `Decisions Already Made`.\n\n"
     )
     fixed_registry_block = (
         "### Previously Fixed Locations Registry (Verify-Then-Close)\n\n"
@@ -1604,7 +1631,7 @@ def delta_round_context(
         + handoff_block
         + fixed_registry_block
         + "1. **Approved-Design Anchoring**: Every verification and finding MUST be anchored strictly to the approved HLD "
-        "(`.devtool/epic/<epic_dir>/<epic_dir>.en.md`), `bdd_scenarios.en.md`, and `Decisions Already Made` in `task_*.md`.\n"
+        "(`.devtool/epic/<epic_dir>/<epic_dir>.md`, legacy `<epic_dir>.en.md`), `bdd_scenarios.md` (legacy `bdd_scenarios.en.md`), and `Decisions Already Made` in `task_*.md`.\n"
         "2. **Verify-Then-Close on Fixed Locations**: For each finding below marked `fixed in <sha>`, verify whether the revision "
         f"resolves the original defect at `{sha}`. If resolved, **close it silently (PASS)** — do NOT propose alternative "
         "implementations or secondary refactors on that fix.\n"
@@ -1865,9 +1892,15 @@ def run(args: argparse.Namespace) -> int:
                 PreconditionFailedError("Ollama probe", str(error)), args.cli
             )
             return 2
-    hld_text = (
-        root / ".devtool" / "epic" / args.epic_dir / f"{args.epic_dir}.en.md"
-    ).read_text(encoding="utf-8")
+    epic_folder = root / ".devtool" / "epic" / args.epic_dir
+    hld_doc = resolve_epic_doc(epic_folder, args.epic_dir)
+    if hld_doc is None:
+        print_gate_banner(
+            PreconditionFailedError("HLD lookup", f"HLD not found under {epic_folder}"),
+            args.cli,
+        )
+        return 2
+    hld_text = hld_doc.read_text(encoding="utf-8")
     try:
         facts_timeout = getattr(args, "facts_timeout", 300)
         audit_output, results_output = collect_facts(
@@ -2416,7 +2449,7 @@ def top_risk_findings_section(latest: list[list[str]], limit: int = 3) -> list[s
     lines = [
         f"## Top {limit} Highest-Risk Findings (Executive Report)",
         "",
-        "> **Strict Approved-Design Anchoring & Forward-Alignment Rule**: Tier 1 (User-approved Spec `*-design.en.md` & HLD `<epic_dir>.en.md`) "
+        "> **Strict Approved-Design Anchoring & Forward-Alignment Rule**: Tier 1 (User-approved Spec `*-design.md` [legacy `*-design.en.md`] & HLD `<epic_dir>.md` [legacy `<epic_dir>.en.md`]) "
         "takes precedence over legacy `shared-contracts/` and legacy `src/` code. When Tier 1 intentionally changes steps/enums/schemas "
         "(e.g. 7 steps -> 5 steps) but `shared-contracts/` or `src/` still holds legacy values, NEVER propose reverting Tier 1 to the old design; "
         "always propose **Forward Alignment** (update `shared-contracts/` + `sync_contracts.py ack` and add affected `src/` files to task `Allowed files`).",
@@ -2498,9 +2531,9 @@ def auto_triage_section(
         action = "AUTO_FIX_ELIGIBLE"
         reason = (
             f"Round {number}/{max_rounds} has {len(blocking_rows)} Critical/Important finding(s) and no Fix Loop or shared-contract conflict. "
-            "Verify against source and approved design (Spec, HLD, bdd_scenarios.en.md, Decisions Already Made): "
+            "Verify against source and approved design (Spec, HLD, bdd_scenarios.md / legacy bdd_scenarios.en.md, Decisions Already Made): "
             "if Valid (and zero CRITICAL_CONFLICT or Debatable trade-offs), auto-record decisions, "
-            "revise docs in Role 2.2 (or fix code in Role 2.3), run local quality gate, "
+            "revise docs in Role 2.1 AI Architect & Reviewer (or fix code in Role 2.3 Programmer), run local quality gate, "
             "and advance to next review round."
         )
     return [

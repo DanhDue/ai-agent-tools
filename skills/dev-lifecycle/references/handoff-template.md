@@ -31,21 +31,22 @@ These are usually different strings. Never derive one from the other.
 
 ## Read First
 
-1. `.devtool/epic/<epic_dir>/<epic_dir>.en.md` — the HLD. Its Kanban Tasks Breakdown lists the <N> tasks.
-2. `.devtool/epic/<epic_dir>/bdd_scenarios.en.md` — the behavioural contract.
-3. `.devtool/epic/<epic_dir>/<source spec>.en.md` — the approved source spec.
+1. `.devtool/epic/<epic_dir>/<epic_dir>.md` — the HLD. Its Kanban Tasks Breakdown lists the <N> tasks.
+2. `.devtool/epic/<epic_dir>/bdd_scenarios.md` — the behavioural contract.
+3. `.devtool/epic/<epic_dir>/<source spec>.md` — the approved source spec.
 4. `.devtool/epic/<epic_dir>/principal_review.md`, when present — Principal Review rounds and decisions.
 
 ## Resume Prompt
 
 ```text
-[PERSONA: AI ASSISTANT — ORCHESTRATOR]
+[PERSONA: Role 2.2 Orchestrator]
 Use the d3nexus:dev-implementation skill for the `<epic_slug>` epic, following `skills/dev-lifecycle/references/orchestration-roles.md`.
 Read .devtool/epic/<epic_dir>/handoff.md first. Write all internal orchestration, plans, code comments, and commits strictly in English.
-Run: python3 scripts/resume_context.py --role assistant --epic <epic_slug>
+You are the Role 2.2 Orchestrator (config key `orchestrator`; open this session on that model — see `python3 scripts/dev_config.py status`).
+Run: python3 scripts/resume_context.py --role orchestrator --epic <epic_slug>
 Apply the Execution Guardrails for Receiving LLM before presenting Gate 3 (Role 2.2 Orchestrator never reads/edits `src/` or `tests/` or runs test suites in the main session).
 Gates 1 and 2 are passed; do not re-run brainstorming or design.
-Gate 3 runs automatically: compute wave order via `python3 skills/dev-implementation/resources/scripts/compute_execution_order.py <epic_slug> --parallel`, monitor `python3 scripts/estimate_heartbeat.py`, own all `manage_worker_pool.py` calls (`sync --slot <1|2> --task <task_id> [--wave <k>] --status working|review`, `merge`, `cleanup`), dispatch Role 2.3 Programmer subagents (`agy` on configured programmer model, or `workspace:"share"` where supported, with `--emit-prompt brief`), verify gating/Gate 4 independently, and run Cross-Model Review before Stage 4 landing.
+Gate 3 runs automatically: compute wave order via `python3 skills/dev-implementation/resources/scripts/compute_execution_order.py <epic_slug> --parallel`, monitor `python3 scripts/estimate_heartbeat.py`, own all `manage_worker_pool.py` calls (`sync --slot <1|2> --task <task_id> [--wave <k>] --status working|review`, `merge`, `cleanup`), dispatch Role 2.3 Programmer subagents (`python3 scripts/dev_config.py dispatch --persona programmer --mode write ...`, or `workspace:"share"` where supported, with `--emit-prompt brief`) and Role 2.1 `task-reviewer`/`fix-planner` subagents (`--mode read-only`), run `python3 scripts/dev_config.py quota-check` before each wave, write `resume_context.py --checkpoint subagent_returned|wave_merged` as you go, verify gating/Gate 4 independently, and run Cross-Model Review before Stage 4 landing.
 ```
 
 ## Execution Guardrails for Receiving LLM
@@ -76,3 +77,4 @@ Fast executor models and receiving agents MUST adhere to these four hard guardra
 - Unless the design commit is `uncommitted`: if `git log <sha>..<base_branch> -- .devtool/epic/<epic_dir>` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
 - This file is updated only by `package_epic.py --revise`, which records each re-anchoring under `## Revisions` and clears any pending revision decision for this epic.
 - Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.
+- On a missing CLI, failed authentication or exhausted quota there is no automatic fallback and no retry: write `--checkpoint model_unavailable`, record a blocker with the fallback command, and stop. In low-quota mode finish the wave in flight, write `--checkpoint low_quota_stop`, print `--emit-prompt implement`, and stop.

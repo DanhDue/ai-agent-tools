@@ -1,12 +1,13 @@
 ---
 id: "task_02_checkpoints_briefs_and_handoff_prompts"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T09:59:18Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T09:59:18Z"
 labels: ["state-envelope", "concurrency", "prompts", "architecture"]
 order: "a2"
 review_tier: "full"
@@ -70,7 +71,7 @@ already read; a new state file would duplicate it. Applicable skills: `d3nexus:t
   - `scripts/_state_envelope.py`: `run_state_transaction` (L388-L496), `update_epic_heartbeat` (L497-L671), new `update_epic_checkpoint`
   - `scripts/resume_context.py`: `print_role_banner` (L61-L76), `sync_window_title` (L583-L769), `write_epic_state` (L849-L930), `_collect_compact_snapshot` (L1636-L1738), `_BRIEF_ROLE_CONTRACTS` (L2026-L2051), `emit_handoff_prompt` (L2053-L2138), `main` (L2512-L2800)
   - `scripts/test_resume_context.py`: `test_cmm_st_01_tri_role_banners_and_emit_prompts` (L217-L249), `test_cmm_st_02_checkpoint_non_destructive_save` (L448-L505)
-  - `tests/test_assistant_orchestrator_handoff.py`: role and brief assertions
+  - `tests/test_assistant_orchestrator_handoff.py`: `test_role_banners_declare_four_persona_roles` (L195-L203), `test_brief_prompt_binds_programmer_subagent` (L133-L160)
 - **Downstream Callers**: `check_tasks.py` heartbeat readers (Task 5), `lifecycle_runner.py` (Task 3), `package_epic.py` (imports `resume_context`).
 - **Cross-Platform Bridges**: None.
 - **Target Test Coverage Threshold**: every checkpoint event value, the role alias, every brief role.

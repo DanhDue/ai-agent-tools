@@ -1,44 +1,66 @@
-# Orchestrator / Programmer Role Matrix (Stages 2–3)
+# Four-Persona Role Matrix (Stages 1–3)
 
-Single source of truth for how the **Orchestrator** (Role 2.2, the main session) delegates to **Programmer subagents** (Role 2.3) in `d3nexus:principal-review`, `d3nexus:dev-implementation` and `d3nexus:cross-model-review`. Roles are named by function, not by model: reviewer providers (`Claude -> Codex -> Kiro -> Argon`) are external review CLIs and unrelated to the Orchestrator's own model.
+Single source of truth for the four personas, how the **Orchestrator** (Role 2.2, the Stage 3 main session) dispatches Role 2.1 and Role 2.3 subagents, and who may touch what, across `d3nexus:dev-designer`, `d3nexus:principal-review`, `d3nexus:dev-implementation` and `d3nexus:cross-model-review`. Personas are named by function, not by model: reviewer providers (`Claude -> Codex -> Kiro -> Argon`) are external review CLIs and unrelated to a persona's own model binding.
 
-In autonomous mode, `lifecycle_runner.py` implements this matrix itself (`build_agy_command`, `_can_fast_track_code_findings`, `_draft_fix_plan` -> `evaluate_programmer_fix_plan` -> `_apply_code_fixes`, `run_gate4`); the runner is authoritative there. This page governs interactive orchestration.
+Each persona maps to a config key in `/d3nexus:dev-config` (`ai_architect_reviewer`, `orchestrator`, `programmer`); Role 1.0 is the user. In autonomous mode, `lifecycle_runner.py` is the Orchestrator and implements this matrix itself (`build_agy_command`, the `fix-planner` and `review-fixer` dispatch, `run_gate4`); the runner is authoritative there. This page governs interactive orchestration.
 
 ## Contents
 
 - [1. Boundaries](#1-boundaries)
-- [2. Dispatching Role 2.3](#2-dispatching-role-23)
+- [2. Dispatching Subagents](#2-dispatching-subagents)
 - [3. Summary Contracts](#3-summary-contracts)
 - [4. Independent Verification](#4-independent-verification)
+- [Old-to-New Role Mapping](#old-to-new-role-mapping)
 
 ## 1. Boundaries
 
-| | Orchestrator (Role 2.2, main session) | Programmer subagent (Role 2.3) |
-|---|---|---|
-| May run | lifecycle scripts (`run_external_review.py`, `compute_execution_order.py`, `manage_worker_pool.py`, `sync_task_status.py`, `resume_context.py`, `package_epic.py`, `check_epic_readiness.py`, `$INTEGRATE preflight`), git metadata (`git rev-parse`, `git status --porcelain`, `git log`, `git diff --name-only`/`--stat`) | `run_task_checks.py`, `check_code_impact.py`, `check_bdd_traceability.py`, test suites, linters, type checkers, `audit_epic.py`, `@quality_check`, `$INTEGRATE rebase` / `verify-tier` |
-| May read | epic docs (HLD, `bdd_scenarios.en.md`), `review_results.md`, `principal_review.md`, `fix_plan_round<N>.md`, quality reports, subagent summaries | everything inside its slot / epic worktree |
-| May edit | epic docs and Phase 3 Doc Sync prose; `review_results.md` / `principal_review.md` Decision cells only for `dismissed:` entries | `src/`, `tests/`, evidence, task status — bounded by the task's `Allowed files`; `fixed in <sha>` Decision cells in `review_results.md`; `fix_plan_round<N>.md`; the generated `manual_smoke_checklist.md` |
-| Forbidden | reading or editing `src/` / `tests/`; editing task Verification tables / DoD / `Allowed files`; running tests, linters, type checkers, `run_task_checks.py` or `verify-tier` | editing HLD, `bdd_scenarios.en.md`, `shared-contracts/`, task Verification tables / DoD / `Allowed files`; calling `manage_worker_pool.py` |
+| Persona | Config key | May run | May edit | Forbidden |
+|---|---|---|---|---|
+| **Role 1.0 Human Architect** | — | anything | anything | — (owns Gates 1, 2, 5 and every escalation) |
+| **Role 2.1 AI Architect & Reviewer** | `ai_architect_reviewer` | `resume_context.py`, `check_epic_readiness.py`, `package_epic.py`, `run_external_review.py` (synchronous external CLI calls for `/principal-review`), git metadata; as `task-reviewer` only `run_task_checks.py status` and `check_bdd_traceability.py` | spec, HLD, BDD scenarios, task Verification tables and `Allowed files` at design time, non-epic plans, `principal_review.md` | editing `src/` or `tests/`; running test suites, linters or type checkers; dispatching subagents or managing the worker pool |
+| **Role 2.2 Orchestrator** | `orchestrator` | lifecycle scripts (`run_external_review.py`, `compute_execution_order.py`, `manage_worker_pool.py`, `sync_task_status.py`, `resume_context.py`, `dev_config.py`, `package_epic.py`, `check_epic_readiness.py`, `$INTEGRATE preflight`), git metadata (`git rev-parse`, `git status --porcelain`, `git log`, `git diff --name-only`/`--stat`) | Phase 3 Doc Sync prose; `fix_plan_round<N>.md` (from `fix-planner` `plan_markdown`); task status through `sync_task_status.py`; `review_results.md` / `principal_review.md` Decision cells only for `dismissed:` entries | reading or editing `src/` / `tests/`; editing HLD, BDD, task Verification tables, DoD or `Allowed files`; running tests, linters, type checkers, `run_task_checks.py` or `verify-tier` |
+| **Role 2.3 Programmer** | `programmer` | `run_task_checks.py`, `check_code_impact.py`, `check_bdd_traceability.py`, test suites, linters, type checkers, `audit_epic.py`, `@quality_check`, `$INTEGRATE rebase` / `verify-tier` | `src/`, `tests/`, evidence, task status — bounded by the task's `Allowed files`; `fixed in <sha>` Decision cells; the generated `manual_smoke_checklist.md` | editing HLD, BDD scenarios, `shared-contracts/`, task Verification tables / DoD / `Allowed files`; calling `manage_worker_pool.py` |
 
-`manage_worker_pool.py` is Orchestrator-only: its `sync`/`merge` read-modify-write the shared epic heartbeat, so calls must stay serialized in one process.
+The Orchestrator reads epic docs (HLD, `bdd_scenarios.md`, legacy `bdd_scenarios.en.md`), `review_results.md`, `principal_review.md`, `fix_plan_round<N>.md`, quality reports and subagent summaries; a Role 2.3 subagent reads everything inside its slot or epic worktree.
 
-## 2. Dispatching Role 2.3
+`manage_worker_pool.py` is Orchestrator-only: its `sync`/`merge` read-modify-write the shared epic heartbeat, so calls must stay serialized in one process. Role 2.1 never spawns or waits on subagents.
 
-1. Resolve the model from `.devtool/review_config.json["providers"]["programmer"]` (default `gemini-4-hydrogen-xhigh`, effort `xhigh`).
-2. Dispatch headless, with the working directory set to the slot or epic worktree:
+## 2. Dispatching Subagents
+
+**Session map.** The kit cannot choose a main session's model; Role 1.0 picks it when opening the IDE or CLI. Stages 1–2 run in a session on the `ai_architect_reviewer` model. Stage 3 runs in a session on the `orchestrator` model, opened from `resume_context.py --emit-prompt implement`. With **Triển khai (tự động)** Stage 3 continues in the Stage 2 session, so Role 2.2 then runs on that session's model. The kit can choose only the model of a subagent it dispatches.
+
+1. **Resolve the binding.** Never read `.devtool/review_config.json` providers or `AGY_*` model variables for persona models; ask the resolver:
    ```bash
-   agy --model <programmer_model> --effort <effort> --mode auto   # same argv as build_agy_command()
+   python3 scripts/dev_config.py resolve <persona> --format argv --mode <read-only|write>
    ```
-3. An in-runtime subagent tool (Antigravity `invoke_subagent`, Claude Code `Task`) is acceptable **only** if it can pin that exact model and effort. Antigravity's `Model` enum (`inherit`/`flash_lite`/`flash`/`pro`) cannot, so never substitute `Model="flash"` or `"inherit"` for Role 2.3.
-4. If the configured programmer model cannot be dispatched, do not downgrade silently: record `resume_context.py --pending-decision "Programmer model unavailable" --decision-kind blocker --epic <epic_slug>` and stop.
+   `read-only` serves `task-reviewer` and `fix-planner` (strictly read-only, edits no files; `fix-planner` returns `plan_markdown`, and the Orchestrator writes and commits `fix_plan_round<N>.md`). `write` serves `task-implementer`, `review-fixer` and `gate4-verifier`. Use `--format json` to read the model, effort and fallback.
+2. **Dispatch Role 2.3 through the agy profile pool.** Dispatch headless with the working directory set to the slot or epic worktree, using the pooled dispatcher instead of a hand-built `agy` command:
+   ```bash
+   python3 scripts/dev_config.py dispatch --persona programmer --mode write --prompt-file <file> --cwd <slot> --log <log> --epic <slug> --task <id> --slot <n>
+   ```
+   The lease file `agy_profile_leases.json` (under `$REAL_HOME/.d3nexus/`) records which profile each run uses; with no pool configured the dispatcher runs once on the host profile. The Orchestrator never launches `agy` itself and never builds a `HOME` or `AGY_PROFILE` for it. For Role 2.1 subagents use `--persona ai_architect_reviewer --mode read-only`; for `claude`, `codex` or `kiro` bindings the same command launches the CLI directly.
+3. **Exit codes.** `0` means the subagent ran; read its summary contract. `1` means validation, task failure, `model_unavailable` or `preflight_failed`. `2` means every pool profile is out of quota, or quota ran out mid-work: record a quota pending decision with the printed report and stop (`resume_context.py --pending-decision "<persona> quota exhausted" --decision-kind quota --epic <slug>`), after a `quota_low` checkpoint. Never retry and never switch models on your own.
+4. **Unavailable model.** On the first dispatch failure caused by a missing CLI, failed authentication or exhausted quota, there is no automatic fallback, no retry: checkpoint `model_unavailable`, record a blocker with the fallback command (for example `/d3nexus:dev-config set programmer claude-sonnet high`), stop. A task failure (red tests, failing checks) is not a model failure.
+5. **Pool exhausted.** When `dispatch` reports `no_profile`, the report lists each profile's reset time and the recovery commands (`/d3nexus:dev-config profiles clear`, `/d3nexus:dev-config set programmer ...`). Present that report in the pending decision and stop; Role 1.0 chooses.
+6. **In-runtime subagent tools** (Antigravity `invoke_subagent`, Claude Code `Task`) are acceptable **only** if they can pin the exact model and effort that `resolve` printed. Antigravity's `Model` enum (`inherit`/`flash_lite`/`flash`/`pro`) cannot, so never substitute `Model="flash"` or `"inherit"` for a Role 2.1 or Role 2.3 binding.
+7. **Checkpoints.** After reading each subagent's summary contract and before the next dispatch, write `python3 scripts/resume_context.py --checkpoint subagent_returned --epic <slug>`; after every wave merge, `--checkpoint wave_merged`. Before Stage 3, each wave and each `/cross-model-review` fix round run `python3 scripts/dev_config.py quota-check`; exit `2` stops as in step 3.
 
-Role 2.2 work may also be delegated to keep the main context lean — e.g. the Principal Review **reviser** — using any subagent on the Orchestrator's own model (`invoke_subagent` `TypeName="self"`, `Model="inherit"`, or Claude Code `Task`). A reviser stays inside Role 2.2 boundaries: read-only on `src/`/`tests/`, edits only `.devtool/epic/<epic_dir>/` docs and task prose.
-
-Every brief names: the role, worktree path, task or round, the exact inputs (task file, finding IDs + `PROPOSED ACTION`, approved fix plan), the dispatch mode, and the summary contract below. Generate the Role 2.3 header and JSON contract with:
+Every brief names: the persona and brief role, worktree path, task or round, the exact inputs (task file, finding IDs + `PROPOSED ACTION`, approved `fix_plan_round<N>.md`), the dispatch mode, and the summary contract below. Generate the header and JSON contract with:
 
 ```bash
-python3 scripts/resume_context.py --emit-prompt brief --brief-role <task-implementer|task-reviewer|review-fixer|gate4-verifier> --epic <epic_slug>
+python3 scripts/resume_context.py --emit-prompt brief --brief-role <task-implementer|task-reviewer|fix-planner|review-fixer|gate4-verifier> --epic <epic_slug>
 ```
+
+`principal-reviser` has no emitted brief: it runs inline in the Stage 2 session or as a same-model subagent briefed from `principal-review/SKILL.md`.
+
+| Brief role | Persona | Mode | Purpose |
+|---|---|---|---|
+| `task-implementer` | Role 2.3 | `write` | TDD inside `Allowed files`; runs `run_task_checks.py verify` |
+| `task-reviewer` | Role 2.1 | `read-only` | Semantic and architectural review of the slot diff; never edits, commits or runs test suites |
+| `review-fixer` | Role 2.3 | `write` | Applies fixes in `fast-track` or `apply-plan` mode |
+| `gate4-verifier` | Role 2.3 | `write` | Runs full Gate 4 on a fresh context |
+| `principal-reviser` | Role 2.1 | inline or same-model subagent | Revises HLD, BDD and task prose after `/principal-review` findings; read-only on `src/`/`tests/` |
+| `fix-planner` | Role 2.1 | `read-only` | Drafts fix plan for high-risk findings (returns `plan_markdown`; Orchestrator writes `fix_plan_round<N>.md`) and classifies against halt criteria |
 
 ## 3. Summary Contracts
 
@@ -47,18 +69,36 @@ Each subagent ends with exactly one fenced `json` block; the Orchestrator reads 
 | Role | Required keys |
 |---|---|
 | `task-implementer` | `task_id`, `slot`, `status` (`DONE`/`BLOCKED`/`NEEDS_CONTEXT`), `head_sha`, `verify` (`PASS`/`FAIL`), `changed_files`, `non_test_modules_changed`, `review_tier`, `labels`, `finalized` (bool) |
-| `task-reviewer` | `task_id`, `verdict` (`PASS`/`FAIL`), `head_sha`, `done_gate` (`PASS`/`FAIL`), `findings` |
-| `review-fixer` | `round`, `mode` (`fast-track`/`plan-first`/`apply-plan`), `status` (`FIXED`/`PLAN_WRITTEN`/`BLOCKED`), `fix_shas`, `decision_sha`, `changed_files`, `tier1` (`PASS`/`FAIL`) |
+| `task-reviewer` (Role 2.1) | `task_id`, `verdict` (`PASS`/`FAIL`), `head_sha`, `done_gate` (`PASS`/`FAIL`), `findings` |
+| `review-fixer` | `round`, `mode` (`fast-track`/`apply-plan`), `status` (`FIXED`/`BLOCKED`), `fix_shas`, `decision_sha`, `changed_files`, `tier1` (`PASS`/`FAIL`) |
 | `gate4-verifier` | `candidate_sha`, `verdict` (`PASS`/`FAIL`), `audit_exit`, `quality_check_report`, `failures` |
-| `principal-reviser` (Role 2.2) | `round`, `status` (`REVISED`/`ESCALATE`), `revision_sha`, `decision_sha`, `changed_files`, `escalations` |
+| `principal-reviser` (Role 2.1) | `round`, `status` (`REVISED`/`ESCALATE`), `revision_sha`, `decision_sha`, `changed_files`, `escalations` |
+| `fix-planner` (Role 2.1) | `round`, `status` (`PLANNED`/`ESCALATE`), `halt_criteria` (list), `plan_markdown` |
 
 ## 4. Independent Verification
 
 The agent that changes code never has the last word on it.
 
-1. **Selective review gating.** `needs_review = review_tier == "full"` OR `labels` ∩ {`security`, `architecture`, `concurrency`, `contract`} OR `non_test_modules_changed > 2`. The implementer finalizes (`sync_task_status.py task <id> done` + commit) only when `needs_review` is false. The Orchestrator recomputes the module count with `git -C <slot> diff --name-only <base>..<head_sha>`; on mismatch it dispatches `task-reviewer` anyway.
-2. **Fix dispatch mode is decided by the Orchestrator, not the fixer**, from the triage output and mirroring `_can_fast_track_code_findings`:
-   - `fast-track` — every open finding is `Valid`, severity `Critical`/`Important`/`Minor`, and the triage contains none of: `shared-contracts`, `CRITICAL_CONFLICT`, `SHARED_CONTRACT_CONFLICT`, `Debatable`, `ambiguous`, `architectural state transition`, `trade-off`, `Not shown`, `False positive`.
-   - `plan-first` — otherwise. The fixer writes `fix_plan_round<N>.md` and returns `PLAN_WRITTEN`; the Orchestrator evaluates it against the HLD and `Decisions Already Made` (`APPROVED` / `ADJUSTED` / `CRITICAL_CONFLICT`); on approval a fresh fixer runs in `apply-plan` mode.
-3. **Post-fix scope check (review fixers).** The Orchestrator runs `git diff --name-only <pre_sha>..HEAD`. Any path under `shared-contracts/` or `.devtool/epic/<epic_dir>/` other than `review_results.md` / `principal_review.md` / `fix_plan_round<N>.md` halts with `CRITICAL_CONFLICT` (never auto-revert). Other files outside the findings' locations and their tests are listed in the Gate 5 executive report.
-4. **Gate 4 is run by a fresh `gate4-verifier`** — never the implementer, reviewer or fixer of the same round. It edits no code (only the generated smoke checklist commit); on failure it returns `FAIL`, the Orchestrator dispatches a fixer, then a new verifier. The Orchestrator accepts `PASS` only when `candidate_sha == git rev-parse HEAD`, `git status --porcelain` is empty, and the `@quality_check` report it reads is bound to that SHA.
+1. **Selective review gating.** `needs_review = review_tier == "full"` OR `labels` ∩ {`security`, `architecture`, `concurrency`, `contract`} OR `non_test_modules_changed > 2`. The implementer finalizes (`sync_task_status.py task <id> done` + commit) only when `needs_review` is false. The Orchestrator recomputes the module count with `git -C <slot> diff --name-only <base>..<head_sha>`; on mismatch it dispatches the Role 2.1 `task-reviewer` anyway. On `PASS` the Orchestrator marks the task `done` and commits; on `FAIL` it re-dispatches the implementer.
+2. **Findings are routed by risk, by the Orchestrator, not the fixer**, from the triage output (mirroring `_can_fast_track_code_findings`):
+   - **Low risk** — every open finding is `Valid`, severity `Important` or `Minor` (a `Critical` finding is always high risk), and the triage contains none of: `shared-contracts`, `CRITICAL_CONFLICT`, `SHARED_CONTRACT_CONFLICT`, `Debatable`, `ambiguous`, `architectural state transition`, `trade-off`, `Not shown`, `False positive`; or a Gate 4 failure is the first failure of that check. A Role 2.3 `review-fixer` runs in `fast-track` mode.
+   - **High risk** — any `Critical` finding, any escalation marker above, or the same Gate 4 check failing twice in a row. The Orchestrator dispatches a Role 2.1 `fix-planner`:
+     - the plan touches none of the five halt criteria → `PLANNED`; a fresh Role 2.3 `review-fixer` applies it in `apply-plan` mode;
+     - the plan touches any halt criterion → `ESCALATE`; record `--pending-decision`, render the Top 3 Highest-Risk Findings, and stop for Role 1.0.
+   - The Orchestrator does not rule on fix plans; the plan's author is the design authority and the halt criteria replace the ruling.
+3. **The five halt criteria** (details in [governance-checklists.md](governance-checklists.md)): `CRITICAL_CONFLICT`, `Debatable` / `Not shown`, `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, `MAX_ROUNDS_CRITICAL_REMAINING`.
+4. **Post-fix scope check (review fixers).** The Orchestrator runs `git diff --name-only <pre_sha>..HEAD`. Any path under `shared-contracts/` or `.devtool/epic/<epic_dir>/` other than `review_results.md` / `principal_review.md` / `fix_plan_round<N>.md` halts with `CRITICAL_CONFLICT` (never auto-revert). Other files outside the findings' locations and their tests are listed in the Gate 5 executive report. A `fix-planner` edits no files (strictly read-only; it returns `plan_markdown`, and the Orchestrator writes and commits `fix_plan_round<N>.md`).
+5. **Gate 4 is run by a fresh `gate4-verifier`** — never the implementer, reviewer or fixer of the same round. It edits no code (only the generated smoke checklist commit); on failure it returns `FAIL`, the Orchestrator dispatches a fixer, then a new verifier. The Orchestrator accepts `PASS` only when `candidate_sha == git rev-parse HEAD`, `git status --porcelain` is empty, and the `@quality_check` report it reads is bound to that SHA.
+
+## Old-to-New Role Mapping
+
+This table is the only place the retired Tri-Role labels may appear. Every other file uses the new labels.
+
+| Tri-Role (old) | Four-persona (new) |
+|---|---|
+| Role 2.1 Human Architect | Role 1.0 Human Architect |
+| Role 2.2 AI Assistant (design work, reviser, fix-plan ruling) | Role 2.1 AI Architect & Reviewer |
+| Role 2.2 Orchestrator (Stage 3 main session) | Role 2.2 Orchestrator |
+| Role 2.3 AI Programmer | Role 2.3 Programmer |
+
+The `--role` values accepted by `resume_context.py` are `architect`, `orchestrator` and `programmer`; `assistant` remains an alias of `architect` for existing state files.

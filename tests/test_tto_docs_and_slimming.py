@@ -36,9 +36,10 @@ def test_tto_hp_05_slimmed_rules_and_skills_caps() -> None:
         f"CRITICAL_RULES.md too large: {len(critical_rules.encode('utf-8'))} bytes > 8192"
     )
     assert (
-        "## 8. Mandatory Two-Tier Project Memory & Tri-Role Persona Discipline"
+        "## 8. Mandatory Two-Tier Project Memory & Four-Persona Discipline"
         in critical_rules
     )
+    assert "Tri-Role" not in critical_rules
     assert "## 9. Shell Configuration" in critical_rules
     assert "## 10. Zero-Fluff Output Cap" in critical_rules
     for required_preserved in ("Verdict", "Findings", "Gate"):
@@ -68,7 +69,7 @@ def test_tto_hp_05_slimmed_rules_and_skills_caps() -> None:
         / "references"
         / "task-template-examples.md"
     ).is_file()
-    assert "Stage 4" in dev_designer and "bdd_scenarios.en.md" in dev_designer
+    assert "Stage 4" in dev_designer and "bdd_scenarios.md" in dev_designer
     assert "target_files" in dev_designer and "200" in dev_designer
     assert 'review_tier: "full"' in dev_designer or "review_tier" in dev_designer
 
@@ -87,7 +88,7 @@ def test_tto_hp_05_slimmed_rules_and_skills_caps() -> None:
 
 
 def test_tto_hp_05_lifecycle_word_caps() -> None:
-    """[TTO-HP-05] dev-lifecycle and dev-implementation meet word caps and use config-driven Role 2.3 defaults."""
+    """[TTO-HP-05] dev-lifecycle and dev-implementation meet word caps and keep the Role 2.3 default binding."""
     dev_lifecycle = _read("skills/dev-lifecycle/SKILL.md")
     lc_words = _word_count(dev_lifecycle)
     assert lc_words <= 2500, f"dev-lifecycle/SKILL.md word count {lc_words} > 2500"
@@ -102,7 +103,7 @@ def test_tto_hp_05_lifecycle_word_caps() -> None:
     assert impl_words <= 4500, (
         f"dev-implementation/SKILL.md word count {impl_words} > 4500"
     )
-    assert ".devtool/review_config.json" in dev_impl
+    assert "dev_config.py resolve" in dev_impl
     assert "gemini-4-hydrogen-xhigh" in dev_impl
     assert 'review_tier: "full"' in dev_impl or "review_tier" in dev_impl
     assert "StartLine" in dev_impl or "EndLine" in dev_impl
@@ -222,16 +223,18 @@ def test_tto_ec_05_selective_task_reviewer_and_prompt_rules() -> None:
 
 
 def test_tto_st_05_pre_finish_bilingual_sync_hook() -> None:
-    """[TTO-ST-05] Stage 4 Pre-Finish Hook delta-syncs .vi.md, stamps sha256, and enforces strict bilingual gates."""
+    """[TTO-ST-05] Stage 4 Pre-Finish Hook is English-only: it archives and cleans the Kanban without any bilingual sync."""
     finishing = _read("skills/finishing-a-development-branch/SKILL.md")
-    assert "sync-en-sha256" in finishing
-    assert "bdd_scenarios.vi.md" in finishing
-    assert "check_document.py --require-toc --require-bilingual" in finishing
-    assert "check_epic_readiness.py <epic_slug> --strict-bilingual" in finishing
-    assert (
-        "check_bdd_traceability.py plan --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md "
-        "--tasks .devtool/epic/<epic_dir>/task_*.md --strict-bilingual" in finishing
-    )
+    assert "### Pre-Finish Hook: Epic Archival & Kanban Clean-up" in finishing
+    for retired in (
+        "sync-en-sha256",
+        "bdd_scenarios.vi.md",
+        "--require-bilingual",
+        "--strict-bilingual",
+        "Bilingual Sync",
+    ):
+        assert retired not in finishing, f"Retired bilingual step remains: {retired}"
+    assert "sync_task_status.py" in finishing and "archive-done" in finishing
     assert "resume_context.py" in finishing and "--complete" in finishing
     assert "../../rules/CRITICAL_RULES.md#commit-message-format" in finishing
 
@@ -249,5 +252,5 @@ class TestTTODocsAndSlimming_Integration:
         test_tto_ec_05_selective_task_reviewer_and_prompt_rules()
 
     def test_tto_st_05_integration(self) -> None:
-        """[TTO-ST-05] Integration check for Stage 4 Pre-Finish bilingual sync hook."""
+        """[TTO-ST-05] Integration check for the English-only Stage 4 Pre-Finish hook."""
         test_tto_st_05_pre_finish_bilingual_sync_hook()

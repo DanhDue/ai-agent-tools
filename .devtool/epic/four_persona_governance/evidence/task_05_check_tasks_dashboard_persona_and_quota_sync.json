@@ -1,0 +1,281 @@
+{
+  "schema": 1,
+  "task": "task_05_check_tasks_dashboard_persona_and_quota_sync",
+  "runs": {
+    "red": {
+      "head": "f537d906aeddff00a531d9c7c5b44bc2de2e8ad0",
+      "tree": "322a8c9b9654bd5fafefd00f9b21a191752a253d",
+      "patch_id": "8b42096b2a559d6b1cabce09084c202acf329621",
+      "started": "2026-11-17T10:40:11Z",
+      "finished": "2026-11-17T10:40:12Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_dashboard_sync.py::test_fpg_st_04_quota_model_and_escalation_stops_render_as_human_action",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T10:40:11Z",
+          "finished": "2026-11-17T10:40:12Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "____ test_fpg_st_04_quota_model_and_escalation_stops_render_as_human_action ____",
+            "tests/test_fpg_dashboard_sync.py:445: in test_fpg_st_04_quota_model_and_escalation_stops_render_as_human_action",
+            "    assert halt_meta.is_human_action_required is True",
+            "E   AssertionError: assert False is True",
+            "E    +  where False = RepoMetadata(name='halt_repo', path='/private/tmp/ag_danhdue/pytest-of-danhdueexoictif/pytest-204/test_fpg_st_04_quota...'gate_5', 'label': 'Gate 5 Sign-Off & Merge', 'status': 'pending', 'detail': ''}]}], 'events': []}, action_blockers=[]).is_human_action_required",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_fpg_dashboard_sync.py::test_fpg_st_04_quota_model_and_escalation_stops_render_as_human_action",
+            "1 failed in 1.04s"
+          ],
+          "output_sha256": "260c10a079541b421b30805152e70a3e109a5b3c3e5f03f05a813ceef76a04eb"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "f537d906aeddff00a531d9c7c5b44bc2de2e8ad0",
+      "tree": "cf4849fb28096cadde06d281ac7d6d1c88525739",
+      "patch_id": "d2dcbf3a8e6d03344a753ad2aa3f929908901cc8",
+      "started": "2026-11-17T10:56:11Z",
+      "finished": "2026-11-17T10:56:42Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_dashboard_sync.py tests/test_rsdh_harvester_and_pic.py tests/test_check_tasks_harvester.py tests/test_check_tasks_fsm.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T10:56:11Z",
+          "finished": "2026-11-17T10:56:27Z",
+          "output_tail": [
+            ".........................................................  [100%]",
+            "57 passed, 14 subtests passed in 15.51s"
+          ],
+          "output_sha256": "ac11f7a6c8656068ce5e0d3c15acc091c70d83b44d41fe0e3091dff91de796b8"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_check_tasks_server.py tests/test_ltsp_harvester_pipeline.py tests/test_cehm_history_aggregator.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T10:56:27Z",
+          "finished": "2026-11-17T10:56:35Z",
+          "output_tail": [
+            ".............................................                            [100%]",
+            "45 passed in 7.88s"
+          ],
+          "output_sha256": "3f1ed7bcea1722bcc9435464cb2791974f8faa34bd3e864079a06b11670e5082"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/check-tasks/resources/scripts/check_tasks.py skills/check-tasks/resources/scripts/tasks_server.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T10:56:35Z",
+          "finished": "2026-11-17T10:56:35Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/check-tasks/resources/scripts/check_tasks.py skills/check-tasks/resources/scripts/tasks_server.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T10:56:35Z",
+          "finished": "2026-11-17T10:56:35Z",
+          "output_tail": [
+            "Success: no issues found in 9 source files"
+          ],
+          "output_sha256": "46984ca20bf69f7b14ec1fd9bd82101d56a4e109e68f016fd2a04f22481b09b3"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/fpg_task_05.xml tests/test_fpg_dashboard_sync.py tests/test_check_tasks_fsm.py",
+          "expect": "exit 0; results build/test-results/fpg_task_05.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T10:56:35Z",
+          "finished": "2026-11-17T10:56:42Z",
+          "output_tail": [
+            "...................................                                      [100%]",
+            "35 passed in 6.27s"
+          ],
+          "output_sha256": "05500c4f899c3e936d11b820979f0a904da69c7b5ec1273b7c30dc8f00a1e90d",
+          "results": {
+            "path": "build/test-results/fpg_task_05.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 24,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_fpg_hp_13_dashboard_shows_profile_holders_and_alerts_when_pool_is_exhausted",
+                  "classname": "tests.test_fpg_dashboard_sync",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_13_unreadable_pool_files_never_raise",
+                  "classname": "tests.test_fpg_dashboard_sync",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_05_invalid_persona_config_degrades_to_a_warning",
+                  "classname": "tests.test_fpg_dashboard_sync",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_05_persona_module_load_failure_degrades_to_a_warning",
+                  "classname": "tests.test_fpg_dashboard_sync",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_quota_model_and_escalation_stops_render_as_human_action",
+                  "classname": "tests.test_fpg_dashboard_sync",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_07_memory_role_assistant_maps_to_architect",
+                  "classname": "tests.test_fpg_dashboard_sync",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_07_dashboard_documents_resolve_english_only",
+                  "classname": "tests.test_fpg_dashboard_sync",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_07_hld_status_ignores_vietnamese_label_and_vi_files",
+                  "classname": "tests.test_fpg_dashboard_sync",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_07_payload_carries_persona_bindings_checkpoint_and_low_quota",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_07_absent_and_invalid_inputs_leave_empty_fields[absent-False-False]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_07_absent_and_invalid_inputs_leave_empty_fields[invalid-False-False]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_07_absent_and_invalid_inputs_leave_empty_fields[expired_low_quota-True-False]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_each_heartbeat_halt_reason_is_human_action[MODEL_UNAVAILABLE]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_each_heartbeat_halt_reason_is_human_action[QUOTA_LOW]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_each_heartbeat_halt_reason_is_human_action[LOW_QUOTA_STOP]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_each_heartbeat_halt_reason_is_human_action[FIX_PLAN_ESCALATE]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_state_text_halt_reason_is_human_action[LOW_QUOTA_STOP]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_state_text_halt_reason_is_human_action[MODEL_UNAVAILABLE]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_halt_matching_is_case_sensitive_and_exact[fix_plan_escalate]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_halt_matching_is_case_sensitive_and_exact[QUOTA_LOW_SOON]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_halt_matching_is_case_sensitive_and_exact[]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_halt_matching_is_case_sensitive_and_exact[None]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_halt_matching_is_case_sensitive_and_exact[7]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_pending_quota_decision_for_a_sibling_epic_still_alerts",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/check-tasks/resources/dashboard/tasks_dashboard.html",
+            "skills/check-tasks/resources/scripts/check_tasks.py",
+            "skills/check-tasks/resources/scripts/tasks_server.py",
+            "tests/test_check_tasks_harvester.py",
+            "tests/test_fpg_dashboard_sync.py",
+            "tests/test_rsdh_harvester_and_pic.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

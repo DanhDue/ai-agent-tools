@@ -32,10 +32,10 @@ You MUST create a task for each of these items and complete them in order:
 4. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
 5. **Propose 2-3 approaches** — with trade-offs and your recommendation
 6. **Present design** — in sections scaled to their complexity, get user approval after each section
-7. **Write design docs** — save the English and Vietnamese pair to
-   `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.en.md` and `.vi.md`, each with a complete
-   table of contents, then commit them (relocated into `.devtool/epic/<epic_name>/` later if routed
-   to dev-designer — see Routing After Approval)
+7. **Write design docs** — save the English-only spec to
+   `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` with a complete table of contents, then
+   commit it (relocated into `.devtool/epic/<epic_name>/` later if routed to dev-designer — see
+   Routing After Approval)
 8. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
 9. **User reviews written spec** — ask user to review the spec file before proceeding
 10. **Route to the next skill** — one of three routine exits, see Routing After Approval below
@@ -91,7 +91,7 @@ spec's risks section and continue.
 
 Once the spec is approved (and has passed self-review), decide which skill picks it up next:
 
-- **Invoke `dev-designer`** when the approved spec describes epic-scale work: multiple independent components/services, a design that will need Kanban task breakdown and architecture/use-case/sequence diagrams, or the user explicitly called it an "epic" or large feature. Before invoking, relocate both spec files from `docs/superpowers/specs/` into `.devtool/epic/<epic_name>/` (creating the directory if `dev-designer` hasn't run for this epic yet), fix any relative links inside the moved files, then pass the canonical `.en.md` path as input — this keeps the spec pair, the HLD, and the task files for one epic all in the same directory instead of split across `docs/` and `.devtool/`.
+- **Invoke `dev-designer`** when the approved spec describes epic-scale work: multiple independent components/services, a design that will need Kanban task breakdown and architecture/use-case/sequence diagrams, or the user explicitly called it an "epic" or large feature. Before invoking, relocate the spec file from `docs/superpowers/specs/` into `.devtool/epic/<epic_name>/` (creating the directory if `dev-designer` hasn't run for this epic yet), fix any relative links inside the moved file, then pass its path as input — this keeps the spec, the HLD, and the task files for one epic all in the same directory instead of split across `docs/` and `.devtool/`.
 - **Invoke `writing-plans`** (as before) for everything else — a single-component feature, bugfix, or small enough scope that one implementation plan covers it without a separate HLD.
 
 The deliverable decides, not the amount of writing involved. **If the work changes a file that ships in the build, it is code**, however much prose it also produces.
@@ -141,7 +141,7 @@ To ensure this is a true creative collaboration and not just a rigid interrogati
     2. `split into a named follow-up epic` — deferred to a distinct follow-up epic;
     3. `ignore with explicit rationale` — recorded as intentionally skipped with reasoning.
   - Silence is never consent: Gate 1 cannot pass while any warning lacks a user decision.
-  - Persist all decisions (or a one-line clean `snapshot_id` / absent-`shared-contracts/` confirmation note) under `## Shared Contract Warnings` in `.en.md` and `## Cảnh báo Shared Contract` in `.vi.md` so `dev-designer` consumes them during task decomposition.
+  - Persist all decisions (or a one-line clean `snapshot_id` / absent-`shared-contracts/` confirmation note) under `## Shared Contract Warnings` in the spec so `dev-designer` consumes them during task decomposition.
 - Before asking detailed questions, assess scope: if the request describes multiple independent subsystems (e.g., "build a platform with chat, file storage, billing, and analytics"), flag this immediately. Don't spend questions refining details of a project that needs to be decomposed first.
 - If the project is too large for a single spec, help the user **group features into Core Epics/Themes** (e.g., Identity, Payment Gateway, Core Wallet) instead of randomly splitting them. Ask: what are the independent pieces, how do they relate, and what order should they be built? Then brainstorm the first sub-project through the normal design flow. Each sub-project gets its own spec → plan → implementation cycle.
 - For appropriately-scoped projects, ask questions one at a time to refine the idea
@@ -186,28 +186,24 @@ To ensure this is a true creative collaboration and not just a rigid interrogati
 
 **Documentation:**
 
-- Write the validated design (spec) in **English** first (never mix languages in internal design docs, tasks, or commits) as a synchronized pair, stamping creator `- **PIC**: <profile>` resolved via `python3 scripts/resume_context.py --detect-profile`:
-  - English, canonical: `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.en.md`
-  - Vietnamese: `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.vi.md`
+- Write the validated design (spec) in **English only** (never mix languages in internal design docs, tasks, or commits) as a single file, stamping creator `- **PIC**: <profile>` resolved via `python3 scripts/resume_context.py --detect-profile`:
+  - `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` (a legacy `.en.md` spec is accepted, not produced)
   - (User preferences for spec location override this default)
-  - Both variants MUST contain a linked table of contents covering every `##` section and MUST stay
-    identical in structure and facts. Write and update English first, then synchronize Vietnamese.
-  - Every spec MUST include the section `## Shared Contract Warnings` (in `.en.md`) and `## Cảnh báo Shared Contract` (in `.vi.md`) documenting user decisions on contract warnings, or noting clean snapshot state / absence of `shared-contracts/`.
-  - **Markdown & Diagram Standards**: Both documents MUST adhere to markdown linting standards (single H1, no skipped heading levels, space after `#`, no trailing punctuation in headings, language tags on all fenced code blocks, clean formatting) and modern diagram standards:
+  - The spec MUST contain a linked table of contents covering every `##` section. Produce a Vietnamese explanation only when Role 1.0 explicitly asks for it.
+  - Every spec MUST include the section `## Shared Contract Warnings` documenting user decisions on contract warnings, or noting clean snapshot state / absence of `shared-contracts/`.
+  - **Markdown & Diagram Standards**: The document MUST adhere to markdown linting standards (single H1, no skipped heading levels, space after `#`, no trailing punctuation in headings, language tags on all fenced code blocks, clean formatting) and modern diagram standards:
     - **Mermaid**: Use `flowchart TD/LR` (NEVER legacy `graph TD/LR`), double-quote node labels containing special characters, parentheses `()`, brackets `[]`, braces `{}`, colons `:`, slashes `/`, ampersands `&` (e.g. `node1["Component (Core)"]`), use alphanumeric IDs, and avoid trailing semicolons.
     - **Graphviz (DOT)**: Semantic shapes (`diamond` for decisions `?`, `box` for actions, `plaintext` for commands, `ellipse` for states, `octagon` for warnings, `doublecircle` for start/complete), semicolons terminating every statement, and double-quoted multi-word labels.
-  - If this spec is later routed to `dev-designer` (see Routing After Approval), neither file stays here — relocate the pair into the epic's own directory so every doc for that epic lives in one place.
-- Before user review, verify the pair mechanically:
+  - If this spec is later routed to `dev-designer` (see Routing After Approval), it does not stay here — relocate it into the epic's own directory so every doc for that epic lives in one place.
+- Before user review, verify the spec mechanically:
   ```bash
   python3 skills/doc_quality_check/resources/scripts/check_document.py \
-    --require-toc --require-bilingual \
-    docs/superpowers/specs/YYYY-MM-DD-<topic>-design.en.md \
-    docs/superpowers/specs/YYYY-MM-DD-<topic>-design.vi.md
+    --require-toc docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md
   ```
 - Use elements-of-style:writing-clearly-and-concisely skill if available
 - Commit the design document to git (if `auto_commit` is enabled):
   - Read `.agents/config.json` — check `auto_commit` setting
-  - If `auto_commit: true` (default when absent): stage both language paths and commit with
+  - If `auto_commit: true` (default when absent): stage the spec path and commit with
     `git commit -m "[<TOPIC>] Add design spec"`; see
     [Commit Message Format](../../rules/CRITICAL_RULES.md#commit-message-format); no
     `Co-Authored-By` or other trailer
@@ -230,9 +226,8 @@ Fix any issues inline. No need to re-review — just fix and move on.
 **User Review Gate:**
 Before halting for Gate 1 review, record the Choice A pending decision so the dashboard highlights human action (`python3 scripts/resume_context.py --pending-decision "Approve Gate 1 design spec" --decision-kind gate_1 --epic <topic_slug>`). After the spec review loop passes, ask the user to review the written spec before proceeding:
 
-> "Spec written and committed to `<english-path>` and `<vietnamese-path>`. Please review the pair
-> and let me know if you want to make any changes before we start writing out the implementation
-> plan."
+> "Spec written and committed to `<spec-path>`. Please review it and let me know if you want to
+> make any changes before we start writing out the implementation plan."
 
 Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
 

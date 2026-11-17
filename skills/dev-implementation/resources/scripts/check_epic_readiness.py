@@ -7,7 +7,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import hashlib
 import re
 import shlex
 import subprocess
@@ -21,6 +20,7 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
+from _epic_docs import iter_task_files, resolve_design_specs, resolve_epic_doc
 import check_bdd_traceability as cb
 import run_task_checks as rtc
 import sync_task_status as sts
@@ -57,15 +57,6 @@ class Context:
     post_design: bool = False
 
 
-SYNC_EN_DIGEST_RE = re.compile(r"<!--\s*sync-en-sha256:\s*([^\s>]+)\s*-->", re.IGNORECASE)
-
-
-def compute_en_sync_digest(text: str) -> str:
-    """Return 16 lowercase hex chars of SHA-256 over LF-normalized, stripped English markdown."""
-    normalized = text.replace("\r\n", "\n").replace("\r", "\n").strip()
-    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:16]
-
-
 def parse_integration_test_roots(hld_text: str) -> list[str]:
     for line in hld_text.splitlines():
         if line.startswith("Integration test roots:"):
@@ -84,10 +75,12 @@ def load_context(
     strict_bilingual: bool = False,
 ) -> Context:
     epic_path = root / ".devtool" / "epic" / epic_dir
-    hld_path = epic_path / f"{epic_dir}.en.md"
+    hld_path = resolve_epic_doc(epic_path, epic_dir)
+    if hld_path is None:
+        raise FileNotFoundError(f"HLD not found in {epic_path}")
     hld_text = hld_path.read_text(encoding="utf-8")
 
-    task_paths = sorted(epic_path.glob("task_*.md"))
+    task_paths = iter_task_files(epic_path)
     tasks: dict[Path, str] = {p: p.read_text(encoding="utf-8") for p in task_paths}
 
     epic_slug = epic_dir
@@ -146,23 +139,23 @@ def check_preflight(ctx: Context) -> list[Finding]:
                 )
 
     # 2. check_bdd_traceability.py plan
+    bdd_path = resolve_epic_doc(epic_path, "bdd_scenarios") or (epic_path / "bdd_scenarios.md")
     cmd2 = [
         sys.executable,
         str(SCRIPTS_DIR / "check_bdd_traceability.py"),
         "plan",
         "--scenarios",
-        str(epic_path / "bdd_scenarios.en.md"),
+        str(bdd_path),
         "--tasks",
         *task_paths_str,
     ]
-    if ctx.strict_bilingual:
-        cmd2.append("--strict-bilingual")
     res2 = subprocess.run(cmd2, check=False, cwd=ctx.root, capture_output=True, text=True, env=rtc.kit_env())
     if res2.returncode != 0:
         last_line = get_last_non_empty_line(res2.stdout, res2.stderr)
         findings.append(Finding("R1", "FAIL", f"check_bdd_traceability.py plan: {last_line}"))
 
     # 3. check_task_contract.py --design
+    hld_path = resolve_epic_doc(epic_path, ctx.epic_dir) or (epic_path / f"{ctx.epic_dir}.md")
     cmd3 = [
         sys.executable,
         str(SCRIPTS_DIR / "check_task_contract.py"),
@@ -173,7 +166,7 @@ def check_preflight(ctx: Context) -> list[Finding]:
     cmd3.extend(
         [
             "--hld",
-            str(epic_path / f"{ctx.epic_dir}.en.md"),
+            str(hld_path),
             "--tasks",
             *task_paths_str,
         ]
@@ -183,13 +176,17 @@ def check_preflight(ctx: Context) -> list[Finding]:
         last_line = get_last_non_empty_line(res3.stdout, res3.stderr)
         findings.append(Finding("R1", "FAIL", f"check_task_contract.py --design: {last_line}"))
 
-    # 4. check_document.py
-    if ctx.strict_bilingual:
-        doc_files = sorted(set(epic_path.glob("*.en.md")) | set(epic_path.glob("*.vi.md")))
-        doc_flags = ["--require-toc", "--require-bilingual"]
-    else:
-        doc_files = sorted(epic_path.glob("*.en.md"))
-        doc_flags = ["--require-toc"]
+    # 4. check_document.py (English SSOT documents only; never *.vi.md)
+    doc_candidates: list[Path] = []
+    for candidate in (
+        resolve_epic_doc(epic_path, ctx.epic_dir),
+        resolve_epic_doc(epic_path, "bdd_scenarios"),
+        *resolve_design_specs(epic_path),
+    ):
+        if candidate is not None and candidate not in doc_candidates:
+            doc_candidates.append(candidate)
+    doc_files = sorted(doc_candidates)
+    doc_flags = ["--require-toc"]
     if doc_files:
         cmd_doc1 = [
             sys.executable,
@@ -340,49 +337,32 @@ def extract_scenario_blocks(text: str) -> dict[str, list[str]]:
 def check_bdd_scenarios(ctx: Context) -> list[Finding]:
     findings: list[Finding] = []
     epic_path = ctx.root / ".devtool" / "epic" / ctx.epic_dir
-    bdd_en_path = epic_path / "bdd_scenarios.en.md"
-    if not bdd_en_path.is_file():
+    bdd_path = resolve_epic_doc(epic_path, "bdd_scenarios")
+    if bdd_path is None or not bdd_path.is_file():
         return findings
 
-    canonical_blocks = extract_scenario_blocks(bdd_en_path.read_text(encoding="utf-8"))
+    canonical_blocks = extract_scenario_blocks(bdd_path.read_text(encoding="utf-8"))
 
     for task_path, task_text in ctx.tasks.items():
         task_blocks = extract_scenario_blocks(task_text)
         for sc_id, t_lines in task_blocks.items():
             if sc_id in canonical_blocks and t_lines != canonical_blocks[sc_id]:
                 findings.append(
-                    Finding("R3", "FAIL", f"{task_path.name}: {sc_id} differs from bdd_scenarios.en.md")
+                    Finding("R3", "FAIL", f"{task_path.name}: {sc_id} differs from {bdd_path.name}")
                 )
-
-    if ctx.strict_bilingual:
-        bdd_vi_path = epic_path / "bdd_scenarios.vi.md"
-        if not bdd_vi_path.is_file():
-            findings.append(Finding("R3", "FAIL", "bdd_scenarios.vi.md is missing (--strict-bilingual)"))
-        else:
-            en_ids, _ = cb.scenario_ids(bdd_en_path)
-            vi_ids, vi_problems = cb.scenario_ids(bdd_vi_path)
-            for prob in vi_problems:
-                findings.append(Finding("R3", "FAIL", prob))
-            en_set = set(en_ids)
-            vi_set = set(vi_ids)
-            if en_set != vi_set:
-                for missing_or_extra in sorted(en_set ^ vi_set):
-                    findings.append(
-                        Finding("R3", "FAIL", f"bdd_scenarios.vi.md: {missing_or_extra} missing or extra")
-                    )
 
     return findings
 
 
 def check_tier_tags(ctx: Context) -> list[Finding]:
     findings: list[Finding] = []
-    bdd_en_path = ctx.root / ".devtool" / "epic" / ctx.epic_dir / "bdd_scenarios.en.md"
-    if not bdd_en_path.is_file():
+    bdd_path = resolve_epic_doc(ctx.root / ".devtool" / "epic" / ctx.epic_dir, "bdd_scenarios")
+    if bdd_path is None or not bdd_path.is_file():
         return findings
 
     in_gherkin = False
     fence_marker: str | None = None
-    for line in bdd_en_path.read_text(encoding="utf-8").splitlines():
+    for line in bdd_path.read_text(encoding="utf-8").splitlines():
         fence_match = cb.FENCE.match(line)
         if fence_match and fence_marker is None:
             fence_marker = fence_match.group(1)
@@ -673,74 +653,6 @@ def check_gate4_coverage(ctx: Context) -> list[Finding]:
     return findings
 
 
-def _check_vi_sync_metadata(ctx: Context, en_errata: list[tuple[str, str]]) -> list[Finding]:
-    """Validate .vi.md mirror presence, metadata parity, and sync-en-sha256 provenance."""
-    findings: list[Finding] = []
-    epic_path = ctx.root / ".devtool" / "epic" / ctx.epic_dir
-    vi_file = epic_path / f"{ctx.epic_dir}.vi.md"
-    if vi_file.is_file():
-        try:
-            vi_text = vi_file.read_text(encoding="utf-8")
-            if tc.parse_depends_on_epics(vi_text) != tc.parse_depends_on_epics(ctx.hld_text):
-                findings.append(
-                    Finding("R7", "FAIL", "Depends on epic differs between .en.md and .vi.md")
-                )
-            try:
-                vi_errata = tc.parse_spec_errata(vi_text)
-            except tc.ContractError as err:
-                findings.append(Finding("R7", "FAIL", str(err)))
-                return findings
-
-            if [eid for eid, _ in en_errata] != [eid for eid, _ in vi_errata]:
-                findings.append(
-                    Finding(
-                        "R7",
-                        "FAIL",
-                        f"Spec Errata IDs differ between .en.md and .vi.md: {[e for e, _ in en_errata]} vs {[e for e, _ in vi_errata]}",
-                    )
-                )
-        except OSError:
-            pass
-
-    for en_path in sorted(epic_path.glob("*.en.md")):
-        vi_path = en_path.with_name(en_path.name[: -len(".en.md")] + ".vi.md")
-        is_bdd = en_path.name == "bdd_scenarios.en.md"
-        if not vi_path.is_file():
-            if not is_bdd:
-                findings.append(
-                    Finding(
-                        "R7",
-                        "FAIL",
-                        f"{vi_path.name}: missing Vietnamese mirror (--strict-bilingual)",
-                    )
-                )
-            continue
-        try:
-            en_text = en_path.read_text(encoding="utf-8")
-            vi_text = vi_path.read_text(encoding="utf-8")
-        except OSError:
-            continue
-        matches = SYNC_EN_DIGEST_RE.findall(vi_text)
-        if not matches:
-            if not is_bdd:
-                findings.append(
-                    Finding(
-                        "R7",
-                        "FAIL",
-                        f"{vi_path.name}: missing <!-- sync-en-sha256: <hex16> --> provenance comment",
-                    )
-                )
-            continue
-        expected = compute_en_sync_digest(en_text)
-        recorded = matches[-1].strip().lower()
-        if recorded != expected:
-            findings.append(
-                Finding("R7", "FAIL", f"{vi_path.name}: stale sync-en-sha256 ({recorded} != {expected})")
-            )
-
-    return findings
-
-
 def check_metadata(ctx: Context) -> list[Finding]:
     findings: list[Finding] = []
     epic_path = ctx.root / ".devtool" / "epic" / ctx.epic_dir
@@ -753,15 +665,11 @@ def check_metadata(ctx: Context) -> list[Finding]:
     for err in prereq_errors:
         findings.append(Finding("R7", "FAIL", err))
 
-    en_errata: list[tuple[str, str]] = []
     try:
-        en_errata = tc.parse_spec_errata(ctx.hld_text)
+        tc.parse_spec_errata(ctx.hld_text)
     except tc.ContractError as err:
         findings.append(Finding("R7", "FAIL", str(err)))
         return findings
-
-    if ctx.strict_bilingual:
-        findings.extend(_check_vi_sync_metadata(ctx, en_errata))
 
     status_match = re.search(r"^- \*\*Status\*\*:\s*(.*)$", ctx.hld_text, re.MULTILINE)
     hld_status = status_match.group(1).strip() if status_match else ""
@@ -813,7 +721,7 @@ def check_metadata(ctx: Context) -> list[Finding]:
                 Finding("R7", "FAIL", f"{task_path.name}: status '{t_status}' not in TASK_STATUSES")
             )
 
-    spec_files = list(epic_path.glob("*-design.en.md"))
+    spec_files = resolve_design_specs(epic_path)
     if spec_files:
         spec_text = spec_files[0].read_text(encoding="utf-8")
         spec_status_m = re.search(r"^- \*\*Status\*\*:\s*(.*)$", spec_text, re.MULTILINE)
@@ -971,8 +879,8 @@ def render_report(ctx: Context, findings: list[Finding]) -> str:
 
 
 def _is_epic_done(root: Path, epic_dir: str) -> bool:
-    hld_file = root / ".devtool" / "epic" / epic_dir / f"{epic_dir}.en.md"
-    if hld_file.is_file():
+    hld_file = resolve_epic_doc(root / ".devtool" / "epic" / epic_dir, epic_dir)
+    if hld_file is not None and hld_file.is_file():
         try:
             text = hld_file.read_text(encoding="utf-8")
             m = re.search(r"^-\s*\*\*Status\*\*:\s*(.*)$", text, re.MULTILINE)
@@ -982,7 +890,7 @@ def _is_epic_done(root: Path, epic_dir: str) -> bool:
             pass
     tasks_dir = root / ".devtool" / "epic" / epic_dir
     if tasks_dir.is_dir():
-        task_files = list(tasks_dir.glob("task_*.md"))
+        task_files = iter_task_files(tasks_dir)
         if task_files:
             all_done = True
             for tf in task_files:
@@ -1004,8 +912,8 @@ def replay_with_prerequisites(
     root: Path, epic_dir: str, row_timeout: int = 600
 ) -> list[str]:
     """Replay unfinished prerequisite epics in topological order before replaying epic_dir."""
-    hld_file = root / ".devtool" / "epic" / epic_dir / f"{epic_dir}.en.md"
-    hld_text = hld_file.read_text(encoding="utf-8") if hld_file.is_file() else ""
+    hld_file = resolve_epic_doc(root / ".devtool" / "epic" / epic_dir, epic_dir)
+    hld_text = hld_file.read_text(encoding="utf-8") if hld_file is not None and hld_file.is_file() else ""
     prereq_dirs, errors = tc.resolve_prerequisite_epic_dirs(root, hld_text, epic_dir)
     if errors:
         return errors
@@ -1059,10 +967,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--strict-bilingual",
         action="store_true",
-        help="Enforce strict .en.md/.vi.md parity, provenance digests, and bdd_scenarios.vi.md presence",
+        help="Deprecated no-op (ignored)",
     )
 
     args = parser.parse_args(argv)
+    if args.strict_bilingual:
+        sys.stderr.write("warning: --strict-bilingual is deprecated and ignored\n")
 
     try:
         root_str = subprocess.run(
@@ -1081,9 +991,9 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write(f"error: {epic_path} does not exist\n")
         return 2
 
-    hld_path = epic_path / f"{args.epic_dir}.en.md"
-    if not hld_path.is_file():
-        sys.stderr.write(f"error: {hld_path} does not exist\n")
+    hld_path = resolve_epic_doc(epic_path, args.epic_dir)
+    if hld_path is None:
+        sys.stderr.write(f"error: {epic_path / f'{args.epic_dir}.md'} does not exist\n")
         return 2
 
     if args.replay_prereqs:

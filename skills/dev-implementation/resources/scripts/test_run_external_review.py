@@ -1327,7 +1327,7 @@ class TestReviewConfigAndHeader(ReviewCase):
             main(["triage", "--epic-dir", "demo"])
         self.assertIn("AUTO_PASS_FINAL_SWEEP", out6.getvalue())
 
-        # 7. Principal Review Round 1 blocking finding -> AUTO_FIX_ELIGIBLE (Role 2.2 directive, no false-positive conflict markers)
+        # 7. Principal Review Round 1 blocking finding -> AUTO_FIX_ELIGIBLE (Role 2.1 directive, no false-positive conflict markers)
         pr_path = self.root / ".devtool" / "epic" / "demo" / "principal_review.md"
         pr_path.write_text(
             "# Principal Review: demo\n\n"
@@ -1344,7 +1344,7 @@ class TestReviewConfigAndHeader(ReviewCase):
             main(["triage", "--kind", "principal", "--epic-dir", "demo"])
         triage7 = out7.getvalue()
         self.assertIn("AUTO_FIX_ELIGIBLE", triage7)
-        self.assertIn("revise docs in Role 2.2", triage7)
+        self.assertIn("revise docs in Role 2.1 AI Architect & Reviewer", triage7)
         self.assertIn("auto-apply Valid doc revisions", triage7)
         for marker in (
             "domain conflict",

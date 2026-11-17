@@ -9,7 +9,7 @@ Two-Tier Context Harvester, Multi-Epic Partitioning & Handoff Telemetry Tool.
   and refreshes .devtool/activity_stream.log rollup under fcntl.flock concurrency protection.
 - Compaction Mode (--complete <slug> "<summary>"): Appends permanent milestone to PROJECT_LEDGER.md,
   archives epic state and activity log to .devtool/archive/, and refreshes rollups.
-- Prompt Mode (--emit-prompt <mode>): Emits deterministic handoff prompts across Tri-Role personas.
+- Prompt Mode (--emit-prompt <mode>): Emits deterministic handoff prompts across the four-persona roles.
 """
 
 from __future__ import annotations
@@ -17,9 +17,11 @@ from __future__ import annotations
 import argparse
 import contextlib
 import fcntl
+import importlib.util
 import json
 import os
 import re
+import shlex
 import sqlite3
 import subprocess
 import sys
@@ -27,6 +29,8 @@ import tempfile
 from collections.abc import Iterator, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
+from types import ModuleType
+from typing import Any
 
 _KIT_SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_KIT_SCRIPTS_DIR) not in sys.path:
@@ -42,6 +46,21 @@ DEFAULT_PROGRAMMER_MODEL = "gemini-4-hydrogen-xhigh"
 DEFAULT_PROGRAMMER_EFFORT = "xhigh"
 LEGACY_PROGRAMMER_MODELS = frozenset({"gemini-3.8-flash", "gemini-3.8-flash-high"})
 EXTRA_EFFORT_ALIASES = frozenset({"extra", "extra-high", "extra_high", "xhigh"})
+CHECKPOINT_EVENTS: tuple[str, ...] = (
+    "gate2_tasks_locked",
+    "subagent_returned",
+    "wave_merged",
+    "model_unavailable",
+    "turn_budget",
+    "low_quota_stop",
+    "quota_low",
+)
+ROLE_CHOICES: tuple[str, ...] = (
+    "architect",
+    "orchestrator",
+    "programmer",
+    "assistant",
+)
 
 DEFAULT_LEDGER_TEMPLATE = """# Project Architectural Ledger & Feature History (Permanent)
 
@@ -54,23 +73,70 @@ DEFAULT_LEDGER_TEMPLATE = """# Project Architectural Ledger & Feature History (P
 """
 
 
+def _load_module_by_path(module_name: str, module_path: Path) -> Any:
+    """Load a kit helper module by path and register it in sys.modules."""
+    existing = sys.modules.get(module_name)
+    if existing is not None and getattr(existing, "__file__", None):
+        if Path(str(existing.__file__)).resolve() == module_path.resolve():
+            return existing
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Cannot load module '{module_name}' from {module_path}")
+    module: ModuleType = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_persona_config() -> Any:
+    """Load scripts/persona_config.py by explicit path."""
+    return _load_module_by_path("persona_config", _KIT_SCRIPTS_DIR / "persona_config.py")
+
+
+def _load_epic_docs() -> Any:
+    """Load skills/dev-implementation/resources/scripts/_epic_docs.py by explicit path."""
+    return _load_module_by_path(
+        "_epic_docs",
+        _KIT_SCRIPTS_DIR.parent
+        / "skills"
+        / "dev-implementation"
+        / "resources"
+        / "scripts"
+        / "_epic_docs.py",
+    )
+
+
+def normalize_role(role: str) -> str:
+    """Normalize legacy 'assistant' role alias to 'architect'."""
+    cleaned = role.lower().strip()
+    return "architect" if cleaned == "assistant" else cleaned
+
+
 def print_section(title: str) -> None:
     print(f"\n{'=' * 65}\n📌 {title}\n{'=' * 65}")
 
 
 def print_role_banner(role: str) -> None:
-    norm_role = role.lower().strip()
-    if norm_role == "assistant":
+    norm_role = normalize_role(role)
+    if norm_role == "architect":
         print("=" * 65)
-        print("🎭 [PERSONA: AI ASSISTANT — ORCHESTRATOR]")
+        print("🏛️ [PERSONA: Role 2.1 AI Architect & Reviewer]")
+        print("⛔ READ-ONLY DESIGN & REVIEW: Author specs, plans, and reviews only.")
+        print(
+            "   Strictly prohibited from editing src/ or tests/ or executing code edits."
+        )
+        print("=" * 65)
+    elif norm_role == "orchestrator":
+        print("=" * 65)
+        print("🎭 [PERSONA: Role 2.2 Orchestrator]")
         print("⛔ NO IMPLEMENTATION: Strictly prohibited from reading/editing src/ or tests/")
         print(
-            "   or running test suites in main session. Coordinates & verifies Role 2.3."
+            "   or running test suites in main session. Coordinates & verifies Role 2.1/2.3."
         )
         print("=" * 65)
     elif norm_role in ("programmer", "implementer", "worker"):
         print("=" * 65)
-        print("💻 [PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]")
+        print("💻 [PERSONA: Role 2.3 Programmer — Senior TDD Software Engineer]")
         print("🎯 STRICT TDD & FIDELITY: Enforcing Red-Green-Refactor, Clean Code,")
         print("   Allowed files boundaries, and zero test fakery.")
         print("=" * 65)
@@ -623,6 +689,7 @@ def sync_window_title(
     epic_slug = epic_slug or resolve_current_epic_slug(root)
 
     # 1. Active Epic PIC / Profile metadata is authoritative SSOT (normalizing -/_)
+    epic_docs = _load_epic_docs()
     if not account_id and epic_slug and epic_slug != "general":
         slug_variants = list(
             dict.fromkeys(
@@ -633,18 +700,17 @@ def sync_window_title(
         for variant in slug_variants:
             for base_r in (root, primary_for_root):
                 ep_dir = base_r / ".devtool" / "epic" / variant
-                epic_candidates.extend(
-                    [
-                        ep_dir / "handoff.md",
-                        ep_dir / f"{variant}.en.md",
-                        ep_dir / f"{variant}.vi.md",
-                    ]
-                )
+                if not ep_dir.is_dir():
+                    continue
+                for stem in ("handoff", variant):
+                    resolved_doc = epic_docs.resolve_epic_doc(ep_dir, stem)
+                    if resolved_doc is not None and not resolved_doc.name.endswith(".vi.md"):
+                        epic_candidates.append(resolved_doc)
         for cand_f in epic_candidates:
             if cand_f.is_file():
                 try:
                     m = re.search(
-                        r"-\s+\*\*(?:PIC(?:\s*/\s*Assigned\s+Profile)?|Profile|Assigned Profile|Người phụ trách(?: \(PIC\))?)\*\*:\s*`?@?([a-zA-Z0-9_.\-]+)`?",
+                        r"-\s+\*\*(?:PIC(?:\s*/\s*Assigned\s+Profile)?|Profile|Assigned Profile)\*\*:\s*`?@?([a-zA-Z0-9_.\-]+)`?",
                         cand_f.read_text(encoding="utf-8"),
                         re.IGNORECASE,
                     )
@@ -677,9 +743,26 @@ def sync_window_title(
         if not epic_dir.exists():
             epic_dir = devtool_dir / "epic" / epic_slug.replace("_", "-")
         if epic_dir.exists():
-            for vi_file in epic_dir.glob("*.vi.md"):
+            title_docs: list[Path] = []
+            for stem in dict.fromkeys(
+                [
+                    epic_dir.name,
+                    epic_slug,
+                    epic_slug.replace("-", "_"),
+                    epic_slug.replace("_", "-"),
+                ]
+            ):
+                resolved_doc = epic_docs.resolve_epic_doc(epic_dir, stem)
+                if resolved_doc is not None and resolved_doc not in title_docs:
+                    title_docs.append(resolved_doc)
+            for spec_doc in epic_docs.resolve_design_specs(epic_dir):
+                if spec_doc not in title_docs:
+                    title_docs.append(spec_doc)
+            for doc_file in title_docs:
+                if doc_file.name.endswith(".vi.md"):
+                    continue
                 try:
-                    for line in vi_file.read_text(encoding="utf-8").splitlines():
+                    for line in doc_file.read_text(encoding="utf-8").splitlines():
                         if line.startswith("# "):
                             raw = line.lstrip("#").strip()
                             if raw.lower().startswith("epic:"):
@@ -846,6 +929,51 @@ def _is_paused_status(status: str) -> bool:
     return bool(re.search(r"\bgate\s*[125]\b.*(?:approval|review|sign)", lowered))
 
 
+def _read_existing_epic_state_fields(
+    devtool_dir: Path, epic_slug: str
+) -> tuple[str, str, str, str, str]:
+    """Read `(role, decisions, status, next_step, prompt)` from existing epic state file."""
+    state_file = devtool_dir / "state" / f"{epic_slug}.md"
+    if not state_file.is_file():
+        return ("", "", "", "", "")
+    role = ""
+    section = ""
+    sections: dict[str, list[str]] = {
+        "decisions": [],
+        "status": [],
+        "next_step": [],
+        "prompt": [],
+    }
+    for raw_line in state_file.read_text(encoding="utf-8", errors="replace").splitlines():
+        stripped = raw_line.strip()
+        role_match = re.match(r"^-\s*Role:\s*([^|\n]+)", stripped)
+        if role_match:
+            role = normalize_role(role_match.group(1).strip())
+            continue
+        if stripped.startswith("## Recent Decisions Locked"):
+            section = "decisions"
+            continue
+        if stripped.startswith("## Repo/Task Status"):
+            section = "status"
+            continue
+        if stripped.startswith("## Next Immediate Step"):
+            section = "next_step"
+            continue
+        if stripped.startswith("## Custom Prompt / Notes"):
+            section = "prompt"
+            continue
+        if stripped.startswith("## "):
+            section = ""
+            continue
+        if section and stripped:
+            sections[section].append(stripped)
+    decisions = "\n".join(sections["decisions"])
+    status = " ".join(ln.lstrip("- ").strip() for ln in sections["status"]).strip()
+    next_step = " ".join(ln.lstrip("- ").strip() for ln in sections["next_step"]).strip()
+    prompt = "\n".join(sections["prompt"])
+    return (role, decisions, status, next_step, prompt)
+
+
 def write_epic_state(
     root: Path,
     epic_slug: str,
@@ -857,10 +985,12 @@ def write_epic_state(
     repo: str | None = None,
     *,
     refresh_heartbeat: bool = True,
+    clear_pending: bool = True,
     sync_title: bool = True,
     mirror_roots: Sequence[Path] | None = None,
     active_wave: int | None = None,
 ) -> None:
+    norm_role = normalize_role(role)
     devtool_dir = resolve_target_devtool_dir(root, repo)
     primary_root = (
         resolve_primary_repo_root(devtool_dir.parent)
@@ -893,7 +1023,7 @@ def write_epic_state(
                 _add_devtool_dir(wt / ".devtool")
 
     content = enforce_state_line_limit(
-        epic_slug, role, decisions, status, next_step, prompt
+        epic_slug, norm_role, decisions, status, next_step, prompt
     )
     canonical_lock_dt = (primary_root / ".devtool").resolve()
     with _state_envelope._state_lock(canonical_lock_dt):
@@ -915,7 +1045,7 @@ def write_epic_state(
                 extra_devtool_dirs=target_devtool_dirs,
             )
 
-        if status.strip() and not _is_paused_status(status):
+        if clear_pending and status.strip() and not _is_paused_status(status):
             _state_envelope.clear_pending_decision(
                 primary_root,
                 epic_slug,
@@ -1243,6 +1373,65 @@ def scan_assistant_state(root: Path) -> None:
         print("  (No active assistant_state.md found yet.)")
 
 
+def _collect_epic_checkpoints(root: Path) -> list[tuple[str, dict[str, Any]]]:
+    """Collect latest non-empty checkpoint blocks keyed by epic across devtool candidates."""
+    candidates = [root / ".devtool"] + [root / r / ".devtool" for r in REPOS]
+    best_by_epic: dict[str, tuple[int, str, dict[str, Any]]] = {}
+    seen_dirs: set[Path] = set()
+    for d_dir in candidates:
+        if not d_dir.exists():
+            continue
+        resolved_dir = d_dir.resolve()
+        if resolved_dir in seen_dirs:
+            continue
+        seen_dirs.add(resolved_dir)
+        state_dir = d_dir / "state"
+        if not state_dir.is_dir():
+            continue
+        for hb_path in sorted(state_dir.glob("*.heartbeat.json")):
+            empty_hb: dict[str, Any] = {}
+            hb = _state_envelope.read_json_safe(hb_path, empty_hb)
+            if not hb:
+                continue
+            cp = hb.get("checkpoint")
+            if not isinstance(cp, dict) or not cp.get("event"):
+                continue
+            epic_name = str(
+                hb.get("epic_slug") or hb_path.stem.removesuffix(".heartbeat")
+            )
+            gen = _state_envelope._safe_int(hb.get("generation"), 0)
+            norm_key = _normalize_epic(epic_name)
+            prev = best_by_epic.get(norm_key)
+            if prev is None or gen >= prev[0]:
+                best_by_epic[norm_key] = (gen, epic_name, cp)
+    return [(epic_name, cp) for _, epic_name, cp in best_by_epic.values()]
+
+
+def scan_epic_checkpoints(root: Path) -> None:
+    """Print the latest checkpoint block for each active epic before the activity stream."""
+    checkpoints = _collect_epic_checkpoints(root)
+    if not checkpoints:
+        return
+    print_section("1.6. LATEST CHECKPOINTS (.devtool/state/*.heartbeat.json)")
+    for epic_name, cp in checkpoints:
+        parts = [f"event={cp.get('event', '')}"]
+        if cp.get("persona"):
+            parts.append(f"persona={cp['persona']}")
+        if cp.get("wave") is not None:
+            parts.append(f"wave={cp['wave']}")
+        if cp.get("head_sha"):
+            parts.append(f"sha={str(cp['head_sha'])[:8]}")
+        if cp.get("next_step"):
+            parts.append(f"next={cp['next_step']}")
+        parts.append(f"turns={cp.get('turns_since_checkpoint', 0)}")
+        parts.append(f"low_quota={bool(cp.get('low_quota', False))}")
+        if cp.get("at"):
+            parts.append(f"at={cp['at']}")
+        if cp.get("warning"):
+            parts.append(f"warning={cp['warning']}")
+        print(f"  - [{epic_name}] " + " | ".join(parts))
+
+
 def scan_activity_stream(root: Path, tail_lines: int = 15) -> None:
     print_section("2. RECENT PROGRAMMER ACTIVITY (.devtool/activity_stream.log)")
     candidates = [root / ".devtool"] + [root / r / ".devtool" for r in REPOS]
@@ -1329,7 +1518,8 @@ def scan_active_tasks(root: Path, epic_filter: str | None = None) -> None:
         done_count = 0
         total_count = 0
 
-        for tf in sorted(features_dir.glob("task_*.md")):
+        epic_docs = _load_epic_docs()
+        for tf in epic_docs.iter_task_files(features_dir):
             lines = tf.read_text(encoding="utf-8").splitlines()[:15]
             if epic_filter:
                 epic_line = next((l for l in lines if l.startswith("epic:")), "")
@@ -1356,7 +1546,7 @@ def scan_active_tasks(root: Path, epic_filter: str | None = None) -> None:
 
         done_dir = features_dir / "done"
         if done_dir.exists():
-            for tf in sorted(done_dir.glob("task_*.md")):
+            for tf in epic_docs.iter_task_files(done_dir):
                 lines = tf.read_text(encoding="utf-8").splitlines()[:15]
                 if epic_filter:
                     epic_line = next((l for l in lines if l.startswith("epic:")), "")
@@ -1383,9 +1573,13 @@ def scan_active_tasks(root: Path, epic_filter: str | None = None) -> None:
                 wt_features = wt_dir / ".devtool" / "features"
                 if not wt_dir.is_dir() or not wt_features.is_dir():
                     continue
-                wt_done = len(list((wt_features / "done").glob("task_*.md"))) if (wt_features / "done").is_dir() else 0
+                wt_done = (
+                    len(epic_docs.iter_task_files(wt_features / "done"))
+                    if (wt_features / "done").is_dir()
+                    else 0
+                )
                 wt_todo = 0
-                for tf in sorted(wt_features.glob("task_*.md")):
+                for tf in epic_docs.iter_task_files(wt_features):
                     lines = tf.read_text(encoding="utf-8").splitlines()[:15]
                     st_line = next((l for l in lines if "status:" in l.lower()), "")
                     st_val = st_line.replace("status:", "").strip().strip('"').strip("'").lower()
@@ -1503,7 +1697,8 @@ def collect_harvest_data(
             continue
 
         repo_name = r_path.name
-        for tf in sorted(features_dir.glob("task_*.md")):
+        epic_docs = _load_epic_docs()
+        for tf in epic_docs.iter_task_files(features_dir):
             lines = tf.read_text(encoding="utf-8").splitlines()[:15]
             epic_line = next((l for l in lines if l.startswith("epic:")), "")
             epic_val = epic_line.replace("epic:", "").strip().strip('"').strip("'")
@@ -1531,10 +1726,14 @@ def collect_harvest_data(
                 )
 
     gate_approvals = scan_gate_ledger(root, epic_slug=epic_filter)
+    checkpoints = {
+        epic_name: cp for epic_name, cp in _collect_epic_checkpoints(root)
+    }
 
     return {
         "ledger": ledger_text,
         "state": state_map,
+        "checkpoints": checkpoints,
         "activity": activity_entries,
         "git_status": git_status,
         "rfcs": rfcs,
@@ -1678,6 +1877,7 @@ def _collect_compact_snapshot(
                     break
 
     if norm_epic:
+        epic_docs = _load_epic_docs()
         hld_found = False
         for r in roots:
             epic_root = r / ".devtool" / "epic"
@@ -1686,8 +1886,10 @@ def _collect_compact_snapshot(
             for ep_dir in sorted(epic_root.iterdir()):
                 if not ep_dir.is_dir() or _normalize_epic(ep_dir.name) != norm_epic:
                     continue
-                hld_path = ep_dir / f"{ep_dir.name}.en.md"
-                if hld_path.is_file():
+                hld_path = epic_docs.resolve_epic_doc(ep_dir, ep_dir.name)
+                if hld_path is None and epic_slug:
+                    hld_path = epic_docs.resolve_epic_doc(ep_dir, epic_slug)
+                if hld_path is not None and not hld_path.name.endswith(".vi.md"):
                     meta = [
                         ln.strip()[:140]
                         for ln in hld_path.read_text(encoding="utf-8", errors="replace").splitlines()[:35]
@@ -1698,6 +1900,14 @@ def _collect_compact_snapshot(
                         hld_found = True
                 break
             if hld_found:
+                break
+
+        for ep_name, cp in _collect_epic_checkpoints(primary_root):
+            if _normalize_epic(ep_name) == norm_epic:
+                cp_ev = str(cp.get("event") or "")
+                cp_next = str(cp.get("next_step") or "")
+                cp_line = f"Checkpoint: {cp_ev}" + (f" -> {cp_next}" if cp_next else "")
+                lines.append(cp_line[:160])
                 break
 
         for r in roots:
@@ -1789,11 +1999,13 @@ def _collect_compact_tasks(
     active_lines: list[str] = []
     seen_files: set[tuple[str, str]] = set()
 
+    epic_docs = _load_epic_docs()
+
     def _scan_dir(task_dir: Path, repo_label: str, *, force_done: bool) -> None:
         nonlocal done_count, total_count
         if not task_dir.is_dir():
             return
-        for tf in sorted(task_dir.glob("task_*.md")):
+        for tf in epic_docs.iter_task_files(task_dir):
             key = (repo_label, tf.name)
             if key in seen_files:
                 continue
@@ -2032,22 +2244,126 @@ _BRIEF_ROLE_CONTRACTS: dict[str, tuple[str, str]] = {
         '"labels": [...], "finalized": false}',
     ),
     "task-reviewer": (
-        "Audit slot diff, AST, Zero Fakery, `run_task_checks.py status` (`done gate: PASS`), and `check_bdd_traceability.py`; mark `done` and commit on PASS.",
+        "Audit slot diff, AST, Zero Fakery, `run_task_checks.py status` (`done gate: PASS`), "
+        "and `check_bdd_traceability.py` as read-only Role 2.1 AI Architect & Reviewer; "
+        "do NOT edit files, mark tasks done, or commit (Orchestrator finalizes on PASS).",
         '{"task_id": "...", "verdict": "PASS|FAIL", "head_sha": "...", '
         '"done_gate": "PASS|FAIL", "findings": [...]}',
     ),
+    "fix-planner": (
+        "Perform read-only root-cause analysis and draft the fix plan for high-risk findings "
+        "or halt criteria; do NOT edit files or commit — return the plan body in JSON so the "
+        "Orchestrator writes `fix_plan_round<N>.md` and commits.",
+        '{"round": 1, "status": "PLANNED|ESCALATE", "halt_criteria": [...], '
+        '"plan_markdown": "..."}',
+    ),
     "review-fixer": (
-        "Apply Cross-Model Review fixes in `fast-track`, `plan-first` (`fix_plan_round<N>.md`), or `apply-plan` mode with Tier 1 scoped tests only.",
-        '{"round": 1, "mode": "fast-track|plan-first|apply-plan", '
-        '"status": "FIXED|PLAN_WRITTEN|BLOCKED", "fix_shas": [...], '
+        "Apply Cross-Model Review fixes in `fast-track` or `apply-plan` "
+        "(from Orchestrator-written `fix_plan_round<N>.md`) mode with Tier 1 scoped tests only.",
+        '{"round": 1, "mode": "fast-track|apply-plan", '
+        '"status": "FIXED|BLOCKED", "fix_shas": [...], '
         '"decision_sha": "...", "changed_files": [...], "tier1": "PASS|FAIL"}',
     ),
     "gate4-verifier": (
-        "Execute full Gate 4 verification (`generate_smoke_checklist.py`, `audit_epic.py`, HLD integration results, `check_bdd_traceability.py`, `@quality_check --profile epic`) without editing code.",
+        "Execute full Gate 4 verification (`generate_smoke_checklist.py`, `audit_epic.py`, "
+        "HLD integration results, `check_bdd_traceability.py`, `@quality_check --profile epic`) "
+        "without editing code.",
         '{"candidate_sha": "...", "verdict": "PASS|FAIL", "audit_exit": 0, '
         '"quality_check_report": "...", "failures": [...]}',
     ),
 }
+
+_BRIEF_ROLE_PERSONA: dict[str, tuple[str, str]] = {
+    "task-implementer": ("programmer", "write"),
+    "task-reviewer": ("ai_architect_reviewer", "read-only"),
+    "fix-planner": ("ai_architect_reviewer", "read-only"),
+    "review-fixer": ("programmer", "write"),
+    "gate4-verifier": ("programmer", "write"),
+}
+
+_PERSONA_DISPLAY: dict[str, tuple[str, str, str, str]] = {
+    "ai_architect_reviewer": (
+        "Role 2.1 AI Architect & Reviewer",
+        "[PERSONA: Role 2.1 AI Architect & Reviewer]",
+        "architect",
+        "Stay strictly within read-only design/review boundaries. "
+        "Never edit production or test files, never mark tasks done, and never commit.",
+    ),
+    "orchestrator": (
+        "Role 2.2 Orchestrator",
+        "[PERSONA: Role 2.2 Orchestrator]",
+        "orchestrator",
+        "NEVER read/edit `src/` or `tests/`, and NEVER run test suites or `run_task_checks.py` "
+        "in the main session.",
+    ),
+    "programmer": (
+        "Role 2.3 Programmer",
+        "[PERSONA: Role 2.3 Programmer — Senior TDD Software Engineer]",
+        "programmer",
+        "Stay strictly within task `Allowed files`, `Decisions Already Made`, and approved HLD. "
+        "Never call `manage_worker_pool.py` (pool state is Orchestrator-only). "
+        "Never edit task Verification tables, DoD, `Allowed files`, or `shared-contracts/`.",
+    ),
+}
+
+
+def _filter_english_doc_paths(paths: Sequence[str]) -> list[str]:
+    """Filter out any Vietnamese mirror document path (`*.vi.md`)."""
+    return [p for p in paths if p and not p.endswith(".vi.md")]
+
+
+def _resolve_prompt_epic_docs(
+    project_root: Path, target_dir: str, epic_slug: str
+) -> dict[str, Any]:
+    """Resolve English-only HLD, BDD, handoff, and design spec paths for prompts."""
+    epic_docs = _load_epic_docs()
+    primary_root = resolve_primary_repo_root(project_root)
+    epic_path: Path | None = None
+    for base in dict.fromkeys([project_root, primary_root]):
+        for cand_name in dict.fromkeys([target_dir, epic_slug]):
+            cand = base / ".devtool" / "epic" / cand_name
+            if cand.is_dir():
+                epic_path = cand
+                break
+        if epic_path is not None:
+            break
+
+    hld_rel = f".devtool/epic/{target_dir}/{target_dir}.md"
+    bdd_rel = f".devtool/epic/{target_dir}/bdd_scenarios.md"
+    handoff_rel = f".devtool/epic/{target_dir}/handoff.md"
+    design_rels: list[str] = []
+
+    if epic_path is not None:
+        hld_doc = epic_docs.resolve_epic_doc(epic_path, epic_path.name)
+        if hld_doc is None:
+            hld_doc = epic_docs.resolve_epic_doc(epic_path, target_dir)
+        if hld_doc is not None and not hld_doc.name.endswith(".vi.md"):
+            hld_rel = f".devtool/epic/{target_dir}/{hld_doc.name}"
+
+        bdd_doc = epic_docs.resolve_epic_doc(epic_path, "bdd_scenarios")
+        if bdd_doc is not None and not bdd_doc.name.endswith(".vi.md"):
+            bdd_rel = f".devtool/epic/{target_dir}/{bdd_doc.name}"
+
+        handoff_doc = epic_docs.resolve_epic_doc(epic_path, "handoff")
+        if handoff_doc is not None and not handoff_doc.name.endswith(".vi.md"):
+            handoff_rel = f".devtool/epic/{target_dir}/{handoff_doc.name}"
+
+        design_rels = _filter_english_doc_paths(
+            [
+                f".devtool/epic/{target_dir}/{p.name}"
+                for p in epic_docs.resolve_design_specs(epic_path)
+            ]
+        )
+
+    doc_list = _filter_english_doc_paths(
+        list(dict.fromkeys([hld_rel, bdd_rel, *design_rels]))
+    )
+    return {
+        "hld": _filter_english_doc_paths([hld_rel])[0],
+        "bdd": _filter_english_doc_paths([bdd_rel])[0],
+        "handoff": _filter_english_doc_paths([handoff_rel])[0],
+        "docs": doc_list,
+    }
 
 
 def emit_handoff_prompt(
@@ -2057,80 +2373,99 @@ def emit_handoff_prompt(
     custom_prompt: str | None = None,
     root: Path | None = None,
     brief_role: str | None = None,
+    real_home: Path | None = None,
 ) -> None:
     target_dir = epic_dir or epic_slug
+    project_root = Path(root) if root is not None else Path.cwd()
     prompt_note = f"\nNote: {custom_prompt}\n" if custom_prompt else ""
-    prog_model, prog_effort = resolve_programmer_model_config(root)
-    assistant_banner = "[PERSONA: AI ASSISTANT — ORCHESTRATOR]"
-    programmer_banner = "[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]"
+
+    pc = _load_persona_config()
+    arch_binding = pc.resolve_persona("ai_architect_reviewer", project_root, real_home=real_home)
+    orch_binding = pc.resolve_persona("orchestrator", project_root, real_home=real_home)
+    prog_binding = pc.resolve_persona("programmer", project_root, real_home=real_home)
+
+    docs = _resolve_prompt_epic_docs(project_root, target_dir, epic_slug)
+    hld_rel = docs["hld"]
+    bdd_rel = docs["bdd"]
+    handoff_rel = docs["handoff"]
+    docs_summary = ", ".join(docs["docs"])
+
+    orch_banner = _PERSONA_DISPLAY["orchestrator"][1]
+    arch_banner = _PERSONA_DISPLAY["ai_architect_reviewer"][1]
 
     if mode == "principal-review":
-        print(f"""{assistant_banner}
-You are acting as the AI Assistant (Role 2.2 — Orchestrator & Co-Architect).
+        print(f"""{arch_banner}
+You are acting as Role 2.1 AI Architect & Reviewer (Model: {arch_binding.model_id}, Thinking/Effort: {arch_binding.effort}).
 Startup command:
-python3 scripts/resume_context.py --role assistant --epic {epic_slug}
+python3 scripts/resume_context.py --role architect --epic {epic_slug}
 
 MANDATORY TASKS & RULES:
-1. Review the HLD at .devtool/epic/{target_dir}/{target_dir}.en.md and bdd_scenarios.en.md.
-2. Run `d3nexus:principal-review` (`Claude -> Codex -> Kiro -> Argon`, max 3 rounds). Delegate doc edits to a Role 2.2 `principal-reviser` subagent, then run `check_epic_readiness.py {target_dir}` in the main session.
+1. Review the English SSOT docs: {docs_summary} (HLD at {hld_rel}, BDD at {bdd_rel}).
+2. Run `d3nexus:principal-review` (`Claude -> Codex -> Kiro -> Argon`, max 3 rounds). Run `principal-reviser` inline in this Role 2.1 Stage 2 session or as a same-model subagent (`python3 scripts/dev_config.py resolve ai_architect_reviewer --format argv --mode write`), then run `check_epic_readiness.py {target_dir}` in the main session.
 3. DO NOT read/edit `src/` or `tests/` or modify production code.{prompt_note}""")
     elif mode == "implement":
-        print(f"""{assistant_banner}
-You are acting as the AI Assistant (Role 2.2 — Orchestrator).
+        print(f"""{orch_banner}
+You are acting as Role 2.2 Orchestrator (Model: {orch_binding.model_id}, Thinking/Effort: {orch_binding.effort}).
 Startup command:
-python3 scripts/resume_context.py --role assistant --epic {epic_slug}
+python3 scripts/resume_context.py --role orchestrator --epic {epic_slug}
 
 MANDATORY TASKS & RULES:
 1. Activate `/dev-implementation` (`d3nexus:dev-implementation`) for the `{epic_slug}` epic, following `skills/dev-lifecycle/references/orchestration-roles.md`.
-2. Read `.devtool/epic/{target_dir}/handoff.md` first (author all internal orchestration, plans, code comments, and commits strictly in English).
+2. Read `{handoff_rel}` and English SSOT epic docs ({docs_summary}) first (author all internal orchestration, plans, code comments, and commits strictly in English).
 3. Orchestrator boundary: NEVER read/edit `src/` or `tests/`, and NEVER run test suites or `run_task_checks.py` in the main session.
 4. Compute waves via `python3 skills/dev-implementation/resources/scripts/compute_execution_order.py {epic_slug} --parallel`, monitor `python3 scripts/estimate_heartbeat.py`, and own every `manage_worker_pool.py` call (`init`, `sync --slot <1|2> --task <task_id> [--wave <k>] --status working|review`, `merge`, `cleanup`).
-5. Dispatch Role 2.3 Programmer subagents (`task-implementer`, `task-reviewer`, fresh `gate4-verifier`) via `agy --model {prog_model} --effort {prog_effort} --mode auto` using briefs from `python3 scripts/resume_context.py --emit-prompt brief --brief-role <role> --epic {epic_slug}`, verify gating/SHAs independently, then run Cross-Model Review.{prompt_note}""")
+5. Dispatch Role 2.3 Programmer subagents (`task-implementer`, `gate4-verifier`) via `python3 scripts/dev_config.py dispatch --persona programmer --mode write --prompt-file <file> --cwd <worktree> --log <log> --epic {epic_slug}` (resolved: {prog_binding.cli}, model: {prog_binding.model_id}, effort: {prog_binding.effort}) and Role 2.1 AI Architect & Reviewer (`task-reviewer`) via `python3 scripts/dev_config.py dispatch --persona ai_architect_reviewer --mode read-only --prompt-file <file> --cwd <worktree> --log <log> --epic {epic_slug}` (resolved: {arch_binding.cli}, model: {arch_binding.model_id}, effort: {arch_binding.effort}) using briefs from `python3 scripts/resume_context.py --emit-prompt brief --brief-role <role> --epic {epic_slug}`, verify gating/SHAs independently, then run Cross-Model Review.{prompt_note}""")
     elif mode == "cross-review":
-        print(f"""{assistant_banner}
-You are acting as the AI Assistant (Role 2.2 — Orchestrator).
+        print(f"""{orch_banner}
+You are acting as Role 2.2 Orchestrator (Model: {orch_binding.model_id}, Thinking/Effort: {orch_binding.effort}).
 Startup command:
-python3 scripts/resume_context.py --role assistant --epic {epic_slug}
+python3 scripts/resume_context.py --role orchestrator --epic {epic_slug}
 
 MANDATORY TASKS & RULES:
 1. Gate 4 has PASSED. Activate `d3nexus:cross-model-review` following `skills/dev-lifecycle/references/orchestration-roles.md`.
 2. Run external review (`run_external_review.py run`, priority `Claude -> Codex -> Kiro -> Argon`, max 3 rounds) and `triage`. NEVER read/edit `src/` or `tests/` in the main session.
-3. Choose `fast-track` vs `plan-first` from triage, dispatch Role 2.3 `review-fixer` via `agy --model {prog_model} --effort {prog_effort} --mode auto` (`--emit-prompt brief --brief-role review-fixer`), scope-check `git diff --name-only`, and dispatch a fresh `gate4-verifier` on convergence.{prompt_note}""")
+3. Choose `fast-track` (Role 2.3 `review-fixer` via `python3 scripts/dev_config.py dispatch --persona programmer --mode write --prompt-file <file> --cwd <worktree> --log <log> --epic {epic_slug}`, resolved: {prog_binding.cli}, model: {prog_binding.model_id}, effort: {prog_binding.effort}) or high-risk `fix-planner` (Role 2.1 AI Architect & Reviewer via `python3 scripts/dev_config.py dispatch --persona ai_architect_reviewer --mode read-only --prompt-file <file> --cwd <worktree> --log <log> --epic {epic_slug}`, resolved: {arch_binding.cli}, model: {arch_binding.model_id}, effort: {arch_binding.effort} -> `apply-plan` via `python3 scripts/dev_config.py dispatch --persona programmer --mode write --prompt-file <file> --cwd <worktree> --log <log> --epic {epic_slug}`) using `--emit-prompt brief --brief-role <role>`, scope-check `git diff --name-only`, and dispatch a fresh `gate4-verifier` on convergence.{prompt_note}""")
     elif mode == "finish":
-        print(f"""{assistant_banner}
-You are acting as the AI Assistant (Role 2.2 — Orchestrator).
+        print(f"""{orch_banner}
+You are acting as Role 2.2 Orchestrator (Model: {orch_binding.model_id}, Thinking/Effort: {orch_binding.effort}).
 Startup command:
-python3 scripts/resume_context.py --role assistant --epic {epic_slug}
+python3 scripts/resume_context.py --role orchestrator --epic {epic_slug}
 
 MANDATORY TASKS & RULES:
 1. Activate `d3nexus:finishing-a-development-branch` for the `{epic_slug}` epic, following `skills/dev-lifecycle/references/orchestration-roles.md`.
 2. Execute Pre-Finish Hook: `python3 scripts/resume_context.py --complete {epic_slug} "<milestone_summary>"`.
-3. Dispatch Role 2.3 via `agy --model {prog_model} --effort {prog_effort} --mode auto` (`--emit-prompt brief --brief-role <role>`) if rebase/conflict resolution/`verify-tier` is needed, then land and clean up the worktree.{prompt_note}""")
+3. Dispatch Role 2.3 via `python3 scripts/dev_config.py dispatch --persona programmer --mode write --prompt-file <file> --cwd <worktree> --log <log> --epic {epic_slug}` (resolved: {prog_binding.cli}, model: {prog_binding.model_id}, effort: {prog_binding.effort}; `--emit-prompt brief --brief-role <role>`) if rebase/conflict resolution/`verify-tier` is needed, then land and clean up the worktree.{prompt_note}""")
     elif mode == "assistant":
-        print(f"""{assistant_banner}
-You are acting as the AI Assistant (Role 2.2 — Orchestrator & Co-Architect).
+        print(f"""{arch_banner}
+You are acting as Role 2.1 AI Architect & Reviewer (Model: {arch_binding.model_id}, Thinking/Effort: {arch_binding.effort}).
 Startup command:
-python3 scripts/resume_context.py --role assistant --epic {epic_slug}
+python3 scripts/resume_context.py --role architect --epic {epic_slug}
 
 MANDATORY TASKS & RULES:
-1. Engage in technical discussion, root cause analysis (RCA), orchestration, and solution trade-off evaluation.
-2. STRICTLY PROHIBITED from modifying production code or running test suites in the main session.
-3. Persist discussion takeaways anytime via `python3 scripts/resume_context.py --state --epic {epic_slug} --decisions "<conclusions>"`.{prompt_note}""")
+1. Engage in technical discussion, root cause analysis (RCA), architecture design, and solution trade-off evaluation over English SSOT docs ({docs_summary}).
+2. STRICTLY PROHIBITED from modifying production/test code or committing changes.
+3. Persist discussion takeaways anytime via `python3 scripts/resume_context.py --state --role architect --epic {epic_slug} --decisions "<conclusions>"`.{prompt_note}""")
     elif mode == "brief":
         role_key = brief_role or ""
         if role_key not in _BRIEF_ROLE_CONTRACTS:
             print(f"Unknown brief role: {role_key}")
             return
         objective, schema = _BRIEF_ROLE_CONTRACTS[role_key]
-        print(f"""{programmer_banner}
-You are acting as the AI Programmer subagent (Role 2.3: `{role_key}` | Model: {prog_model}, Thinking/Effort: {prog_effort}).
+        persona_key, dispatch_mode = _BRIEF_ROLE_PERSONA[role_key]
+        binding = pc.resolve_persona(persona_key, project_root, real_home=real_home)
+        dispatch_argv = shlex.join(pc.build_dispatch_argv(binding, dispatch_mode))
+        persona_label, banner, startup_role, boundaries = _PERSONA_DISPLAY[persona_key]
+        print(f"""{banner}
+You are acting as {persona_label} (`{role_key}` | Model: {binding.model_id}, Thinking/Effort: {binding.effort}).
+Dispatch argv: {dispatch_argv}
 Startup command:
-python3 scripts/resume_context.py --role programmer --epic {epic_slug}
+python3 scripts/resume_context.py --role {startup_role} --epic {epic_slug}
 
 SUBAGENT BRIEF & BOUNDARIES:
 1. Objective: {objective}
-2. Boundaries: Stay strictly within task `Allowed files`, `Decisions Already Made`, and approved HLD. Never call `manage_worker_pool.py` (pool state is Orchestrator-only). Never edit task Verification tables, DoD, `Allowed files`, or `shared-contracts/`.
-3. End your response with exactly one fenced `json` block matching:
+2. Epic docs (English SSOT): {docs_summary}
+3. Boundaries: {boundaries}
+4. End your response with exactly one fenced `json` block matching:
 ```json
 {schema}
 ```{prompt_note}""")
@@ -2308,22 +2643,170 @@ def sync_shell_env(
     }
 
 
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    raw_args = list(sys.argv[1:] if argv is None else argv)
-    normalized_args: list[str] = []
-    i = 0
-    while i < len(raw_args):
-        if (
-            raw_args[i] == "--complete"
-            and i + 1 < len(raw_args)
-            and raw_args[i + 1] == "--checkpoint"
-        ):
-            normalized_args.extend(["--checkpoint", "--complete"])
-            i += 2
-        else:
-            normalized_args.append(raw_args[i])
-            i += 1
+def _current_head_sha(cwd: Path) -> str:
+    """Return full HEAD SHA for `cwd`, or empty string when unavailable."""
+    try:
+        res = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return ""
+    return res.stdout.strip() if res.returncode == 0 else ""
 
+
+def _parse_task_id_epic_status(tf: Path) -> tuple[str, str, str]:
+    """Read `(task_id, epic, status)` from task frontmatter without reading .vi.md."""
+    lines = tf.read_text(encoding="utf-8", errors="replace").splitlines()[:25]
+    task_id = tf.stem
+    epic_val = ""
+    status_val = "todo"
+    for ln in lines:
+        stripped = ln.strip()
+        if stripped.startswith("id:"):
+            task_id = stripped.split(":", 1)[1].strip().strip('"').strip("'") or task_id
+        elif stripped.startswith("epic:"):
+            epic_val = stripped.split(":", 1)[1].strip().strip('"').strip("'")
+        elif stripped.startswith("status:"):
+            status_val = (
+                stripped.split(":", 1)[1].strip().strip('"').strip("'").lower()
+            )
+    return task_id, epic_val, status_val
+
+
+def _collect_checkpoint_task_lists(
+    target_root: Path,
+    epic_slug: str,
+    existing_hb: dict[str, Any],
+) -> tuple[list[str], list[str]]:
+    """Collect deduplicated `(tasks_done, tasks_in_flight)` for `epic_slug`."""
+    epic_docs = _load_epic_docs()
+    norm_epic = _normalize_epic(epic_slug)
+    done_list: list[str] = []
+    in_flight_list: list[str] = []
+
+    def _scan(task_dir: Path, *, force_done: bool) -> None:
+        if not task_dir.is_dir():
+            return
+        for tf in epic_docs.iter_task_files(task_dir):
+            task_id, epic_val, status_val = _parse_task_id_epic_status(tf)
+            if norm_epic and norm_epic != "general" and _normalize_epic(epic_val) != norm_epic:
+                continue
+            if force_done or status_val == "done":
+                done_list.append(task_id)
+            elif status_val in ("in-progress", "in_progress", "review"):
+                in_flight_list.append(task_id)
+
+    features_dir = target_root / ".devtool" / "features"
+    _scan(features_dir, force_done=False)
+    _scan(features_dir / "done", force_done=True)
+
+    hb_active = existing_hb.get("active_tasks")
+    if isinstance(hb_active, list):
+        for t in hb_active:
+            if str(t):
+                in_flight_list.append(str(t))
+    hb_slots = existing_hb.get("slots")
+    if isinstance(hb_slots, dict):
+        for slot_val in hb_slots.values():
+            if not isinstance(slot_val, dict):
+                continue
+            slot_status = str(slot_val.get("status") or "").lower()
+            task_id = str(slot_val.get("task_id") or "")
+            if task_id and slot_status in ("working", "review", "in-progress", "in_progress"):
+                in_flight_list.append(task_id)
+
+    tasks_done = list(dict.fromkeys(done_list))
+    done_set = set(tasks_done)
+    tasks_in_flight = [t for t in dict.fromkeys(in_flight_list) if t not in done_set]
+    return tasks_done, tasks_in_flight
+
+
+def record_checkpoint_event(
+    target_root: Path,
+    repo_root: Path,
+    current_worktree: Path,
+    title_target: Path,
+    active_epic: str,
+    *,
+    event: str,
+    next_step: str = "",
+    role: str | None = None,
+    repo: str | None = None,
+    wave: int | None = None,
+    real_home: str | None = None,
+) -> dict[str, Any]:
+    """Build and persist a structured checkpoint block and refresh Next Immediate Step."""
+    devtool_dir = resolve_target_devtool_dir(target_root, repo)
+    hb_root = devtool_dir.parent
+    existing_hb = _state_envelope.read_epic_heartbeat(hb_root, active_epic)
+    wave_val = wave if wave is not None else existing_hb.get("active_wave")
+    if not (isinstance(wave_val, int) and not isinstance(wave_val, bool)):
+        wave_val = None
+    tasks_done, tasks_in_flight = _collect_checkpoint_task_lists(
+        hb_root, active_epic, existing_hb
+    )
+    sha_target = (
+        current_worktree
+        if resolve_primary_repo_root(current_worktree).resolve() == hb_root.resolve()
+        else hb_root
+    )
+    head_sha = _current_head_sha(sha_target)
+    persona_name = normalize_role(role) if role else "orchestrator"
+
+    pc = _load_persona_config()
+    profile = detect_current_profile(title_target, real_home=real_home) or "default"
+    real_home_path = Path(real_home) if real_home else None
+    is_low_quota = (
+        pc.low_quota_state(repo_root, profile, real_home=real_home_path) is not None
+    )
+    legacy_warnings = pc.detect_legacy_warnings(repo_root)
+
+    checkpoint_payload: dict[str, Any] = {
+        "event": event,
+        "at": _state_envelope._utc_now_iso(),
+        "persona": persona_name,
+        "head_sha": head_sha,
+        "wave": wave_val,
+        "tasks_done": tasks_done,
+        "tasks_in_flight": tasks_in_flight,
+        "next_step": next_step,
+        "turns_since_checkpoint": 0,
+        "low_quota": is_low_quota,
+    }
+    if legacy_warnings:
+        checkpoint_payload["warning"] = "; ".join(legacy_warnings)
+
+    stored = _state_envelope.update_epic_checkpoint(
+        hb_root, active_epic, checkpoint_payload
+    )
+
+    ex_role, ex_decisions, ex_status, ex_next, ex_prompt = (
+        _read_existing_epic_state_fields(devtool_dir, active_epic)
+    )
+    effective_next = next_step or ex_next or event
+    state_role = normalize_role(role) if role else (ex_role or persona_name)
+    write_epic_state(
+        target_root,
+        active_epic,
+        decisions=ex_decisions,
+        status=ex_status,
+        next_step=effective_next,
+        prompt=ex_prompt,
+        role=state_role,
+        repo=repo,
+        refresh_heartbeat=False,
+        clear_pending=False,
+        active_wave=wave_val,
+    )
+    return stored
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Build the CLI ArgumentParser for resume_context.py."""
     parser = argparse.ArgumentParser(
         description="Two-Tier Context Harvester & Multi-Epic Memory Tool"
     )
@@ -2338,8 +2821,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--role",
         type=str,
-        choices=["assistant", "programmer", "implementer", "worker"],
-        help="Active persona role",
+        choices=list(ROLE_CHOICES),
+        help="Active persona role (assistant maps to architect)",
     )
     parser.add_argument(
         "--tail", type=int, default=15, help="Number of activity log lines to show"
@@ -2386,8 +2869,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--checkpoint",
+        type=str,
+        choices=list(CHECKPOINT_EVENTS),
+        help="Record a structured lifecycle checkpoint event",
+    )
+    parser.add_argument(
+        "--complete-checkpoint",
         action="store_true",
-        help="Save checkpoint without archiving during --complete",
+        help=argparse.SUPPRESS,
     )
 
     parser.add_argument(
@@ -2505,12 +2994,43 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="Active execution wave number for per-epic heartbeat updates",
     )
+    return parser
 
-    return parser.parse_args(normalized_args)
+
+def parse_args(
+    argv: list[str] | None = None,
+    parser: argparse.ArgumentParser | None = None,
+) -> argparse.Namespace:
+    raw_args = list(sys.argv[1:] if argv is None else argv)
+    normalized_args: list[str] = []
+    has_complete = "--complete" in raw_args
+    i = 0
+    while i < len(raw_args):
+        if (
+            raw_args[i] == "--complete"
+            and i + 1 < len(raw_args)
+            and raw_args[i + 1] == "--checkpoint"
+        ):
+            normalized_args.extend(["--complete-checkpoint", "--complete"])
+            i += 2
+        elif (
+            has_complete
+            and raw_args[i] == "--checkpoint"
+            and (i + 1 >= len(raw_args) or raw_args[i + 1] not in CHECKPOINT_EVENTS)
+        ):
+            normalized_args.append("--complete-checkpoint")
+            i += 1
+        else:
+            normalized_args.append(raw_args[i])
+            i += 1
+
+    active_parser = parser or build_parser()
+    return active_parser.parse_args(normalized_args)
 
 
 def main() -> None:
-    args = parse_args()
+    parser = build_parser()
+    args = parse_args(parser=parser)
     workspace = resolve_workspace_root(args.workspace_root)
     primary_repo = resolve_primary_repo_root()
     current_worktree = resolve_current_worktree_root()
@@ -2581,6 +3101,7 @@ def main() -> None:
             args.prompt,
             root=repo_root,
             brief_role=args.brief_role,
+            real_home=Path(args.real_home) if args.real_home else None,
         )
         return
 
@@ -2630,8 +3151,29 @@ def main() -> None:
             else "Completed feature and verified contracts."
         )
         complete_feature_and_rotate(
-            target_root, slug, summary, repo=args.repo, checkpoint=args.checkpoint
+            target_root,
+            slug,
+            summary,
+            repo=args.repo,
+            checkpoint=bool(args.complete_checkpoint or args.checkpoint),
         )
+        return
+
+    if args.checkpoint:
+        record_checkpoint_event(
+            target_root,
+            repo_root,
+            current_worktree,
+            title_target,
+            active_epic,
+            event=args.checkpoint,
+            next_step=args.next,
+            role=args.role,
+            repo=args.repo,
+            wave=args.wave,
+            real_home=args.real_home,
+        )
+        print(f"Recorded checkpoint '{args.checkpoint}' for epic '{active_epic}'")
         return
 
     if args.clear_decision:
@@ -2678,7 +3220,7 @@ def main() -> None:
             status=args.status,
             next_step=args.next,
             prompt=args.prompt,
-            role=args.role or "programmer",
+            role=normalize_role(args.role) if args.role else "programmer",
             repo=args.repo,
             active_wave=args.wave,
         )
@@ -2788,6 +3330,7 @@ def main() -> None:
             dev = a.get("deviations")
             dev_str = f" [deviations: {dev}]" if dev else ""
             print(f"  - Gate {g} ({ep}): {ap}{dev_str} (at {a.get('commit')})")
+    scan_epic_checkpoints(scan_root)
     scan_activity_stream(scan_root, tail_lines=args.tail)
     scan_git_status(scan_root)
     scan_open_rfcs(scan_root)

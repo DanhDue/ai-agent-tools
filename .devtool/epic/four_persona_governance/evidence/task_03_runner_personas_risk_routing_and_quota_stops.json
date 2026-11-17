@@ -1,0 +1,226 @@
+{
+  "schema": 1,
+  "task": "task_03_runner_personas_risk_routing_and_quota_stops",
+  "runs": {
+    "red": {
+      "head": "d781e452a2d263861a96c31c3d9e9819dde3e87f",
+      "tree": "95d32964b879c9b537b6d071bbf1dbbbb042cb05",
+      "patch_id": "e5defa3deaf7930e66cc8fc0451d3541f60bc2ab",
+      "started": "2026-11-17T11:02:20Z",
+      "finished": "2026-11-17T11:02:21Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_runner_personas.py::test_fpg_st_02_high_risk_routes_to_fix_planner_and_escalates",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T11:02:20Z",
+          "finished": "2026-11-17T11:02:21Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "_________ test_fpg_st_02_high_risk_routes_to_fix_planner_and_escalates _________",
+            "tests/test_fpg_runner_personas.py:272: in test_fpg_st_02_high_risk_routes_to_fix_planner_and_escalates",
+            "    assert len(recorded_dispatches) >= 2",
+            "E   AssertionError: assert 1 >= 2",
+            "E    +  where 1 = len([{'persona': 'programmer', 'mode': 'write', 'args': ['--model', 'gemini-4-hydrogen-xhigh', '--effort', 'xhigh', '--mod...server.\\nOutput cap (Zero-Fluff): Reply ONLY with modified file paths, pass/fail test counts, and blocking errors.\\n'}])",
+            "----------------------------- Captured stdout call -----------------------------",
+            "AUTO_PASS_CLEAN: 0 findings. Running Gate 4...",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_fpg_runner_personas.py::test_fpg_st_02_high_risk_routes_to_fix_planner_and_escalates",
+            "1 failed in 0.44s"
+          ],
+          "output_sha256": "d09185eb559a2f69f4769d7751b88eb1f11626b532b6c345154e5fca2eb6f687"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "d781e452a2d263861a96c31c3d9e9819dde3e87f",
+      "tree": "ba93b7b6d02c4817bc7ad3f37b4ec6fbca602fe1",
+      "patch_id": "65596a60ccc091df1d9933da0d41b4cb875911d7",
+      "started": "2026-11-17T11:20:12Z",
+      "finished": "2026-11-17T11:21:46Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_runner_personas.py tests/test_lifecycle_runner.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T11:20:12Z",
+          "finished": "2026-11-17T11:20:50Z",
+          "output_tail": [
+            "...............................................                          [100%]",
+            "47 passed in 37.93s"
+          ],
+          "output_sha256": "73048ac391dccac9cba428f81519ab9f1762783af109bfc17045c778de7ae310"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_token_throttling_acceptance.py -k \"not test_tto_ec_06\"",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T11:20:50Z",
+          "finished": "2026-11-17T11:21:08Z",
+          "output_tail": [
+            "......                                                                   [100%]",
+            "6 passed, 2 deselected in 17.37s"
+          ],
+          "output_sha256": "707aa0580f69e4629d633a71c1e019139c1885f32110b5ae3aab8d6801af0af5"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-lifecycle/resources/scripts/lifecycle_runner.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T11:21:08Z",
+          "finished": "2026-11-17T11:21:08Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-lifecycle/resources/scripts/lifecycle_runner.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T11:21:08Z",
+          "finished": "2026-11-17T11:21:08Z",
+          "output_tail": [
+            "Success: no issues found in 8 source files"
+          ],
+          "output_sha256": "157a09cfcdfdfb5977479c5a1c08345149263a3e990a2ec976ef28aaeec9cae6"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/fpg_task_03.xml tests/test_fpg_runner_personas.py tests/test_lifecycle_runner.py",
+          "expect": "exit 0; results build/test-results/fpg_task_03.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T11:21:08Z",
+          "finished": "2026-11-17T11:21:45Z",
+          "output_tail": [
+            "...............................................                          [100%]",
+            "47 passed in 37.01s"
+          ],
+          "output_sha256": "5f437db1dae03a1ce0c45d180093eb7cd244e360eb277f939ff841f5d88df7a8",
+          "results": {
+            "path": "build/test-results/fpg_task_03.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 13,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_fpg_st_02_high_risk_routes_to_fix_planner_and_escalates",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_03_turn_budget_and_low_quota_stop",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_05_per_task_architect_review_and_sha_binding",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_06_gate4_fresh_verifier_and_sha_binding",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_03_unavailable_model_halts_without_retry",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_04_quota_gate_checked_before_each_wave",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_06_agy_pool_dispatch_outcomes",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_03_principal_revision_halt_stops_without_overwrite[model_unavailable-AUTO_PASS_FINAL_MINOR_SWEEP-minor-sweep]",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_03_principal_revision_halt_stops_without_overwrite[model_unavailable-AUTO_PASS_FINAL_SWEEP-aligned-final]",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_03_principal_revision_halt_stops_without_overwrite[model_unavailable-AUTO_FIX_ELIGIBLE-aligned-loop]",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_03_principal_revision_halt_stops_without_overwrite[quota_low-AUTO_PASS_FINAL_MINOR_SWEEP-minor-sweep]",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_03_principal_revision_halt_stops_without_overwrite[quota_low-AUTO_PASS_FINAL_SWEEP-aligned-final]",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_03_principal_revision_halt_stops_without_overwrite[quota_low-AUTO_FIX_ELIGIBLE-aligned-loop]",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-lifecycle/resources/scripts/lifecycle_runner.py",
+            "tests/test_fpg_runner_personas.py",
+            "tests/test_lifecycle_runner.py",
+            "tests/test_token_throttling_acceptance.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

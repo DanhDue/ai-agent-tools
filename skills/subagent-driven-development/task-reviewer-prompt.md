@@ -2,7 +2,10 @@
 
 Use this template when dispatching a task reviewer subagent. The reviewer
 reads the task's diff once and returns two verdicts: spec compliance and
-code quality.
+code quality. In an epic the reviewer is a **Role 2.1 AI Architect & Reviewer**
+subagent dispatched `--mode read-only` on the `ai_architect_reviewer` binding:
+it never edits files, commits, or runs test suites, and the Orchestrator
+(Role 2.2) marks the task `done` on a `PASS`.
 
 **Purpose:** Verify one task's implementation matches its requirements (nothing
 more, nothing less) and is well-built (clean, tested, maintainable)
@@ -10,8 +13,10 @@ more, nothing less) and is well-built (clean, tested, maintainable)
 ```
 Subagent (general-purpose):
   description: "Review Task N (spec + quality)"
-  model: [MODEL — REQUIRED: choose per SKILL.md Model Selection; an omitted
-         model silently inherits the session's most expensive one]
+  model: [MODEL — REQUIRED: in an epic, the `ai_architect_reviewer` binding from
+         `python3 scripts/dev_config.py resolve ai_architect_reviewer --format argv --mode read-only`;
+         otherwise per SKILL.md Model Selection. An omitted model silently
+         inherits the session's most expensive one]
   prompt: |
     You are reviewing one task's implementation: first whether it matches its
     requirements, then whether it is well-built. This is a task-scoped gate,
@@ -94,12 +99,11 @@ Subagent (general-purpose):
     - a `tree` mismatch: the evidence was recorded on a different tree than
       the one under review.
 
-    Do not re-run the suite to confirm the evidence. Run a test only when
-    reading the code raises a specific doubt that no recorded row answers,
-    and then a focused test, never a package-wide suite, race detector run,
-    or repeated/high-count loop. If heavy validation seems warranted,
-    recommend it in your report instead of running it. If you cannot run
-    commands in this environment, name the test you would run.
+    Run only `run_task_checks.py status` and, when the task has a `Covers:`
+    line, `check_bdd_traceability.py`. Never run a test suite, edit a file,
+    or commit; do not re-run the suite to confirm the evidence. If reading
+    the code raises a specific doubt that no recorded row answers, name the
+    test you would run and recommend it in your report instead of running it.
 
     Warnings or other noise in the recorded test output are findings — test
     output should be pristine. A pasted or summarised test result in the
@@ -203,7 +207,7 @@ Subagent (general-purpose):
 ```
 
 **Placeholders:**
-- `[MODEL]` — REQUIRED: reviewer model per SKILL.md Model Selection
+- `[MODEL]` — REQUIRED: in an epic, the `ai_architect_reviewer` binding printed by `dev_config.py resolve`; outside an epic, the reviewer model per SKILL.md Model Selection
 - `[BRIEF_FILE]` — REQUIRED: the task brief file (`scripts/task-brief PLAN N`
   prints the path; same file the implementer worked from)
 - `[GLOBAL_CONSTRAINTS]` — the binding requirements copied verbatim from

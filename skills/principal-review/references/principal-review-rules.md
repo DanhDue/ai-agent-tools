@@ -10,7 +10,7 @@ Evaluate design documents and epic artefacts against these standalone principles
 3. **Grounding in Active Source**: Every claim about repository code must cite an observed file path and line number proving the symbol/config exists at the candidate commit.
 4. **Actionable Findings**: Each finding must name the artefact path, section heading, and a concrete `Proposed: <edit>` recommendation.
 5. **Shared Contracts & Source-of-Truth Hierarchy (Forward Alignment over Legacy Reversion)**:
-   - **Tier 1 (Highest — Approved Design Intent)**: Approved Spec (`*-design.en.md`) and HLD (`<epic_dir>.en.md`).
+   - **Tier 1 (Highest — Approved Design Intent)**: Approved Spec (`*-design.md`, legacy `*-design.en.md`) and HLD (`<epic_dir>.md`, legacy `<epic_dir>.en.md`).
    - **Tier 2 (Cross-Repo Contract Baseline)**: `shared-contracts/<domain>/` (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md`).
    - **Tier 3 (Legacy Code Baseline)**: Existing `src/` files and task `Allowed files`.
    - **Forward Alignment Rule**: When Tier 1 intentionally updates pipeline steps, enums, or schemas beyond Tier 2/Tier 3, **never propose reverting Tier 1 back to legacy Tier 2/Tier 3**. Report a Forward Contract-Sync / Blast-Radius Gap proposing forward updates to `shared-contracts/<domain>/` (`+ sync_contracts.py ack` + `## Shared Contract Impact`) and adding legacy callers to task `Allowed files`. Verify `shared-contracts/` symlink resolution on disk and flag unacknowledged drift or missing `task_01` sync as `Critical`/`Important`.

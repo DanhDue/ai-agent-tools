@@ -494,6 +494,25 @@ def _append_epic_event_stream(
             continue
 
 
+def _default_heartbeat_payload(epic_slug: str) -> dict[str, Any]:
+    """Return initial heartbeat envelope structure for `epic_slug`."""
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "generation": 0,
+        "epic_slug": epic_slug,
+        "stage": "",
+        "sub_step": "",
+        "sub_step_detail": "",
+        "review_state": None,
+        "active_wave": None,
+        "active_tasks": [],
+        "slots": {},
+        "last_event": "",
+        "events": [],
+        "updated_at": _utc_now_iso(),
+    }
+
+
 def update_epic_heartbeat(
     start_path: Path | None,
     epic_slug: str,
@@ -519,21 +538,7 @@ def update_epic_heartbeat(
     """Transactionally update `<epic_slug>.heartbeat.json` across shared devtool mirrors."""
     safe_slug = _sanitize_epic_slug(epic_slug)
     filename = f"{safe_slug}.heartbeat.json"
-    default_payload: dict[str, Any] = {
-        "schema_version": SCHEMA_VERSION,
-        "generation": 0,
-        "epic_slug": epic_slug,
-        "stage": "",
-        "sub_step": "",
-        "sub_step_detail": "",
-        "review_state": None,
-        "active_wave": None,
-        "active_tasks": [],
-        "slots": {},
-        "last_event": "",
-        "events": [],
-        "updated_at": _utc_now_iso(),
-    }
+    default_payload = _default_heartbeat_payload(epic_slug)
     pending_stream_record: list[dict[str, Any]] = []
 
     def _mutate(state: dict[str, Any]) -> None:
@@ -669,6 +674,138 @@ def update_epic_heartbeat(
         extra_devtool_dirs=extra_devtool_dirs,
         on_commit=_commit_stream,
     )
+
+
+def read_epic_heartbeat(start_path: Path | None, epic_slug: str) -> dict[str, Any]:
+    """Read the highest-generation `<safe_slug>.heartbeat.json` across mirrors, or empty dict."""
+    safe_slug = _sanitize_epic_slug(epic_slug)
+    filename = f"{safe_slug}.heartbeat.json"
+    target_dirs = _collect_target_devtool_dirs(start_path, filename)
+    snapshot, gen = _read_highest_snapshot(target_dirs, filename, {})
+    return snapshot if gen > 0 or snapshot else {}
+
+
+def _normalize_checkpoint_block(
+    checkpoint: Mapping[str, Any],
+    *,
+    fallback_wave: object = None,
+) -> dict[str, Any]:
+    """Normalize a checkpoint mapping into the canonical heartbeat checkpoint schema."""
+    at_raw = checkpoint.get("at")
+    at_val = (
+        str(at_raw).strip()
+        if isinstance(at_raw, str) and at_raw.strip()
+        else _utc_now_iso()
+    )
+    wave_raw = checkpoint.get("wave", fallback_wave)
+    if wave_raw is None:
+        wave_val: int | None = None
+    elif isinstance(wave_raw, int) and not isinstance(wave_raw, bool):
+        wave_val = wave_raw
+    else:
+        wave_val = _safe_int(wave_raw, 0)
+
+    tasks_done_raw = checkpoint.get("tasks_done")
+    tasks_done = (
+        [str(item) for item in tasks_done_raw if str(item)]
+        if isinstance(tasks_done_raw, (list, tuple))
+        else []
+    )
+    tasks_in_flight_raw = checkpoint.get("tasks_in_flight")
+    tasks_in_flight = (
+        [str(item) for item in tasks_in_flight_raw if str(item)]
+        if isinstance(tasks_in_flight_raw, (list, tuple))
+        else []
+    )
+    block: dict[str, Any] = {
+        "event": str(checkpoint.get("event") or ""),
+        "at": at_val,
+        "persona": str(checkpoint.get("persona") or "orchestrator"),
+        "head_sha": str(checkpoint.get("head_sha") or ""),
+        "wave": wave_val,
+        "tasks_done": tasks_done,
+        "tasks_in_flight": tasks_in_flight,
+        "next_step": str(checkpoint.get("next_step") or ""),
+        "turns_since_checkpoint": _safe_int(
+            checkpoint.get("turns_since_checkpoint"), 0
+        ),
+        "low_quota": bool(checkpoint.get("low_quota", False)),
+    }
+    warning_raw = checkpoint.get("warning")
+    if isinstance(warning_raw, str) and warning_raw.strip():
+        block["warning"] = warning_raw.strip()
+    elif warning_raw is not None and warning_raw != "":
+        block["warning"] = warning_raw
+    for opt_key in ("brief_role", "model", "effort"):
+        opt_raw = checkpoint.get(opt_key)
+        if isinstance(opt_raw, str):
+            if opt_raw.strip():
+                block[opt_key] = opt_raw.strip()
+        elif opt_raw is not None and opt_raw != "":
+            block[opt_key] = str(opt_raw)
+    return block
+
+
+def update_epic_checkpoint(
+    primary_root: Path,
+    epic_slug: str,
+    checkpoint: Mapping[str, Any],
+    *,
+    extra_devtool_dirs: Sequence[Path] | None = None,
+) -> dict[str, Any]:
+    """Transactionally store `checkpoint` on every heartbeat mirror and append one checkpoint event."""
+    safe_slug = _sanitize_epic_slug(epic_slug)
+    filename = f"{safe_slug}.heartbeat.json"
+    default_payload = _default_heartbeat_payload(epic_slug)
+    pending_record: list[dict[str, Any]] = []
+
+    def _mutate(state: dict[str, Any]) -> None:
+        pending_record.clear()
+        state["epic_slug"] = epic_slug
+        block = _normalize_checkpoint_block(
+            checkpoint, fallback_wave=state.get("active_wave")
+        )
+        state["checkpoint"] = copy.deepcopy(block)
+        state["updated_at"] = _utc_now_iso()
+        next_step = str(block.get("next_step") or "")
+        event_name = str(block.get("event") or "")
+        summary = f"checkpoint:{event_name}" + (f" -> {next_step}" if next_step else "")
+        event_record: dict[str, Any] = {
+            "category": "checkpoint",
+            "ts": block["at"],
+            "event": event_name,
+            "persona": block["persona"],
+            "head_sha": block["head_sha"],
+            "wave": block["wave"],
+            "next_step": next_step,
+            "low_quota": block["low_quota"],
+            "stage": str(state.get("stage") or ""),
+            "sub_step": str(state.get("sub_step") or ""),
+            "sub_step_detail": str(state.get("sub_step_detail") or ""),
+            "message": summary,
+            "checkpoint": copy.deepcopy(block),
+        }
+        for opt_key in ("brief_role", "model", "effort"):
+            if opt_key in block:
+                event_record[opt_key] = block[opt_key]
+        pending_record.append(event_record)
+
+    def _commit_stream(
+        target_dirs: Sequence[Path], _committed_state: dict[str, Any]
+    ) -> None:
+        if pending_record:
+            _append_epic_event_stream(target_dirs, safe_slug, pending_record[0])
+
+    committed = run_state_transaction(
+        primary_root,
+        filename,
+        _mutate,
+        default=default_payload,
+        extra_devtool_dirs=extra_devtool_dirs,
+        on_commit=_commit_stream,
+    )
+    stored = committed.get("checkpoint")
+    return copy.deepcopy(stored) if isinstance(stored, dict) else {}
 
 
 def _sync_pending_decision_summary(state: dict[str, Any]) -> None:

@@ -88,6 +88,88 @@ And the review slice includes "solo_epic.md" and "bdd_scenarios.md"
 And upstream epic detection names "solo_epic"
 And upstream epic detection reports "bdd_scenarios.md" for "solo_epic" when that file exists only at the upstream revision and not in the working tree
 And when the base revision holds "solo_epic.en.md" and HEAD holds the renamed "solo_epic.md" with a changed "Integration results" line, the audit reports exactly that line change
+
+Scenario: [FPG-HP-10] [Tier C - Integration] dev-config --provider binds all three personas to one provider's models
+Given a temporary REAL_HOME and project with the kit default configuration and stub executables "agy", "claude" and "codex" on PATH
+When "dev_config.py --provider claude" runs
+Then it exits 0 and the global file holds "active_preset" "all-claude"
+And "dev_config.py resolve ai_architect_reviewer --format json" prints cli "claude", model_id "opus" and effort "high"
+And "dev_config.py resolve orchestrator --format json" and "dev_config.py resolve programmer --format json" print cli "claude", model_id "sonnet" and effort "high"
+When "dev_config.py --provider codex" runs
+Then "ai_architect_reviewer" resolves to cli "codex", model_id "gpt-6.1-sol" and effort "high"
+And "orchestrator" and "programmer" resolve to cli "codex", model_id "gpt-6.1-terra" and effort "medium"
+When "dev_config.py --provider agy" runs
+Then "ai_architect_reviewer" resolves to model_id "gemini-4-argon-high", "orchestrator" to "gemini-4-hydrogen-high" and "programmer" to "gemini-4-hydrogen-xhigh", the same bindings as the "default" preset
+When "dev_config.py --provider claude --scope project" runs
+Then the project file holds "active_preset" "all-claude" and the global file still holds "active_preset" "default"
+
+Scenario: [FPG-HP-11] [Tier A - Unit] Pool acquisition picks the first usable profile by priority and records why the others were skipped
+Given a temporary REAL_HOME whose "agy_profiles.json" lists "p1", "p2", "p3", "p4", "p5" and "p6" with priorities 1 to 6, a 5-hour threshold of 0.15 and a weekly threshold of 0.02
+And an injected quota fetcher returning ACTIVE with these gemini5h and geminiWeekly fractions: "p1" 0.10 and 0.50, "p2" 0.50 and 0.50, "p3" 0.60 and 0.50, "p4" 0.70 and 0.50, "p5" 0.90 and 0.01, "p6" 0.90 and 0.50, each pool with its own reset time
+And "p2" holds a live lease owned by another orchestrator, "p3" has "exhausted_until" one hour in the future, and an injected resident-process probe returns true for "p4"
+When "acquire" runs for an orchestrator whose host profile is "px"
+Then it returns profile "p6" with via_ag_run true
+And the skipped map equals {"p1": "quota", "p2": "leased", "p3": "exhausted", "p4": "resident_process", "p5": "quota"}
+And "p1" now carries "exhausted_until" equal to its 5-hour reset time and exhausted_reason "5h"
+And "p5" now carries "exhausted_until" equal to its weekly reset time and exhausted_reason "weekly"
+When that orchestrator releases its lease and "acquire" runs again for an orchestrator whose host profile is "p6"
+Then it returns profile "p6" with via_ag_run false
+
+Scenario: [FPG-HP-12] [Tier C - Integration] The profiles CLI and dispatch drive stub CLIs through the pool
+Given a temporary REAL_HOME with directories "antigravity_homes/p1" and "antigravity_homes/p2", a temporary PATH holding stub "agy" and "zsh" executables that record their argv, HOME and AGY_PROFILE, a temporary git repository as the working directory, and an injected quota fetcher returning sufficient quota
+When "dev_config.py profiles add p1 --priority 1", "dev_config.py profiles add p2 --priority 2" and "dev_config.py profiles list --json" run
+Then the JSON lists "p1" then "p2" with no lease
+When "dev_config.py dispatch --persona programmer --prompt-file prompt.txt --cwd <repo> --log run.log --epic e1 --task t1" runs for host profile "host_x"
+Then the stub "zsh" recorded a preflight call and a launch call containing "ag_run", "p1", "--model", "gemini-4-hydrogen-xhigh" and "--effort", "xhigh"
+And "run.log" starts with "dispatch-profile: p1" and ends with "agy-exit=0"
+And "dev_config.py profiles list --json" shows no lease for "p1" after the command returns
+When the host profile is "p1" and the same dispatch runs again
+Then the stub "agy" was called directly, the stub "zsh" was not called, and HOME was left unchanged
+
+Scenario: [FPG-HP-13] [Tier A - Unit] The dashboard shows which profile each orchestrator holds and alerts when every agy profile is out of quota
+Given a global leases file under a temporary REAL_HOME holding "p1" leased by epic "e1", task "t1", slot 1 of repository "demo_repo" and "p2" with "exhausted_until" in the future and exhausted_reason "weekly", and a pool file listing "p1" and "p2"
+When "scan_repo" runs for "demo_repo"
+Then the payload's "agy_profiles" lists "p1" with leased_by epic "e1", task "t1", slot 1 and "p2" with its "exhausted_until"
+And "action_blockers" holds no pool entry and "notices" mentions that "p1" is in use
+When the lease of "p1" is released and "p1" also carries "exhausted_until" with exhausted_reason "5h"
+Then "is_human_action_required" is true
+And "action_blockers" holds an entry whose reason names "all agy profiles are out of quota", the lines "- p1: 5-hour limit reached" and "- p2: weekly limit reached", the earliest "exhausted_until" and the line "/d3nexus:dev-config set programmer codex-gpt xhigh"
+
+Scenario: [FPG-HP-14] [Tier C - Integration] dev-config set accepts a provider, a model, an effort and a preferred agy profile
+Given a temporary REAL_HOME and project with the kit default configuration, "antigravity_homes/p1" and "antigravity_homes/p2" as directories, a pool listing "p1" and "p2", and stub executables "agy", "claude", "codex" and "kiro-cli" on PATH
+When "dev_config.py set programmer --provider kiro --model claude-sonnet-5.5 --effort high" runs
+Then it exits 0 and "dev_config.py resolve programmer --format json" prints cli "kiro", alias "kiro-sonnet", model_id "claude-sonnet-5.5", effort "high" and profile null
+When "dev_config.py set programmer --provider agy --profile p2 --model hydrogen --effort xhigh" runs
+Then "dev_config.py resolve programmer --format json" prints cli "agy", model_id "gemini-4-hydrogen-xhigh", effort "xhigh" and profile "p2"
+When "dev_config.py set programmer codex-gpt xhigh" runs
+Then "dev_config.py resolve programmer --format json" prints cli "codex" and profile null
+And "dev_config.py models --json" lists "kiro-sonnet" with cli "kiro", id "claude-sonnet-5.5" and efforts ["high"] before "kiro-opus"
+
+Scenario: [FPG-HP-15] [Tier A - Unit] A preferred agy profile is tried first and the pool rotates when it is unusable
+Given a pool of "p1", "p2" and "p3" with priorities 1 to 3 and sufficient quota for all of them, and "programmer" bound to agy with profile "p3"
+When "acquire" runs with preferred_profile "p3"
+Then it returns profile "p3"
+When "p3" is leased by another orchestrator and "acquire" runs again with preferred_profile "p3"
+Then it returns profile "p1" and the skipped map is {"p3": "leased"}
+When "p3" instead has "exhausted_until" in the future and "acquire" runs with preferred_profile "p3"
+Then it returns profile "p1" and the skipped map is {"p3": "exhausted"}
+And "run_on_pool" for that binding attempts "p3" first and then "p1" and "p2" in priority order
+
+Scenario: [FPG-HP-16] [Tier A - Unit] The dev-config quick guide documents only commands the real CLI accepts and keeps both language variants in step
+Given the files "docs/dev-config-quick-guide.en.md" and "docs/dev-config-quick-guide.vi.md"
+When the contract test extracts every command that begins with "/d3nexus:dev-config" or "python3 scripts/dev_config.py" from the fenced code blocks of the English guide and parses each one with the argument parser of "dev_config.py"
+Then every command parses without a usage error
+And the guide shows the subcommands "status", "models", "set", "preset", "reset", "low-quota", "checkpoint", "quota-check", "resolve", "profiles" and "dispatch", the options "--provider", "--model", "--effort" and "--profile", and the line "/d3nexus:dev-config set programmer kiro-sonnet high"
+And the Vietnamese variant has the same number of headings and the same commands in the same order
+And neither variant contains an e-mail address or the word "password"
+
+Scenario: [FPG-HP-17] [Tier A - Unit] profiles discover lists the profiles that could be added and fetches no quota
+Given an injected discoverer returning "profile_a", "profile_b", "profile_c" and "profile_d", a pool listing "profile_b", a host profile "profile_c", and an injected quota fetcher that records every call
+When "dev_config.py profiles discover --json" runs
+Then it exits 0 and lists "profile_a", "profile_c" and "profile_d" as candidates in that order, with "host" true for "profile_c", and "in_pool" lists "profile_b"
+And the quota fetcher was never called
+And "dev_config.py profiles discover" without "--json" prints one line per candidate followed by the hints "profiles probe <name>" and "profiles add <name>"
+And the pool file and the lease file are unchanged
 ```
 
 ---
@@ -126,6 +208,34 @@ Given repository "demo_repo" whose ".agents/config/personas.json" contains {"sch
 When "scan_repo" runs
 Then it returns without raising
 And "persona_bindings" is empty and "persona_config_error" contains "schema_version"
+
+Scenario: [FPG-EC-06] [Tier A - Unit] Invalid --provider use is rejected and an override that masks the provider is reported
+Given a global configuration file whose SHA-256 is recorded and a project file whose "overrides.programmer" is {"model": "hydrogen", "effort": "high"}
+When "dev_config.py --provider gemini" and "dev_config.py --provider claude status" run
+Then each exits 1 with a message naming the rejected value ("gemini" and "status")
+And the global configuration file SHA-256 is unchanged
+When "dev_config.py --provider claude" runs
+Then it exits 0 and prints a warning that names "programmer" and the "project" layer
+And "resolve_persona('programmer', root)" still returns model_id "gemini-4-hydrogen-high" with sources["effort"] == "project"
+And "ai_architect_reviewer" resolves to model_id "opus"
+
+Scenario: [FPG-EC-07] [Tier A - Unit] Invalid pool changes are rejected and a launch without the ag_run helpers starts nothing
+Given a temporary REAL_HOME with "antigravity_homes/real_p" as a directory, "antigravity_homes/link_p" as a symlink and no "antigravity_homes/ghost"
+When "dev_config.py profiles add" runs for "ghost", "link_p", "bad name" and "real_p" with "--priority 0", then for "real_p" twice
+Then "ghost", "link_p", "bad name" and the priority 0 request each exit 1 with a message naming the rejected value
+And the second "real_p" add exits 1 with a message containing "already"
+And the pool file holds only "real_p"
+When "dev_config.py profiles remove real_p" runs while "real_p" holds a live lease
+Then it exits 1 naming the lease owner and the lease file is unchanged
+When a dispatch targets a non-host profile and the preflight command "zsh -ic 'typeset -f _ag_link_ok _ag_rel_link ag_run'" exits non-zero
+Then nothing is launched, the lease is released and the result status is "preflight_failed"
+
+Scenario: [FPG-EC-08] [Tier A - Unit] Invalid provider, model, effort and profile combinations are rejected and change nothing
+Given a project configuration file whose SHA-256 is recorded, a pool listing "p1", and the kit default catalogue
+When these seven commands run with "--scope project": "set programmer --provider kiro --model hydrogen --effort high", "set programmer --provider kiro --effort high", "set programmer --provider kiro --model claude-sonnet-5.5 --effort xhigh", "set programmer --model no-such-model --effort high", "set programmer --provider codex --model codex-gpt --effort xhigh --profile p1", "set programmer --provider agy --model hydrogen --effort xhigh --profile nope" and "set programmer codex-gpt xhigh --model codex-gpt"
+Then each exits 1 with a message naming the rejected value: "hydrogen" as not a kiro model, "--model", "xhigh", "no-such-model" with "models add", "profile" with "agy", "nope" with "profiles add", and "positional"
+And the project configuration file SHA-256 is unchanged
+And "dev_config.py --provider claude set programmer claude-sonnet high" still exits 1 because the all-personas shortcut cannot be combined with a subcommand
 ```
 
 ---
@@ -182,6 +292,17 @@ Then two distinct "gate4-verifier" dispatches on persona "programmer" in mode "w
 And Gate 4 is recorded as passed only after the second report
 When a gate4-verifier stub returns verdict "PASS" with a candidate_sha different from HEAD
 Then Gate 4 is not recorded and the runner dispatches a new gate4-verifier
+
+Scenario: [FPG-ST-07] [Tier A - Unit] A lease is kept alive by heartbeats and reclaimed when it goes stale
+Given orchestrator "o1" holding a lease on "p1" acquired at 10:00 UTC with a time-to-live of 180 seconds on a host named "h1"
+When "heartbeat" runs at 10:02 UTC and the lease is checked at 10:04:30 UTC
+Then the lease is live
+When the lease is checked at 10:05:30 UTC with no further heartbeat
+Then the lease is stale and "acquire" for orchestrator "o2" returns "p1"
+And a lease on host "h1" whose owner pid is not running is stale 5 seconds after its last heartbeat
+And a lease held on another host is stale only by heartbeat age
+When "release" runs for "o2" twice
+Then "p1" has no lease and the second call changes nothing
 ```
 
 ---
@@ -222,6 +343,20 @@ Given a temporary REAL_HOME with the kit default configuration
 When 4 processes run concurrently "dev_config.py set programmer hydrogen high", "dev_config.py set ai_architect_reviewer argon medium", "dev_config.py low-quota on" for profile "p1" and "dev_config.py low-quota on" for profile "p2"
 Then all four exit 0
 And the global file holds overrides for both "programmer" and "ai_architect_reviewer" and low_quota entries for both "p1" and "p2"
+
+Scenario: [FPG-AR-06] [Tier A - Unit] Concurrent orchestrators never share a profile and never lose lease-file updates
+Given a pool of "p1" and "p2" and a stub quota fetcher returning sufficient quota
+When 6 processes call "acquire" at the same time with distinct owners, a host profile "px" and a wait of 0 seconds, and keep their leases
+Then exactly 2 processes receive a profile, one "p1" and one "p2", and the other 4 receive profile None with reason "pool_busy"
+And the leases file holds exactly two leases with distinct owner ids and schema_version 1
+
+Scenario: [FPG-AR-07] [Tier A - Unit] Governance text routes agy dispatch through the pool and keeps ag_run out of agent shells
+Given the kit rules and skills after Task 06
+When the contract test reads "orchestration-roles.md", "dev-implementation/SKILL.md" and "CRITICAL_RULES.md"
+Then the Programmer dispatch instructions name "dev_config.py dispatch" and the lease file "agy_profile_leases.json"
+And they state that an exit code of 2 means "record a quota pending decision with the printed report and stop"
+And "CRITICAL_RULES.md" Rule 9 states that "ag_run" and any "<profile>-cli" alias are launched through "zsh -ic" and never from an agent runtime's own shell
+And no dev-lifecycle skill tells an agent to launch agy with a hand-built HOME or AGY_PROFILE
 ```
 
 ---
@@ -261,4 +396,47 @@ Given a runner with two waves and a quota gate stub that returns sufficient befo
 When the implementation step runs
 Then wave 1 tasks are dispatched and wave 2 tasks are not
 And a "quota_low" checkpoint and a pending decision of kind "quota" are recorded, and halt_reason is "QUOTA_LOW"
+
+Scenario: [FPG-FR-05] [Tier A - Unit] Dispatch rotates to the next profile only before any work started
+Given a pool of "p1" and "p2" with sufficient quota and a stub launcher
+When the launcher fails on "p1" with stderr "RESOURCE_EXHAUSTED: quota exceeded" and the working tree and HEAD are unchanged
+Then "p1" gets "exhausted_until", its lease is released, the dispatch retries on "p2", and the result is status "ok" with profile_used "p2" after 2 attempts
+When the launcher fails on "p1" with the same stderr after it created a commit in the working tree
+Then there is no retry, the result is status "quota_midrun" with profile_used "p1", and "p1" is marked exhausted and released
+When the launcher fails on every pool profile with the quota stderr and an unchanged tree
+Then the result is status "no_profile" with reason "pool_exhausted" after one attempt per profile, and no lease remains
+When the launcher exits 1 with stdout "3 failed, 10 passed"
+Then the result is status "task_failure", "p1" is not marked exhausted, and its lease is released
+
+Scenario: [FPG-FR-06] [Tier A - Unit] The runner halts and reports to the Human only when the whole agy pool is out of quota
+Given a runner whose pool dispatcher stub returns status "no_profile" with reason "pool_exhausted" and a printed report for the programmer persona
+When the implementation step dispatches a task
+Then a "quota_low" checkpoint and a pending decision of kind "quota" containing the report are recorded, halt_reason is "QUOTA_LOW", and nothing further is dispatched
+Given the same runner whose stub returns status "ok" with profile_used "p2" after one attempt on "p1"
+Then the implementation step continues and the "subagent_returned" checkpoint names profile "p2"
+Given the same runner whose stub returns status "quota_midrun" and then status "ok"
+Then the task is re-dispatched once and no halt_reason is set
+Given the same runner whose stub returns status "model_unavailable"
+Then halt_reason is "MODEL_UNAVAILABLE" and the pending decision kind is "blocker"
+
+Scenario: [FPG-FR-07] [Tier A - Unit] An exhausted pool yields a report that tells the Human how to continue, and a top-up recovers it
+Given a pool of "p1" and "p2" whose quota fetcher returns ACTIVE with gemini5h 0.02 and geminiWeekly 0.50 for "p1" (5-hour reset 2026-11-17T11:43:00Z) and gemini5h 0.60 and geminiWeekly 0.01 for "p2" (weekly reset 2026-11-21T00:54:00Z), a catalogue holding "codex-gpt" and "kiro-opus", a PATH holding "codex" but not "kiro", and "programmer" bound to "hydrogen" with effort "xhigh"
+When "acquire" runs at 10:00 UTC on 2026-11-17
+Then it returns profile None with reason "pool_exhausted"
+And "p1" carries exhausted_reason "5h" with "exhausted_until" 2026-11-17T11:43:00Z and "p2" carries exhausted_reason "weekly" with "exhausted_until" 2026-11-21T00:54:00Z
+And the report contains the lines "- p1: 5-hour limit reached (resets 2026-11-17T11:43:00Z)" and "- p2: weekly limit reached (resets 2026-11-21T00:54:00Z)"
+And the report states "Earliest reset: 2026-11-17T11:43:00Z."
+And the report offers "wait for the reset or top up the quota", "/d3nexus:dev-config set programmer codex-gpt xhigh" and "/d3nexus:dev-config set programmer kiro-opus high"
+And the "kiro-opus" line says the "kiro" CLI is not on PATH
+When the fetcher then returns gemini5h 0.60 and geminiWeekly 0.50 for "p1" and "acquire" runs at 10:11 UTC, more than 600 seconds after the last probe
+Then it returns profile "p1"
+When "p2" is marked exhausted again and "dev_config.py profiles clear p2" runs
+Then "p2" has no "exhausted_until", no exhausted_reason and no cached quota
+
+Scenario: [FPG-FR-08] [Tier A - Unit] The exhaustion report offers Kiro claude-sonnet-5.5 at high effort with the default catalogue
+Given the kit default catalogue, "programmer" bound to "hydrogen" with effort "xhigh", a PATH holding "kiro-cli" and "codex" but not "kiro", and a pool whose profiles are all exhausted
+When "exhaustion_report" runs
+Then the report contains the line "- switch the programmer: /d3nexus:dev-config set programmer kiro-sonnet high" with no "not on PATH" note
+And it contains "/d3nexus:dev-config set programmer codex-gpt xhigh"
+And it does not suggest "kiro-opus"
 ```

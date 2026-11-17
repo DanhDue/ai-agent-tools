@@ -47,6 +47,7 @@ SYNC_STATUS_SCRIPT = (
 )
 
 sys.path.insert(0, str(Path(__file__).parent))
+from _epic_docs import iter_task_files, resolve_design_specs, resolve_epic_doc
 try:
     from sync_task_status import find_epic_slug
 except ImportError:
@@ -69,16 +70,15 @@ def resolve_base_branch(root: Path, epic_dir: str, cli_base: str | None) -> str:
     if cli_base:
         return cli_base
     epic_path = root / ".devtool" / "epic" / epic_dir
-    for ext in (".en.md", ".vi.md"):
-        doc = epic_path / f"{epic_dir}{ext}"
-        if doc.is_file():
-            m = re.search(
-                r"^-\s*\*\*(?:Base Branch|Nhánh cơ sở)\*\*:\s*`?([^`\s\n]+)`?",
-                doc.read_text(encoding="utf-8"),
-                re.MULTILINE,
-            )
-            if m:
-                return m.group(1).strip()
+    doc = resolve_epic_doc(epic_path, epic_dir)
+    if doc is not None:
+        m = re.search(
+            r"^-\s*\*\*Base Branch\*\*:\s*`?([^`\s\n]+)`?",
+            doc.read_text(encoding="utf-8"),
+            re.MULTILINE,
+        )
+        if m:
+            return m.group(1).strip()
     return "main"
 
 
@@ -102,12 +102,11 @@ def _sanitize_read_first_english_only(text: str) -> str:
         if ".vi.md" not in line:
             kept_lines.append(line)
             continue
-        if ".en.md" in line:
-            cleaned = _VI_MD_INLINE_RE.sub("", line)
-            cleaned = re.sub(r"\(\s*\)", "", cleaned)
-            cleaned = re.sub(r" {2,}", " ", cleaned).rstrip()
-            if ".vi.md" not in cleaned:
-                kept_lines.append(cleaned)
+        cleaned = _VI_MD_INLINE_RE.sub("", line)
+        cleaned = re.sub(r"\(\s*\)", "", cleaned)
+        cleaned = re.sub(r" {2,}", " ", cleaned).rstrip()
+        if ".vi.md" not in cleaned and re.search(r"\.md\b", cleaned):
+            kept_lines.append(cleaned)
 
     renumbered: list[str] = []
     item_num = 1
@@ -126,7 +125,7 @@ def _sanitize_read_first_english_only(text: str) -> str:
 def _is_stage3_active(root: Path, epic_path: Path, epic_slug: str) -> bool:
     """Return True when Gate 3 was recorded or any task entered in-progress/review/done."""
     active_statuses = {"in-progress", "review", "done"}
-    for task_file in sorted(epic_path.glob("task_*.md")):
+    for task_file in iter_task_files(epic_path):
         txt = task_file.read_text(encoding="utf-8")
         if txt.startswith("---"):
             fm = txt.split("\n---", 1)[0]
@@ -157,6 +156,29 @@ def _is_stage3_active(root: Path, epic_path: Path, epic_slug: str) -> bool:
     return False
 
 
+def _apply_doc_names(
+    text: str,
+    epic_dir: str,
+    *,
+    source_spec: str | None = None,
+    hld_doc_name: str | None = None,
+    bdd_doc_name: str | None = None,
+) -> str:
+    if source_spec is not None:
+        text = text.replace("<source spec>.en.md", source_spec).replace(
+            "<source spec>.md", source_spec
+        )
+    if hld_doc_name is not None:
+        text = re.sub(
+            rf"(?<![A-Za-z0-9_.-]){re.escape(epic_dir)}(?:\.en)?\.md\b",
+            hld_doc_name,
+            text,
+        )
+    if bdd_doc_name is not None:
+        text = re.sub(r"\bbdd_scenarios(?:\.en)?\.md\b", bdd_doc_name, text)
+    return text
+
+
 def render_initial_handoff(
     template_path: Path,
     epic_dir: str,
@@ -169,6 +191,8 @@ def render_initial_handoff(
     task_count: int | None = None,
     source_spec: str | None = None,
     creator_pic: str | None = None,
+    hld_doc_name: str | None = None,
+    bdd_doc_name: str | None = None,
 ) -> str:
     template = template_path.read_text(encoding="utf-8")
     resolved_pic = (creator_pic or "").strip() or "unknown"
@@ -182,8 +206,13 @@ def render_initial_handoff(
     text = text.replace("<base_branch>", base_branch)
     if task_count is not None:
         text = text.replace("<N>", str(task_count))
-    if source_spec is not None:
-        text = text.replace("<source spec>.en.md", source_spec)
+    text = _apply_doc_names(
+        text,
+        epic_dir,
+        source_spec=source_spec,
+        hld_doc_name=hld_doc_name,
+        bdd_doc_name=bdd_doc_name,
+    )
 
     if open_notes:
         notes_str = "\n".join(f"- {n}" for n in open_notes)
@@ -216,6 +245,9 @@ def revise_handoff_text(
     *,
     task_count: int | None = None,
     source_spec: str | None = None,
+    epic_dir: str | None = None,
+    hld_doc_name: str | None = None,
+    bdd_doc_name: str | None = None,
 ) -> str:
     old_sha_match = re.search(
         r"^-\s*\*\*Design commit\*\*:\s*`?([^`\s\n]+)`?", handoff_text, re.MULTILINE
@@ -225,8 +257,18 @@ def revise_handoff_text(
     text = handoff_text
     if task_count is not None:
         text = text.replace("<N>", str(task_count))
-    if source_spec is not None:
-        text = text.replace("<source spec>.en.md", source_spec)
+    if epic_dir is not None:
+        text = _apply_doc_names(
+            text,
+            epic_dir,
+            source_spec=source_spec,
+            hld_doc_name=hld_doc_name,
+            bdd_doc_name=bdd_doc_name,
+        )
+    elif source_spec is not None:
+        text = text.replace("<source spec>.en.md", source_spec).replace(
+            "<source spec>.md", source_spec
+        )
 
     text = re.sub(
         r"^(-\s*\*\*Packaged\*\*:\s*)(.*)$",
@@ -286,27 +328,22 @@ def revise_handoff_text(
 
 def update_epic_status_to_packaged(root: Path, epic_dir: str, today_iso: str) -> None:
     epic_path = root / ".devtool" / "epic" / epic_dir
-    for ext in (".en.md", ".vi.md"):
-        doc_path = epic_path / f"{epic_dir}{ext}"
-        if not doc_path.is_file():
-            continue
-        content = doc_path.read_text(encoding="utf-8")
-        m = re.search(
-            r"^(-\s*\*\*(?:Status|Trạng thái)\*\*:\s*)(.*)$",
-            content,
-            re.MULTILINE,
-        )
-        if m:
-            cur_status = m.group(2).strip().strip("`").strip('"')
-            prefixes = ("packaged", "queued", "in progress", "done", "hoàn thành")
-            if not any(cur_status.lower().startswith(p) for p in prefixes):
-                new_status = (
-                    f"Packaged ({today_iso})"
-                    if ext == ".en.md"
-                    else f"Đã đóng gói ({today_iso})"
-                )
-                content = content[: m.start(2)] + new_status + content[m.end(2) :]
-                doc_path.write_text(content, encoding="utf-8")
+    doc_path = resolve_epic_doc(epic_path, epic_dir)
+    if doc_path is None:
+        return
+    content = doc_path.read_text(encoding="utf-8")
+    m = re.search(
+        r"^(-\s*\*\*Status\*\*:\s*)(.*)$",
+        content,
+        re.MULTILINE,
+    )
+    if m:
+        cur_status = m.group(2).strip().strip("`").strip('"')
+        prefixes = ("packaged", "queued", "in progress", "done")
+        if not any(cur_status.lower().startswith(p) for p in prefixes):
+            new_status = f"Packaged ({today_iso})"
+            content = content[: m.start(2)] + new_status + content[m.end(2) :]
+            doc_path.write_text(content, encoding="utf-8")
 
 
 def package_epic(
@@ -382,14 +419,22 @@ def package_epic(
         else epic_dir.replace("_", "-")
     ) or epic_dir.replace("_", "-")
 
-    task_count = len(list(epic_path.glob("task_*.md")))
-    spec_candidates = sorted(
-        p.name
-        for p in epic_path.glob("*.en.md")
-        if p.name not in (f"{epic_dir}.en.md", "bdd_scenarios.en.md")
-        and (p.name.endswith("-design.en.md") or "spec" in p.name.lower())
-    )
+    task_count = len(iter_task_files(epic_path))
+    hld_doc = resolve_epic_doc(epic_path, epic_dir)
+    bdd_doc = resolve_epic_doc(epic_path, "bdd_scenarios")
+    excluded_docs = {p.name for p in (hld_doc, bdd_doc) if p is not None}
+    spec_candidates = [p.name for p in resolve_design_specs(epic_path)]
+    if not spec_candidates:
+        spec_candidates = sorted(
+            p.name
+            for p in epic_path.glob("*.md")
+            if not p.name.endswith(".vi.md")
+            and p.name not in excluded_docs
+            and "spec" in p.name.lower()
+        )
     source_spec = spec_candidates[0] if spec_candidates else None
+    hld_doc_name = hld_doc.name if hld_doc is not None else None
+    bdd_doc_name = bdd_doc.name if bdd_doc is not None else None
 
     creator_pic = resume_context.detect_current_profile(root) or os.environ.get("USER", "unknown")
 
@@ -411,6 +456,8 @@ def package_epic(
             task_count=task_count,
             source_spec=source_spec,
             creator_pic=creator_pic,
+            hld_doc_name=hld_doc_name,
+            bdd_doc_name=bdd_doc_name,
         )
         handoff_file.write_text(content, encoding="utf-8")
     else:
@@ -422,6 +469,9 @@ def package_epic(
             today_iso,
             task_count=task_count,
             source_spec=source_spec,
+            epic_dir=epic_dir,
+            hld_doc_name=hld_doc_name,
+            bdd_doc_name=bdd_doc_name,
         )
         if "<profile_account_id>" in revised:
             revised = revised.replace("<profile_account_id>", creator_pic)
@@ -437,8 +487,8 @@ def package_epic(
             sub_step_detail=f"Packaged handoff.md ({task_count} tasks)",
             last_event=f"package_epic {epic_slug} ({'revise' if revise else 'initial'}) -> handoff.md",
         )
-    except Exception:
-        pass
+    except Exception as err:
+        sys.stderr.write(f"warning: failed to update epic heartbeat: {err}\n")
     return handoff_file
 
 

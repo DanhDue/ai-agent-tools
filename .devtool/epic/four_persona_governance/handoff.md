@@ -14,7 +14,7 @@
 ## Status
 
 - **Packaged**: 2026-11-17
-- **Design commit**: `66511cd` — `HEAD` before the packaging commit, or `uncommitted` when `auto_commit` is false
+- **Design commit**: `1c3adfe`
 - **Base branch**: `main`
 - **PIC / Assigned Profile**: `danhdue` (e.g. `danhdue`, `buivantrong8901`, `huynhminhtien0510`)
 - **Gates passed**: 1 (spec), 2 (HLD and task breakdown)
@@ -68,11 +68,21 @@ None
 ## Revisions
 
 - **2026-11-17 (`66511cd`)**: Initial Stage 2 packaging
+- **2026-11-17 (`66511cd` -> `1912c7e`)**: Add SE-07 provider quick-setup (dev-config --provider agy|claude|codex): scenarios FPG-HP-10 and FPG-EC-06, new Task 09, Task 08 now also blocked by Task 09
+- **2026-11-17 (`1912c7e` -> `3802d7e`)**: SE-08: correct mypy argument order in Task 04 V5 and Task 06 V6 (flags after the last file); add --follow-imports=silent to Task 04 V5
+- **2026-11-17 (`3802d7e` -> `02d9e6d`)**: SE-09: agy profile pool, global lease file and pooled dispatch (Task 10) with 5-hour and weekly quota windows and a Human exhaustion report; scenarios FPG-HP-11..13, EC-07, ST-07, AR-06, AR-07, FR-05..07; Tasks 03, 05, 06, 08 updated before they start
+- **2026-11-17 (`02d9e6d` -> `f537d90`)**: SE-10: dev-config set with --provider, --model, --effort and a preferred agy --profile (prefer then rotate); Kiro claude-sonnet-5.5 high alias; Task 11 blocked by Tasks 09 and 10; scenarios FPG-HP-14, HP-15, EC-08, FR-08; Task 08 waits for Task 11
+- **2026-11-17 (`f537d90` -> `b7a58df`)**: SE-11: dev-config quick guide (bilingual) added to Task 08 with scenario FPG-HP-16, a contract test that parses every guide command with the real dev_config.py parser
+- **2026-11-17 (`b7a58df` -> `ac14cf0`)**: SE-12: dev-config profiles discover (Task 11, scenario FPG-HP-17); SE-13: Task 03 V3 deselects the repository-gate test and the isolation fixture must not wrap verify.sh tests
+- **2026-11-17 (`ac14cf0` -> `913c88f`)**: SE-14: add the two review-prompt references to Task 07 so the FPG-AR-04 scan can pass
+- **2026-11-17 (`913c88f` -> `4a73370`)**: SE-15: an inherited agy profile is ignored when a higher layer binds a non-agy model
+- **2026-11-17 (`4a73370` -> `67f61e4`)**: SE-16: profiles probe accepts a discoverable profile that is not yet in the pool
+- **2026-11-17 (`67f61e4` -> `1c3adfe`)**: SE-17: the ownership check expands glob and directory claims
 
 ## Rules for the Receiving Agent
 
 - Do not re-run `dev-brainstorming` or `dev-designer`. Raise a wrong or missing document at Gate 3.
 - Gate 3 computes wave-parallel execution automatically via `compute_execution_order.py four_persona_governance --parallel`, estimates wave heartbeat via `estimate_heartbeat.py`, dispatches independent wave tasks across isolated slots (`manage_worker_pool.py init|sync|merge|cleanup` / `workspace:"share"` subagents — pass `--task <task_id> [--wave <k>] --status working|review` on `sync` or use `sync_task_status.py task <task_id> in-progress|review` in single-worktree mode before dispatch/review, then `done` + commit in slot before `merge`), and pauses via `resume_context.py --pending-decision` only on Choice A gates or `CRITICAL_CONFLICT`.
-- Unless the design commit is `uncommitted`: if `git log 66511cd..main -- .devtool/epic/four_persona_governance` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
+- Unless the design commit is `uncommitted`: if `git log 1c3adfe..main -- .devtool/epic/four_persona_governance` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
 - This file is updated only by `package_epic.py --revise`, which records each re-anchoring under `## Revisions` and clears any pending revision decision for this epic.
 - Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.

@@ -176,7 +176,7 @@ class GroundingTest(ContractCase):
 
     def test_command_token_is_new_in_another_task(self) -> None:
         owner = self.task("1_a", allowed="- `tool.py`\n- `src/made.py` (new)")
-        user = self.task("2_b", rows=DEFAULT_ROWS.replace("tool.py green", "tool.py src/made.py"))
+        user = self.task("2_b", allowed="- `README.md`", rows=DEFAULT_ROWS.replace("tool.py green", "tool.py src/made.py"))
         code, out, _ = self.check(owner, user, design=True)
         self.assertEqual(code, 0, out)
 

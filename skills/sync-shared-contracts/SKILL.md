@@ -68,7 +68,7 @@ Present the generated **Contract Requirements Brief** to the developer:
 
 ### Step 3: Inception (Stage 1 & Stage 2)
 Enter `d3nexus:dev-lifecycle` using the brief as grounding context:
-- **Stage 1 (`dev-brainstorming`)**: Draft the bilingual spec without re-opening settled wire contracts.
+- **Stage 1 (`dev-brainstorming`)**: Draft the English spec without re-opening settled wire contracts.
 - **Stage 2 (`dev-designer`)**:
   - **Hub Mode**: Enforce `task_01` as the contract update task. At the end of `task_01`, run `sync_contracts.py brief` to record the refreshed `snapshot_id`. The final Hub task binds `ack --snapshot <refreshed_id>` to that refreshed snapshot.
   - **Satellite Mode**: Enforce `task_01` as consumer DTO/client update. The tracked symlink `shared-contracts` remains strictly read-only (never added to `Allowed files`).

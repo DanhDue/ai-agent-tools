@@ -13,7 +13,7 @@ The AI Agent MUST automatically update `window.title` in `.vscode/settings.json`
 ## 2. Title Format Standard
 The `window.title` property in `.vscode/settings.json` MUST strictly follow:
 ```text
-"<ICON> [<REPO_NAME>] [@<account_id>] <Tên Epic Tiếng Việt> - <Stage / Task>"
+"<ICON> [<REPO_NAME>] [@<account_id>] <Epic Name> - <Stage / Task>"
 ```
 
 ### Format Specifications:
@@ -24,8 +24,10 @@ The `window.title` property in `.vscode/settings.json` MUST strictly follow:
   - `ai-agent-tools`: `🟠 [AGENT-TOOLS]`
 - **`[@<account_id>]`**:
   - Extracted from the active profile / home environment (e.g. `basename $HOME` under `antigravity_homes/` -> `[@danhdue]`, `[@tess]`).
-- **`<Tên Epic Tiếng Việt>`**:
-  - Extracted directly from the H1 header of `.devtool/epic/<epic_slug>/<epic_slug>.vi.md` (strip `# Epic:` prefix).
+- **`<Epic Name>`**:
+  - The English epic name. No `.vi.md` file is read; English is the single source of truth.
+  - Written by hand: the name Role 1.0 gave in chat, else the epic name already in the current `window.title`, else the epic slug.
+  - Written by `python3 scripts/resume_context.py --sync-title`: the first H1 of the English epic document (`.devtool/epic/<epic_slug>/<epic_slug>.md`, else `<epic_slug>.en.md`, then `*-design.md` / `*-design.en.md`), with the `# Epic:` prefix stripped. When none has an H1, the script leaves the epic name out and writes `<ICON> [<REPO_NAME>] [@<account_id>] <Stage / Task>`.
 - **`<Stage / Task>`**:
   - `Stage 1: Brainstorming`
   - `Stage 2: Design Approved`

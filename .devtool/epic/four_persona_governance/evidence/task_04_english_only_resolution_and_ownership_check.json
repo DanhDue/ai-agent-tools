@@ -1,0 +1,218 @@
+{
+  "schema": 1,
+  "task": "task_04_english_only_resolution_and_ownership_check",
+  "runs": {
+    "red": {
+      "head": "b720eda8c3fa220091d7f64bb5c7c2788de06133",
+      "tree": "3ea405cf1fd15dc3289601f4f725070a1f56e128",
+      "patch_id": "a9f7c45610d0dd6f0ebd90e2dd945fb39945a22e",
+      "started": "2026-11-17T08:10:50Z",
+      "finished": "2026-11-17T08:10:50Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_english_only_and_ownership.py::test_fpg_ar_02_parallel_tasks_must_own_disjoint_files",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T08:10:50Z",
+          "finished": "2026-11-17T08:10:50Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "____________ test_fpg_ar_02_parallel_tasks_must_own_disjoint_files _____________",
+            "tests/test_fpg_english_only_and_ownership.py:768: in test_fpg_ar_02_parallel_tasks_must_own_disjoint_files",
+            "    assert fail_res.returncode == 1, fail_res.stdout + fail_res.stderr",
+            "E   AssertionError: Implicit protected paths: tool.py (task_01:V1, task_01:V2, task_01:V5, task_02:V1, task_02:V2, task_02:V5)",
+            "E     Result: 0 problems — PASS",
+            "E     ",
+            "E   assert 0 == 1",
+            "E    +  where 0 = CompletedProcess(args=['/opt/homebrew/opt/python@3.15/bin/python3.15', '/Users/danhdueexoictif/AllProjects/ai-agent-to...l.py (task_01:V1, task_01:V2, task_01:V5, task_02:V1, task_02:V2, task_02:V5)\\nResult: 0 problems — PASS\\n', stderr='').returncode",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_fpg_english_only_and_ownership.py::test_fpg_ar_02_parallel_tasks_must_own_disjoint_files",
+            "1 failed in 0.30s"
+          ],
+          "output_sha256": "016bb2817e769805de6ea9cddf0793694ee06fc6537f7757738468d6ba1b3c1f"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "b720eda8c3fa220091d7f64bb5c7c2788de06133",
+      "tree": "4039a09afff833af15e0e4d52200f04cc9be6e60",
+      "patch_id": "56408427b0391e03c43698d1b586e59322217589",
+      "started": "2026-11-17T08:35:24Z",
+      "finished": "2026-11-17T08:38:07Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_english_only_and_ownership.py tests/test_tto_bilingual_and_surgical.py tests/test_multi_epic_governance_acceptance.py tests/test_rsdh_orchestration.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T08:35:24Z",
+          "finished": "2026-11-17T08:36:10Z",
+          "output_tail": [
+            "............................................                             [100%]",
+            "44 passed in 45.87s"
+          ],
+          "output_sha256": "6e1bfbcefdd6a1c48b53bb114e0257f6de85f17e47a0e1f025b4e3de29e81186"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 skills/dev-implementation/resources/scripts/test_check_epic_readiness.py skills/dev-implementation/resources/scripts/test_sync_task_status.py skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py skills/dev-implementation/resources/scripts/test_check_task_contract.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T08:36:10Z",
+          "finished": "2026-11-17T08:36:49Z",
+          "output_tail": [
+            "................................................................... [ 37%]",
+            "........................................................................ [ 76%]",
+            "..........................................                               [100%]",
+            "181 passed, 5 subtests passed in 39.62s"
+          ],
+          "output_sha256": "e6538ef152a0775c1a15cc4146a4ae9a0bde0f8f66555d96a9b66c37cc526bed"
+        },
+        {
+          "id": "V7",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 skills/dev-implementation/resources/scripts/test_audit_epic.py skills/dev-implementation/resources/scripts/test_local_review.py skills/dev-implementation/resources/scripts/test_run_task_checks.py skills/finishing-a-development-branch/resources/scripts/test_integrate_branch.py tests/test_smoke_checklist_generator.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T08:36:49Z",
+          "finished": "2026-11-17T08:37:59Z",
+          "output_tail": [
+            "............................................................................................................ [ 70%]",
+            "..............................................                           [100%]",
+            "154 passed, 36 subtests passed in 69.11s (0:01:09)"
+          ],
+          "output_sha256": "cb3a3284bb4fc1c7946d8edffe9b5203da16cf0087c9d91fdb843b1d2557f31d"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/_epic_docs.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/package_epic.py skills/dev-implementation/resources/scripts/sync_task_status.py skills/dev-implementation/resources/scripts/check_bdd_traceability.py skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/audit_epic.py skills/dev-implementation/resources/scripts/local_review.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/task_contract.py skills/finishing-a-development-branch/resources/scripts/integrate_branch.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T08:37:59Z",
+          "finished": "2026-11-17T08:37:59Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/_epic_docs.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/package_epic.py skills/dev-implementation/resources/scripts/sync_task_status.py skills/dev-implementation/resources/scripts/check_bdd_traceability.py skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/audit_epic.py skills/dev-implementation/resources/scripts/local_review.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/task_contract.py skills/finishing-a-development-branch/resources/scripts/integrate_branch.py --ignore-missing-imports --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T08:37:59Z",
+          "finished": "2026-11-17T08:37:59Z",
+          "output_tail": [
+            "Success: no issues found in 19 source files"
+          ],
+          "output_sha256": "df31673ff938e9a6a603c56cfd13949b42c1b8edcba9d2688c7f771f48c449d9"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/fpg_task_04.xml tests/test_fpg_english_only_and_ownership.py",
+          "expect": "exit 0; results build/test-results/fpg_task_04.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T08:37:59Z",
+          "finished": "2026-11-17T08:38:06Z",
+          "output_tail": [
+            "...........                                                              [100%]",
+            "11 passed in 7.22s"
+          ],
+          "output_sha256": "4cc026a647db8592fad8861191b81629707f13611feabe7a4015ba953e27fbfb",
+          "results": {
+            "path": "build/test-results/fpg_task_04.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 4,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_fpg_hp_06_english_only_epic_passes_readiness_and_packaging",
+                  "classname": "tests.test_fpg_english_only_and_ownership.Test_FPG_English_Only_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_09_downstream_verifiers_read_english_only_documents",
+                  "classname": "tests.test_fpg_english_only_and_ownership.Test_FPG_English_Only_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_04_legacy_bilingual_resolves_english_never_reads_vi",
+                  "classname": "tests.test_fpg_english_only_and_ownership.Test_FPG_English_Only_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_02_parallel_tasks_must_own_disjoint_files",
+                  "classname": "tests.test_fpg_english_only_and_ownership",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/_epic_docs.py",
+            "skills/dev-implementation/resources/scripts/audit_epic.py",
+            "skills/dev-implementation/resources/scripts/check_bdd_traceability.py",
+            "skills/dev-implementation/resources/scripts/check_epic_readiness.py",
+            "skills/dev-implementation/resources/scripts/check_task_contract.py",
+            "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py",
+            "skills/dev-implementation/resources/scripts/local_review.py",
+            "skills/dev-implementation/resources/scripts/package_epic.py",
+            "skills/dev-implementation/resources/scripts/run_external_review.py",
+            "skills/dev-implementation/resources/scripts/run_task_checks.py",
+            "skills/dev-implementation/resources/scripts/sync_task_status.py",
+            "skills/dev-implementation/resources/scripts/task_contract.py",
+            "skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py",
+            "skills/dev-implementation/resources/scripts/test_check_epic_readiness.py",
+            "skills/dev-implementation/resources/scripts/test_check_task_contract.py",
+            "skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py",
+            "skills/dev-implementation/resources/scripts/test_sync_task_status.py",
+            "skills/finishing-a-development-branch/resources/scripts/integrate_branch.py",
+            "tests/test_fpg_english_only_and_ownership.py",
+            "tests/test_tto_bilingual_and_surgical.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

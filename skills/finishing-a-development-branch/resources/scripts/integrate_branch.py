@@ -28,6 +28,14 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+_DEV_IMPL_SCRIPTS = (
+    Path(__file__).resolve().parents[3] / "dev-implementation" / "resources" / "scripts"
+)
+if str(_DEV_IMPL_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_DEV_IMPL_SCRIPTS))
+
+from _epic_docs import resolve_epic_doc_at
+
 EXIT_OK, EXIT_GIT, EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_POSTCONDITION = 0, 1, 2, 3, 4
 MIN_GIT = (2, 38)  # git merge-tree --write-tree
 
@@ -241,7 +249,7 @@ def sync_base(base: str, fetch: bool) -> BaseState:
     state = read_base(base, fetch)
     if state.relation == "diverged":
         raise Refusal(f"{base} and {state.upstream} have diverged; reconcile {base} before integrating")
-    if state.relation == "behind":
+    if state.relation == "behind" and state.upstream is not None:
         fast_forward(base, state.upstream)
         state.fast_forwarded = True
     return state
@@ -268,11 +276,13 @@ def upstream_epics(since: str, until: str) -> list[dict]:
     paths = changed_files(since, until)
     epic_dirs = sorted({Path(p).parts[2] for p in paths
                         if p.startswith(".devtool/epic/") and len(Path(p).parts) > 3})
+    root = Path.cwd()
     epics = []
     for epic_dir in epic_dirs:
-        bdd = f".devtool/epic/{epic_dir}/bdd_scenarios.en.md"
-        epics.append({"epic_dir": epic_dir,
-                      "bdd": bdd if succeeds("cat-file", "-e", f"{until}:{bdd}") else None})
+        bdd = resolve_epic_doc_at(
+            root, until, f".devtool/epic/{epic_dir}", "bdd_scenarios"
+        )
+        epics.append({"epic_dir": epic_dir, "bdd": bdd})
     return epics
 
 
@@ -310,7 +320,11 @@ def cmd_sync_base(args) -> tuple[int, dict]:
 def cmd_preflight(args) -> tuple[int, dict]:
     branch = integrating_branch(args.base)
     state = read_base(args.base, args.fetch)
-    target = state.upstream if state.relation == "behind" else args.base
+    target: str = (
+        state.upstream
+        if state.relation == "behind" and state.upstream is not None
+        else args.base
+    )
     head = rev("HEAD")
     since = merge_base(head, target)
     stopped = rebase_in_progress()

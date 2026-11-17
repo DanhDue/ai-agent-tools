@@ -25,6 +25,10 @@ def test_anti_rationalization_content():
     for skill_path in skills_to_check:
         assert skill_path.is_file(), f"Skill file not found at {skill_path}"
         content = skill_path.read_text(encoding="utf-8")
+        if skill_path.parent.name == "dev-implementation":
+            content += (
+                skill_path.parent / "references" / "worker-execution-rules.md"
+            ).read_text(encoding="utf-8")
 
         # 1. 5th Anti-Rationalization rule regarding Visual Companion and computed CSS
         assert "Visual Companion" in content, (

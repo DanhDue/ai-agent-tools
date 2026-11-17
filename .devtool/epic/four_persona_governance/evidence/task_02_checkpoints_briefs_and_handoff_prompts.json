@@ -1,0 +1,197 @@
+{
+  "schema": 1,
+  "task": "task_02_checkpoints_briefs_and_handoff_prompts",
+  "runs": {
+    "red": {
+      "head": "02d9e6df3ef815a21171485f1152e4c5e38ddb33",
+      "tree": "c113869c6bc342da809b9ec4def31f1cd33cb924",
+      "patch_id": "0fcecaa29bf6b43bf899dd4fa5bd242d925b3f47",
+      "started": "2026-11-17T08:56:40Z",
+      "finished": "2026-11-17T08:56:41Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_checkpoint_and_briefs.py::test_fpg_hp_04_checkpoint_writes_heartbeat_state_and_event",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T08:56:40Z",
+          "finished": "2026-11-17T08:56:40Z",
+          "output_tail": [
+            "E                              [--real-home REAL_HOME] [--repo REPO] [--epic EPIC]",
+            "E                              [--role {assistant,programmer,implementer,worker}]",
+            "E                              [--tail TAIL] [--json] [--compact] [--state]",
+            "E                              [--decisions DECISIONS] [--status STATUS]",
+            "E                              [--next NEXT] [--prompt PROMPT] [--log] [--task TASK]",
+            "E                              [--request REQUEST] [--action ACTION] [--note NOTE]",
+            "E                              [--complete COMPLETE [COMPLETE ...]] [--checkpoint]",
+            "E                              [--emit-prompt {principal-review,implement,cross-review,finish,assistant,brief}]",
+            "E                              [--brief-role {task-implementer,task-reviewer,review-fixer,gate4-verifier}]",
+            "E                              [--epic-dir EPIC_DIR] [--sync-zshrc] [--sync-title]",
+            "E                              [--stage STAGE] [--profile PROFILE] [--all-repos]",
+            "E                              [--gate {1,2,3,4,5}] [--approved APPROVED]",
+            "E                              [--deviations DEVIATIONS] [--by BY]",
+            "E                              [--check-gate {1,2,3,4,5}] [--detect-profile]",
+            "E                              [--pending-decision PENDING_DECISION]",
+            "E                              [--decision-kind DECISION_KIND]",
+            "E                              [--decision-id DECISION_ID] [--clear-decision]",
+            "E                              [--wave WAVE]",
+            "E     resume_context.py: error: unrecognized arguments: subagent_returned",
+            "E     ",
+            "E   assert 2 == 0",
+            "E    +  where 2 = CompletedProcess(args=['/opt/homebrew/opt/python@3.15/bin/python3.15', '/Users/danhdueexoictif/AllProjects/ai-agent-to...ision]\\n                         [--wave WAVE]\\nresume_context.py: error: unrecognized arguments: subagent_returned\\n').returncode",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_fpg_checkpoint_and_briefs.py::test_fpg_hp_04_checkpoint_writes_heartbeat_state_and_event",
+            "1 failed in 0.45s"
+          ],
+          "output_sha256": "354a2dc991d1c84385ebc3acb329b6accb234ef5c1583e81f647c635cb52c0a0"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "02d9e6df3ef815a21171485f1152e4c5e38ddb33",
+      "tree": "5bef2aab7e285210a1719351d6eaa8fc3c6fb0a8",
+      "patch_id": "0e6f865d5d301c1762bd2cd701d9ce38299b4cee",
+      "started": "2026-11-17T09:51:08Z",
+      "finished": "2026-11-17T09:51:43Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_checkpoint_and_briefs.py tests/test_assistant_orchestrator_handoff.py tests/test_rsdh_state_envelope.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T09:51:08Z",
+          "finished": "2026-11-17T09:51:22Z",
+          "output_tail": [
+            "..............................................                           [100%]",
+            "46 passed in 13.76s"
+          ],
+          "output_sha256": "e033ed1f37fddc74eac3878b6a61ab219465eeb58c461d5d4eafa4334e135444"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_resume_context.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T09:51:22Z",
+          "finished": "2026-11-17T09:51:31Z",
+          "output_tail": [
+            "...........................",
+            "----------------------------------------------------------------------",
+            "Ran 27 tests in 8.889s",
+            "OK"
+          ],
+          "output_sha256": "ab2c90e5dc5a1d8b29d19d23336b8a1b274284603c1ae71f677be334e51ea577"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py scripts/resume_context.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T09:51:31Z",
+          "finished": "2026-11-17T09:51:31Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py scripts/resume_context.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T09:51:31Z",
+          "finished": "2026-11-17T09:51:31Z",
+          "output_tail": [
+            "Success: no issues found in 8 source files"
+          ],
+          "output_sha256": "157a09cfcdfdfb5977479c5a1c08345149263a3e990a2ec976ef28aaeec9cae6"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/fpg_task_02.xml tests/test_fpg_checkpoint_and_briefs.py tests/test_rsdh_state_envelope.py",
+          "expect": "exit 0; results build/test-results/fpg_task_02.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T09:51:31Z",
+          "finished": "2026-11-17T09:51:42Z",
+          "output_tail": [
+            "..............................                                           [100%]",
+            "30 passed in 10.84s"
+          ],
+          "output_sha256": "5924d89e151f59774ba462cbe8829fb06617bfbd5293fae18c23ea76babe35ca",
+          "results": {
+            "path": "build/test-results/fpg_task_02.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 4,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_fpg_hp_04_checkpoint_writes_heartbeat_state_and_event",
+                  "classname": "tests.test_fpg_checkpoint_and_briefs",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_05_briefs_and_implement_prompt_persona_binding_no_vi",
+                  "classname": "tests.test_fpg_checkpoint_and_briefs",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_03_legacy_assistant_role_maps_to_architect",
+                  "classname": "tests.test_fpg_checkpoint_and_briefs",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_01_concurrent_checkpoints_root_and_worktree_lock",
+                  "classname": "tests.test_fpg_checkpoint_and_briefs",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/_state_envelope.py",
+            "scripts/resume_context.py",
+            "scripts/test_resume_context.py",
+            "tests/test_assistant_orchestrator_handoff.py",
+            "tests/test_fpg_checkpoint_and_briefs.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

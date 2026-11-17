@@ -1,12 +1,13 @@
 ---
 id: "task_06_four_persona_governance_text"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T12:22:20Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T12:22:20Z"
 labels: ["governance", "architecture", "docs"]
 order: "a6"
 review_tier: "full"
@@ -23,10 +24,12 @@ Rewrite the governance text so agents follow the four-persona model, checkpoints
 
 1. **`rules/CRITICAL_RULES.md`**: §5 and §6 use Role 2.1 for fix plans and the halt criteria; §8 becomes the
    four-persona rule with the persona table, the session map and the dev-config pointer; add the mandatory
-   checkpoint events, the turn budget, low-quota mode and the quota gate to §8; Rule §10 keeps its scope.
+   checkpoint events, the turn budget, low-quota mode and the quota gate to §8; Rule §10 keeps its scope; §9 gains one rule: `ag_run` and any `<profile>-cli` alias are launched through `zsh -ic`
+   and never from an agent runtime's own shell.
 2. **`skills/dev-lifecycle/`**: `SKILL.md` (Sequence, HARD-GATE, Autonomous Mode, Handoff Choice, Stage 3,
    Red Flags) and references `orchestration-roles.md` (boundaries matrix, old-to-new mapping table, brief roles
-   including `fix-planner`, dispatch via `dev_config.py resolve`, unavailable-model stop),
+   including `fix-planner`, dispatch via `dev_config.py dispatch` (agy profile pool, lease file
+   `agy_profile_leases.json`) and `dev_config.py resolve`, unavailable-model stop, pool-exhausted stop),
    `autonomous-mode.md`, `governance-checklists.md`, `handoff-template.md`, `principal-review.md`.
 3. **Stage skills**: `dev-implementation/SKILL.md` (Overview, Phase 2 pool workflow, Phase 4, cross-model
    transition), `subagent-driven-development/SKILL.md` (Model Selection, review step, fix loop),
@@ -86,13 +89,14 @@ skills: `d3nexus:writing-skills`, `d3nexus:doc_quality_check`.
   - `scripts/test_lifecycle_document_contract.py`: `test_prv_hp_04_packaging_readiness_and_principal_review_choice` (L330-L358)
   - `tests/test_tto_docs_and_slimming.py`: `test_tto_hp_05_slimmed_rules_and_skills_caps` (L31-L86), `test_tto_hp_05_lifecycle_word_caps` (L89-L143), `test_tto_ec_05_selective_task_reviewer_and_prompt_rules` (L146-L221)
   - `scripts/test_verifiable_handoff_text.py`: `test_vth_hp_09_sdd_prompts_treat_evidence_as_proof` (L74-L83)
+  - `tests/test_assistant_orchestrator_handoff.py`: `test_handoff_template_resume_prompt_binds_assistant_orchestrator` (L204-L217)
 - **Downstream Callers**: every runtime that loads these skills; `scripts/verify.sh` link and ToC checks.
 - **Cross-Platform Bridges**: None.
 - **Target Test Coverage Threshold**: zero old-vocabulary hits in `rules/` and `skills/`.
 
 ### BDD SCENARIOS
 
-Covers: FPG-AR-03
+Covers: FPG-AR-03, FPG-AR-07
 
 
 ```gherkin
@@ -102,6 +106,14 @@ When the governance contract test scans them, excluding only the "Old-to-New Rol
 Then no scanned line contains "Tri-Role" or "Role 2.1 Human Architect" or "Role 2.3 AI Programmer"
 And "rules/CRITICAL_RULES.md" contains "Role 1.0 Human Architect", "Role 2.1 AI Architect & Reviewer", "Role 2.2 Orchestrator" and "Role 2.3 Programmer"
 And "skills/dev-lifecycle/references/orchestration-roles.md" contains a table under the heading "Old-to-New Role Mapping" and the brief role "fix-planner"
+
+Scenario: [FPG-AR-07] [Tier A - Unit] Governance text routes agy dispatch through the pool and keeps ag_run out of agent shells
+Given the kit rules and skills after Task 06
+When the contract test reads "orchestration-roles.md", "dev-implementation/SKILL.md" and "CRITICAL_RULES.md"
+Then the Programmer dispatch instructions name "dev_config.py dispatch" and the lease file "agy_profile_leases.json"
+And they state that an exit code of 2 means "record a quota pending decision with the printed report and stop"
+And "CRITICAL_RULES.md" Rule 9 states that "ag_run" and any "<profile>-cli" alias are launched through "zsh -ic" and never from an agent runtime's own shell
+And no dev-lifecycle skill tells an agent to launch agy with a hand-built HOME or AGY_PROFILE
 ```
 
 ```gherkin
@@ -116,7 +128,7 @@ And "skills/dev-lifecycle/references/orchestration-roles.md" contains a table un
 | V3 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 scripts/test_lifecycle_document_contract.py scripts/test_verifiable_handoff_text.py skills/dev-implementation/resources/scripts/test_run_external_review.py` | exit 0 | — |
 | V4 | GREEN | `python3 skills/doc_quality_check/resources/scripts/check_document.py --require-toc skills/dev-lifecycle/references/orchestration-roles.md skills/dev-lifecycle/references/handoff-template.md` | exit 0 | — |
 | V5 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/run_external_review.py` | exit 0 | — |
-| V6 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py --ignore-missing-imports skills/dev-implementation/resources/scripts/run_external_review.py` | exit 0 | — |
+| V6 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/run_external_review.py --ignore-missing-imports` | exit 0 | — |
 | V7 | TIER-C | `python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/fpg_task_06.xml tests/test_fpg_governance_text.py` | exit 0; results build/test-results/fpg_task_06.xml | — |
 
 ## Stop and Report If
@@ -143,6 +155,14 @@ And "skills/dev-lifecycle/references/orchestration-roles.md" contains a table un
   <persona> --format argv --mode <read-only|write>` instead of naming `review_config.json` providers.
 - New contract: the unavailable-model rule says "no automatic fallback, no retry: checkpoint, record a blocker
   with the fallback command, stop".
+- New contract: the Programmer dispatch instructions read `python3 scripts/dev_config.py dispatch --persona programmer
+  --mode write --prompt-file <file> --cwd <slot> --log <log> --epic <slug> --task <id> --slot <n>`. They state that
+  the lease file `agy_profile_leases.json` records which profile is in use, that an exit code of `2` means "record a
+  quota pending decision with the printed report and stop", and that the Orchestrator never launches `agy` with a
+  hand-built `HOME` or `AGY_PROFILE`.
+- New contract: Rule 9 of `CRITICAL_RULES.md` gains the sentence "`ag_run` and any `<profile>-cli` alias must be
+  launched through `zsh -ic` and never from an agent runtime's own shell, because `ag_run` deletes a profile's
+  symlinks when its underscore helper functions are missing".
 - Skill frontmatter stays exactly `name` + `description`.
 
 ## Definition of Done

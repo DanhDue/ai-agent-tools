@@ -1,0 +1,1057 @@
+{
+  "schema": 1,
+  "task": "task_08_kit_guides_verify_registration_and_acceptance",
+  "runs": {
+    "red": {
+      "head": "386d7194a41ddcda14e7ecbf2be8b1cf2f5dabf8",
+      "tree": "aac447c736ddf5c8a43fb06b2eeedaafa35cf1f1",
+      "patch_id": "d910047947f40243a41c006772602a069236ac66",
+      "started": "2026-11-17T13:47:08Z",
+      "finished": "2026-11-17T13:47:12Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_acceptance.py::test_fpg_hp_08_end_to_end_english_only_epic_with_persona_stubs",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T13:47:08Z",
+          "finished": "2026-11-17T13:47:12Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "________ test_fpg_hp_08_end_to_end_english_only_epic_with_persona_stubs ________",
+            "tests/test_fpg_acceptance.py:574: in test_fpg_hp_08_end_to_end_english_only_epic_with_persona_stubs",
+            "    for line in events_path.read_text(encoding=\"utf-8\").splitlines()",
+            "                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/pathlib/__init__.py:986: in read_text",
+            "    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:",
+            "         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/pathlib/__init__.py:970: in open",
+            "    return io.open(self, mode, buffering, encoding, errors, newline)",
+            "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/ag_huynhminhtien0510/fpg_hp08_ws_m5xp2fii/repo/.devtool/logs/events_fpg-demo.jsonl'",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_fpg_acceptance.py::test_fpg_hp_08_end_to_end_english_only_epic_with_persona_stubs",
+            "1 failed in 3.69s"
+          ],
+          "output_sha256": "2e213aca90f56e613fd79ab09811fc7bb608d4d06657202c2e7338a299ba26d3"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "386d7194a41ddcda14e7ecbf2be8b1cf2f5dabf8",
+      "tree": "6b05c1589e290394724ceae1e087528b224ba935",
+      "patch_id": "83b7cf9299ba6990ad25f13a9371d2c23a9808a0",
+      "started": "2026-11-17T14:39:05Z",
+      "finished": "2026-11-17T14:40:29Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_acceptance.py tests/test_token_throttling_acceptance.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T14:39:05Z",
+          "finished": "2026-11-17T14:39:30Z",
+          "output_tail": [
+            ".............                                                        [100%]",
+            "13 passed, 4 subtests passed in 25.43s"
+          ],
+          "output_sha256": "2e25a05ff4dc365371d6ca3b26427eba39fe0e18223a62c5901f2eb632fcc990"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 skills/doc_quality_check/resources/scripts/check_document.py --require-toc --require-bilingual docs/lifecycles.en.md docs/lifecycles.vi.md docs/context-memory-quick-guide.en.md docs/context-memory-quick-guide.vi.md docs/dev-config-quick-guide.en.md docs/dev-config-quick-guide.vi.md",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T14:39:30Z",
+          "finished": "2026-11-17T14:39:30Z",
+          "output_tail": [
+            "  checked 6 documents, 0 findings"
+          ],
+          "output_sha256": "e01d101e42a453424abdbc844017d5d49be7c2f4ec2389e8f5127bd230d78504"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_fpg_acceptance.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T14:39:30Z",
+          "finished": "2026-11-17T14:39:30Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_fpg_acceptance.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T14:39:30Z",
+          "finished": "2026-11-17T14:39:30Z",
+          "output_tail": [
+            "Success: no issues found in 8 source files"
+          ],
+          "output_sha256": "157a09cfcdfdfb5977479c5a1c08345149263a3e990a2ec976ef28aaeec9cae6"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/fpg_task_08.xml tests/test_fpg_acceptance.py tests/test_fpg_persona_config.py tests/test_fpg_dispatch_and_quota.py tests/test_fpg_provider_shortcut.py tests/test_fpg_agy_profile_pool.py tests/test_fpg_agy_dispatch.py tests/test_fpg_set_provider_model_profile.py tests/test_fpg_checkpoint_and_briefs.py tests/test_fpg_runner_personas.py tests/test_fpg_english_only_and_ownership.py tests/test_fpg_dashboard_sync.py tests/test_fpg_governance_text.py tests/test_fpg_english_only_text.py",
+          "expect": "exit 0; results build/test-results/fpg_task_08.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T14:39:30Z",
+          "finished": "2026-11-17T14:40:28Z",
+          "output_tail": [
+            ".................................................................... [ 29%]",
+            "........................................................................ [ 60%]",
+            "........................................................................ [ 90%]",
+            ".....................                                                    [100%]",
+            "233 passed, 4 subtests passed in 57.55s"
+          ],
+          "output_sha256": "d18597998cc7c20ce39bad6e50c41a57cfaaad15571e81ecb6a5bf4fdf1c7b84",
+          "results": {
+            "path": "build/test-results/fpg_task_08.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 177,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_fpg_hp_08_end_to_end_english_only_epic_with_persona_stubs",
+                  "classname": "tests.test_fpg_acceptance.TestFpgAcceptance_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_16_quick_guide_commands_parse_with_the_real_cli",
+                  "classname": "tests.test_fpg_acceptance.TestFpgAcceptance_GuideAndRegistry",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_01_layered_resolution_reports_sources",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_02_dev_config_models_and_bindable_alias",
+                  "classname": "tests.test_fpg_persona_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_02_cli_subcommands_aliases_and_fallback_guard",
+                  "classname": "tests.test_fpg_persona_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_invalid_writes_rejected_file_unchanged[args0-xhigh]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_invalid_writes_rejected_file_unchanged[args1-nosuchmodel]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_invalid_writes_rejected_file_unchanged[args2-reviewer]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_invalid_writes_rejected_file_unchanged[args3-ollama]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_invalid_writes_rejected_file_unchanged[args4-provider]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_invalid_writes_rejected_file_unchanged[args5-gemini5h]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_invalid_writes_rejected_file_unchanged[args6-nosuchpreset]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_invalid_writes_rejected_file_unchanged[args7-0]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_rejects_bad_schema_and_file",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_02_legacy_model_settings_ignored_and_reported",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_01_low_quota_per_profile_expiry_and_turn_budget",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_05_concurrent_writers_never_lose_updates",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_01_all_five_presets_resolve[default-expected0]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_01_all_five_presets_resolve[gemini-saver-expected1]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_01_all_five_presets_resolve[claude-hybrid-expected2]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_01_all_five_presets_resolve[all-hydrogen-expected3]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_01_all_five_presets_resolve[codex-kiro-expected4]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload0-schema_version]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload1-unknown_top]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload2-missing-preset]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload3-orchestrator]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload4-reviewer]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload5-extra]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload6-ghost]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload7-ollama]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload8-efforts]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload9-argonWeekly]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload10-monthly]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload11-True]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload12--2]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload13-enabled]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_validation_branches[layer_payload14-not-a-date]",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_01_corrupt_json_and_cli_usage_errors",
+                  "classname": "tests.test_fpg_persona_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_03_dispatch_argv_per_cli_and_mode",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_01_quota_gate_stops_on_insufficient_and_tolerates_unknown",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1--HTTP 429 Too Many Requests-model_unavailable]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1--RESOURCE_EXHAUSTED: quota exceeded-model_unavailable]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1--ResourceExhausted from backend-model_unavailable]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1--CLI binary 'agy' not found on PATH-model_unavailable]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[127--agy: command not found-model_unavailable]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1--401 Unauthorized: please log in-model_unavailable]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1--403 Forbidden: access denied-model_unavailable]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1--Failed to spawn process: permission denied-model_unavailable]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1--Error: usage limit reached; login required-model_unavailable]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1--not authenticated; please sign in-model_unavailable]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1-3 failed, 10 passed--task_failure]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1-401 failed, 403 passed--task_failure]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1-FAILED tests/test_x.py::test_quota_check--task_failure]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[1-HTTP 429 Too Many Requests-AssertionError: boom-task_failure]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[0-rate limit handled--None]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_dispatch_failure_classification[0--HTTP 429 Too Many Requests-None]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases[argon-agy-gemini-4-argon-high-high-read-only-expected_argv0]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases[hydrogen-agy-gemini-4-hydrogen-xhigh-xhigh-write-expected_argv1]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases[claude-opus-claude-opus-high-read-only-expected_argv2]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases[claude-sonnet-claude-sonnet-medium-write-expected_argv3]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases[codex-gpt-codex-gpt-6.1-sol-medium-read-only-expected_argv4]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases[codex-gpt-codex-gpt-6.1-sol-xhigh-write-expected_argv5]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases[kiro-opus-kiro-claude-opus-5.5-high-read-only-expected_argv6]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases[kiro-opus-kiro-claude-opus-5.5-high-write-expected_argv7]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_01_provider_and_error_payloads[codex-gpt-payload0-0-True-5H=50.0%, 7D=10.0%, status=ACTIVE-None]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_01_provider_and_error_payloads[codex-gpt-payload1-2-False-5H=14.0%-None]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_01_provider_and_error_payloads[codex-gpt-payload2-2-False-7D=2.0%-None]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_01_provider_and_error_payloads[kiro-opus-payload3-0-True-monthly=20.0% (200.0 credits)-None]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_01_provider_and_error_payloads[kiro-opus-payload4-2-False-10.0 credits-None]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_01_provider_and_error_payloads[hydrogen-payload5-0-True--quota_unknown]",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_02_additional_stderr_signatures",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_01_review_config_thresholds_and_default_fetcher_hook",
+                  "classname": "tests.test_fpg_dispatch_and_quota",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_10_provider_shortcut_binds_all_personas[claude]",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_10_provider_shortcut_binds_all_personas[codex]",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_10_provider_shortcut_binds_all_personas[agy]",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_10_sequential_provider_switches_and_catalogue",
+                  "classname": "tests.test_fpg_provider_shortcut.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_06_invalid_provider_use_and_masked_override_warning",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_06_rejected_provider_invocations_leave_files_unchanged[args0-kiro]",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_06_rejected_provider_invocations_leave_files_unchanged[args1-status]",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_06_rejected_provider_invocations_leave_files_unchanged[args2-models]",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_06_rejected_provider_invocations_leave_files_unchanged[args3-low-quota]",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_06_rejected_provider_invocations_leave_files_unchanged[args4-resolve]",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_06_rejected_provider_invocations_leave_files_unchanged[args5-workspace]",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_06_rejected_provider_invocations_leave_files_unchanged[args6---provider]",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_06_preserves_other_sections_and_warns_for_preset_or_effort_masking",
+                  "classname": "tests.test_fpg_provider_shortcut",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_11_pool_selection_priority_and_skip_reasons",
+                  "classname": "tests.test_fpg_agy_profile_pool",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_11_evaluate_agy_quota_boundaries[gemini5h-payload0-True-expected_windows0]",
+                  "classname": "tests.test_fpg_agy_profile_pool",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_11_evaluate_agy_quota_boundaries[gemini5h-payload1-False-expected_windows1]",
+                  "classname": "tests.test_fpg_agy_profile_pool",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_11_evaluate_agy_quota_boundaries[gemini5h-payload2-False-expected_windows2]",
+                  "classname": "tests.test_fpg_agy_profile_pool",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_11_evaluate_agy_quota_boundaries[gemini5h-payload3-True-expected_windows3]",
+                  "classname": "tests.test_fpg_agy_profile_pool",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_11_evaluate_agy_quota_boundaries[gemini5h-payload4-True-expected_windows4]",
+                  "classname": "tests.test_fpg_agy_profile_pool",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_11_evaluate_agy_quota_boundaries[gemini5h-payload5-True-expected_windows5]",
+                  "classname": "tests.test_fpg_agy_profile_pool",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_11_evaluate_agy_quota_boundaries[argonWeekly-payload6-True-expected_windows6]",
+                  "classname": "tests.test_fpg_agy_profile_pool",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_11_evaluate_agy_quota_boundaries[argonWeekly-payload7-False-expected_windows7]",
+                  "classname": "tests.test_fpg_agy_profile_pool",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_11_direct_vs_ag_run_capacity_and_status_skip",
+                  "classname": "tests.test_fpg_agy_profile_pool",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_07_invalid_pool_use_is_rejected",
+                  "classname": "tests.test_fpg_agy_profile_pool",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_07_lease_lifecycle_heartbeat_and_stale_reclaim",
+                  "classname": "tests.test_fpg_agy_profile_pool",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_06_concurrent_acquirers_never_share_a_profile",
+                  "classname": "tests.test_fpg_agy_profile_pool",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_07_exhausted_pool_report_and_recovery",
+                  "classname": "tests.test_fpg_agy_profile_pool",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_11_quota_check_judges_weekly_and_dry_run_pool",
+                  "classname": "tests.test_fpg_agy_profile_pool",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_07_busy_report_cache_and_host_detection",
+                  "classname": "tests.test_fpg_agy_profile_pool",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_17_profiles_discover_lists_candidates_not_in_the_pool",
+                  "classname": "tests.test_fpg_agy_profile_pool",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_05_dispatch_rotates_only_before_work_starts",
+                  "classname": "tests.test_fpg_agy_dispatch",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_07_preflight_failure_launches_nothing",
+                  "classname": "tests.test_fpg_agy_dispatch",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_12_profiles_cli_and_dispatch_with_stub_clis",
+                  "classname": "tests.test_fpg_agy_dispatch.TestFpgHp12_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_12_dispatch_exit_codes_heartbeat_and_non_quota_unavailable",
+                  "classname": "tests.test_fpg_agy_dispatch.TestFpgHp12_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_05_non_git_cwd_and_empty_pool_and_non_agy_dispatch",
+                  "classname": "tests.test_fpg_agy_dispatch",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_14_set_flags_end_to_end_with_stub_clis",
+                  "classname": "tests.test_fpg_set_provider_model_profile.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_14_set_with_provider_model_effort_and_profile",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_17_profiles_discover_cli_lists_candidates_from_a_temporary_home",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_15_preferred_profile_first_then_rotate",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_08_invalid_set_combinations_change_nothing[args0-expected0]",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_08_invalid_set_combinations_change_nothing[args1-expected1]",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_08_invalid_set_combinations_change_nothing[args2-expected2]",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_08_invalid_set_combinations_change_nothing[args3-expected3]",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_08_invalid_set_combinations_change_nothing[args4-expected4]",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_08_invalid_set_combinations_change_nothing[args5-expected5]",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_08_invalid_set_combinations_change_nothing[args6-expected6]",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_08_provider_shortcut_still_rejects_a_subcommand",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_08_exhaustion_report_offers_kiro_sonnet",
+                  "classname": "tests.test_fpg_set_provider_model_profile",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_04_checkpoint_writes_heartbeat_state_and_event",
+                  "classname": "tests.test_fpg_checkpoint_and_briefs",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_05_briefs_and_implement_prompt_persona_binding_no_vi",
+                  "classname": "tests.test_fpg_checkpoint_and_briefs",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_03_legacy_assistant_role_maps_to_architect",
+                  "classname": "tests.test_fpg_checkpoint_and_briefs",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_01_concurrent_checkpoints_root_and_worktree_lock",
+                  "classname": "tests.test_fpg_checkpoint_and_briefs",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_02_high_risk_routes_to_fix_planner_and_escalates",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_03_turn_budget_and_low_quota_stop",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_05_per_task_architect_review_and_sha_binding",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_06_gate4_fresh_verifier_and_sha_binding",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_03_unavailable_model_halts_without_retry",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_04_quota_gate_checked_before_each_wave",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_06_agy_pool_dispatch_outcomes",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_03_principal_revision_halt_stops_without_overwrite[model_unavailable-AUTO_PASS_FINAL_MINOR_SWEEP-minor-sweep]",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_03_principal_revision_halt_stops_without_overwrite[model_unavailable-AUTO_PASS_FINAL_SWEEP-aligned-final]",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_03_principal_revision_halt_stops_without_overwrite[model_unavailable-AUTO_FIX_ELIGIBLE-aligned-loop]",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_03_principal_revision_halt_stops_without_overwrite[quota_low-AUTO_PASS_FINAL_MINOR_SWEEP-minor-sweep]",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_03_principal_revision_halt_stops_without_overwrite[quota_low-AUTO_PASS_FINAL_SWEEP-aligned-final]",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_fr_03_principal_revision_halt_stops_without_overwrite[quota_low-AUTO_FIX_ELIGIBLE-aligned-loop]",
+                  "classname": "tests.test_fpg_runner_personas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_06_english_only_epic_passes_readiness_and_packaging",
+                  "classname": "tests.test_fpg_english_only_and_ownership.Test_FPG_English_Only_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_09_downstream_verifiers_read_english_only_documents",
+                  "classname": "tests.test_fpg_english_only_and_ownership.Test_FPG_English_Only_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_04_legacy_bilingual_resolves_english_never_reads_vi",
+                  "classname": "tests.test_fpg_english_only_and_ownership.Test_FPG_English_Only_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_02_parallel_tasks_must_own_disjoint_files",
+                  "classname": "tests.test_fpg_english_only_and_ownership",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_13_dashboard_shows_profile_holders_and_alerts_when_pool_is_exhausted",
+                  "classname": "tests.test_fpg_dashboard_sync",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_13_unreadable_pool_files_never_raise",
+                  "classname": "tests.test_fpg_dashboard_sync",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_05_invalid_persona_config_degrades_to_a_warning",
+                  "classname": "tests.test_fpg_dashboard_sync",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ec_05_persona_module_load_failure_degrades_to_a_warning",
+                  "classname": "tests.test_fpg_dashboard_sync",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_quota_model_and_escalation_stops_render_as_human_action",
+                  "classname": "tests.test_fpg_dashboard_sync",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_07_memory_role_assistant_maps_to_architect",
+                  "classname": "tests.test_fpg_dashboard_sync",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_07_dashboard_documents_resolve_english_only",
+                  "classname": "tests.test_fpg_dashboard_sync",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_07_hld_status_ignores_vietnamese_label_and_vi_files",
+                  "classname": "tests.test_fpg_dashboard_sync",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_07_payload_carries_persona_bindings_checkpoint_and_low_quota",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_07_absent_and_invalid_inputs_leave_empty_fields[absent-False-False]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_07_absent_and_invalid_inputs_leave_empty_fields[invalid-False-False]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_hp_07_absent_and_invalid_inputs_leave_empty_fields[expired_low_quota-True-False]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_each_heartbeat_halt_reason_is_human_action[MODEL_UNAVAILABLE]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_each_heartbeat_halt_reason_is_human_action[QUOTA_LOW]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_each_heartbeat_halt_reason_is_human_action[LOW_QUOTA_STOP]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_each_heartbeat_halt_reason_is_human_action[FIX_PLAN_ESCALATE]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_state_text_halt_reason_is_human_action[LOW_QUOTA_STOP]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_state_text_halt_reason_is_human_action[MODEL_UNAVAILABLE]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_halt_matching_is_case_sensitive_and_exact[fix_plan_escalate]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_halt_matching_is_case_sensitive_and_exact[QUOTA_LOW_SOON]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_halt_matching_is_case_sensitive_and_exact[]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_halt_matching_is_case_sensitive_and_exact[None]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_halt_matching_is_case_sensitive_and_exact[7]",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_st_04_pending_quota_decision_for_a_sibling_epic_still_alerts",
+                  "classname": "tests.test_fpg_dashboard_sync.TestFpgDashboardSync_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_03_governance_text_uses_four_personas",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_03_critical_rules_section_8_carries_checkpoint_and_quota_text",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_03_skills_name_new_personas_and_commands[skills/dev-lifecycle/SKILL.md]",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_03_skills_name_new_personas_and_commands[skills/dev-implementation/SKILL.md]",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_03_skills_name_new_personas_and_commands[skills/subagent-driven-development/SKILL.md]",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_03_skills_name_new_personas_and_commands[skills/cross-model-review/SKILL.md]",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_03_skills_name_new_personas_and_commands[skills/principal-review/SKILL.md]",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_03_skills_name_new_personas_and_commands[skills/resume-context/SKILL.md]",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_03_skills_name_new_personas_and_commands[skills/save-context/SKILL.md]",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_03_skills_name_new_personas_and_commands[skills/dev-lifecycle/references/orchestration-roles.md]",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_07_governance_text_routes_dispatch_through_pool_and_guards_ag_run",
+                  "classname": "tests.test_fpg_governance_text",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_fpg_ar_04_dev_skills_are_english_only_and_isolate_mirrors",
+                  "classname": "tests.test_fpg_english_only_text",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "docs/context-memory-quick-guide.en.md",
+            "docs/context-memory-quick-guide.vi.md",
+            "docs/dev-config-quick-guide.en.md",
+            "docs/dev-config-quick-guide.vi.md",
+            "docs/lifecycles.en.md",
+            "docs/lifecycles.vi.md",
+            "scripts/verify.sh",
+            "skills/dev-config/SKILL.md",
+            "tests/test_fpg_acceptance.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

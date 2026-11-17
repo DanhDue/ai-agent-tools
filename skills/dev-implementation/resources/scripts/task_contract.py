@@ -12,10 +12,16 @@ import os
 import re
 import shlex
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+from _epic_docs import is_task_markdown, iter_task_files, resolve_epic_doc
 from check_bdd_traceability import covers_of
 from result_reports import Case, verdicts
 
@@ -29,7 +35,11 @@ NEEDS_NAME = re.compile(r"[A-Z_][A-Z0-9_]*")
 ROW_ID = re.compile(r"V[0-9]+")
 CODE_SPAN = re.compile(r"`([^`]+)`")
 RED_NA = re.compile(r"^RED:\s*n/a\s*[—-]\s*(.+?)\s*$")
-ALLOWED_BULLET = re.compile(r"^- `([^`]+)`( \(new\))?\s*$")
+ALLOWED_BULLET = re.compile(
+    r"^- `([^`]+)`((?:\s*(?:\(new\)|\(L\d+(?:\s*[-–:]\s*L?\d+)?\)|::\s*`?[A-Za-z_][\w.]*`?|[—–-]\s+.*))*)\s*$"
+)
+EVIDENCE_BULLET = re.compile(r"^- `([^`]+)`( \(new\))?\s*$")
+_INNER_LINE_RANGE_RE = re.compile(r"\s*\(L\d+(?:\s*[-–:]\s*L?\d+)?\)\s*$")
 EVIDENCE_FILE_RE = re.compile(r"^\.devtool/epic/[A-Za-z0-9_-]+/evidence/[A-Za-z0-9_.-]+$")
 ENVIRONMENT_HEADING = re.compile(r"^## (?:\d+\.\s*)?Verification Environment\s*$")
 INTERPRETERS = {"python", "python3", "bash", "sh", "zsh", "node", "deno", "ruby", "perl"}
@@ -188,7 +198,9 @@ def parse_allowed_files(task_text: str) -> list[AllowedPath]:
         bullet = ALLOWED_BULLET.match(line)
         if not bullet:
             break
-        allowed.append(AllowedPath(bullet.group(1), bool(bullet.group(2))))
+        pattern = _INNER_LINE_RANGE_RE.sub("", bullet.group(1)).strip()
+        is_new = "(new)" in (bullet.group(2) or "")
+        allowed.append(AllowedPath(pattern, is_new))
     return allowed
 
 
@@ -200,7 +212,7 @@ def parse_evidence_files(task_text: str) -> list[AllowedPath]:
         if not listing:
             listing = line.strip() == "Evidence files:"
             continue
-        bullet = ALLOWED_BULLET.match(line)
+        bullet = EVIDENCE_BULLET.match(line)
         if not bullet:
             if not line.strip() and not evidence:
                 continue
@@ -408,11 +420,12 @@ def epic_layout(task_file: Path) -> EpicLayout:
         raise ContractError(f"{task_file} is not inside a git repository") from None
     root = Path(top).resolve()
     parts = path.relative_to(root).parts if path.is_relative_to(root) else ()
-    if not (len(parts) == 4 and parts[:2] == (".devtool", "epic") and re.fullmatch(r"task_.*\.md", parts[3])):
+    if not (len(parts) == 4 and parts[:2] == (".devtool", "epic") and is_task_markdown(parts[3])):
         raise ContractError("pass the task's mirror under .devtool/epic/<epic_dir>/")
     epic_dir = path.parent
-    return EpicLayout(root, epic_dir, epic_dir / f"{epic_dir.name}.en.md",
-                      epic_dir / "bdd_scenarios.en.md", epic_dir / "evidence" / f"{path.stem}.json")
+    hld = resolve_epic_doc(epic_dir, epic_dir.name) or (epic_dir / f"{epic_dir.name}.md")
+    scenarios = resolve_epic_doc(epic_dir, "bdd_scenarios") or (epic_dir / "bdd_scenarios.md")
+    return EpicLayout(root, epic_dir, hld, scenarios, epic_dir / "evidence" / f"{path.stem}.json")
 
 
 def fingerprint(root: Path) -> tuple[str, str | None]:
@@ -624,8 +637,8 @@ def resolve_prerequisite_epic_dirs(
         visiting.append(dir_name)
 
         if hld_content is None:
-            hld_file = root / ".devtool" / "epic" / dir_name / f"{dir_name}.en.md"
-            if hld_file.is_file():
+            hld_file = resolve_epic_doc(root / ".devtool" / "epic" / dir_name, dir_name)
+            if hld_file is not None:
                 try:
                     content = hld_file.read_text(encoding="utf-8")
                 except OSError:
@@ -692,7 +705,7 @@ def collect_prerequisite_artifacts(
         dir_path = root / ".devtool" / "epic" / prereq_dir
         if not dir_path.is_dir():
             continue
-        for task_path in sorted(dir_path.glob("task_*.md")):
+        for task_path in iter_task_files(dir_path):
             try:
                 task_text = task_path.read_text(encoding="utf-8")
             except OSError:
