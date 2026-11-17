@@ -16,6 +16,8 @@ from types import ModuleType
 from typing import Any
 from unittest.mock import patch
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEV_IMPL_SCRIPTS = REPO_ROOT / "skills" / "dev-implementation" / "resources" / "scripts"
 LIFECYCLE_SCRIPTS = REPO_ROOT / "skills" / "dev-lifecycle" / "resources" / "scripts"
@@ -25,6 +27,30 @@ RESUME_SCRIPT = REPO_ROOT / "scripts" / "resume_context.py"
 for _script_dir in (str(DEV_IMPL_SCRIPTS), str(LIFECYCLE_SCRIPTS), str(QC_SCRIPTS)):
     if _script_dir not in sys.path:
         sys.path.insert(0, _script_dir)
+
+
+@pytest.fixture
+def _isolate_host_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Isolate HOME, REAL_HOME, profile env vars, and quota fetching from host stores."""
+    fake_home = tmp_path / "_isolated_home"
+    fake_home.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("HOME", str(fake_home))
+    monkeypatch.setenv("REAL_HOME", str(fake_home))
+    for var in (
+        "AGY_PROFILE",
+        "ANTIGRAVITY_PROFILE",
+        "AGY_PROGRAMMER_MODEL",
+        "AGY_PROGRAMMER_EFFORT",
+        "AGY_ASSISTANT_MODEL",
+    ):
+        monkeypatch.delenv(var, raising=False)
+
+    rer_mod = _load_module(
+        "run_external_review", DEV_IMPL_SCRIPTS / "run_external_review.py"
+    )
+    if hasattr(rer_mod, "_default_quota_fetcher"):
+        monkeypatch.setattr(rer_mod, "_default_quota_fetcher", lambda _cli: {})
+    return fake_home
 
 
 def _load_module(name: str, file_path: Path) -> ModuleType:
@@ -199,6 +225,7 @@ def _setup_mini_kit_fixture(kit: Path) -> None:
     _git(kit, "commit", "-q", "-m", "Mini kit fixture")
 
 
+@pytest.mark.usefixtures("_isolate_host_env")
 def test_tto_hp_08_end_to_end_pipeline() -> None:
     """[TTO-HP-08] End-to-end token-throttling pipeline enforces compact prompts, review isolation, and programmer config."""
     rer: Any = _load_module(
@@ -805,6 +832,7 @@ def test_tto_ec_06_verify_suite_registration() -> None:
         assert "  ok   plugin.json" not in live_proc.stdout
 
 
+@pytest.mark.usefixtures("_isolate_host_env")
 def test_tto_ar_02_isolated_context_and_round_logs() -> None:
     """[TTO-AR-02] Per-task clean context and per-round raw logs prevent cross-session transcript contamination."""
     rer: Any = _load_module(
@@ -987,6 +1015,7 @@ def test_tto_ar_02_isolated_context_and_round_logs() -> None:
         assert "UNIQUE_TASK1_BODY_DO_NOT_LEAK" not in prompt_task2
 
 
+@pytest.mark.usefixtures("_isolate_host_env")
 def test_tto_fr_04_quantitative_byte_caps_and_fail_loud() -> None:
     """[TTO-FR-04] Quantitative regression assertions enforce caps and fail loudly with concrete byte diagnostics."""
     rer: Any = _load_module(
@@ -1108,6 +1137,7 @@ def test_tto_fr_04_quantitative_byte_caps_and_fail_loud() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_repo = Path(tmpdir)
         (tmp_repo / ".devtool").mkdir(parents=True, exist_ok=True)
+        # Legacy review_config.json is ignored; persona_config resolves default gemini-4-hydrogen-xhigh / xhigh
         (tmp_repo / ".devtool" / "review_config.json").write_text(
             json.dumps(
                 {
@@ -1131,6 +1161,24 @@ def test_tto_fr_04_quantitative_byte_caps_and_fail_loud() -> None:
             assert cfg.resolve_programmer_model(tmp_repo) == "gemini-4-hydrogen-xhigh"
             assert cfg.resolve_programmer_effort(tmp_repo) == "xhigh"
 
+        # Project personas.json overrides kit default cleanly
+        personas_file = tmp_repo / ".agents" / "config" / "personas.json"
+        personas_file.parent.mkdir(parents=True, exist_ok=True)
+        personas_file.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "overrides": {
+                        "programmer": {"model": "hydrogen", "effort": "high"}
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        with patch.dict(os.environ, clean_env, clear=True):
+            assert cfg.resolve_programmer_model(tmp_repo) == "gemini-4-hydrogen-high"
+            assert cfg.resolve_programmer_effort(tmp_repo) == "high"
+
     # 7. External review diff budget constants stay bounded
     assert rer.MAX_DIFF_LINES <= 1500, (
         f"MAX_DIFF_LINES drifted: {rer.MAX_DIFF_LINES} > 1500"
@@ -1143,6 +1191,7 @@ def test_tto_fr_04_quantitative_byte_caps_and_fail_loud() -> None:
 class TestTTOTokenThrottlingAcceptance_Integration:
     """Tier C integration provenance wrappers for Task 6 BDD scenarios."""
 
+    @pytest.mark.usefixtures("_isolate_host_env")
     def test_tto_hp_08_integration(self) -> None:
         """[TTO-HP-08] Integration provenance wrapper for end-to-end token-throttling pipeline."""
         test_tto_hp_08_end_to_end_pipeline()
@@ -1151,10 +1200,12 @@ class TestTTOTokenThrottlingAcceptance_Integration:
         """[TTO-EC-06] Integration provenance wrapper for verify.sh suite registry and quiet/full modes."""
         test_tto_ec_06_verify_suite_registration()
 
+    @pytest.mark.usefixtures("_isolate_host_env")
     def test_tto_ar_02_integration(self) -> None:
         """[TTO-AR-02] Integration provenance wrapper for per-task and per-round isolation."""
         test_tto_ar_02_isolated_context_and_round_logs()
 
+    @pytest.mark.usefixtures("_isolate_host_env")
     def test_tto_fr_04_integration(self) -> None:
         """[TTO-FR-04] Integration provenance wrapper for fail-loud quantitative bounds."""
         test_tto_fr_04_quantitative_byte_caps_and_fail_loud()
