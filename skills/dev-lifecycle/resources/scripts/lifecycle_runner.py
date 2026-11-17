@@ -326,28 +326,11 @@ class RunnerConfig:
         models: Mapping[str, Any] = cfg["models"]
         if raw_model is None:
             assert norm_effort is not None
-            allowed = list(models[base_binding.alias]["efforts"])
-            if norm_effort in allowed:
-                return pc.resolve_persona(
-                    persona,
-                    project_root,
-                    cli_overrides={"effort": norm_effort},
-                    real_home=self.real_home,
-                )
-            sources = dict(base_binding.sources)
-            sources["effort"] = "cli"
-            model_id = str(models[base_binding.alias]["id"]).replace(
-                "{effort}", norm_effort
-            )
-            return pc.PersonaBinding(
-                persona=persona,
-                alias=base_binding.alias,
-                cli=base_binding.cli,
-                model_id=model_id,
-                effort=norm_effort,
-                quota_pool=base_binding.quota_pool,
-                fallback_alias=base_binding.fallback_alias,
-                sources=sources,
+            return pc.resolve_persona(
+                persona,
+                project_root,
+                cli_overrides={"effort": norm_effort},
+                real_home=self.real_home,
             )
 
         if raw_model in models:
@@ -361,56 +344,52 @@ class RunnerConfig:
                     else allowed[-1]
                 )
             )
-            if chosen_effort in allowed:
-                return pc.resolve_persona(
-                    persona,
-                    project_root,
-                    cli_overrides={"model": raw_model, "effort": chosen_effort},
-                    real_home=self.real_home,
-                )
-            entry = models[raw_model]
-            sources = dict(base_binding.sources)
-            sources["model"] = "cli"
-            sources["effort"] = "cli"
-            return pc.PersonaBinding(
-                persona=persona,
-                alias=raw_model,
-                cli=str(entry["cli"]),
-                model_id=str(entry["id"]).replace("{effort}", chosen_effort),
-                effort=chosen_effort,
-                quota_pool=pc.derive_quota_pool(entry, raw_model),
-                fallback_alias=base_binding.fallback_alias,
-                sources=sources,
+            return pc.resolve_persona(
+                persona,
+                project_root,
+                cli_overrides={"model": raw_model, "effort": chosen_effort},
+                real_home=self.real_home,
             )
 
-        # Check if raw_model matches a catalogue model id (exact or expanded template)
+        # Check if raw_model matches a catalogue model id (exact or template)
         for alias, entry in models.items():
             template = str(entry["id"])
             efforts = list(entry["efforts"])
             if "{effort}" in template:
-                for eff in efforts:
-                    if template.replace("{effort}", eff) == raw_model:
-                        chosen_effort = norm_effort or eff
-                        if chosen_effort in efforts:
-                            return pc.resolve_persona(
-                                persona,
-                                project_root,
-                                cli_overrides={"model": alias, "effort": chosen_effort},
-                                real_home=self.real_home,
-                            )
-            elif template == raw_model:
-                chosen_effort = norm_effort or (
-                    base_binding.effort
-                    if base_binding.effort in efforts
-                    else efforts[-1]
-                )
-                if chosen_effort in efforts:
+                pattern = re.escape(template).replace(r"\{effort\}", r"([A-Za-z0-9_-]+)")
+                match = re.fullmatch(pattern, raw_model)
+                if match is not None:
+                    raw_matched = match.group(1)
+                    matched_eff = (
+                        raw_matched
+                        if raw_matched in efforts
+                        else normalize_agy_effort(raw_matched)
+                    )
+                    chosen_effort = (
+                        matched_eff
+                        if matched_eff not in efforts
+                        else (norm_effort or matched_eff)
+                    )
                     return pc.resolve_persona(
                         persona,
                         project_root,
                         cli_overrides={"model": alias, "effort": chosen_effort},
                         real_home=self.real_home,
                     )
+            elif template == raw_model:
+                chosen_effort = norm_effort or (
+                    base_binding.effort
+                    if base_binding.effort in efforts
+                    else efforts[-1]
+                )
+                return pc.resolve_persona(
+                    persona,
+                    project_root,
+                    cli_overrides={"model": alias, "effort": chosen_effort},
+                    real_home=self.real_home,
+                )
+
+        # Fallback kept strictly for uncatalogued custom raw model IDs (e.g. legacy/test IDs)
 
         sources = dict(base_binding.sources)
         sources["model"] = "cli"

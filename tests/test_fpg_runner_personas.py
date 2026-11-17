@@ -2169,3 +2169,57 @@ def test_fpg_st_06_repeated_check_escalates_even_when_failure_list_grows(
         if d["persona"] == "ai_architect_reviewer" and "fix-planner" in d["prompt"]
     ]
     assert len(planner_calls) == expected_planner_calls
+
+
+@pytest.mark.parametrize(
+    ("cfg_kwargs", "persona"),
+    [
+        ({"programmer_model": "argon", "programmer_effort": "xhigh"}, "programmer"),
+        ({"architect_effort": "xhigh"}, "ai_architect_reviewer"),
+        (
+            {
+                "programmer_model": "gemini-4-argon-high",
+                "programmer_effort": "xhigh",
+            },
+            "programmer",
+        ),
+        ({"programmer_model": "gemini-4-argon-xhigh"}, "programmer"),
+        (
+            {"programmer_model": "gpt-6.1-sol", "programmer_effort": "low"},
+            "programmer",
+        ),
+        (
+            {
+                "config_programmer_model": "claude-sonnet",
+                "config_programmer_effort": "xhigh",
+            },
+            "programmer",
+        ),
+    ],
+)
+def test_fpg_runner_config_rejects_unsupported_effort(
+    tmp_path: Path,
+    cfg_kwargs: dict[str, Any],
+    persona: str,
+) -> None:
+    """[FPG-EC-02] RunnerConfig validates effort through persona_config for any catalogue alias or model id."""
+    fake_home = tmp_path / "_isolated_home"
+    repo = tmp_path / "repo_f7"
+    repo.mkdir(parents=True, exist_ok=True)
+    cfg = lifecycle_runner.RunnerConfig(real_home=fake_home, **cfg_kwargs)
+    with pytest.raises(persona_config.PersonaConfigError):
+        cfg.resolve_binding(persona, repo)
+
+    # Catalogue model-only override still adapts default effort, and uncatalogued raw model id stays allowed
+    argon_only = lifecycle_runner.RunnerConfig(
+        programmer_model="argon", real_home=fake_home
+    ).resolve_binding("programmer", repo)
+    assert argon_only.alias == "argon"
+    assert argon_only.effort == "high"
+    raw_fallback = lifecycle_runner.RunnerConfig(
+        programmer_model="custom-uncatalogued-model",
+        programmer_effort="low",
+        real_home=fake_home,
+    ).resolve_binding("programmer", repo)
+    assert raw_fallback.model_id == "custom-uncatalogued-model"
+    assert raw_fallback.effort == "low"
