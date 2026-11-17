@@ -451,6 +451,26 @@ def test_fpg_st_03_turn_budget_and_low_quota_stop(
 
     runner1.checkpoint_writer = spy_cp_1
 
+    def _stub_meta(self_disp: Any, prompt: str) -> tuple[str, str]:
+        wt = self_disp.worktree_dir
+        head_sha = _git(wt, "rev-parse", "HEAD")
+        matched_tid = next(
+            (
+                tid
+                for tid in (
+                    "task_01_w1a",
+                    "task_02_w1b",
+                    "task_03_w2a",
+                    "task_04_w2b",
+                    "task_05_w3a",
+                    "task_06_w3b",
+                )
+                if tid in prompt
+            ),
+            "t",
+        )
+        return head_sha, matched_tid
+
     def ok_dispatch_1(
         self_disp: Any, cli: str, args: list[str], prompt: str
     ) -> tuple[int, str, str]:
@@ -458,21 +478,33 @@ def test_fpg_st_03_turn_budget_and_low_quota_stop(
         with lock_1:
             dispatch_count_1 += 1
         persona, mode = _persona_from_cli_args(cli, args)
+        head_sha, matched_tid = _stub_meta(self_disp, prompt)
         if persona == "ai_architect_reviewer" and mode == "read-only":
-            return (
-                0,
-                '```json\n{"task_id": "t", "verdict": "PASS", "head_sha": "sha_ok", "done_gate": "PASS", "findings": []}\n```\n',
-                "",
-            )
+            rep = {
+                "task_id": matched_tid,
+                "verdict": "PASS",
+                "head_sha": head_sha,
+                "done_gate": "PASS",
+                "findings": [],
+            }
+            return 0, f"```json\n{json.dumps(rep)}\n```\n", ""
         wt = self_disp.worktree_dir
         for mod in ("w1a", "w1b", "w2a", "w2b", "w3a", "w3b"):
             if mod in prompt:
                 (wt / "src" / f"{mod}.py").write_text(f"{mod} = 1\n", encoding="utf-8")
-        return (
-            0,
-            '```json\n{"task_id": "t", "slot": 1, "status": "DONE", "head_sha": "sha_ok", "verify": "PASS", "changed_files": [], "non_test_modules_changed": 1, "review_tier": "standard", "labels": [], "finalized": false}\n```\n',
-            "",
-        )
+        impl = {
+            "task_id": matched_tid,
+            "slot": 1,
+            "status": "DONE",
+            "head_sha": head_sha,
+            "verify": "PASS",
+            "changed_files": [],
+            "non_test_modules_changed": 1,
+            "review_tier": "standard",
+            "labels": [],
+            "finalized": False,
+        }
+        return 0, f"```json\n{json.dumps(impl)}\n```\n", ""
 
     with patch.object(
         lifecycle_runner.ModelDispatcher,
@@ -512,6 +544,7 @@ def test_fpg_st_03_turn_budget_and_low_quota_stop(
         self_disp: Any, cli: str, args: list[str], prompt: str
     ) -> tuple[int, str, str]:
         persona, mode = _persona_from_cli_args(cli, args)
+        head_sha, matched_tid = _stub_meta(self_disp, prompt)
         if persona == "programmer":
             for tid in (
                 "task_01_w1a",
@@ -524,16 +557,27 @@ def test_fpg_st_03_turn_budget_and_low_quota_stop(
                 if tid in prompt:
                     dispatched_2.append(tid)
         if persona == "ai_architect_reviewer" and mode == "read-only":
-            return (
-                0,
-                '```json\n{"task_id": "t", "verdict": "PASS", "head_sha": "sha2", "done_gate": "PASS", "findings": []}\n```\n',
-                "",
-            )
-        return (
-            0,
-            '```json\n{"task_id": "t", "slot": 1, "status": "DONE", "head_sha": "sha2", "verify": "PASS", "changed_files": [], "non_test_modules_changed": 1, "review_tier": "standard", "labels": [], "finalized": false}\n```\n',
-            "",
-        )
+            rep = {
+                "task_id": matched_tid,
+                "verdict": "PASS",
+                "head_sha": head_sha,
+                "done_gate": "PASS",
+                "findings": [],
+            }
+            return 0, f"```json\n{json.dumps(rep)}\n```\n", ""
+        impl = {
+            "task_id": matched_tid,
+            "slot": 1,
+            "status": "DONE",
+            "head_sha": head_sha,
+            "verify": "PASS",
+            "changed_files": [],
+            "non_test_modules_changed": 1,
+            "review_tier": "standard",
+            "labels": [],
+            "finalized": False,
+        }
+        return 0, f"```json\n{json.dumps(impl)}\n```\n", ""
 
     with patch.object(
         lifecycle_runner.ModelDispatcher,
@@ -563,6 +607,7 @@ def test_fpg_st_03_turn_budget_and_low_quota_stop(
         self_disp: Any, cli: str, args: list[str], prompt: str
     ) -> tuple[int, str, str]:
         persona, mode = _persona_from_cli_args(cli, args)
+        head_sha, matched_tid = _stub_meta(self_disp, prompt)
         if persona == "programmer":
             for tid in (
                 "task_01_w1a",
@@ -579,16 +624,27 @@ def test_fpg_st_03_turn_budget_and_low_quota_stop(
                             repo3, action="on", profile="testprof", real_home=real_home
                         )
         if persona == "ai_architect_reviewer" and mode == "read-only":
-            return (
-                0,
-                '```json\n{"task_id": "t", "verdict": "PASS", "head_sha": "sha3", "done_gate": "PASS", "findings": []}\n```\n',
-                "",
-            )
-        return (
-            0,
-            '```json\n{"task_id": "t", "slot": 1, "status": "DONE", "head_sha": "sha3", "verify": "PASS", "changed_files": [], "non_test_modules_changed": 1, "review_tier": "standard", "labels": [], "finalized": false}\n```\n',
-            "",
-        )
+            rep = {
+                "task_id": matched_tid,
+                "verdict": "PASS",
+                "head_sha": head_sha,
+                "done_gate": "PASS",
+                "findings": [],
+            }
+            return 0, f"```json\n{json.dumps(rep)}\n```\n", ""
+        impl = {
+            "task_id": matched_tid,
+            "slot": 1,
+            "status": "DONE",
+            "head_sha": head_sha,
+            "verify": "PASS",
+            "changed_files": [],
+            "non_test_modules_changed": 1,
+            "review_tier": "standard",
+            "labels": [],
+            "finalized": False,
+        }
+        return 0, f"```json\n{json.dumps(impl)}\n```\n", ""
 
     with patch.object(
         lifecycle_runner.ModelDispatcher,
@@ -644,6 +700,7 @@ def test_fpg_st_05_per_task_architect_review_and_sha_binding(
     )
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", "[DEMO] Seed ST-05")
+    head_st05 = _git(repo, "rev-parse", "HEAD")
 
     runner = lifecycle_runner.LifecycleRunner(root=repo, epic_slug=epic)
     calls: list[dict[str, Any]] = []
@@ -656,11 +713,12 @@ def test_fpg_st_05_per_task_architect_review_and_sha_binding(
             else "task-implementer"
         )
         calls.append({"persona": persona, "role": role, "mode": mode, "prompt": prompt})
+        current_head = _git(repo, "rev-parse", "HEAD")
         if persona == "ai_architect_reviewer":
             out = {
                 "task_id": "t_full",
                 "verdict": "PASS",
-                "head_sha": "abc123",
+                "head_sha": current_head,
                 "done_gate": "PASS",
                 "findings": [],
             }
@@ -669,7 +727,7 @@ def test_fpg_st_05_per_task_architect_review_and_sha_binding(
             "task_id": "t_small" if "t_small" in prompt else "t_full",
             "slot": 1,
             "status": "DONE",
-            "head_sha": "abc123",
+            "head_sha": current_head or head_st05,
             "verify": "PASS",
             "changed_files": ["src/small.py"]
             if "t_small" in prompt
@@ -713,6 +771,7 @@ def test_fpg_st_05_per_task_architect_review_and_sha_binding(
     )
     _git(repo_bad, "add", "-A")
     _git(repo_bad, "commit", "-q", "-m", "[DEMO] Seed bad SHA")
+    bad_head = _git(repo_bad, "rev-parse", "HEAD")
 
     for bad_reply in (
         {
@@ -725,7 +784,7 @@ def test_fpg_st_05_per_task_architect_review_and_sha_binding(
         {
             "task_id": "t_full",
             "verdict": "FAIL",
-            "head_sha": "abc123",
+            "head_sha": bad_head,
             "done_gate": "FAIL",
             "findings": ["bug"],
         },
@@ -739,6 +798,7 @@ def test_fpg_st_05_per_task_architect_review_and_sha_binding(
             prompt: str,
             _reply: dict[str, Any] = bad_reply,
             _calls: list[str] = bad_calls,
+            _head: str = bad_head,
         ) -> tuple[int, str, str]:
             persona, _ = _persona_from_cli_args(cli, args)
             _calls.append(persona)
@@ -748,7 +808,7 @@ def test_fpg_st_05_per_task_architect_review_and_sha_binding(
                 "task_id": "t_full",
                 "slot": 1,
                 "status": "DONE",
-                "head_sha": "abc123",
+                "head_sha": _head,
                 "verify": "PASS",
                 "changed_files": ["src/full.py"],
                 "non_test_modules_changed": 1,
@@ -1621,3 +1681,295 @@ def test_runner_probe_resolves_kiro_binary_from_path(
         assert runner.state.active_stage == lifecycle_runner.StageName.INITIALIZED.value
         assert runner.state.last_error is not None
         assert "Programmer probe failed:" in runner.state.last_error
+
+
+@pytest.mark.parametrize(
+    ("override_fields", "create_report_body", "expected_pass"),
+    [
+        ({"audit_exit": 1}, None, False),
+        ({"audit_exit": False}, None, False),
+        ({"failures": ["lint"]}, None, False),
+        ({"failures": "not-a-list"}, None, False),
+        ({"quality_check_report": "/nonexistent/report.json"}, None, False),
+        ({"quality_check_report": "reports/missing.xml"}, None, False),
+        ({"quality_check_report": "build/wrong_sha.json"}, '{"sha": "other"}\n', False),
+        ({"quality_check_report": ""}, None, False),
+        ({"quality_check_report": "fail"}, None, False),
+        (
+            {"quality_check_report": "PASS (agent-tools-python: format=0, lint=0)"},
+            None,
+            True,
+        ),
+        (
+            {"quality_check_report": "build/gate4.json"},
+            '{"sha": "{HEAD_SHA}"}\n',
+            True,
+        ),
+    ],
+)
+def test_fpg_st_06_rejects_bad_audit_failures_and_missing_report(
+    tmp_path: Path,
+    override_fields: dict[str, Any],
+    create_report_body: str | None,
+    expected_pass: bool,
+) -> None:
+    """[FPG-ST-06] Gate 4 rejects PASS with bad audit_exit, non-empty failures, or invalid/missing report."""
+    repo = tmp_path / "repo_f1"
+    _init_git_repo(repo)
+    epic = "demo_epic"
+    (repo / ".devtool" / "epic" / epic).mkdir(parents=True, exist_ok=True)
+    (repo / "src").mkdir(parents=True, exist_ok=True)
+    (repo / "src" / "a.py").write_text("A = 1\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "[DEMO] Seed F1")
+    head_sha = _git(repo, "rev-parse", "HEAD")
+
+    report_val = override_fields.get("quality_check_report")
+    if create_report_body is not None and isinstance(report_val, str):
+        report_file = repo / report_val
+        report_file.parent.mkdir(parents=True, exist_ok=True)
+        report_file.write_text(
+            create_report_body.replace("{HEAD_SHA}", head_sha), encoding="utf-8"
+        )
+
+    payload: dict[str, Any] = {
+        "candidate_sha": head_sha,
+        "verdict": "PASS",
+        "audit_exit": 0,
+        "quality_check_report": "ok",
+        "failures": [],
+    }
+    payload.update(override_fields)
+
+    runner = lifecycle_runner.LifecycleRunner(root=repo, epic_slug=epic)
+    ledger_calls: list[int] = []
+    with (
+        patch.object(
+            runner.dispatcher,
+            "dispatch",
+            return_value=(0, f"```json\n{json.dumps(payload)}\n```\n", ""),
+        ),
+        patch.object(
+            runner,
+            "sync_gate_ledger",
+            side_effect=lambda g, _m: ledger_calls.append(g) or True,
+        ),
+    ):
+        ok, _ = runner.run_gate4()
+
+    assert ok is expected_pass
+    assert ledger_calls == ([4] if expected_pass else [])
+
+
+def test_fpg_st_05_rejects_fail_verify_done_gate_stale_sha_and_sync_refusal(
+    tmp_path: Path,
+) -> None:
+    """[FPG-ST-05] Reject verify!=PASS, stale head_sha in git repos, done_gate!=PASS, wrong task_id, and sync refusal."""
+    epic = "demo_epic"
+
+    def _setup_repo(name: str, *, review_tier: str | None = None) -> tuple[Path, str]:
+        repo = tmp_path / name
+        _init_git_repo(repo)
+        _copy_dev_impl_scripts(repo)
+        features = repo / ".devtool" / "features"
+        features.mkdir(parents=True, exist_ok=True)
+        (repo / ".devtool" / "epic" / epic).mkdir(parents=True, exist_ok=True)
+        (repo / ".devtool" / "epic" / epic / f"{epic}.md").write_text(
+            "# HLD\n", encoding="utf-8"
+        )
+        (repo / "src").mkdir(parents=True, exist_ok=True)
+        (repo / "src" / "a.py").write_text("A = 1\n", encoding="utf-8")
+        (features / "task_03_demo.md").write_text(
+            _make_task_md(
+                "task_03_demo",
+                epic,
+                allowed=["src/a.py"],
+                review_tier=review_tier,
+            ),
+            encoding="utf-8",
+        )
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "[DEMO] Seed F2")
+        return repo, _git(repo, "rev-parse", "HEAD")
+
+    # 1. Implementer returns verify="FAIL" -> rejected before finalization
+    repo1, head1 = _setup_repo("f2_verify_fail")
+    r1 = lifecycle_runner.LifecycleRunner(root=repo1, epic_slug=epic)
+    impl_fail_verify = {
+        "task_id": "task_03_demo",
+        "status": "DONE",
+        "head_sha": head1,
+        "verify": "FAIL",
+        "finalized": False,
+    }
+    with (
+        patch.object(
+            r1.dispatcher,
+            "dispatch",
+            return_value=(0, f"```json\n{json.dumps(impl_fail_verify)}\n```\n", ""),
+        ),
+        patch.object(r1, "_finalize_task_done") as mock_fin1,
+    ):
+        assert not r1._execute_single_task("task_03_demo")
+        mock_fin1.assert_not_called()
+    assert r1.state.last_error and "verify" in r1.state.last_error.lower()
+
+    # 2. Implementer returns stale head_sha in a real git repo -> rejected before reviewer/finalization
+    repo2, _ = _setup_repo("f2_stale_sha", review_tier="full")
+    r2 = lifecycle_runner.LifecycleRunner(root=repo2, epic_slug=epic)
+    impl_stale = {
+        "task_id": "task_03_demo",
+        "status": "DONE",
+        "head_sha": "old-stale-head",
+        "verify": "PASS",
+        "finalized": False,
+    }
+    with (
+        patch.object(
+            r2.dispatcher,
+            "dispatch",
+            return_value=(0, f"```json\n{json.dumps(impl_stale)}\n```\n", ""),
+        ) as mock_disp2,
+        patch.object(r2, "_finalize_task_done") as mock_fin2,
+    ):
+        assert not r2._execute_single_task("task_03_demo")
+        assert mock_disp2.call_count == 1
+        mock_fin2.assert_not_called()
+    assert r2.state.last_error and "head_sha" in r2.state.last_error
+
+    # 3 & 4. Reviewer returns done_gate="FAIL" or mismatched task_id -> rejected
+    for rev_override in ({"done_gate": "FAIL"}, {"task_id": "other_task"}):
+        label = "done_gate" if "done_gate" in rev_override else "task_id"
+        repo_rev, head_rev = _setup_repo(f"f2_rev_{label}", review_tier="full")
+        r_rev = lifecycle_runner.LifecycleRunner(root=repo_rev, epic_slug=epic)
+
+        def disp_rev(
+            cli: str,
+            args: list[str],
+            prompt: str,
+            _head: str = head_rev,
+            _ov: dict[str, Any] = rev_override,
+        ) -> tuple[int, str, str]:
+            persona, _ = _persona_from_cli_args(cli, args)
+            if persona == "ai_architect_reviewer":
+                rep: dict[str, Any] = {
+                    "task_id": "task_03_demo",
+                    "verdict": "PASS",
+                    "head_sha": _head,
+                    "done_gate": "PASS",
+                    "findings": [],
+                }
+                rep.update(_ov)
+                return 0, f"```json\n{json.dumps(rep)}\n```\n", ""
+            impl_ok = {
+                "task_id": "task_03_demo",
+                "status": "DONE",
+                "head_sha": _head,
+                "verify": "PASS",
+                "finalized": False,
+            }
+            return 0, f"```json\n{json.dumps(impl_ok)}\n```\n", ""
+
+        with (
+            patch.object(r_rev.dispatcher, "dispatch", side_effect=disp_rev),
+            patch.object(r_rev, "_finalize_task_done") as mock_fin_rev,
+        ):
+            assert not r_rev._execute_single_task("task_03_demo")
+            mock_fin_rev.assert_not_called()
+
+    # 5. _finalize_task_done returns False and records last_error when sync_task_status exits non-zero
+    repo5, head5 = _setup_repo("f2_sync_refusal")
+    r5 = lifecycle_runner.LifecycleRunner(root=repo5, epic_slug=epic)
+    sync_stub = repo5 / "sync_stub.py"
+    sync_stub.write_text("# stub\n", encoding="utf-8")
+    real_sub_run = subprocess.run
+    seen_cmds: list[list[str]] = []
+
+    def sub_sync_fail(cmd: Any, **kwargs: Any) -> Any:
+        if isinstance(cmd, list) and cmd:
+            seen_cmds.append(list(cmd))
+            if str(sync_stub) in [str(c) for c in cmd]:
+                return MagicMock(
+                    returncode=1, stdout="", stderr="refused: done gate FAIL"
+                )
+            if cmd[0] == "git":
+                return real_sub_run(cmd, **kwargs)
+        return MagicMock(returncode=0, stdout="", stderr="")
+
+    with patch("subprocess.run", side_effect=sub_sync_fail):
+        fin_ok = r5._finalize_task_done(
+            "task_03_demo", repo5, sync_stub, commit_title="[DEMO] Should not commit"
+        )
+    assert not fin_ok
+    assert r5.state.last_error and "sync_task_status" in r5.state.last_error
+    assert not any(c[:2] == ["git", "commit"] for c in seen_cmds)
+    assert _git(repo5, "rev-parse", "HEAD") == head5
+
+    # 6. Non-git root accepts symbolic SHA "abc123"
+    non_git = tmp_path / "f2_non_git"
+    (non_git / ".devtool" / "features").mkdir(parents=True, exist_ok=True)
+    (non_git / ".devtool" / "features" / "task_03_demo.md").write_text(
+        _make_task_md("task_03_demo", epic, allowed=["src/a.py"]), encoding="utf-8"
+    )
+    r_ng = lifecycle_runner.LifecycleRunner(root=non_git, epic_slug=epic)
+    impl_ng = {
+        "task_id": "task_03_demo",
+        "status": "DONE",
+        "head_sha": "abc123",
+        "verify": "PASS",
+        "finalized": False,
+    }
+    with patch.object(
+        r_ng.dispatcher,
+        "dispatch",
+        return_value=(0, f"```json\n{json.dumps(impl_ng)}\n```\n", ""),
+    ):
+        assert r_ng._execute_single_task("task_03_demo")
+
+
+@pytest.mark.parametrize(
+    "bad_summary",
+    [
+        {"status": "PLANNED"},
+        {
+            "round": True,
+            "status": "PLANNED",
+            "halt_criteria": [],
+            "plan_markdown": "# Plan",
+        },
+        {
+            "round": 1,
+            "status": "PLANNED",
+            "halt_criteria": "none",
+            "plan_markdown": "# Plan",
+        },
+        {
+            "round": 1,
+            "status": "PLANNED",
+            "halt_criteria": [],
+            "plan_markdown": "   \n  ",
+        },
+    ],
+)
+def test_fpg_st_02_rejects_incomplete_or_blank_fix_plan(
+    tmp_path: Path,
+    bad_summary: dict[str, Any],
+) -> None:
+    """[FPG-ST-02] Incomplete or blank PLANNED JSON from fix-planner escalates UNPARSEABLE without writing a file."""
+    repo = tmp_path / "repo_f6"
+    _init_git_repo(repo)
+    epic = "demo_epic"
+    (repo / ".devtool" / "epic" / epic).mkdir(parents=True, exist_ok=True)
+    runner = lifecycle_runner.LifecycleRunner(root=repo, epic_slug=epic)
+
+    with patch.object(
+        runner.dispatcher,
+        "dispatch",
+        return_value=(0, f"```json\n{json.dumps(bad_summary)}\n```\n", ""),
+    ):
+        status, criteria, plan_md = runner._draft_fix_plan(1, "Critical defect")
+
+    assert status == "ESCALATE"
+    assert criteria == ["UNPARSEABLE"]
+    assert plan_md == ""
+    assert not (repo / ".devtool" / "epic" / epic / "fix_plan_round1.md").exists()

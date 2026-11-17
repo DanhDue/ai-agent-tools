@@ -1670,12 +1670,22 @@ class LifecycleRunner:
     ) -> bool:
         """Mark task done via sync_task_status.py and commit changes inside exec_root."""
         if sync_script.is_file():
-            subprocess.run(
+            sync_res = subprocess.run(
                 [sys.executable, "-B", str(sync_script), "task", task_slug, "done"],
                 cwd=exec_root,
                 capture_output=True,
+                text=True,
                 check=False,
             )
+            if sync_res.returncode != 0:
+                raw_err = sync_res.stderr or sync_res.stdout or ""
+                if isinstance(raw_err, bytes):
+                    raw_err = raw_err.decode("utf-8", errors="replace")
+                detail = _tail_lines(str(raw_err), 10) or f"exit={sync_res.returncode}"
+                self.state.last_error = (
+                    f"sync_task_status failed for {task_slug}: {detail}"
+                )
+                return False
 
         if self._is_git_repo(exec_root):
             status_res = subprocess.run(
@@ -1786,7 +1796,22 @@ class LifecycleRunner:
                         f"Task {task_slug} returned status '{impl_status}'"
                     )
                     return False
+                if "verify" in impl_summary:
+                    impl_verify = str(impl_summary.get("verify") or "").strip().upper()
+                    if impl_verify != "PASS":
+                        self.state.last_error = (
+                            f"Task {task_slug} returned verify '{impl_verify or 'missing'}'"
+                        )
+                        return False
                 impl_head_sha = str(impl_summary.get("head_sha") or "").strip()
+                if self._is_git_repo(exec_root):
+                    real_head = self._git_head_sha(exec_root)
+                    if real_head and impl_head_sha != real_head:
+                        self.state.last_error = (
+                            f"Task {task_slug} reported head_sha '{impl_head_sha or 'missing'}' "
+                            f"!= HEAD '{real_head}'"
+                        )
+                        return False
             else:
                 impl_head_sha = ""
             if not impl_head_sha and self._is_git_repo(exec_root):
@@ -1831,9 +1856,27 @@ class LifecycleRunner:
                 if rev_summary is not None
                 else ""
             )
+            rev_done_gate = (
+                str(rev_summary.get("done_gate") or "").strip().upper()
+                if rev_summary is not None
+                else ""
+            )
+            rev_task_id_present = (
+                rev_summary is not None
+                and "task_id" in rev_summary
+                and rev_summary.get("task_id") is not None
+            )
+            rev_task_id = (
+                str(rev_summary.get("task_id") or "").strip()
+                if rev_task_id_present and rev_summary is not None
+                else ""
+            )
+            task_id_ok = (not rev_task_id_present) or (rev_task_id == task_slug)
             if (
                 rev_code == 0
                 and rev_verdict == "PASS"
+                and rev_done_gate == "PASS"
+                and task_id_ok
                 and bool(impl_head_sha)
                 and rev_sha == impl_head_sha
             ):
@@ -1853,7 +1896,8 @@ class LifecycleRunner:
             )
             retry_note = (
                 f"Architect task-reviewer did not PASS for head_sha '{impl_head_sha}' "
-                f"(verdict={rev_verdict or 'UNPARSEABLE'}, reviewer_sha={rev_sha or 'none'}, "
+                f"(verdict={rev_verdict or 'UNPARSEABLE'}, done_gate={rev_done_gate or 'missing'}, "
+                f"task_id={rev_task_id or 'none'}, reviewer_sha={rev_sha or 'none'}, "
                 f"findings={findings_text})."
             )
 
@@ -2663,6 +2707,33 @@ class LifecycleRunner:
         )
         return "\n".join(lines) + "\n"
 
+    def _validate_gate4_report(
+        self, raw_report: Any, candidate_sha: str
+    ) -> tuple[bool, str]:
+        """Validate Gate 4 quality_check_report, checking SHA binding when path-like."""
+        if not isinstance(raw_report, str) or not raw_report.strip():
+            return False, "quality_check_report=missing"
+        report_val = raw_report.strip()
+        if report_val.lower() == "fail":
+            return False, "quality_check_report='fail'"
+        looks_like_path = "/" in report_val or report_val.lower().endswith(
+            (".json", ".md", ".xml")
+        )
+        if not looks_like_path:
+            return True, ""
+        report_path = Path(report_val)
+        if not report_path.is_absolute():
+            report_path = self.root / report_path
+        if not report_path.is_file():
+            return False, f"quality_check_report missing: {report_val}"
+        try:
+            content = report_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return False, f"quality_check_report unreadable: {report_val}"
+        if not candidate_sha or candidate_sha not in content:
+            return False, f"quality_check_report unbound to SHA {candidate_sha}"
+        return True, ""
+
     def run_gate4(self) -> tuple[bool, str]:
         """Execute Stage 3 Gate 4 via a fresh Role 2.3 gate4-verifier with SHA and clean-tree checks."""
         max_attempts = max(4, self.config.max_review_rounds + 1)
@@ -2705,7 +2776,32 @@ class LifecycleRunner:
                     head_sha = candidate_sha or "HEAD"
                     clean_tree = True
 
-                if candidate_sha and candidate_sha == head_sha and clean_tree:
+                reasons: list[str] = []
+                if not candidate_sha or candidate_sha != head_sha:
+                    reasons.append(
+                        f"candidate_sha={candidate_sha or 'missing'} != head={head_sha or 'unknown'}"
+                    )
+                if not clean_tree:
+                    reasons.append("clean_tree=False")
+                audit_exit = summary.get("audit_exit")
+                if (
+                    isinstance(audit_exit, bool)
+                    or not isinstance(audit_exit, int)
+                    or audit_exit != 0
+                ):
+                    reasons.append(f"audit_exit={audit_exit!r}")
+                raw_failures = summary.get("failures")
+                if not isinstance(raw_failures, list) or any(
+                    str(item).strip() for item in raw_failures
+                ):
+                    reasons.append(f"failures={raw_failures!r}")
+                report_ok, report_reason = self._validate_gate4_report(
+                    summary.get("quality_check_report"), candidate_sha
+                )
+                if not report_ok:
+                    reasons.append(report_reason)
+
+                if not reasons:
                     self.state.last_commit_sha = candidate_sha
                     self.sync_gate_ledger(
                         4, f"Gate 4 verification passed for candidate SHA {candidate_sha}"
@@ -2713,11 +2809,11 @@ class LifecycleRunner:
                     self.save_state()
                     return True, "Gate 4 PASS"
 
-                mismatch_msg = (
-                    f"Gate 4 candidate verification rejected (candidate_sha={candidate_sha or 'missing'}, "
-                    f"head={head_sha or 'unknown'}, clean_tree={clean_tree})"
+                last_detail = (
+                    "Gate 4 candidate verification rejected ("
+                    + ", ".join(reasons)
+                    + ")"
                 )
-                last_detail = mismatch_msg
                 continue
 
             raw_failures = summary.get("failures") if summary is not None else None
@@ -2838,7 +2934,9 @@ class LifecycleRunner:
         if exit_code != 0 or summary is None:
             return "ESCALATE", ["UNPARSEABLE"], ""
 
-        status = str(summary.get("status") or "").strip().upper()
+        raw_round = summary.get("round")
+        raw_status = summary.get("status")
+        status = raw_status.strip().upper() if isinstance(raw_status, str) else ""
         raw_criteria = summary.get("halt_criteria")
         criteria = (
             [str(c).strip() for c in raw_criteria if str(c).strip()]
@@ -2848,7 +2946,19 @@ class LifecycleRunner:
         raw_plan = summary.get("plan_markdown")
         plan_markdown = raw_plan if isinstance(raw_plan, str) else ""
 
-        if status == "PLANNED" and not criteria:
+        schema_ok = (
+            isinstance(raw_round, int)
+            and not isinstance(raw_round, bool)
+            and status in {"PLANNED", "ESCALATE"}
+            and isinstance(raw_criteria, list)
+            and isinstance(raw_plan, str)
+        )
+        if (
+            schema_ok
+            and status == "PLANNED"
+            and not criteria
+            and bool(plan_markdown.strip())
+        ):
             epic_dir.mkdir(parents=True, exist_ok=True)
             body = plan_markdown if plan_markdown.endswith("\n") else f"{plan_markdown}\n"
             plan_file.write_text(body, encoding="utf-8")
@@ -2872,7 +2982,7 @@ class LifecycleRunner:
 
         if not criteria:
             criteria = ["CRITICAL_CONFLICT"] if status == "ESCALATE" else ["UNPARSEABLE"]
-        return "ESCALATE", criteria, plan_markdown
+        return "ESCALATE", criteria, ""
 
     def _escalate_fix_plan(self, round_num: int, criteria: list[str]) -> None:
         """Record FIX_PLAN_ESCALATE blocker pending decision and halt pipeline."""
