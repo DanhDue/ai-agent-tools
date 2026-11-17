@@ -404,7 +404,7 @@ Before the loop starts, two routes leave it immediately:
 Everything else enters the loop. A fix round is one fix dispatch plus one
 scoped re-review. Five rounds maximum per task.
 
-**Epic lifecycle routing.** When the loop runs for review findings or a failed Gate 4 inside an epic, the Orchestrator routes by risk and never rules on plans. Low risk (every open finding `Valid`, no escalation marker, or the first failure of a check): a Role 2.3 `review-fixer` runs in `fast-track` mode. High risk (any `Critical`, any escalation marker, or the same check failing twice in a row): dispatch a Role 2.1 `fix-planner` (`--mode read-only`) that writes `fix_plan_round<N>.md` and returns `PLANNED` (a `review-fixer` applies it in `apply-plan` mode) or `ESCALATE` (a halt criterion is touched: record `--pending-decision` and stop for Role 1.0). Write `--checkpoint subagent_returned` after each return.
+**Epic lifecycle routing.** When the loop runs for review findings or a failed Gate 4 inside an epic, the Orchestrator routes by risk and never rules on plans. Low risk (every open finding `Valid`, no escalation marker, or the first failure of a check): a Role 2.3 `review-fixer` runs in `fast-track` mode. High risk (any `Critical`, any escalation marker, or the same check failing twice in a row): dispatch a Role 2.1 `fix-planner` (`--mode read-only`, edits no files) that returns `plan_markdown` and `PLANNED` (Orchestrator writes `fix_plan_round<N>.md`; a `review-fixer` applies it in `apply-plan` mode) or `ESCALATE` (a halt criterion is touched: record `--pending-decision` and stop for Role 1.0). Write `--checkpoint subagent_returned` after each return.
 
 The rounds below are the standalone loop:
 

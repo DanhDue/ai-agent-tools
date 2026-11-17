@@ -547,3 +547,60 @@ def test_window_title_rule_template_matches_english_only_rule() -> None:
     assert "<Tên Epic Tiếng Việt>" not in template
     assert "<Epic Name>" in template
     assert "No `.vi.md` file is read" in template
+
+
+def test_fpg_fix_planner_contract_matches_se04() -> None:
+    """[SE-04] fix-planner is read-only and returns plan_markdown; Orchestrator writes fix_plan_round<N>.md."""
+    roles = _read(ROLES_REL)
+    summary_section = _section(roles, "## 3. Summary Contracts")
+    planner_rows = [
+        line
+        for line in summary_section.splitlines()
+        if line.lstrip().startswith("| `fix-planner`")
+    ]
+    assert len(planner_rows) == 1, (
+        f"Expected one fix-planner summary row, got {planner_rows!r}"
+    )
+    planner_row = planner_rows[0]
+    for required_key in ("`round`", "`status`", "`halt_criteria`", "`plan_markdown`"):
+        assert required_key in planner_row, (
+            f"fix-planner summary row missing {required_key!r}: {planner_row}"
+        )
+    for forbidden_key in ("plan_path", "decision_sha"):
+        assert forbidden_key not in planner_row, (
+            f"fix-planner summary row must not require {forbidden_key!r}: {planner_row}"
+        )
+
+    for rel in (
+        ROLES_REL,
+        "skills/cross-model-review/SKILL.md",
+        RULES_REL,
+        "skills/dev-lifecycle/SKILL.md",
+        "skills/dev-lifecycle/references/governance-checklists.md",
+        "skills/dev-lifecycle/references/autonomous-mode.md",
+        "skills/subagent-driven-development/SKILL.md",
+    ):
+        text = _read(rel)
+        for stale_phrase in (
+            "writes only `fix_plan_round<N>.md`",
+            "may write only `fix_plan_round<N>.md`",
+            "`fix-planner` writes `fix_plan_round<N>.md`",
+            "`fix-planner` writing `fix_plan_round<N>.md`",
+            "`fix-planner` (read-only) writes `fix_plan_round<N>.md`",
+            "that writes `fix_plan_round<N>.md`",
+            "`fix-planner` writes the plan",
+            "Writes `fix_plan_round<N>.md` for high-risk findings",
+        ):
+            assert stale_phrase not in text, (
+                f"{rel} still uses pre-SE-04 wording {stale_phrase!r}"
+            )
+    assert "plan_markdown" in roles
+    assert "plan_markdown" in _read("skills/cross-model-review/SKILL.md")
+    boundaries_section = _section(roles, "## 1. Boundaries")
+    role_21_rows = [
+        line
+        for line in boundaries_section.splitlines()
+        if line.lstrip().startswith("| **Role 2.1")
+    ]
+    assert len(role_21_rows) == 1
+    assert "fix_plan_round" not in role_21_rows[0]

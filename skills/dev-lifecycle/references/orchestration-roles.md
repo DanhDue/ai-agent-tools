@@ -17,8 +17,8 @@ Each persona maps to a config key in `/d3nexus:dev-config` (`ai_architect_review
 | Persona | Config key | May run | May edit | Forbidden |
 |---|---|---|---|---|
 | **Role 1.0 Human Architect** | — | anything | anything | — (owns Gates 1, 2, 5 and every escalation) |
-| **Role 2.1 AI Architect & Reviewer** | `ai_architect_reviewer` | `resume_context.py`, `check_epic_readiness.py`, `package_epic.py`, `run_external_review.py` (synchronous external CLI calls for `/principal-review`), git metadata; as `task-reviewer` only `run_task_checks.py status` and `check_bdd_traceability.py` | spec, HLD, BDD scenarios, task Verification tables and `Allowed files` at design time, non-epic plans, `principal_review.md`, `fix_plan_round<N>.md` | editing `src/` or `tests/`; running test suites, linters or type checkers; dispatching subagents or managing the worker pool |
-| **Role 2.2 Orchestrator** | `orchestrator` | lifecycle scripts (`run_external_review.py`, `compute_execution_order.py`, `manage_worker_pool.py`, `sync_task_status.py`, `resume_context.py`, `dev_config.py`, `package_epic.py`, `check_epic_readiness.py`, `$INTEGRATE preflight`), git metadata (`git rev-parse`, `git status --porcelain`, `git log`, `git diff --name-only`/`--stat`) | Phase 3 Doc Sync prose; task status through `sync_task_status.py`; `review_results.md` / `principal_review.md` Decision cells only for `dismissed:` entries | reading or editing `src/` / `tests/`; editing HLD, BDD, task Verification tables, DoD or `Allowed files`; running tests, linters, type checkers, `run_task_checks.py` or `verify-tier` |
+| **Role 2.1 AI Architect & Reviewer** | `ai_architect_reviewer` | `resume_context.py`, `check_epic_readiness.py`, `package_epic.py`, `run_external_review.py` (synchronous external CLI calls for `/principal-review`), git metadata; as `task-reviewer` only `run_task_checks.py status` and `check_bdd_traceability.py` | spec, HLD, BDD scenarios, task Verification tables and `Allowed files` at design time, non-epic plans, `principal_review.md` | editing `src/` or `tests/`; running test suites, linters or type checkers; dispatching subagents or managing the worker pool |
+| **Role 2.2 Orchestrator** | `orchestrator` | lifecycle scripts (`run_external_review.py`, `compute_execution_order.py`, `manage_worker_pool.py`, `sync_task_status.py`, `resume_context.py`, `dev_config.py`, `package_epic.py`, `check_epic_readiness.py`, `$INTEGRATE preflight`), git metadata (`git rev-parse`, `git status --porcelain`, `git log`, `git diff --name-only`/`--stat`) | Phase 3 Doc Sync prose; `fix_plan_round<N>.md` (from `fix-planner` `plan_markdown`); task status through `sync_task_status.py`; `review_results.md` / `principal_review.md` Decision cells only for `dismissed:` entries | reading or editing `src/` / `tests/`; editing HLD, BDD, task Verification tables, DoD or `Allowed files`; running tests, linters, type checkers, `run_task_checks.py` or `verify-tier` |
 | **Role 2.3 Programmer** | `programmer` | `run_task_checks.py`, `check_code_impact.py`, `check_bdd_traceability.py`, test suites, linters, type checkers, `audit_epic.py`, `@quality_check`, `$INTEGRATE rebase` / `verify-tier` | `src/`, `tests/`, evidence, task status — bounded by the task's `Allowed files`; `fixed in <sha>` Decision cells; the generated `manual_smoke_checklist.md` | editing HLD, BDD scenarios, `shared-contracts/`, task Verification tables / DoD / `Allowed files`; calling `manage_worker_pool.py` |
 
 The Orchestrator reads epic docs (HLD, `bdd_scenarios.en.md`), `review_results.md`, `principal_review.md`, `fix_plan_round<N>.md`, quality reports and subagent summaries; a Role 2.3 subagent reads everything inside its slot or epic worktree.
@@ -33,7 +33,7 @@ The Orchestrator reads epic docs (HLD, `bdd_scenarios.en.md`), `review_results.m
    ```bash
    python3 scripts/dev_config.py resolve <persona> --format argv --mode <read-only|write>
    ```
-   `read-only` serves `task-reviewer` and `fix-planner` (Role 2.1 must not edit code; `fix-planner` writes only `fix_plan_round<N>.md`, which the Orchestrator scope-checks). `write` serves `task-implementer`, `review-fixer` and `gate4-verifier`. Use `--format json` to read the model, effort and fallback.
+   `read-only` serves `task-reviewer` and `fix-planner` (strictly read-only, edits no files; `fix-planner` returns `plan_markdown`, and the Orchestrator writes and commits `fix_plan_round<N>.md`). `write` serves `task-implementer`, `review-fixer` and `gate4-verifier`. Use `--format json` to read the model, effort and fallback.
 2. **Dispatch Role 2.3 through the agy profile pool.** Dispatch headless with the working directory set to the slot or epic worktree, using the pooled dispatcher instead of a hand-built `agy` command:
    ```bash
    python3 scripts/dev_config.py dispatch --persona programmer --mode write --prompt-file <file> --cwd <slot> --log <log> --epic <slug> --task <id> --slot <n>
@@ -60,7 +60,7 @@ python3 scripts/resume_context.py --emit-prompt brief --brief-role <task-impleme
 | `review-fixer` | Role 2.3 | `write` | Applies fixes in `fast-track` or `apply-plan` mode |
 | `gate4-verifier` | Role 2.3 | `write` | Runs full Gate 4 on a fresh context |
 | `principal-reviser` | Role 2.1 | inline or same-model subagent | Revises HLD, BDD and task prose after `/principal-review` findings; read-only on `src/`/`tests/` |
-| `fix-planner` | Role 2.1 | `read-only` | Writes `fix_plan_round<N>.md` for high-risk findings and classifies each against the halt criteria |
+| `fix-planner` | Role 2.1 | `read-only` | Drafts fix plan for high-risk findings (returns `plan_markdown`; Orchestrator writes `fix_plan_round<N>.md`) and classifies against halt criteria |
 
 ## 3. Summary Contracts
 
@@ -73,7 +73,7 @@ Each subagent ends with exactly one fenced `json` block; the Orchestrator reads 
 | `review-fixer` | `round`, `mode` (`fast-track`/`apply-plan`), `status` (`FIXED`/`BLOCKED`), `fix_shas`, `decision_sha`, `changed_files`, `tier1` (`PASS`/`FAIL`) |
 | `gate4-verifier` | `candidate_sha`, `verdict` (`PASS`/`FAIL`), `audit_exit`, `quality_check_report`, `failures` |
 | `principal-reviser` (Role 2.1) | `round`, `status` (`REVISED`/`ESCALATE`), `revision_sha`, `decision_sha`, `changed_files`, `escalations` |
-| `fix-planner` (Role 2.1) | `round`, `status` (`PLANNED`/`ESCALATE`), `plan_path`, `halt_criteria` (list), `decision_sha` |
+| `fix-planner` (Role 2.1) | `round`, `status` (`PLANNED`/`ESCALATE`), `halt_criteria` (list), `plan_markdown` |
 
 ## 4. Independent Verification
 
@@ -87,7 +87,7 @@ The agent that changes code never has the last word on it.
      - the plan touches any halt criterion → `ESCALATE`; record `--pending-decision`, render the Top 3 Highest-Risk Findings, and stop for Role 1.0.
    - The Orchestrator does not rule on fix plans; the plan's author is the design authority and the halt criteria replace the ruling.
 3. **The five halt criteria** (details in [governance-checklists.md](governance-checklists.md)): `CRITICAL_CONFLICT`, `Debatable` / `Not shown`, `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, `MAX_ROUNDS_CRITICAL_REMAINING`.
-4. **Post-fix scope check (review fixers).** The Orchestrator runs `git diff --name-only <pre_sha>..HEAD`. Any path under `shared-contracts/` or `.devtool/epic/<epic_dir>/` other than `review_results.md` / `principal_review.md` / `fix_plan_round<N>.md` halts with `CRITICAL_CONFLICT` (never auto-revert). Other files outside the findings' locations and their tests are listed in the Gate 5 executive report. A `fix-planner` may write only `fix_plan_round<N>.md`.
+4. **Post-fix scope check (review fixers).** The Orchestrator runs `git diff --name-only <pre_sha>..HEAD`. Any path under `shared-contracts/` or `.devtool/epic/<epic_dir>/` other than `review_results.md` / `principal_review.md` / `fix_plan_round<N>.md` halts with `CRITICAL_CONFLICT` (never auto-revert). Other files outside the findings' locations and their tests are listed in the Gate 5 executive report. A `fix-planner` edits no files (strictly read-only; it returns `plan_markdown`, and the Orchestrator writes and commits `fix_plan_round<N>.md`).
 5. **Gate 4 is run by a fresh `gate4-verifier`** — never the implementer, reviewer or fixer of the same round. It edits no code (only the generated smoke checklist commit); on failure it returns `FAIL`, the Orchestrator dispatches a fixer, then a new verifier. The Orchestrator accepts `PASS` only when `candidate_sha == git rev-parse HEAD`, `git status --porcelain` is empty, and the `@quality_check` report it reads is bound to that SHA.
 
 ## Old-to-New Role Mapping

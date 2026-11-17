@@ -48,7 +48,7 @@ External reviews use `max_rounds = 3` and Auto-Triage; details: [governance-chec
 - **`AUTO_PASS_CLEAN` / `AUTO_PASS_FINAL_MINOR_SWEEP`**: verify against source + Spec/HLD, fix valid `Minor` items once.
 - **`AUTO_FIX_ELIGIBLE`** (Rounds 1–2):
   - **Stage 2 `/principal-review` (BOTH Interactive Mode and Autonomous `/dev-lifecycle` Mode)**: run `run_external_review.py triage --kind principal --epic-dir <epic_dir>` and verify findings against source + Spec/HLD. If every blocker is `Valid` with no halt trigger, Role 2.1 revises, runs `check_epic_readiness.py <epic_dir>`, and starts Round `N+1`.
-  - **Stage 3 `/cross-model-review` Autonomous Mode**: low risk (all `Valid`, no escalation marker, or a Gate 4 check's first failure): Role 2.3 `review-fixer` `fast-track`. High risk (any `Critical`, escalation marker, or the same check failing twice): Role 2.1 `fix-planner` writes `fix_plan_round<N>.md`; `PLANNED` -> `review-fixer` `apply-plan`; `ESCALATE` -> `--pending-decision`, stop for Role 1.0.
+  - **Stage 3 `/cross-model-review` Autonomous Mode**: low risk (all `Valid`, no escalation marker, or a Gate 4 check's first failure): Role 2.3 `review-fixer` `fast-track`. High risk (any `Critical`, escalation marker, or the same check failing twice): Role 2.1 `fix-planner` returns `plan_markdown`; `PLANNED` -> `review-fixer` `apply-plan`; `ESCALATE` -> `--pending-decision`, stop for Role 1.0.
 - **Halt criteria (`CIRCUIT_BREAKER_HALT`)**: `CRITICAL_CONFLICT`, `Debatable`/`Not shown`, `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, `MAX_ROUNDS_CRITICAL_REMAINING`.
 
 ## 7. Multi-Repo Boundaries, Symlink Isolation & Contract Governance
