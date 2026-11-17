@@ -103,7 +103,7 @@ def _init_repo(root: Path) -> None:
         "if mode == 'int':\n"
         "    out = pathlib.Path('build/test-results/int.xml')\n"
         "    out.parent.mkdir(parents=True, exist_ok=True)\n"
-        "    out.write_text('<testsuite tests=\"1\"><testcase classname=\"tests.Solo_Integration\" name=\"SOLO-HP-01\"/></testsuite>')\n",
+        '    out.write_text(\'<testsuite tests="1"><testcase classname="tests.Solo_Integration" name="SOLO-HP-01"/></testsuite>\')\n',
         encoding="utf-8",
     )
     _git(root, "add", "-A")
@@ -152,7 +152,7 @@ def _task_markdown(
         f'id: "{task_id}"\n'
         f'status: "todo"\n'
         f'priority: "high"\n'
-        f'assignee: null\n'
+        f"assignee: null\n"
         f'epic: "{epic_slug}"\n'
         f"dueDate: null\n"
         f'created: "2026-11-17T10:00:00Z"\n'
@@ -312,14 +312,14 @@ def _install_md_open_spy(
     monkeypatch.setattr(Path, "read_text", spy_read_text)
     monkeypatch.setenv(
         "PYTHONPATH",
-        f"{site_dir}{os.pathsep}{os.environ.get('PYTHONPATH', '')}".rstrip(
-            os.pathsep
-        ),
+        f"{site_dir}{os.pathsep}{os.environ.get('PYTHONPATH', '')}".rstrip(os.pathsep),
     )
 
     def collect_vi_reads() -> list[str]:
         subproc_paths = (
-            spy_log.read_text(encoding="utf-8").splitlines() if spy_log.is_file() else []
+            spy_log.read_text(encoding="utf-8").splitlines()
+            if spy_log.is_file()
+            else []
         )
         return [p for p in (recorded_in_proc + subproc_paths) if p.endswith(".vi.md")]
 
@@ -596,8 +596,12 @@ class Test_FPG_English_Only_Integration:
         assert len(amendments) == 1
         assert "solo_epic.en.md at base" in amendments[0]
         assert "solo_epic.md at HEAD" in amendments[0]
-        assert "-Integration results: python3 tool.py v1 -> build/int.xml" in amendments[0]
-        assert "+Integration results: python3 tool.py v2 -> build/int.xml" in amendments[0]
+        assert (
+            "-Integration results: python3 tool.py v1 -> build/int.xml" in amendments[0]
+        )
+        assert (
+            "+Integration results: python3 tool.py v2 -> build/int.xml" in amendments[0]
+        )
 
     def test_fpg_ec_04_legacy_bilingual_resolves_english_never_reads_vi(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -680,7 +684,10 @@ class Test_FPG_English_Only_Integration:
         try:
             # 1. check_epic_readiness.py legacy_epic --strict-bilingual
             cer_out, cer_err = io.StringIO(), io.StringIO()
-            with contextlib.redirect_stdout(cer_out), contextlib.redirect_stderr(cer_err):
+            with (
+                contextlib.redirect_stdout(cer_out),
+                contextlib.redirect_stderr(cer_err),
+            ):
                 cer_rc = cer.main(["legacy_epic", "--strict-bilingual"])
             assert cer_rc == 0, cer_out.getvalue() + cer_err.getvalue()
             assert (
@@ -697,12 +704,18 @@ class Test_FPG_English_Only_Integration:
                 ["sync_task_status.py", "epic", "legacy_epic", "Packaged"],
             )
             sts_out, sts_err = io.StringIO(), io.StringIO()
-            with contextlib.redirect_stdout(sts_out), contextlib.redirect_stderr(sts_err):
+            with (
+                contextlib.redirect_stdout(sts_out),
+                contextlib.redirect_stderr(sts_err),
+            ):
                 sts.main()
 
             # 3. check_bdd_traceability.py plan --strict-bilingual
             cbt_out, cbt_err = io.StringIO(), io.StringIO()
-            with contextlib.redirect_stdout(cbt_out), contextlib.redirect_stderr(cbt_err):
+            with (
+                contextlib.redirect_stdout(cbt_out),
+                contextlib.redirect_stderr(cbt_err),
+            ):
                 cbt_rc = cbt.main(
                     [
                         "plan",
@@ -870,7 +883,9 @@ def test_epic_docs_resolution_order_and_git_rev(tmp_path: Path) -> None:
         ed.resolve_epic_doc_at(repo, rev_en_only, ".devtool/epic/demo", "demo")
         == ".devtool/epic/demo/demo.en.md"
     )
-    assert ed.resolve_epic_doc_at(repo, rev_vi_only, ".devtool/epic/demo", "demo") is None
+    assert (
+        ed.resolve_epic_doc_at(repo, rev_vi_only, ".devtool/epic/demo", "demo") is None
+    )
 
 
 def test_ownership_transitive_blocking_and_path_normalization(tmp_path: Path) -> None:
@@ -1127,7 +1142,9 @@ def test_task_discovery_never_opens_vi_mirrors(
             assert not failed
         elif caller == "run_task_checks_task_discovery":
             tc = _load_script("task_contract", DEV_IMPL_SCRIPTS / "task_contract.py")
-            rtc = _load_script("run_task_checks", DEV_IMPL_SCRIPTS / "run_task_checks.py")
+            rtc = _load_script(
+                "run_task_checks", DEV_IMPL_SCRIPTS / "run_task_checks.py"
+            )
             layout = tc.epic_layout(epic_dir / "task_01_x.md")
             _, programs_untracked = rtc.protected_patterns(layout, repo)
             assert "src/vi_sentinel_only.py" not in programs_untracked

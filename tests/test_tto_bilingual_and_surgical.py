@@ -360,7 +360,13 @@ def test_tto_st_03_strict_bilingual_stage4_gate() -> None:
         hld_vi.write_text("# Stale VI\n", encoding="utf-8")
         bdd_vi.unlink()
         _git(repo, "add", "-A")
-        _git(repo, "commit", "-q", "-m", "Stale vi mirror and missing bdd_scenarios.vi.md")
+        _git(
+            repo,
+            "commit",
+            "-q",
+            "-m",
+            "Stale vi mirror and missing bdd_scenarios.vi.md",
+        )
 
         strict_pass = _run_py(cer_script, repo, "demo_epic", "--strict-bilingual")
         assert strict_pass.returncode == 0, strict_pass.stdout + strict_pass.stderr

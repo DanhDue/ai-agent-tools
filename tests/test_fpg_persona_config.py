@@ -159,13 +159,18 @@ def test_fpg_hp_01_layered_resolution_reports_sources(
     loaded = pc.load_persona_config(project)
     assert loaded["schema_version"] == 1
     assert loaded["active_preset"] == "claude-hybrid"
-    assert pc.resolve_persona("ai_architect_reviewer", project).sources["model"] == "global"
+    assert (
+        pc.resolve_persona("ai_architect_reviewer", project).sources["model"]
+        == "global"
+    )
 
 
 class Test_Integration:
     """[Tier C - Integration] Subprocess CLI integration tests for dev_config.py."""
 
-    def test_fpg_hp_02_dev_config_models_and_bindable_alias(self, tmp_path: Path) -> None:
+    def test_fpg_hp_02_dev_config_models_and_bindable_alias(
+        self, tmp_path: Path
+    ) -> None:
         """FPG-HP-02: dev-config models lists catalogue and newly added alias becomes bindable."""
         real_home = tmp_path / "real_home"
         project = tmp_path / "project"
@@ -394,7 +399,14 @@ class Test_Integration:
         assert pc.effective_turn_budget(project, "p1", real_home=real_home) == 1
 
         res_argv = _run_cli(
-            ["resolve", "ai_architect_reviewer", "--format", "argv", "--mode", "read-only"],
+            [
+                "resolve",
+                "ai_architect_reviewer",
+                "--format",
+                "argv",
+                "--mode",
+                "read-only",
+            ],
             cwd=project,
             real_home=real_home,
             path_dir=bin_dir,
@@ -419,7 +431,10 @@ class Test_Integration:
     ("args", "rejected"),
     [
         (["set", "programmer", "argon", "xhigh", "--scope", "project"], "xhigh"),
-        (["set", "programmer", "nosuchmodel", "high", "--scope", "project"], "nosuchmodel"),
+        (
+            ["set", "programmer", "nosuchmodel", "high", "--scope", "project"],
+            "nosuchmodel",
+        ),
         (["set", "reviewer", "argon", "high", "--scope", "project"], "reviewer"),
         (
             [
@@ -501,13 +516,18 @@ def test_fpg_ec_01_validation_rejects_bad_schema_and_file(tmp_path: Path) -> Non
     real_home = tmp_path / "real_home"
     project = tmp_path / "project"
     real_home.mkdir()
-    _write_json(project / ".agents" / "config" / "personas.json", {"schema_version": 99})
+    _write_json(
+        project / ".agents" / "config" / "personas.json", {"schema_version": 99}
+    )
     with pytest.raises(pc.PersonaConfigError, match="schema_version"):
         pc.load_persona_config(project, real_home=real_home)
 
     _write_json(
         project / ".agents" / "config" / "personas.json",
-        {"schema_version": 1, "overrides": {"reviewer": {"model": "argon", "effort": "high"}}},
+        {
+            "schema_version": 1,
+            "overrides": {"reviewer": {"model": "argon", "effort": "high"}},
+        },
     )
     with pytest.raises(pc.PersonaConfigError, match="reviewer"):
         pc.load_persona_config(project, real_home=real_home)
@@ -526,7 +546,10 @@ def test_fpg_ec_02_legacy_model_settings_ignored_and_reported(
         {
             "providers": {
                 "programmer": {"model": "gemini-3.8-flash", "thinking_level": "high"},
-                "assistant": {"model": "claude-opus-5-5-high", "thinking_level": "high"},
+                "assistant": {
+                    "model": "claude-opus-5-5-high",
+                    "thinking_level": "high",
+                },
             }
         },
     )
@@ -649,7 +672,14 @@ def test_fpg_ar_05_concurrent_writers_never_lose_updates(tmp_path: Path) -> None
     base_env.pop("ANTIGRAVITY_PROFILE", None)
 
     cmds = [
-        [sys.executable, str(DEV_CONFIG_SCRIPT), "set", "programmer", "hydrogen", "high"],
+        [
+            sys.executable,
+            str(DEV_CONFIG_SCRIPT),
+            "set",
+            "programmer",
+            "hydrogen",
+            "high",
+        ],
         [
             sys.executable,
             str(DEV_CONFIG_SCRIPT),
@@ -712,39 +742,99 @@ def test_fpg_ar_05_concurrent_writers_never_lose_updates(tmp_path: Path) -> None
         (
             "default",
             {
-                "ai_architect_reviewer": ("argon", "high", "gemini-4-argon-high", "argonWeekly"),
-                "orchestrator": ("hydrogen", "high", "gemini-4-hydrogen-high", "gemini5h"),
-                "programmer": ("hydrogen", "xhigh", "gemini-4-hydrogen-xhigh", "gemini5h"),
+                "ai_architect_reviewer": (
+                    "argon",
+                    "high",
+                    "gemini-4-argon-high",
+                    "argonWeekly",
+                ),
+                "orchestrator": (
+                    "hydrogen",
+                    "high",
+                    "gemini-4-hydrogen-high",
+                    "gemini5h",
+                ),
+                "programmer": (
+                    "hydrogen",
+                    "xhigh",
+                    "gemini-4-hydrogen-xhigh",
+                    "gemini5h",
+                ),
             },
         ),
         (
             "gemini-saver",
             {
-                "ai_architect_reviewer": ("argon", "medium", "gemini-4-argon-medium", "argonWeekly"),
-                "orchestrator": ("hydrogen", "medium", "gemini-4-hydrogen-medium", "gemini5h"),
-                "programmer": ("hydrogen", "high", "gemini-4-hydrogen-high", "gemini5h"),
+                "ai_architect_reviewer": (
+                    "argon",
+                    "medium",
+                    "gemini-4-argon-medium",
+                    "argonWeekly",
+                ),
+                "orchestrator": (
+                    "hydrogen",
+                    "medium",
+                    "gemini-4-hydrogen-medium",
+                    "gemini5h",
+                ),
+                "programmer": (
+                    "hydrogen",
+                    "high",
+                    "gemini-4-hydrogen-high",
+                    "gemini5h",
+                ),
             },
         ),
         (
             "claude-hybrid",
             {
                 "ai_architect_reviewer": ("claude-opus", "high", "opus", "provider"),
-                "orchestrator": ("hydrogen", "high", "gemini-4-hydrogen-high", "gemini5h"),
-                "programmer": ("hydrogen", "xhigh", "gemini-4-hydrogen-xhigh", "gemini5h"),
+                "orchestrator": (
+                    "hydrogen",
+                    "high",
+                    "gemini-4-hydrogen-high",
+                    "gemini5h",
+                ),
+                "programmer": (
+                    "hydrogen",
+                    "xhigh",
+                    "gemini-4-hydrogen-xhigh",
+                    "gemini5h",
+                ),
             },
         ),
         (
             "all-hydrogen",
             {
-                "ai_architect_reviewer": ("hydrogen", "xhigh", "gemini-4-hydrogen-xhigh", "gemini5h"),
-                "orchestrator": ("hydrogen", "high", "gemini-4-hydrogen-high", "gemini5h"),
-                "programmer": ("hydrogen", "xhigh", "gemini-4-hydrogen-xhigh", "gemini5h"),
+                "ai_architect_reviewer": (
+                    "hydrogen",
+                    "xhigh",
+                    "gemini-4-hydrogen-xhigh",
+                    "gemini5h",
+                ),
+                "orchestrator": (
+                    "hydrogen",
+                    "high",
+                    "gemini-4-hydrogen-high",
+                    "gemini5h",
+                ),
+                "programmer": (
+                    "hydrogen",
+                    "xhigh",
+                    "gemini-4-hydrogen-xhigh",
+                    "gemini5h",
+                ),
             },
         ),
         (
             "codex-kiro",
             {
-                "ai_architect_reviewer": ("kiro-opus", "high", "claude-opus-5.5", "provider"),
+                "ai_architect_reviewer": (
+                    "kiro-opus",
+                    "high",
+                    "claude-opus-5.5",
+                    "provider",
+                ),
                 "orchestrator": ("codex-gpt", "medium", "gpt-6.1-sol", "provider"),
                 "programmer": ("codex-gpt", "xhigh", "gpt-6.1-sol", "provider"),
             },
@@ -778,7 +868,16 @@ def test_fpg_hp_01_all_five_presets_resolve(
         ({"schema_version": True}, "schema_version"),
         ({"unknown_top": 1}, "unknown_top"),
         ({"active_preset": "missing-preset"}, "missing-preset"),
-        ({"presets": {"bad": {"ai_architect_reviewer": {"model": "argon", "effort": "high"}}}}, "orchestrator"),
+        (
+            {
+                "presets": {
+                    "bad": {
+                        "ai_architect_reviewer": {"model": "argon", "effort": "high"}
+                    }
+                }
+            },
+            "orchestrator",
+        ),
         (
             {
                 "presets": {
@@ -793,11 +892,23 @@ def test_fpg_hp_01_all_five_presets_resolve(
             "reviewer",
         ),
         (
-            {"overrides": {"programmer": {"model": "hydrogen", "effort": "high", "extra": 1}}},
+            {
+                "overrides": {
+                    "programmer": {"model": "hydrogen", "effort": "high", "extra": 1}
+                }
+            },
             "extra",
         ),
         (
-            {"overrides": {"programmer": {"model": "hydrogen", "effort": "high", "fallback_model": "ghost"}}},
+            {
+                "overrides": {
+                    "programmer": {
+                        "model": "hydrogen",
+                        "effort": "high",
+                        "fallback_model": "ghost",
+                    }
+                }
+            },
             "ghost",
         ),
         (
@@ -809,17 +920,41 @@ def test_fpg_hp_01_all_five_presets_resolve(
             "efforts",
         ),
         (
-            {"models": {"bad": {"cli": "codex", "id": "gpt", "efforts": ["high"], "quota_pool": "argonWeekly"}}},
+            {
+                "models": {
+                    "bad": {
+                        "cli": "codex",
+                        "id": "gpt",
+                        "efforts": ["high"],
+                        "quota_pool": "argonWeekly",
+                    }
+                }
+            },
             "argonWeekly",
         ),
         (
-            {"models": {"bad": {"cli": "agy", "id": "x", "efforts": ["high"], "quota_pool": "monthly"}}},
+            {
+                "models": {
+                    "bad": {
+                        "cli": "agy",
+                        "id": "x",
+                        "efforts": ["high"],
+                        "quota_pool": "monthly",
+                    }
+                }
+            },
             "monthly",
         ),
-        ({"checkpoint_policy": {"max_orchestrator_turns_before_checkpoint": True}}, "True"),
+        (
+            {"checkpoint_policy": {"max_orchestrator_turns_before_checkpoint": True}},
+            "True",
+        ),
         ({"checkpoint_policy": {"max_orchestrator_turns_before_checkpoint": -2}}, "-2"),
         ({"low_quota": {"p1": {"enabled": "yes"}}}, "enabled"),
-        ({"low_quota": {"p1": {"enabled": True, "expires_at": "not-a-date"}}}, "not-a-date"),
+        (
+            {"low_quota": {"p1": {"enabled": True, "expires_at": "not-a-date"}}},
+            "not-a-date",
+        ),
     ],
 )
 def test_fpg_ec_01_validation_branches(
@@ -856,7 +991,9 @@ def test_fpg_ec_01_corrupt_json_and_cli_usage_errors(tmp_path: Path) -> None:
     with pytest.raises(pc.PersonaConfigError, match="bogus"):
         pc.resolve_persona("bogus", project, real_home=real_home)
     with pytest.raises(pc.PersonaConfigError, match="extra"):
-        pc.resolve_persona("programmer", project, cli_overrides={"extra": "1"}, real_home=real_home)
+        pc.resolve_persona(
+            "programmer", project, cli_overrides={"extra": "1"}, real_home=real_home
+        )
     with pytest.raises(pc.PersonaConfigError, match="bogus"):
         pc.build_dispatch_argv(
             pc.resolve_persona("programmer", project, real_home=real_home),

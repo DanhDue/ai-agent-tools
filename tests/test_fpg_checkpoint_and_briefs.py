@@ -48,12 +48,31 @@ def _isolated_host_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
 
 def _init_git_repo(repo: Path) -> None:
     repo.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["git", "init", "-b", "main"], cwd=repo, capture_output=True, check=True)
-    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, capture_output=True, check=True)
-    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(
+        ["git", "init", "-b", "main"], cwd=repo, capture_output=True, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"],
+        cwd=repo,
+        capture_output=True,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        capture_output=True,
+        check=True,
+    )
     (repo / "README.md").write_text("# Test Repo\n", encoding="utf-8")
-    subprocess.run(["git", "add", "README.md"], cwd=repo, capture_output=True, check=True)
-    subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(
+        ["git", "add", "README.md"], cwd=repo, capture_output=True, check=True
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "Initial commit"],
+        cwd=repo,
+        capture_output=True,
+        check=True,
+    )
 
 
 def _run_resume_cli(
@@ -97,7 +116,9 @@ def test_fpg_hp_04_checkpoint_writes_heartbeat_state_and_event(tmp_path: Path) -
     safe_slug = _state_envelope._sanitize_epic_slug("fpg_epic")
     events_path = repo / ".devtool" / "logs" / f"events_{safe_slug}.jsonl"
     before_lines = (
-        events_path.read_text(encoding="utf-8").splitlines() if events_path.exists() else []
+        events_path.read_text(encoding="utf-8").splitlines()
+        if events_path.exists()
+        else []
     )
 
     proc = _run_resume_cli(
@@ -127,7 +148,9 @@ def test_fpg_hp_04_checkpoint_writes_heartbeat_state_and_event(tmp_path: Path) -
     assert isinstance(cp["at"], str) and "T" in cp["at"]
     assert cp["low_quota"] is False
 
-    state_text = (repo / ".devtool" / "state" / "fpg_epic.md").read_text(encoding="utf-8")
+    state_text = (repo / ".devtool" / "state" / "fpg_epic.md").read_text(
+        encoding="utf-8"
+    )
     assert "## Next Immediate Step:" in state_text
     next_section = state_text.split("## Next Immediate Step:", 1)[1]
     assert "dispatch task_03 reviewer" in next_section
@@ -148,7 +171,9 @@ def test_fpg_hp_04_checkpoint_writes_heartbeat_state_and_event(tmp_path: Path) -
     )
 
 
-def test_fpg_hp_05_briefs_and_implement_prompt_persona_binding_no_vi(tmp_path: Path) -> None:
+def test_fpg_hp_05_briefs_and_implement_prompt_persona_binding_no_vi(
+    tmp_path: Path,
+) -> None:
     """[FPG-HP-05] Briefs and implement prompt name resolved persona bindings and omit .vi.md."""
     repo = tmp_path / "repo"
     home_dir = tmp_path / "home"
@@ -172,24 +197,41 @@ def test_fpg_hp_05_briefs_and_implement_prompt_persona_binding_no_vi(tmp_path: P
 
     epic_dir = repo / ".devtool" / "epic" / "fpg_epic"
     epic_dir.mkdir(parents=True, exist_ok=True)
-    (epic_dir / "fpg_epic.en.md").write_text("# Epic: FPG Governance\n", encoding="utf-8")
-    (epic_dir / "fpg_epic.vi.md").write_text("# Epic: Ban tieng Viet\n", encoding="utf-8")
+    (epic_dir / "fpg_epic.en.md").write_text(
+        "# Epic: FPG Governance\n", encoding="utf-8"
+    )
+    (epic_dir / "fpg_epic.vi.md").write_text(
+        "# Epic: Ban tieng Viet\n", encoding="utf-8"
+    )
     (epic_dir / "bdd_scenarios.en.md").write_text("# BDD Scenarios\n", encoding="utf-8")
     (epic_dir / "bdd_scenarios.vi.md").write_text("# Kich ban BDD\n", encoding="utf-8")
 
-    arch_binding = persona_config.resolve_persona("ai_architect_reviewer", repo, real_home=home_dir)
-    expected_ro_argv = shlex.join(persona_config.build_dispatch_argv(arch_binding, "read-only"))
+    arch_binding = persona_config.resolve_persona(
+        "ai_architect_reviewer", repo, real_home=home_dir
+    )
+    expected_ro_argv = shlex.join(
+        persona_config.build_dispatch_argv(arch_binding, "read-only")
+    )
 
     rev_proc = _run_resume_cli(
         repo,
-        ["--emit-prompt", "brief", "--brief-role", "task-reviewer", "--epic", "fpg_epic"],
+        [
+            "--emit-prompt",
+            "brief",
+            "--brief-role",
+            "task-reviewer",
+            "--epic",
+            "fpg_epic",
+        ],
         home_dir=home_dir,
     )
     assert rev_proc.returncode == 0, rev_proc.stderr
     assert "Role 2.1 AI Architect & Reviewer" in rev_proc.stdout
     assert expected_ro_argv in rev_proc.stdout
     assert "--model gemini-4-argon-high --effort high" in rev_proc.stdout
-    assert "forbid" in rev_proc.stdout.lower() or "do not edit" in rev_proc.stdout.lower()
+    assert (
+        "forbid" in rev_proc.stdout.lower() or "do not edit" in rev_proc.stdout.lower()
+    )
     assert "mark `done` and commit" not in rev_proc.stdout
     assert ".vi.md" not in rev_proc.stdout
 
@@ -232,7 +274,9 @@ def test_fpg_ec_03_legacy_assistant_role_maps_to_architect(tmp_path: Path) -> No
     )
     assert proc.returncode == 0, f"stdout={proc.stdout}\nstderr={proc.stderr}"
 
-    state_text = (repo / ".devtool" / "state" / "fpg_epic.md").read_text(encoding="utf-8")
+    state_text = (repo / ".devtool" / "state" / "fpg_epic.md").read_text(
+        encoding="utf-8"
+    )
     assert "Role: architect" in state_text
     assert "Role: assistant" not in state_text
 
@@ -241,14 +285,26 @@ def test_fpg_ec_03_legacy_assistant_role_maps_to_architect(tmp_path: Path) -> No
     assert "invalid choice" in bad_proc.stderr.lower()
 
 
-def test_fpg_ar_01_concurrent_checkpoints_root_and_worktree_lock(tmp_path: Path) -> None:
+def test_fpg_ar_01_concurrent_checkpoints_root_and_worktree_lock(
+    tmp_path: Path,
+) -> None:
     """[FPG-AR-01] Concurrent checkpoint updates across root and worktree stay consistent under lock."""
     repo = tmp_path / "repo"
     _init_git_repo(repo)
 
     wt = repo / ".worktrees" / "conc_epic"
     subprocess.run(
-        ["git", "-C", str(repo), "worktree", "add", str(wt), "-b", "epic/conc_epic", "main"],
+        [
+            "git",
+            "-C",
+            str(repo),
+            "worktree",
+            "add",
+            str(wt),
+            "-b",
+            "epic/conc_epic",
+            "main",
+        ],
         capture_output=True,
         check=True,
     )
@@ -283,14 +339,20 @@ def test_fpg_ar_01_concurrent_checkpoints_root_and_worktree_lock(tmp_path: Path)
 
     safe_slug = _state_envelope._sanitize_epic_slug("conc_epic")
     repo_hb = json.loads(
-        (repo / ".devtool" / "state" / f"{safe_slug}.heartbeat.json").read_text(encoding="utf-8")
+        (repo / ".devtool" / "state" / f"{safe_slug}.heartbeat.json").read_text(
+            encoding="utf-8"
+        )
     )
     wt_hb = json.loads(
-        (wt / ".devtool" / "state" / f"{safe_slug}.heartbeat.json").read_text(encoding="utf-8")
+        (wt / ".devtool" / "state" / f"{safe_slug}.heartbeat.json").read_text(
+            encoding="utf-8"
+        )
     )
     assert repo_hb["checkpoint"] == wt_hb["checkpoint"]
 
-    expected_steps = {f"thread-{tid}-step-{idx}" for tid in range(6) for idx in range(5)}
+    expected_steps = {
+        f"thread-{tid}-step-{idx}" for tid in range(6) for idx in range(5)
+    }
     for base in (repo, wt):
         events_file = base / ".devtool" / "logs" / f"events_{safe_slug}.jsonl"
         parsed = [
@@ -325,13 +387,22 @@ def test_all_checkpoint_events_accepted_and_invalid_rejected(
 
     proc = _run_resume_cli(
         repo,
-        ["--checkpoint", event_name, "--epic", "ev_epic", "--next", f"handle {event_name}"],
+        [
+            "--checkpoint",
+            event_name,
+            "--epic",
+            "ev_epic",
+            "--next",
+            f"handle {event_name}",
+        ],
         home_dir=home_dir,
     )
     assert proc.returncode == 0, proc.stderr
     safe_slug = _state_envelope._sanitize_epic_slug("ev_epic")
     hb = json.loads(
-        (repo / ".devtool" / "state" / f"{safe_slug}.heartbeat.json").read_text(encoding="utf-8")
+        (repo / ".devtool" / "state" / f"{safe_slug}.heartbeat.json").read_text(
+            encoding="utf-8"
+        )
     )
     assert hb["checkpoint"]["event"] == event_name
 
@@ -352,7 +423,9 @@ def test_checkpoint_records_low_quota_and_optional_warning(tmp_path: Path) -> No
 
     d3_dir = home_dir / ".d3nexus"
     d3_dir.mkdir(parents=True, exist_ok=True)
-    future = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat(timespec="seconds")
+    future = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat(
+        timespec="seconds"
+    )
     (d3_dir / "personas.json").write_text(
         json.dumps(
             {
@@ -371,19 +444,30 @@ def test_checkpoint_records_low_quota_and_optional_warning(tmp_path: Path) -> No
 
     proc = _run_resume_cli(
         repo,
-        ["--checkpoint", "low_quota_stop", "--epic", "lq_epic", "--next", "wait for quota"],
+        [
+            "--checkpoint",
+            "low_quota_stop",
+            "--epic",
+            "lq_epic",
+            "--next",
+            "wait for quota",
+        ],
         home_dir=home_dir,
     )
     assert proc.returncode == 0, proc.stderr
     safe_slug = _state_envelope._sanitize_epic_slug("lq_epic")
     hb = json.loads(
-        (repo / ".devtool" / "state" / f"{safe_slug}.heartbeat.json").read_text(encoding="utf-8")
+        (repo / ".devtool" / "state" / f"{safe_slug}.heartbeat.json").read_text(
+            encoding="utf-8"
+        )
     )
     assert hb["checkpoint"]["low_quota"] is True
     assert "review_config.json" in hb["checkpoint"]["warning"]
 
 
-def test_brief_roles_contracts_and_missing_brief_role_argparse_error(tmp_path: Path) -> None:
+def test_brief_roles_contracts_and_missing_brief_role_argparse_error(
+    tmp_path: Path,
+) -> None:
     """All five brief roles render valid persona contracts and missing --brief-role uses parser.error."""
     repo = tmp_path / "repo"
     home_dir = tmp_path / "home"
@@ -410,7 +494,14 @@ def test_brief_roles_contracts_and_missing_brief_role_argparse_error(tmp_path: P
 
     impl = _run_resume_cli(
         repo,
-        ["--emit-prompt", "brief", "--brief-role", "task-implementer", "--epic", "demo"],
+        [
+            "--emit-prompt",
+            "brief",
+            "--brief-role",
+            "task-implementer",
+            "--epic",
+            "demo",
+        ],
         home_dir=home_dir,
     )
     assert impl.returncode == 0, impl.stderr
@@ -428,13 +519,17 @@ def test_brief_roles_contracts_and_missing_brief_role_argparse_error(tmp_path: P
     assert "NameError" not in missing.stderr
 
 
-def test_english_only_resolution_prefers_md_then_en_and_never_reads_vi(tmp_path: Path) -> None:
+def test_english_only_resolution_prefers_md_then_en_and_never_reads_vi(
+    tmp_path: Path,
+) -> None:
     """sync_window_title, build_compact_context, and emit_handoff_prompt resolve .md before .en.md and skip .vi.md."""
     repo = tmp_path / "repo"
     _init_git_repo(repo)
     epic_dir = repo / ".devtool" / "epic" / "eng_epic"
     epic_dir.mkdir(parents=True, exist_ok=True)
-    (epic_dir / "eng_epic.vi.md").write_text("# Epic: Vietnamese Ignored\n", encoding="utf-8")
+    (epic_dir / "eng_epic.vi.md").write_text(
+        "# Epic: Vietnamese Ignored\n", encoding="utf-8"
+    )
     (epic_dir / "eng_epic.en.md").write_text(
         "# Epic: Legacy English Title\n- **Epic**: eng_epic\n- **Status**: Legacy Status\n",
         encoding="utf-8",
@@ -444,8 +539,12 @@ def test_english_only_resolution_prefers_md_then_en_and_never_reads_vi(tmp_path:
         encoding="utf-8",
     )
 
-    resume_context.sync_window_title(repo, epic_slug="eng_epic", stage_override="Stage 3")
-    settings = json.loads((repo / ".vscode" / "settings.json").read_text(encoding="utf-8"))
+    resume_context.sync_window_title(
+        repo, epic_slug="eng_epic", stage_override="Stage 3"
+    )
+    settings = json.loads(
+        (repo / ".vscode" / "settings.json").read_text(encoding="utf-8")
+    )
     assert "Canonical English Title" in settings["window.title"]
     assert "Vietnamese Ignored" not in settings["window.title"]
 
@@ -455,8 +554,12 @@ def test_english_only_resolution_prefers_md_then_en_and_never_reads_vi(tmp_path:
     assert ".vi.md" not in compact
 
     (epic_dir / "eng_epic.md").unlink()
-    resume_context.sync_window_title(repo, epic_slug="eng_epic", stage_override="Stage 3")
-    settings_en = json.loads((repo / ".vscode" / "settings.json").read_text(encoding="utf-8"))
+    resume_context.sync_window_title(
+        repo, epic_slug="eng_epic", stage_override="Stage 3"
+    )
+    settings_en = json.loads(
+        (repo / ".vscode" / "settings.json").read_text(encoding="utf-8")
+    )
     assert "Legacy English Title" in settings_en["window.title"]
     assert "Vietnamese Ignored" not in settings_en["window.title"]
 
@@ -521,7 +624,9 @@ def test_checkpoint_preserves_prior_state_and_collects_tasks(tmp_path: Path) -> 
 
     safe_slug = _state_envelope._sanitize_epic_slug("cp_epic")
     hb = json.loads(
-        (repo / ".devtool" / "state" / f"{safe_slug}.heartbeat.json").read_text(encoding="utf-8")
+        (repo / ".devtool" / "state" / f"{safe_slug}.heartbeat.json").read_text(
+            encoding="utf-8"
+        )
     )
     cp = hb["checkpoint"]
     assert cp["tasks_done"] == ["task_01_alpha"]
@@ -529,7 +634,9 @@ def test_checkpoint_preserves_prior_state_and_collects_tasks(tmp_path: Path) -> 
     assert cp["wave"] == 1
     assert cp["next_step"] == "Start wave 2"
 
-    state_text = (repo / ".devtool" / "state" / "cp_epic.md").read_text(encoding="utf-8")
+    state_text = (repo / ".devtool" / "state" / "cp_epic.md").read_text(
+        encoding="utf-8"
+    )
     assert "Locked Gate 2 scope" in state_text
     assert "Stage 3 Wave 1" in state_text
     assert "Start wave 2" in state_text
@@ -544,7 +651,9 @@ def test_filter_english_doc_paths_drops_vi_mirrors() -> None:
     assert filtered == ["a.md", "b.en.md", "dir/e-design.md"]
 
 
-def test_checkpoint_with_workspace_root_and_repo_targets_repo_devtool(tmp_path: Path) -> None:
+def test_checkpoint_with_workspace_root_and_repo_targets_repo_devtool(
+    tmp_path: Path,
+) -> None:
     """--checkpoint with both --workspace-root and --repo writes heartbeat, events, tasks, and state to the target repo."""
     ws = tmp_path / "ws"
     target_repo = ws / "D3Nexus"
@@ -658,9 +767,14 @@ def test_checkpoint_cross_repo_and_worktree_head_sha(tmp_path: Path) -> None:
     _init_git_repo(caller_repo)
 
     (target_repo / "target.txt").write_text("target commit\n", encoding="utf-8")
-    subprocess.run(["git", "add", "target.txt"], cwd=target_repo, capture_output=True, check=True)
     subprocess.run(
-        ["git", "commit", "-m", "Target commit"], cwd=target_repo, capture_output=True, check=True
+        ["git", "add", "target.txt"], cwd=target_repo, capture_output=True, check=True
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "Target commit"],
+        cwd=target_repo,
+        capture_output=True,
+        check=True,
     )
 
     target_sha = subprocess.run(
@@ -708,13 +822,28 @@ def test_checkpoint_cross_repo_and_worktree_head_sha(tmp_path: Path) -> None:
 
     wt = target_repo / ".worktrees" / "wt_sha_epic"
     subprocess.run(
-        ["git", "-C", str(target_repo), "worktree", "add", str(wt), "-b", "epic/wt_sha_epic", "main"],
+        [
+            "git",
+            "-C",
+            str(target_repo),
+            "worktree",
+            "add",
+            str(wt),
+            "-b",
+            "epic/wt_sha_epic",
+            "main",
+        ],
         capture_output=True,
         check=True,
     )
     (wt / "wt.txt").write_text("worktree commit\n", encoding="utf-8")
     subprocess.run(["git", "add", "wt.txt"], cwd=wt, capture_output=True, check=True)
-    subprocess.run(["git", "commit", "-m", "Worktree commit"], cwd=wt, capture_output=True, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Worktree commit"],
+        cwd=wt,
+        capture_output=True,
+        check=True,
+    )
     wt_sha = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         cwd=wt,

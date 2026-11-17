@@ -23,7 +23,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 PERSONA_CONFIG_SCRIPT = REPO_ROOT / "scripts" / "persona_config.py"
 DEV_CONFIG_SCRIPT = REPO_ROOT / "scripts" / "dev_config.py"
 
-_EXPECTED_PROVIDERS: list[tuple[str, str, dict[str, tuple[str, str, str, str, str | None]]]] = [
+_EXPECTED_PROVIDERS: list[
+    tuple[str, str, dict[str, tuple[str, str, str, str, str | None]]]
+] = [
     (
         "claude",
         "all-claude",
@@ -37,7 +39,13 @@ _EXPECTED_PROVIDERS: list[tuple[str, str, dict[str, tuple[str, str, str, str, st
         "codex",
         "all-codex",
         {
-            "ai_architect_reviewer": ("codex-gpt", "codex", "gpt-6.1-sol", "high", None),
+            "ai_architect_reviewer": (
+                "codex-gpt",
+                "codex",
+                "gpt-6.1-sol",
+                "high",
+                None,
+            ),
             "orchestrator": ("codex-terra", "codex", "gpt-6.1-terra", "medium", None),
             "programmer": ("codex-terra", "codex", "gpt-6.1-terra", "medium", None),
         },
@@ -233,7 +241,9 @@ def test_fpg_hp_10_provider_shortcut_binds_all_personas(
         path_dir=bin_dir,
     )
     assert res_proj.returncode == 0, res_proj.stderr
-    assert res_proj.stdout.splitlines()[0] == f"active_preset: {expected_preset} (project)"
+    assert (
+        res_proj.stdout.splitlines()[0] == f"active_preset: {expected_preset} (project)"
+    )
 
     project_data = json.loads(
         (project / ".agents" / "config" / "personas.json").read_text(encoding="utf-8")
@@ -246,7 +256,9 @@ def test_fpg_hp_10_provider_shortcut_binds_all_personas(
 class Test_Integration:
     """[Tier C - Integration] Subprocess CLI integration tests for dev_config.py --provider."""
 
-    def test_fpg_hp_10_sequential_provider_switches_and_catalogue(self, tmp_path: Path) -> None:
+    def test_fpg_hp_10_sequential_provider_switches_and_catalogue(
+        self, tmp_path: Path
+    ) -> None:
         """FPG-HP-10: Sequential --provider switches, project scope, models and status integration."""
         real_home, project, bin_dir = _setup_workspace(tmp_path)
 
@@ -257,18 +269,27 @@ class Test_Integration:
             path_dir=bin_dir,
         )
         assert res_models.returncode == 0, res_models.stderr
-        by_alias = {item["alias"]: item for item in json.loads(res_models.stdout)["models"]}
+        by_alias = {
+            item["alias"]: item for item in json.loads(res_models.stdout)["models"]
+        }
         assert by_alias["codex-terra"]["cli"] == "codex"
         assert by_alias["codex-terra"]["id"] == "gpt-6.1-terra"
         assert by_alias["codex-terra"]["efforts"] == ["medium", "high", "xhigh"]
         assert by_alias["codex-terra"]["quota_pool"] == "provider"
 
         for prov, preset, checks in _EXPECTED_PROVIDERS:
-            res = _run_cli(["--provider", prov], cwd=project, real_home=real_home, path_dir=bin_dir)
+            res = _run_cli(
+                ["--provider", prov], cwd=project, real_home=real_home, path_dir=bin_dir
+            )
             assert res.returncode == 0, res.stderr
-            assert json.loads((real_home / ".d3nexus" / "personas.json").read_text(encoding="utf-8"))[
-                "active_preset"
-            ] == preset
+            assert (
+                json.loads(
+                    (real_home / ".d3nexus" / "personas.json").read_text(
+                        encoding="utf-8"
+                    )
+                )["active_preset"]
+                == preset
+            )
             for persona, (_, cli, model_id, effort, _) in checks.items():
                 resolved = json.loads(
                     _run_cli(
@@ -290,14 +311,24 @@ class Test_Integration:
             path_dir=bin_dir,
         )
         assert res_proj.returncode == 0, res_proj.stderr
-        assert json.loads(
-            (project / ".agents" / "config" / "personas.json").read_text(encoding="utf-8")
-        )["active_preset"] == "all-claude"
-        assert json.loads((real_home / ".d3nexus" / "personas.json").read_text(encoding="utf-8"))[
-            "active_preset"
-        ] == "default"
+        assert (
+            json.loads(
+                (project / ".agents" / "config" / "personas.json").read_text(
+                    encoding="utf-8"
+                )
+            )["active_preset"]
+            == "all-claude"
+        )
+        assert (
+            json.loads(
+                (real_home / ".d3nexus" / "personas.json").read_text(encoding="utf-8")
+            )["active_preset"]
+            == "default"
+        )
 
-        res_status = _run_cli(["status", "--json"], cwd=project, real_home=real_home, path_dir=bin_dir)
+        res_status = _run_cli(
+            ["status", "--json"], cwd=project, real_home=real_home, path_dir=bin_dir
+        )
         assert res_status.returncode == 0, res_status.stderr
         status_payload = json.loads(res_status.stdout)
         assert status_payload["active_preset"] == "all-claude"
@@ -397,11 +428,17 @@ def test_fpg_ec_06_preserves_other_sections_and_warns_for_preset_or_effort_maski
             "schema_version": 1,
             "active_preset": "default",
             "models": {
-                "custom-codex": {"cli": "codex", "id": "gpt-custom", "efforts": ["high"]}
+                "custom-codex": {
+                    "cli": "codex",
+                    "id": "gpt-custom",
+                    "efforts": ["high"],
+                }
             },
             "overrides": {"orchestrator": {"model": "argon", "effort": "medium"}},
             "checkpoint_policy": {"max_orchestrator_turns_before_checkpoint": 6},
-            "low_quota": {"p1": {"enabled": True, "expires_at": "2099-01-01T00:00:00Z"}},
+            "low_quota": {
+                "p1": {"enabled": True, "expires_at": "2099-01-01T00:00:00Z"}
+            },
         },
     )
 
@@ -428,7 +465,9 @@ def test_fpg_ec_06_preserves_other_sections_and_warns_for_preset_or_effort_maski
     assert global_after["overrides"] == {
         "orchestrator": {"model": "argon", "effort": "medium"}
     }
-    assert global_after["checkpoint_policy"] == {"max_orchestrator_turns_before_checkpoint": 6}
+    assert global_after["checkpoint_policy"] == {
+        "max_orchestrator_turns_before_checkpoint": 6
+    }
     assert global_after["low_quota"] == {
         "p1": {"enabled": True, "expires_at": "2099-01-01T00:00:00Z"}
     }

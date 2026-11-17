@@ -254,7 +254,9 @@ def _load_external_review_parser() -> argparse.ArgumentParser:
     sys.modules[mod_name] = mod
     orig_parse_args = argparse.ArgumentParser.parse_args
 
-    def _capture(self: argparse.ArgumentParser, *args: object, **kwargs: object) -> object:
+    def _capture(
+        self: argparse.ArgumentParser, *args: object, **kwargs: object
+    ) -> object:
         raise _CapturedParser(self)
 
     try:
@@ -350,7 +352,9 @@ def _extract_quoted_run_commands_with_options(text: str) -> list[tuple[int, str]
 
     for line_no, raw_line in outside_lines:
         for span in re.finditer(r"`([^`\n]+)`", raw_line):
-            results.extend(_collect_run_option_commands(line_no, span.group(1), run_pat))
+            results.extend(
+                _collect_run_option_commands(line_no, span.group(1), run_pat)
+            )
     return results
 
 
@@ -411,11 +415,14 @@ def external_review_parser() -> argparse.ArgumentParser:
 
 def test_external_review_command_scanner_coverage() -> None:
     """Scanner covers CRITICAL_RULES, skills, and docs/architecture while ignoring bare mentions."""
-    rules_subs = {sub for _, sub, _ in _extract_external_review_commands(_read(RULES_REL))}
+    rules_subs = {
+        sub for _, sub, _ in _extract_external_review_commands(_read(RULES_REL))
+    }
     assert {"run", "triage"} <= rules_subs
 
     scanned = {
-        path.relative_to(REPO_ROOT).as_posix() for path in _external_review_scan_targets()
+        path.relative_to(REPO_ROOT).as_posix()
+        for path in _external_review_scan_targets()
     }
     assert {
         "skills/dev-implementation/SKILL.md",
@@ -426,9 +433,12 @@ def test_external_review_command_scanner_coverage() -> None:
     } <= scanned
     assert not any(rel.endswith(".vi.md") for rel in scanned)
 
-    assert _extract_quoted_run_commands_with_options(
-        "Run `run_external_review.py run` and `triage`."
-    ) == []
+    assert (
+        _extract_quoted_run_commands_with_options(
+            "Run `run_external_review.py run` and `triage`."
+        )
+        == []
+    )
     assert _extract_quoted_run_commands_with_options(
         "Runs `run_external_review.py run --kind principal` synchronously."
     ) == [(1, "run_external_review.py run --kind principal")]
@@ -502,7 +512,9 @@ def test_dev_implementation_marks_reference_pointers_mandatory(
 ) -> None:
     """dev-implementation/SKILL.md links all three references with MANDATORY: read ... before ... pointers."""
     text = _read("skills/dev-implementation/SKILL.md")
-    assert f"({ref_path})" in text, f"dev-implementation/SKILL.md does not link {ref_path}"
+    assert f"({ref_path})" in text, (
+        f"dev-implementation/SKILL.md does not link {ref_path}"
+    )
     assert ref_path not in _missing_mandatory_dev_impl_pointers(text), (
         f"dev-implementation/SKILL.md does not mark {ref_path} as MANDATORY before its step"
     )

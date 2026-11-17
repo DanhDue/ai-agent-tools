@@ -87,7 +87,9 @@ def test_fpg_hp_03_dispatch_argv_per_cli_and_mode(
         "auto",
     ]
 
-    arch_argon = pc.resolve_persona("ai_architect_reviewer", project, real_home=real_home)
+    arch_argon = pc.resolve_persona(
+        "ai_architect_reviewer", project, real_home=real_home
+    )
     assert pc.build_dispatch_argv(arch_argon, "read-only") == [
         "agy",
         "--sandbox",
@@ -155,7 +157,10 @@ def test_fpg_hp_03_dispatch_argv_per_cli_and_mode(
     # build_dispatch_env: Kiro restores real HOME when .kiro exists; agy leaves env unchanged.
     kiro_real_home = tmp_path / "kiro_user"
     (kiro_real_home / ".kiro").mkdir(parents=True)
-    base_env = {"HOME": str(kiro_real_home / "antigravity_homes" / "p1"), "PATH": str(bin_dir)}
+    base_env = {
+        "HOME": str(kiro_real_home / "antigravity_homes" / "p1"),
+        "PATH": str(bin_dir),
+    }
     kiro_env = pc.build_dispatch_env(kiro_rw, base_env)
     assert kiro_env["HOME"] == str(kiro_real_home)
 
@@ -372,7 +377,16 @@ def test_fpg_fr_02_dispatch_failure_classification(
             "gemini-4-argon-high",
             "high",
             "read-only",
-            ["agy", "--sandbox", "--mode", "plan", "--model", "gemini-4-argon-high", "--effort", "high"],
+            [
+                "agy",
+                "--sandbox",
+                "--mode",
+                "plan",
+                "--model",
+                "gemini-4-argon-high",
+                "--effort",
+                "high",
+            ],
         ),
         (
             "hydrogen",
@@ -380,7 +394,15 @@ def test_fpg_fr_02_dispatch_failure_classification(
             "gemini-4-hydrogen-xhigh",
             "xhigh",
             "write",
-            ["agy", "--model", "gemini-4-hydrogen-xhigh", "--effort", "xhigh", "--mode", "auto"],
+            [
+                "agy",
+                "--model",
+                "gemini-4-hydrogen-xhigh",
+                "--effort",
+                "xhigh",
+                "--mode",
+                "auto",
+            ],
         ),
         (
             "claude-opus",
@@ -388,7 +410,16 @@ def test_fpg_fr_02_dispatch_failure_classification(
             "opus",
             "high",
             "read-only",
-            ["claude", "-p", "--model", "opus", "--effort", "high", "--permission-mode", "plan"],
+            [
+                "claude",
+                "-p",
+                "--model",
+                "opus",
+                "--effort",
+                "high",
+                "--permission-mode",
+                "plan",
+            ],
         ),
         (
             "claude-sonnet",
@@ -396,7 +427,15 @@ def test_fpg_fr_02_dispatch_failure_classification(
             "sonnet",
             "medium",
             "write",
-            ["claude", "-p", "--model", "sonnet", "--effort", "medium", "--dangerously-skip-permissions"],
+            [
+                "claude",
+                "-p",
+                "--model",
+                "sonnet",
+                "--effort",
+                "medium",
+                "--dangerously-skip-permissions",
+            ],
         ),
         (
             "codex-gpt",
@@ -508,7 +547,9 @@ def test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases(
 
     if cli == "kiro":
         app_support_home = tmp_path / "app_home"
-        (app_support_home / "Library" / "Application Support" / "kiro-cli").mkdir(parents=True)
+        (app_support_home / "Library" / "Application Support" / "kiro-cli").mkdir(
+            parents=True
+        )
         env_app = pc.build_dispatch_env(
             expected_argv,
             {"HOME": str(app_support_home / "antigravity_homes" / "p1")},
@@ -522,11 +563,22 @@ def test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases(
 
 
 @pytest.mark.parametrize(
-    ("model_alias", "payload", "expected_rc", "expected_ok", "expected_line_substr", "expected_warn"),
+    (
+        "model_alias",
+        "payload",
+        "expected_rc",
+        "expected_ok",
+        "expected_line_substr",
+        "expected_warn",
+    ),
     [
         (
             "codex-gpt",
-            {"status": "ACTIVE", "gemini5h": {"fraction": 0.5}, "geminiWeekly": {"fraction": 0.1}},
+            {
+                "status": "ACTIVE",
+                "gemini5h": {"fraction": 0.5},
+                "geminiWeekly": {"fraction": 0.1},
+            },
             0,
             True,
             "5H=50.0%, 7D=10.0%, status=ACTIVE",
@@ -534,7 +586,11 @@ def test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases(
         ),
         (
             "codex-gpt",
-            {"status": "ACTIVE", "gemini5h": {"fraction": 0.14}, "geminiWeekly": {"fraction": 0.5}},
+            {
+                "status": "ACTIVE",
+                "gemini5h": {"fraction": 0.14},
+                "geminiWeekly": {"fraction": 0.5},
+            },
             2,
             False,
             "5H=14.0%",
@@ -542,7 +598,11 @@ def test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases(
         ),
         (
             "codex-gpt",
-            {"status": "ACTIVE", "gemini5h": {"fraction": 0.5}, "geminiWeekly": {"fraction": 0.02}},
+            {
+                "status": "ACTIVE",
+                "gemini5h": {"fraction": 0.5},
+                "geminiWeekly": {"fraction": 0.02},
+            },
             2,
             False,
             "7D=2.0%",
@@ -550,7 +610,10 @@ def test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases(
         ),
         (
             "kiro-opus",
-            {"status": "ACTIVE", "creditsPool": {"fraction": 0.2, "limit": 1000.0, "remaining": 200.0}},
+            {
+                "status": "ACTIVE",
+                "creditsPool": {"fraction": 0.2, "limit": 1000.0, "remaining": 200.0},
+            },
             0,
             True,
             "monthly=20.0% (200.0 credits)",
@@ -558,7 +621,10 @@ def test_fpg_hp_03_all_cli_mode_pairs_and_env_edge_cases(
         ),
         (
             "kiro-opus",
-            {"status": "ACTIVE", "creditsPool": {"fraction": 0.5, "limit": 100.0, "remaining": 10.0}},
+            {
+                "status": "ACTIVE",
+                "creditsPool": {"fraction": 0.5, "limit": 100.0, "remaining": 10.0},
+            },
             2,
             False,
             "10.0 credits",
@@ -670,6 +736,8 @@ def test_fpg_fr_01_review_config_thresholds_and_default_fetcher_hook(
 
     # CLI quota-check with invalid persona exits 1
     assert (
-        dc.main(["--project-root", str(project), "quota-check", "--personas", "reviewer"])
+        dc.main(
+            ["--project-root", str(project), "quota-check", "--personas", "reviewer"]
+        )
         == 1
     )

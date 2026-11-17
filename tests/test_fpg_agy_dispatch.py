@@ -794,7 +794,13 @@ def test_fpg_fr_05_non_git_cwd_and_empty_pool_and_non_agy_dispatch(
     ("reason", "skipped", "pool_state", "exhausted_until", "exhausted_reason"),
     [
         ("pool_busy", {"p1": "resident_process"}, "ok", None, None),
-        ("pool_exhausted", {"p1": "exhausted"}, "exhausted", "2026-11-17T12:00:00Z", "5h"),
+        (
+            "pool_exhausted",
+            {"p1": "exhausted"},
+            "exhausted",
+            "2026-11-17T12:00:00Z",
+            "5h",
+        ),
     ],
 )
 def test_no_profile_report_distinguishes_resident_busy_from_exhausted(
@@ -844,7 +850,9 @@ def test_no_profile_report_distinguishes_resident_busy_from_exhausted(
         "earliest_reset": exhausted_until,
     }
     monkeypatch.setattr(pool_mod, "acquire", lambda *_a, **_kw: injected_acq)
-    monkeypatch.setattr(pool_mod, "pool_status", lambda *_a, **_kw: dict(injected_status))
+    monkeypatch.setattr(
+        pool_mod, "pool_status", lambda *_a, **_kw: dict(injected_status)
+    )
 
     binding = persona_mod.resolve_persona("programmer", repo, real_home=real_home)
     res = dispatch_mod.run_on_pool(

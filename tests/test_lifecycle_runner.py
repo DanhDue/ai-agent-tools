@@ -22,16 +22,8 @@ import pytest
 
 # Add skills/dev-lifecycle/resources/scripts to sys.path
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SCRIPTS_DIR = (
-    REPO_ROOT
-    / "skills"
-    / "dev-lifecycle"
-    / "resources"
-    / "scripts"
-)
-DEV_IMPL_SCRIPTS = (
-    REPO_ROOT / "skills" / "dev-implementation" / "resources" / "scripts"
-)
+SCRIPTS_DIR = REPO_ROOT / "skills" / "dev-lifecycle" / "resources" / "scripts"
+DEV_IMPL_SCRIPTS = REPO_ROOT / "skills" / "dev-implementation" / "resources" / "scripts"
 for _dir in (str(SCRIPTS_DIR), str(DEV_IMPL_SCRIPTS)):
     if _dir not in sys.path:
         sys.path.insert(0, _dir)
@@ -84,13 +76,18 @@ def _isolated_host_env() -> Iterator[Path]:
     machine's live quota and real HOME there.
     """
     global _active_isolations
-    with tempfile.TemporaryDirectory(
-        prefix="lifecycle_runner_home_", ignore_cleanup_errors=True
-    ) as tmp, contextlib.ExitStack() as stack:
+    with (
+        tempfile.TemporaryDirectory(
+            prefix="lifecycle_runner_home_", ignore_cleanup_errors=True
+        ) as tmp,
+        contextlib.ExitStack() as stack,
+    ):
         fake_home = Path(tmp) / "_isolated_home"
         fake_home.mkdir(parents=True, exist_ok=True)
         stack.enter_context(
-            patch.dict(os.environ, {"HOME": str(fake_home), "REAL_HOME": str(fake_home)})
+            patch.dict(
+                os.environ, {"HOME": str(fake_home), "REAL_HOME": str(fake_home)}
+            )
         )
         for var in _PROFILE_ENV_VARS:
             os.environ.pop(var, None)
@@ -246,9 +243,7 @@ class TestLifecycleRunner_Integration(_HostIsolatedTestCase):
         """AI Architect & Reviewer model resolution follows CLI > --config > persona_config (ignoring legacy files)."""
         # 1. Kit fallback via persona_config (argon high -> gemini-4-argon-high)
         cfg = RunnerConfig()
-        self.assertEqual(
-            cfg.resolve_assistant_model(self.root), "gemini-4-argon-high"
-        )
+        self.assertEqual(cfg.resolve_assistant_model(self.root), "gemini-4-argon-high")
 
         # 2. Legacy review_config.json and AGY_ASSISTANT_MODEL are ignored
         review_config_file = self.root / ".devtool" / "review_config.json"
@@ -270,7 +265,10 @@ class TestLifecycleRunner_Integration(_HostIsolatedTestCase):
                 {
                     "schema_version": 1,
                     "overrides": {
-                        "ai_architect_reviewer": {"model": "claude-opus", "effort": "high"}
+                        "ai_architect_reviewer": {
+                            "model": "claude-opus",
+                            "effort": "high",
+                        }
                     },
                 }
             ),
@@ -602,7 +600,9 @@ class TestLifecycleRunner_Integration(_HostIsolatedTestCase):
                 self.assertEqual(runner.state.halt_reason, "FIX_PLAN_ESCALATE")
                 pd_file = self.state_dir / "pending_decision.json"
                 pd_data = json.loads(pd_file.read_text(encoding="utf-8"))
-                self.assertEqual(pd_data["decisions"][self.epic_slug]["kind"], "blocker")
+                self.assertEqual(
+                    pd_data["decisions"][self.epic_slug]["kind"], "blocker"
+                )
                 self.assertIn(
                     "CRITICAL_CONFLICT", pd_data["decisions"][self.epic_slug]["reason"]
                 )
@@ -792,9 +792,7 @@ class TestLifecycleRunner_Integration(_HostIsolatedTestCase):
                 "dispatch",
                 return_value=(0, f"```json\n{fail_payload}\n```\n", ""),
             ),
-            patch.object(
-                runner, "_apply_code_fixes", return_value=False
-            ),
+            patch.object(runner, "_apply_code_fixes", return_value=False),
         ):
             ok, err = runner.run_gate4()
             self.assertFalse(ok)
@@ -974,7 +972,13 @@ def test_tto_hp_04_runner_config_precedence() -> None:
         clean_env = {
             k: v
             for k, v in os.environ.items()
-            if k not in {"AGY_PROGRAMMER_MODEL", "AGY_PROGRAMMER_EFFORT", "AGY_PROFILE", "ANTIGRAVITY_PROFILE"}
+            if k
+            not in {
+                "AGY_PROGRAMMER_MODEL",
+                "AGY_PROGRAMMER_EFFORT",
+                "AGY_PROFILE",
+                "ANTIGRAVITY_PROFILE",
+            }
         }
         clean_env["HOME"] = str(fake_home)
         clean_env["REAL_HOME"] = str(fake_home)
@@ -1178,9 +1182,17 @@ def test_tto_ec_04_effort_normalization_and_cli_args() -> None:
         ) -> tuple[int, str, str]:
             recorded.append((cli, list(args)))
             if "fix-planner" in prompt:
-                return 0, '```json\n{"round": 1, "status": "PLANNED", "halt_criteria": [], "plan_markdown": "# Plan\\n"}\n```\n', ""
+                return (
+                    0,
+                    '```json\n{"round": 1, "status": "PLANNED", "halt_criteria": [], "plan_markdown": "# Plan\\n"}\n```\n',
+                    "",
+                )
             if "task-implementer" in prompt:
-                return 0, '```json\n{"task_id": "task_01_demo", "slot": 1, "status": "DONE", "head_sha": "abc", "verify": "PASS", "changed_files": ["src/a.py"], "non_test_modules_changed": 1, "review_tier": "standard", "labels": [], "finalized": false}\n```\n', ""
+                return (
+                    0,
+                    '```json\n{"task_id": "task_01_demo", "slot": 1, "status": "DONE", "head_sha": "abc", "verify": "PASS", "changed_files": ["src/a.py"], "non_test_modules_changed": 1, "review_tier": "standard", "labels": [], "finalized": false}\n```\n',
+                    "",
+                )
             return 0, "ok", ""
 
         with (
@@ -1255,7 +1267,9 @@ def test_tto_fr_03_tail_lines_caps_gate4_and_intermediate_errors() -> None:
         # gate4-verifier brief must carry verify.sh --quiet and cap verifier failures to <= 25 trailing lines
         captured_prompts: list[str] = []
 
-        def fail_verifier(cli: str, args: list[str], prompt: str) -> tuple[int, str, str]:
+        def fail_verifier(
+            cli: str, args: list[str], prompt: str
+        ) -> tuple[int, str, str]:
             captured_prompts.append(prompt)
             return 1, "", verbose_err
 
@@ -1325,7 +1339,14 @@ def test_tto_hp_07_streamlined_code_fix_and_real_executive_report() -> None:
 
         runner = LifecycleRunner(root=root, epic_slug="demo_epic")
         assert not runner._can_fast_track_code_findings(
-            [{"severity": "Critical", "target": "src/app.py:4", "problem": "Crash", "status": "Open"}],
+            [
+                {
+                    "severity": "Critical",
+                    "target": "src/app.py:4",
+                    "problem": "Crash",
+                    "status": "Open",
+                }
+            ],
             "## Auto-Triage Gate\n- **Action**: AUTO_FIX_ELIGIBLE\n",
         )
         triage_r1 = (
