@@ -18,6 +18,7 @@ RESUME_SCRIPT = REPO_ROOT / "scripts" / "resume_context.py"
 HANDOFF_TEMPLATE = (
     REPO_ROOT / "skills" / "dev-lifecycle" / "references" / "handoff-template.md"
 )
+SAVE_CONTEXT_SKILL = REPO_ROOT / "skills" / "save-context" / "SKILL.md"
 
 ASSISTANT_BANNER = "[PERSONA: AI ASSISTANT — ORCHESTRATOR]"
 ORCHESTRATOR_BANNER = "[PERSONA: Role 2.2 Orchestrator]"
@@ -61,9 +62,7 @@ def _emit(tmp_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-@pytest.mark.parametrize(
-    "mode", ["principal-review", "implement", "cross-review", "finish"]
-)
+@pytest.mark.parametrize("mode", ["implement", "cross-review", "finish"])
 def test_session_handoff_prompts_bind_orchestrator(tmp_path: Path, mode: str) -> None:
     proc = _emit(tmp_path, "--emit-prompt", mode, "--epic", "demo-epic")
     assert proc.returncode == 0, proc.stderr
@@ -71,6 +70,26 @@ def test_session_handoff_prompts_bind_orchestrator(tmp_path: Path, mode: str) ->
     assert "--role orchestrator" in proc.stdout
     assert "--role programmer" not in proc.stdout
     assert PROGRAMMER_BANNER not in proc.stdout
+
+
+def test_principal_review_handoff_prompt_binds_architect_reviewer(
+    tmp_path: Path,
+) -> None:
+    proc = _emit(tmp_path, "--emit-prompt", "principal-review", "--epic", "demo-epic")
+    assert proc.returncode == 0, proc.stderr
+    assert ARCHITECT_BANNER in proc.stdout
+    assert "Role 2.1 AI Architect & Reviewer" in proc.stdout
+    assert "--role architect" in proc.stdout
+    assert "gemini-4-argon-high" in proc.stdout
+    assert "principal-reviser" in proc.stdout
+    assert "Role 2.2" not in proc.stdout
+    assert ORCHESTRATOR_BANNER not in proc.stdout
+    assert "--role orchestrator" not in proc.stdout
+    save_text = SAVE_CONTEXT_SKILL.read_text(encoding="utf-8")
+    pr_lines = [ln for ln in save_text.splitlines() if "- `principal-review`:" in ln]
+    assert len(pr_lines) == 1
+    assert "Role 2.1 AI Architect & Reviewer" in pr_lines[0]
+    assert "Role 2.2" not in pr_lines[0]
 
 
 def test_assistant_handoff_prompt_binds_architect_reviewer(tmp_path: Path) -> None:
@@ -83,14 +102,22 @@ def test_assistant_handoff_prompt_binds_architect_reviewer(tmp_path: Path) -> No
 
 
 @pytest.mark.parametrize("mode", ["implement", "cross-review", "finish"])
-def test_orchestrating_prompts_dispatch_programmer_via_agy(
+def test_orchestrating_prompts_dispatch_programmer_via_dev_config_dispatch(
     tmp_path: Path, mode: str
 ) -> None:
     proc = _emit(tmp_path, "--emit-prompt", mode, "--epic", "demo-epic")
     assert proc.returncode == 0, proc.stderr
     assert (
-        "agy --model gemini-4-hydrogen-xhigh --effort xhigh --mode auto" in proc.stdout
+        "python3 scripts/dev_config.py dispatch --persona programmer --mode write"
+        in proc.stdout
     )
+    if mode in ("implement", "cross-review"):
+        assert (
+            "python3 scripts/dev_config.py dispatch --persona ai_architect_reviewer --mode read-only"
+            in proc.stdout
+        )
+    assert "agy --model" not in proc.stdout
+    assert "agy --sandbox" not in proc.stdout
     assert "orchestration-roles.md" in proc.stdout
     assert "--emit-prompt brief" in proc.stdout
 

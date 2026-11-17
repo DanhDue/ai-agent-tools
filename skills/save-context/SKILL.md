@@ -76,7 +76,7 @@ python3 scripts/resume_context.py --emit-prompt <mode> --epic <epic_slug> [--epi
 ```
 
 Supported modes:
-- `principal-review`: Emits **Role 2.2 Orchestrator** prompt for Stage 2 Principal Review (Role 2.1 revisions).
+- `principal-review`: Emits **Role 2.1 AI Architect & Reviewer** prompt for Stage 2 Principal Review (`principal-reviser` runs inline or as a same-model Role 2.1 subagent).
 - `implement`: Emits **Role 2.2 Orchestrator** prompt for `/dev-implementation` (Stage 3; names the persona and its resolved model and effort; dispatches Role 2.1 and Role 2.3 subagents).
 - `cross-review`: Emits **Role 2.2 Orchestrator** prompt for Cross-Model Review (Gate 4 PASS; dispatches Role 2.1 `fix-planner` and Role 2.3 fixers/verifier).
 - `finish`: Emits **Role 2.2 Orchestrator** prompt for `/finish` (Stage 4; dispatches Role 2.3 for rebase/`verify-tier` if needed).

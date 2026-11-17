@@ -2384,9 +2384,6 @@ def emit_handoff_prompt(
     orch_binding = pc.resolve_persona("orchestrator", project_root, real_home=real_home)
     prog_binding = pc.resolve_persona("programmer", project_root, real_home=real_home)
 
-    arch_ro_argv = shlex.join(pc.build_dispatch_argv(arch_binding, "read-only"))
-    prog_write_argv = shlex.join(pc.build_dispatch_argv(prog_binding, "write"))
-
     docs = _resolve_prompt_epic_docs(project_root, target_dir, epic_slug)
     hld_rel = docs["hld"]
     bdd_rel = docs["bdd"]
@@ -2397,14 +2394,14 @@ def emit_handoff_prompt(
     arch_banner = _PERSONA_DISPLAY["ai_architect_reviewer"][1]
 
     if mode == "principal-review":
-        print(f"""{orch_banner}
-You are acting as Role 2.2 Orchestrator (Model: {orch_binding.model_id}, Thinking/Effort: {orch_binding.effort}).
+        print(f"""{arch_banner}
+You are acting as Role 2.1 AI Architect & Reviewer (Model: {arch_binding.model_id}, Thinking/Effort: {arch_binding.effort}).
 Startup command:
-python3 scripts/resume_context.py --role orchestrator --epic {epic_slug}
+python3 scripts/resume_context.py --role architect --epic {epic_slug}
 
 MANDATORY TASKS & RULES:
 1. Review the English SSOT docs: {docs_summary} (HLD at {hld_rel}, BDD at {bdd_rel}).
-2. Run `d3nexus:principal-review` (`Claude -> Codex -> Kiro -> Argon`, max 3 rounds). Delegate doc edits to a Role 2.2 `principal-reviser` subagent, then run `check_epic_readiness.py {target_dir}` in the main session.
+2. Run `d3nexus:principal-review` (`Claude -> Codex -> Kiro -> Argon`, max 3 rounds). Run `principal-reviser` inline in this Role 2.1 Stage 2 session or as a same-model subagent (`python3 scripts/dev_config.py resolve ai_architect_reviewer --format argv --mode write`), then run `check_epic_readiness.py {target_dir}` in the main session.
 3. DO NOT read/edit `src/` or `tests/` or modify production code.{prompt_note}""")
     elif mode == "implement":
         print(f"""{orch_banner}
@@ -2417,7 +2414,7 @@ MANDATORY TASKS & RULES:
 2. Read `{handoff_rel}` and English SSOT epic docs ({docs_summary}) first (author all internal orchestration, plans, code comments, and commits strictly in English).
 3. Orchestrator boundary: NEVER read/edit `src/` or `tests/`, and NEVER run test suites or `run_task_checks.py` in the main session.
 4. Compute waves via `python3 skills/dev-implementation/resources/scripts/compute_execution_order.py {epic_slug} --parallel`, monitor `python3 scripts/estimate_heartbeat.py`, and own every `manage_worker_pool.py` call (`init`, `sync --slot <1|2> --task <task_id> [--wave <k>] --status working|review`, `merge`, `cleanup`).
-5. Dispatch Role 2.3 Programmer subagents (`task-implementer`, `gate4-verifier`) via `{prog_write_argv}` and Role 2.1 AI Architect & Reviewer (`task-reviewer`) via `{arch_ro_argv}` using briefs from `python3 scripts/resume_context.py --emit-prompt brief --brief-role <role> --epic {epic_slug}`, verify gating/SHAs independently, then run Cross-Model Review.{prompt_note}""")
+5. Dispatch Role 2.3 Programmer subagents (`task-implementer`, `gate4-verifier`) via `python3 scripts/dev_config.py dispatch --persona programmer --mode write --prompt-file <file> --cwd <worktree> --log <log> --epic {epic_slug}` (resolved: {prog_binding.cli}, model: {prog_binding.model_id}, effort: {prog_binding.effort}) and Role 2.1 AI Architect & Reviewer (`task-reviewer`) via `python3 scripts/dev_config.py dispatch --persona ai_architect_reviewer --mode read-only --prompt-file <file> --cwd <worktree> --log <log> --epic {epic_slug}` (resolved: {arch_binding.cli}, model: {arch_binding.model_id}, effort: {arch_binding.effort}) using briefs from `python3 scripts/resume_context.py --emit-prompt brief --brief-role <role> --epic {epic_slug}`, verify gating/SHAs independently, then run Cross-Model Review.{prompt_note}""")
     elif mode == "cross-review":
         print(f"""{orch_banner}
 You are acting as Role 2.2 Orchestrator (Model: {orch_binding.model_id}, Thinking/Effort: {orch_binding.effort}).
@@ -2427,7 +2424,7 @@ python3 scripts/resume_context.py --role orchestrator --epic {epic_slug}
 MANDATORY TASKS & RULES:
 1. Gate 4 has PASSED. Activate `d3nexus:cross-model-review` following `skills/dev-lifecycle/references/orchestration-roles.md`.
 2. Run external review (`run_external_review.py run`, priority `Claude -> Codex -> Kiro -> Argon`, max 3 rounds) and `triage`. NEVER read/edit `src/` or `tests/` in the main session.
-3. Choose `fast-track` (Role 2.3 `review-fixer` via `{prog_write_argv}`) or high-risk `fix-planner` (Role 2.1 AI Architect & Reviewer via `{arch_ro_argv}` -> `apply-plan` via `{prog_write_argv}`) using `--emit-prompt brief --brief-role <role>`, scope-check `git diff --name-only`, and dispatch a fresh `gate4-verifier` on convergence.{prompt_note}""")
+3. Choose `fast-track` (Role 2.3 `review-fixer` via `python3 scripts/dev_config.py dispatch --persona programmer --mode write --prompt-file <file> --cwd <worktree> --log <log> --epic {epic_slug}`, resolved: {prog_binding.cli}, model: {prog_binding.model_id}, effort: {prog_binding.effort}) or high-risk `fix-planner` (Role 2.1 AI Architect & Reviewer via `python3 scripts/dev_config.py dispatch --persona ai_architect_reviewer --mode read-only --prompt-file <file> --cwd <worktree> --log <log> --epic {epic_slug}`, resolved: {arch_binding.cli}, model: {arch_binding.model_id}, effort: {arch_binding.effort} -> `apply-plan` via `python3 scripts/dev_config.py dispatch --persona programmer --mode write --prompt-file <file> --cwd <worktree> --log <log> --epic {epic_slug}`) using `--emit-prompt brief --brief-role <role>`, scope-check `git diff --name-only`, and dispatch a fresh `gate4-verifier` on convergence.{prompt_note}""")
     elif mode == "finish":
         print(f"""{orch_banner}
 You are acting as Role 2.2 Orchestrator (Model: {orch_binding.model_id}, Thinking/Effort: {orch_binding.effort}).
@@ -2437,7 +2434,7 @@ python3 scripts/resume_context.py --role orchestrator --epic {epic_slug}
 MANDATORY TASKS & RULES:
 1. Activate `d3nexus:finishing-a-development-branch` for the `{epic_slug}` epic, following `skills/dev-lifecycle/references/orchestration-roles.md`.
 2. Execute Pre-Finish Hook: `python3 scripts/resume_context.py --complete {epic_slug} "<milestone_summary>"`.
-3. Dispatch Role 2.3 via `{prog_write_argv}` (`--emit-prompt brief --brief-role <role>`) if rebase/conflict resolution/`verify-tier` is needed, then land and clean up the worktree.{prompt_note}""")
+3. Dispatch Role 2.3 via `python3 scripts/dev_config.py dispatch --persona programmer --mode write --prompt-file <file> --cwd <worktree> --log <log> --epic {epic_slug}` (resolved: {prog_binding.cli}, model: {prog_binding.model_id}, effort: {prog_binding.effort}; `--emit-prompt brief --brief-role <role>`) if rebase/conflict resolution/`verify-tier` is needed, then land and clean up the worktree.{prompt_note}""")
     elif mode == "assistant":
         print(f"""{arch_banner}
 You are acting as Role 2.1 AI Architect & Reviewer (Model: {arch_binding.model_id}, Thinking/Effort: {arch_binding.effort}).

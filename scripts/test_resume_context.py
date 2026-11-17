@@ -1003,7 +1003,9 @@ ag_run() {
             "--epic", "demo_epic",
         ])
         self.assertEqual(res_custom.returncode, 0, res_custom.stderr)
-        self.assertIn("claude -p --model sonnet --effort medium", res_custom.stdout)
+        self.assertIn("dev_config.py dispatch --persona programmer --mode write", res_custom.stdout)
+        self.assertIn("resolved: claude, model: sonnet, effort: medium", res_custom.stdout)
+        self.assertNotIn("claude -p", res_custom.stdout)
 
     def test_compact_context_emits_single_hld_line_across_roots(self) -> None:
         """build_compact_context stops scanning roots once the active epic HLD line is emitted."""
@@ -1046,6 +1048,7 @@ ag_run() {
             res_isolated = self.run_cli(["--emit-prompt", "implement", "--epic", "demo_epic"])
             self.assertEqual(res_isolated.returncode, 0, res_isolated.stderr)
             self.assertIn("gemini-4-hydrogen-xhigh", res_isolated.stdout)
+            self.assertNotIn("sonnet", res_isolated.stdout)
             self.assertNotIn("claude -p", res_isolated.stdout)
 
             prof_res = self.run_cli(["--detect-profile"])
@@ -1061,7 +1064,9 @@ ag_run() {
             )
             res_temp_global = self.run_cli(["--emit-prompt", "implement", "--epic", "demo_epic"])
             self.assertEqual(res_temp_global.returncode, 0, res_temp_global.stderr)
-            self.assertIn("claude -p --model sonnet --effort high", res_temp_global.stdout)
+            self.assertIn("dev_config.py dispatch --persona programmer --mode write", res_temp_global.stdout)
+            self.assertIn("resolved: claude, model: sonnet, effort: high", res_temp_global.stdout)
+            self.assertNotIn("claude -p", res_temp_global.stdout)
 
 
 if __name__ == "__main__":
