@@ -34,3 +34,31 @@ Raw output:
 ```text
 Verdict: CHANGES REQUIRED
 ```
+
+## Round 2
+
+- **Date**: 2026-11-17T19:08:20Z
+- **SHA**: dbbf09cfbcda4c216f57586db98693b2ce6913a4
+- **Base**: main
+- **CLI**: agy
+- **Model**: gemini-4-carbon-high
+- **Thinking**: high
+- **Status**: completed
+- **Verdict**: CHANGES REQUIRED
+- **Raw log**: `build/reviews/four_persona_governance_code_round2_dbbf09c.raw.log`
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Important | scripts/agy_dispatch.py:554-617 | `_append_attempt_log` writes `log_path` before `_git_snapshot(cwd_path)` runs and `_git_snapshot` does not exclude `log_path`, so passing `--log` inside `--cwd` (e.g. `<repo>/run.log` in `FPG-HP-12` or `.devtool/dispatch.log` in `docs/dev-config-quick-guide.en.md:190`) marks `work_started = True` on attempt 1 and aborts pre-work quota rotation with `quota_midrun`. |  |
+| 2 | Important | skills/dev-lifecycle/references/orchestration-roles.md:84-85 | Section 4 item 2 lists `Critical` in the Low-risk (`fast-track`) severity set while also listing `any Critical finding` under High risk (`fix-planner`), contradicting Spec §4.3, HLD Stage 3 Risk Routing, `rules/CRITICAL_RULES.md:79`, and `lifecycle_runner.py:3539`. |  |
+| 3 | Important | skills/cross-model-review/SKILL.md:82 | Step 1 (`Route by risk`) includes `Critical` in the Low-risk `fast-track` condition alongside `Important`/`Minor`, allowing interactive Orchestrators to bypass Role 2.1 `fix-planner` on `Valid` `Critical` findings. |  |
+| 4 | Minor | scripts/dev_config.py:845-860 | `_check_agy_pool_quota` omits `preferred_profile=binding.profile` when calling `_pool.acquire(..., dry_run=True)`, probing and reporting the priority-1 profile instead of a persona's configured preferred `agy` profile. |  |
+| 5 | Minor | skills/dev-lifecycle/resources/scripts/lifecycle_runner.py:1143-1152 | `_dispatch_persona` writes only a `subagent_returned` checkpoint without the per-dispatch `brief_role`, `model`, and `effort` telemetry fields specified in Spec §9 (`2026-11-17-four-persona-governance-design.en.md:494-495`), with no `Spec Errata` entry in `four_persona_governance.en.md`. |  |
+| 6 | Minor | docs/context-memory-quick-guide.en.md:152-158 | Scenario 1 Step 2 instructs opening Post-Gate 2 Principal Review as `[PERSONA: Role 2.2 Orchestrator]` (`--role orchestrator`) instead of `[PERSONA: Role 2.1 AI Architect & Reviewer]` (`--role architect`) as emitted by `resume_context.py --emit-prompt principal-review`. |  |
+| 7 | Minor | .devtool/epic/four_persona_governance/handoff.md:34-48 | Stale handoff file still states `lists the 8 tasks` (instead of 11) and embeds the retired `[PERSONA: AI ASSISTANT — ORCHESTRATOR]` / `--role assistant` resume prompt. |  |
+
+Raw output:
+
+```text
+Verdict: CHANGES REQUIRED
+```
