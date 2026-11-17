@@ -1011,3 +1011,149 @@ wait
     hb_after = hb_calls
     time.sleep(0.15)
     assert hb_calls == hb_after
+
+
+@pytest.mark.parametrize(
+    ("log_rel", "commit_log"),
+    [
+        ("run.log", False),
+        (".devtool/dispatch.log", False),
+        ("run.log", True),
+    ],
+    ids=["untracked_root_log", "untracked_devtool_log", "committed_log"],
+)
+def test_fpg_fr_05_log_inside_cwd_is_not_agent_work(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    log_rel: str,
+    commit_log: bool,
+) -> None:
+    """FPG-FR-05: Writing the attempt log inside cwd must not count as agent work before rotation."""
+    dispatch_mod = _dispatch_mod()
+    persona_mod = _persona_mod()
+    real_home = tmp_path / "real_home"
+    repo = tmp_path / "repo"
+    monkeypatch.setenv("HOME", str(real_home))
+    monkeypatch.setenv("REAL_HOME", str(real_home))
+    _make_profile_dirs(real_home, ("p1", "p2"))
+    _init_git_repo(repo)
+    if commit_log:
+        log_file = repo / log_rel
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        log_file.write_text("previous\n", encoding="utf-8")
+        subprocess.run(["git", "add", "-f", log_rel], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-q", "-m", "track log"], cwd=repo, check=True)
+
+    prompt_file = tmp_path / "prompt.txt"
+    prompt_file.write_text("implement feature\n", encoding="utf-8")
+    _write_json(
+        real_home / ".d3nexus" / "agy_profiles.json",
+        {
+            "schema_version": 1,
+            "pool": [
+                {"profile": "p1", "priority": 1},
+                {"profile": "p2", "priority": 2},
+            ],
+        },
+    )
+
+    calls: list[str | None] = []
+
+    def launcher(
+        argv: list[str],
+        *,
+        cwd: Path,
+        env: dict[str, str],
+        stdin_text: str,
+        profile: str | None,
+        via_ag_run: bool,
+    ) -> tuple[int, str, str]:
+        _ = (argv, cwd, env, stdin_text, via_ag_run)
+        calls.append(profile)
+        if profile == "p1":
+            return (1, "", "RESOURCE_EXHAUSTED: quota exceeded")
+        return (0, "done\n", "")
+
+    binding = persona_mod.resolve_persona("programmer", repo, real_home=real_home)
+    res = dispatch_mod.run_on_pool(
+        binding,
+        "write",
+        prompt_file=prompt_file,
+        cwd=repo,
+        log=repo / log_rel,
+        owner={"repo": "repo", "epic": "e1", "task": "t1", "slot": 1, "role": "runner"},
+        real_home=real_home,
+        host_profile="px",
+        launcher=launcher,
+        fetcher=_healthy_fetcher,
+        resident_probe=lambda _p: False,
+        preflight=lambda: 0,
+    )
+    assert res.status == "ok"
+    assert res.profile_used == "p2"
+    assert res.attempts == 2
+    assert calls == ["p1", "p2"]
+    assert (repo / log_rel).is_file()
+
+
+def test_fpg_fr_05_work_file_plus_log_inside_cwd_stays_quota_midrun(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """FPG-FR-05: Agent file edits alongside an in-repo attempt log still halt with quota_midrun."""
+    dispatch_mod = _dispatch_mod()
+    persona_mod = _persona_mod()
+    real_home = tmp_path / "real_home"
+    repo = tmp_path / "repo"
+    monkeypatch.setenv("HOME", str(real_home))
+    monkeypatch.setenv("REAL_HOME", str(real_home))
+    _make_profile_dirs(real_home, ("p1", "p2"))
+    _init_git_repo(repo)
+    prompt_file = tmp_path / "prompt.txt"
+    prompt_file.write_text("implement feature\n", encoding="utf-8")
+    _write_json(
+        real_home / ".d3nexus" / "agy_profiles.json",
+        {
+            "schema_version": 1,
+            "pool": [
+                {"profile": "p1", "priority": 1},
+                {"profile": "p2", "priority": 2},
+            ],
+        },
+    )
+
+    calls: list[str | None] = []
+
+    def launcher(
+        argv: list[str],
+        *,
+        cwd: Path,
+        env: dict[str, str],
+        stdin_text: str,
+        profile: str | None,
+        via_ag_run: bool,
+    ) -> tuple[int, str, str]:
+        _ = (argv, env, stdin_text, via_ag_run)
+        calls.append(profile)
+        (cwd / "work.txt").write_text("partial\n", encoding="utf-8")
+        return (1, "", "RESOURCE_EXHAUSTED: quota exceeded")
+
+    binding = persona_mod.resolve_persona("programmer", repo, real_home=real_home)
+    res = dispatch_mod.run_on_pool(
+        binding,
+        "write",
+        prompt_file=prompt_file,
+        cwd=repo,
+        log=repo / "run.log",
+        owner={"repo": "repo", "epic": "e1", "task": "t1", "slot": 1, "role": "runner"},
+        real_home=real_home,
+        host_profile="px",
+        launcher=launcher,
+        fetcher=_healthy_fetcher,
+        resident_probe=lambda _p: False,
+        preflight=lambda: 0,
+    )
+    assert res.status == "quota_midrun"
+    assert res.profile_used == "p1"
+    assert res.attempts == 1
+    assert calls == ["p1"]

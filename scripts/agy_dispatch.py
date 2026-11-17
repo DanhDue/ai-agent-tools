@@ -550,6 +550,7 @@ def _run_single_attempt(
         )
         failure_kind = _pc.classify_dispatch_failure(rc, out, err)
         is_quota = failure_kind == "model_unavailable" and _is_quota_stderr(err)
+        after_snap = _git_snapshot(cwd_path) if is_quota else None
 
         _append_attempt_log(
             log_path,
@@ -611,7 +612,6 @@ def _run_single_attempt(
             real_home=resolved_real_home,
             now=now,
         )
-        after_snap = _git_snapshot(cwd_path)
         work_started = (
             before_snap is None or after_snap is None or before_snap != after_snap
         )
