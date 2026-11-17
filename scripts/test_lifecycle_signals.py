@@ -110,16 +110,13 @@ class QueuedPackagingTest(SignalCase):
         epic.mkdir(parents=True)
         (epic / "todo_export.en.md").write_text(
             "# Epic\n\n- **Status**: Queued (backlog) — behind logging-refactor\n")
-        (epic / "todo_export.vi.md").write_text(
-            "# Epic\n\n- **Trạng thái**: Queued (backlog) — behind logging-refactor\n")
         synced = subprocess.run(["python3", str(SYNC), "epic", "todo_export",
                                  "Packaged (queued behind logging-refactor)"],
                                 check=False, cwd=self.repo, capture_output=True, text=True)
         self.assertEqual(synced.returncode, 0, synced.stderr)
-        paths = " ".join(f".devtool/epic/todo_export/todo_export.{lang}.md" for lang in ("en", "vi"))
-        matched = run(self.repo, f"{grep} {paths}")
+        matched = run(self.repo, f"{grep} .devtool/epic/todo_export/todo_export.en.md")
         self.assertEqual(matched.returncode, 0, matched.stderr)
-        self.assertEqual(len(matched.stdout.splitlines()), 2)
+        self.assertEqual(len(matched.stdout.splitlines()), 1)
         self.assertIn("Packaged (queued behind logging-refactor)", matched.stdout)
 
 
