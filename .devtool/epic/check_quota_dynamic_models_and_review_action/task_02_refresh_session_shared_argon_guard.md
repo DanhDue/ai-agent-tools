@@ -1,13 +1,13 @@
 ---
 id: "task_02_refresh_session_shared_argon_guard"
-status: "todo"
+status: "done"
 priority: "medium"
 assignee: null
 epic: "check_quota_dynamic_models_and_review_action"
 dueDate: null
 created: "2026-11-18T03:11:00Z"
-modified: "2026-11-18T03:11:00Z"
-completedAt: null
+modified: "2026-11-17T23:34:10Z"
+completedAt: "2026-11-17T23:34:10Z"
 labels: ["refresh-session", "concurrency", "architecture"]
 order: "a2"
 review_tier: "full"
