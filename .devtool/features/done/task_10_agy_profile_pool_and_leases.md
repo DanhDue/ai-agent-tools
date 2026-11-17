@@ -1,12 +1,13 @@
 ---
 id: "task_10_agy_profile_pool_and_leases"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T09:26:41Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T09:26:41Z"
 labels: ["config", "cli", "dispatch", "concurrency", "security", "architecture"]
 order: "a10"
 review_tier: "full"
@@ -14,13 +15,13 @@ review_tier: "full"
 
 # Task 10: Agy Profile Pool, Lease File and Pooled Dispatch
 
-Epic: [four_persona_governance](../epic/four_persona_governance/four_persona_governance.en.md)
+Epic: [four_persona_governance](../../epic/four_persona_governance/four_persona_governance.en.md)
 
 ## Requirement Analysis
 
 Let the Orchestrator and the autonomous runner spend `agy` quota across several Antigravity profiles, keep two
 orchestrators (other epics, other repositories) from using one profile at the same time, and stop with a clear
-report when every profile is out of quota, judging both the 5-hour and the weekly Gemini window ([SE-09](../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)). It applies to
+report when every profile is out of quota, judging both the 5-hour and the weekly Gemini window ([SE-09](../../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)). It applies to
 bindings whose CLI is `agy`; bindings on `claude`, `codex` and `kiro` are never touched.
 
 1. **Files (`scripts/agy_profile_pool.py`, new)**: two global files under `$REAL_HOME/.d3nexus/`, with `$REAL_HOME`
@@ -357,13 +358,13 @@ Then "p2" has no "exhausted_until", no exhausted_reason and no cached quota
 
 ## Dependencies & Blockers
 
-Blocked by [Task 1](../epic/four_persona_governance/task_01_persona_config_and_dev_config_cli.md) and [Task 9](../epic/four_persona_governance/task_09_provider_quick_setup.md), because
+Blocked by [Task 1](../../epic/four_persona_governance/task_01_persona_config_and_dev_config_cli.md) and [Task 9](../../epic/four_persona_governance/task_09_provider_quick_setup.md), because
 both edit `scripts/dev_config.py` and `skills/dev-config/SKILL.md`.
 
 Downstream dependents (blocked by Task 10): `task_03`, `task_05`.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/four_persona_governance/four_persona_governance.en.md)
+- [Epic HLD](../../epic/four_persona_governance/four_persona_governance.en.md)
 - **Rollback**: Revert the task commit. Delete `$REAL_HOME/.d3nexus/agy_profiles.json` and
   `agy_profile_leases.json` if they were created.

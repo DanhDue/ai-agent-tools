@@ -1,12 +1,13 @@
 ---
 id: "task_10_agy_profile_pool_and_leases"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T09:26:41Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T09:26:41Z"
 labels: ["config", "cli", "dispatch", "concurrency", "security", "architecture"]
 order: "a10"
 review_tier: "full"
