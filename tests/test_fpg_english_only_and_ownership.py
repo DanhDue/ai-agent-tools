@@ -37,14 +37,22 @@ ISOLATED_GIT_ENV = {
 
 
 def _load_script(module_name: str, path: Path) -> Any:
+    private_name = f"_fpg_eo_{module_name}"
+    existing = sys.modules.get(private_name)
+    if existing is not None:
+        return existing
     script_dir = str(path.parent)
     if script_dir not in sys.path:
         sys.path.insert(0, script_dir)
-    spec = importlib.util.spec_from_file_location(module_name, path)
+    spec = importlib.util.spec_from_file_location(private_name, path)
     assert spec is not None and spec.loader is not None, f"Cannot load {path}"
     mod = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = mod
-    spec.loader.exec_module(mod)
+    sys.modules[private_name] = mod
+    try:
+        spec.loader.exec_module(mod)
+    except Exception:
+        sys.modules.pop(private_name, None)
+        raise
     return mod
 
 
@@ -1210,3 +1218,19 @@ def test_sync_and_contract_docstrings_describe_english_only_resolution() -> None
     assert "--hld <epic_dir>.en.md" not in ctc_text
     assert "_epic_docs.resolve_epic_doc" in sts_text
     assert "_epic_docs.resolve_epic_doc" in ctc_text
+
+
+def test_load_script_preserves_existing_sys_modules_entries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_load_script must not overwrite real sys.modules entries imported by other suites."""
+    import importlib
+
+    monkeypatch.syspath_prepend(str(DEV_IMPL_SCRIPTS))
+    names = ("task_contract", "local_review", "run_external_review")
+    before = {name: importlib.import_module(name) for name in names}
+
+    for name in names:
+        loaded = _load_script(name, DEV_IMPL_SCRIPTS / f"{name}.py")
+        assert loaded is not before[name]
+        assert sys.modules.get(name) is before[name]
