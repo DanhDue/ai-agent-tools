@@ -1359,3 +1359,58 @@ def test_fpg_fr_03_principal_revision_halt_stops_without_overwrite(
         assert "/d3nexus:dev-config set ai_architect_reviewer" in decision["reason"]
     else:
         assert decision["reason"] == "\n".join(quota_report)
+
+
+@pytest.mark.parametrize(
+    ("stubs", "expected_ok"),
+    [
+        (("kiro-cli",), True),
+        (("kiro",), True),
+        ((), False),
+    ],
+)
+def test_runner_probe_resolves_kiro_binary_from_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    stubs: tuple[str, ...],
+    expected_ok: bool,
+) -> None:
+    """S1: run() must probe the executable resolved by build_dispatch_argv (accepting kiro-cli or kiro)."""
+    repo = tmp_path / "repo"
+    _init_git_repo(repo)
+    _write_json(
+        repo / ".agents" / "config" / "personas.json",
+        {"schema_version": 1, "overrides": {"programmer": {"model": "kiro-sonnet", "effort": "high"}}},
+    )
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir(parents=True)
+    for name in stubs:
+        stub = bin_dir / name
+        stub.write_text("#!/bin/sh\necho 'kiro 1.0'\nexit 0\n", encoding="utf-8")
+        stub.chmod(0o755)
+    monkeypatch.setenv("PATH", str(bin_dir))
+
+    runner = lifecycle_runner.LifecycleRunner(root=repo, epic_slug="kiro_probe")
+    assert runner.state.active_stage == lifecycle_runner.StageName.INITIALIZED.value
+
+    entered_stage2 = False
+
+    def fake_principal_review() -> bool:
+        nonlocal entered_stage2
+        entered_stage2 = True
+        runner.state.active_stage = lifecycle_runner.StageName.COMPLETED.value
+        return True
+
+    with patch.object(runner, "step_principal_review", side_effect=fake_principal_review):
+        rc = runner.run(dry_run=False)
+
+    if expected_ok:
+        assert entered_stage2 is True, f"Probe failed unexpectedly: {runner.state.last_error}"
+        assert rc == 0
+        assert runner.state.last_error in (None, "")
+    else:
+        assert entered_stage2 is False
+        assert rc == 1
+        assert runner.state.active_stage == lifecycle_runner.StageName.INITIALIZED.value
+        assert runner.state.last_error is not None
+        assert "Programmer probe failed:" in runner.state.last_error

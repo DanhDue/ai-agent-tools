@@ -562,10 +562,15 @@ class ModelDispatcher:
 
     def probe_model(self, cli: str, model: str) -> tuple[bool, str]:
         """Verify model capabilities via headless CLI before state initialization."""
-        if cli == "agy":
-            cmd = [cli, "models"]
+        resolved_cli = (
+            "kiro-cli"
+            if cli == "kiro" and (shutil.which("kiro-cli") or not shutil.which("kiro"))
+            else cli
+        )
+        if resolved_cli == "agy":
+            cmd = [resolved_cli, "models"]
         else:
-            cmd = [cli, "--version"]
+            cmd = [resolved_cli, "--version"]
         try:
             res = subprocess.run(
                 cmd,
@@ -582,7 +587,7 @@ class ModelDispatcher:
                 )
                 return False, err
 
-            if cli == "agy":
+            if resolved_cli == "agy":
                 clean_target = model.strip().lower()
                 clean_output = res.stdout.lower()
                 if (
@@ -595,7 +600,7 @@ class ModelDispatcher:
 
             return True, "OK"
         except FileNotFoundError:
-            return False, f"CLI binary '{cli}' not found on PATH"
+            return False, f"CLI binary '{resolved_cli}' not found on PATH"
         except Exception as exc:
             return False, f"Probing exception: {exc}"
 
@@ -1214,8 +1219,11 @@ class LifecycleRunner:
         if self.state.active_stage == StageName.INITIALIZED.value:
             if not dry_run:
                 prog_binding = self.config.resolve_binding("programmer", self.root)
+                probe_cli = _persona_config().build_dispatch_argv(
+                    prog_binding, "write"
+                )[0]
                 ok, err = self.dispatcher.probe_model(
-                    prog_binding.cli, prog_binding.model_id
+                    probe_cli, prog_binding.model_id
                 )
                 if not ok:
                     self.state.last_error = f"Programmer probe failed: {err}"
