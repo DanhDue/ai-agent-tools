@@ -22,7 +22,7 @@ Epic: [check_quota_dynamic_models_and_review_action](../epic/check_quota_dynamic
 Update `skills/check-quota/resources/dashboard/quota_dashboard.html` so profile cards, header capability badges, quota score sorting, and profile detail modals dynamically reflect per-profile model rosters and `shared_gemini` Argon semantics produced by Task 01:
 
 1. **Dynamic Header Tier & Capability Badges (`getTierBadgeHTML`, `getArgonBadgeHTML`)**:
-   - Render tier badge from `data.capabilities?.tier || data.tier` (`ULTRA`, `PRO`, `FREE`, `DEV`) and render capability pills from `data.capabilities?.badges` (`Carbon`, `Argon`, `Orchestrator`) rather than hardcoded `PRO` + boolean `hasArgon` only.
+   - Render tier badge from `data.capabilities?.tier || data.tier` (`ULTRA`, `PRO`, `FREE`) and render capability pills from `data.capabilities?.badges` (`Carbon`, `Argon`, `Orchestrator`) rather than hardcoded `PRO` + boolean `hasArgon` only.
    - Annotate `Argon` badges with a pooled tooltip hint (`"Shared w/ Gemini Pool"`) when `argonWeekly?.sharedPool === true` / `argonMode === "shared_gemini"`.
 2. **Per-Group Model Rosters & Shared-Pool Mirror (`renderProfileCard`, `renderDetailModelCard`)**:
    - Display actual dynamic model lists from `data.groupModels?.gemini` (e.g., `Gemini 4 Carbon`, `Gemini 4 Argon`, `Gemini 4 Hydrogen`, `Orchestrator`, `Gemini 3.8 Flash`) and `data.groupModels?.claude` (e.g., `Claude Sonnet 4.6`, `Claude Opus 4.6`, `GPT-OSS 120B` vs `5.5`), falling back safely to default labels on legacy cached profiles missing `groupModels`.
