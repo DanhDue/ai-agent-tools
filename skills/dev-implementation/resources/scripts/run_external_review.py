@@ -2437,6 +2437,32 @@ def _finding_risk_sort_key(row: list[str]) -> tuple[int, int, int, int, int]:
     return (sev_rank, not_contract, is_non_prod, has_risk_kw, idx)
 
 
+PROPOSED_ACTION_MARKER = re.compile(
+    r"(?:^|(?:[.;—]|\n)\s*)\b(?:Proposed(?:\s+action)?|Fix|Suggestion|Đề xuất):\s*",
+    re.IGNORECASE,
+)
+
+
+def _extract_proposed_action(text: str) -> tuple[str, str]:
+    """Split inline proposal clause outside backtick code spans into (problem_text, proposed_action)."""
+    masked = re.sub(r"`[^`]*`", lambda m: " " * len(m.group(0)), text)
+    matches = list(PROPOSED_ACTION_MARKER.finditer(masked))
+    if not matches:
+        return text.strip(), ""
+    last = matches[-1]
+    proposed_action = text[last.end() :].strip()
+    if not proposed_action:
+        return text.strip(), ""
+    return text[: last.start()].strip(), proposed_action
+
+
+def _triage_problem_and_action(raw_problem: str) -> tuple[str, str]:
+    problem_text, proposed_action = _extract_proposed_action(raw_problem)
+    return cell(problem_text or raw_problem), (
+        cell(proposed_action) if proposed_action else "?"
+    )
+
+
 def top_risk_findings_section(latest: list[list[str]], limit: int = 3) -> list[str]:
     """Filter and rank the Top 3 highest-risk findings for executive reporting and design-anchored fixing."""
     if not latest:
@@ -2458,8 +2484,9 @@ def top_risk_findings_section(latest: list[list[str]], limit: int = 3) -> list[s
         "|------|---|----------|----------|---------|----------------------------------------------------|-----------------|",
     ]
     for rank, cells in enumerate(ranked, 1):
+        problem_cell, action_cell = _triage_problem_and_action(cells[3])
         lines.append(
-            f"| #{rank} | {cells[0]} | {cells[1]} | {cell(cells[2])} | {cell(cells[3])} | ? | ? |"
+            f"| #{rank} | {cells[0]} | {cells[1]} | {cell(cells[2])} | {problem_cell} | ? | {action_cell} |"
         )
     return lines
 
@@ -2588,13 +2615,16 @@ def triage(args: argparse.Namespace) -> int:
         "",
     ]
     if latest:
+        triage_rows = []
+        for cells in latest:
+            problem_cell, action_cell = _triage_problem_and_action(cells[3])
+            triage_rows.append(
+                f"| {cells[0]} | {cells[1]} | {cell(cells[2])} | {problem_cell} | ? | ? | {action_cell} |"
+            )
         out += [
             "| # | Severity | Location | Problem | Assessment | Evidence | Proposed action |",
             "|---|----------|----------|---------|------------|----------|-----------------|",
-            *(
-                f"| {cells[0]} | {cells[1]} | {cell(cells[2])} | {cell(cells[3])} | ? | ? | ? |"
-                for cells in latest
-            ),
+            *triage_rows,
         ]
     else:
         out.append("None.")

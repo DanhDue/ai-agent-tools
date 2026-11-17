@@ -1,13 +1,13 @@
 ---
 id: "task_03_review_prompts_and_triage_prefill"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "check_quota_dynamic_models_and_review_action"
 dueDate: null
 created: "2026-11-18T03:11:00Z"
-modified: "2026-11-18T03:11:00Z"
-completedAt: null
+modified: "2026-11-17T22:41:24Z"
+completedAt: "2026-11-17T22:41:24Z"
 labels: ["review-pipeline", "architecture", "contract"]
 order: "a3"
 review_tier: "full"
@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 3: Review Prompts `. Proposed:` Contract & `run_external_review.py` Pre-Filled Triage
 
-Epic: [check_quota_dynamic_models_and_review_action](../epic/check_quota_dynamic_models_and_review_action/check_quota_dynamic_models_and_review_action.en.md)
+Epic: [check_quota_dynamic_models_and_review_action](../../epic/check_quota_dynamic_models_and_review_action/check_quota_dynamic_models_and_review_action.en.md)
 
 ## Requirement Analysis
 
@@ -117,5 +117,5 @@ Downstream dependents (blocked by Task 3): `task_05`.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/check_quota_dynamic_models_and_review_action/check_quota_dynamic_models_and_review_action.en.md)
+- [Epic HLD](../../epic/check_quota_dynamic_models_and_review_action/check_quota_dynamic_models_and_review_action.en.md)
 - **Rollback**: Revert task commit to restore prompt files and `skills/dev-implementation/resources/scripts/run_external_review.py`.

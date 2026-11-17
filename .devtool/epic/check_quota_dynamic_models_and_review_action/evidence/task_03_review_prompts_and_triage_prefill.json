@@ -1,0 +1,227 @@
+{
+  "schema": 1,
+  "task": "task_03_review_prompts_and_triage_prefill",
+  "runs": {
+    "red": {
+      "head": "bce1c6c60dab1b4052361c90d6799744f0ea384e",
+      "tree": "94287bcc5e9f6cdc89cf9f5993f1b3a2f4ef84e7",
+      "patch_id": "8b26d1f6aaac9f50d2865a23e19e5aa39c361fe7",
+      "started": "2026-11-17T22:29:44Z",
+      "finished": "2026-11-17T22:29:44Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_cqra_external_review_proposed.py::test_cqra_hp_04_prompts_and_triage_prefill",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T22:29:44Z",
+          "finished": "2026-11-17T22:29:44Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "__________________ test_cqra_hp_04_prompts_and_triage_prefill __________________",
+            "tests/test_cqra_external_review_proposed.py:103: in test_cqra_hp_04_prompts_and_triage_prefill",
+            "    assert REQUIRED_FINDING_LINE in prompt_texts[\"external\"].splitlines()",
+            "E   AssertionError: assert '[Critical|Important|Minor] <artefact>:<location> — <problem>. Proposed: <edit>' in ['# External Review Prompt', '', 'You are an independent reviewer of a finished epic. You are strictly read-only: do n...gs, severity, file paths, and `Verdict: PASS|FAIL` only — do not restate `PASS:` facts).', '', '## Candidate', '', ...]",
+            "E    +  where ['# External Review Prompt', '', 'You are an independent reviewer of a finished epic. You are strictly read-only: do n...gs, severity, file paths, and `Verdict: PASS|FAIL` only — do not restate `PASS:` facts).', '', '## Candidate', '', ...] = <built-in method splitlines of str object at 0x77f107e000>()",
+            "E    +    where <built-in method splitlines of str object at 0x77f107e000> = '# External Review Prompt\\n\\nYou are an independent reviewer of a finished epic. You are strictly read-only: do not mo...r` findings), you MUST output `Verdict: PASS`.\\n- A review with no finding still ends with its `Verdict: PASS` line.\\n'.splitlines",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_cqra_external_review_proposed.py::test_cqra_hp_04_prompts_and_triage_prefill",
+            "1 failed in 0.03s"
+          ],
+          "output_sha256": "bcb535787646cab9f8f8b4a9bf343038a99a96d2b840706ff289cbb6b8f13335"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "bce1c6c60dab1b4052361c90d6799744f0ea384e",
+      "tree": "53a073305ee2ab490c2753b5c26a55a2261d30bd",
+      "patch_id": "d488d00dcb070f58430fe510a3313d718bb7a0f9",
+      "started": "2026-11-17T22:34:21Z",
+      "finished": "2026-11-17T22:35:25Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_cqra_external_review_proposed.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T22:34:21Z",
+          "finished": "2026-11-17T22:34:21Z",
+          "output_tail": [
+            "............                                                             [100%]",
+            "12 passed in 0.14s"
+          ],
+          "output_sha256": "1e7a2b94a32f949d284e67d2078d58730be5434f1e92caa42f6fbbb78b1816a2"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py skills/dev-implementation/resources/scripts/test_local_review.py && python3 -m pytest -q --tb=short --maxfail=3 tests/test_tto_external_review.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T22:34:21Z",
+          "finished": "2026-11-17T22:35:24Z",
+          "output_tail": [
+            "........................................................\u001b[1;36m⚡ [check-quota]\u001b[0m Selected provider: codex (codex: ELIGIBLE (5H=90.0%, 7D=80.0%, status=ACTIVE))",
+            ".........................................................",
+            "----------------------------------------------------------------------",
+            "Ran 113 tests in 56.833s",
+            "OK",
+            ".......                                                                  [100%]",
+            "7 passed in 6.23s"
+          ],
+          "output_sha256": "58fe764206f4117724ff16581302b17275b209f10259e1f2d2926435c494a4ac"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_cqra_external_review_proposed.py && ruff check --select E9,F63,F7,F821,F841,B007,B904 skills/dev-implementation/resources/scripts/run_external_review.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T22:35:24Z",
+          "finished": "2026-11-17T22:35:24Z",
+          "output_tail": [
+            "All checks passed!",
+            "All checks passed!"
+          ],
+          "output_sha256": "d63ab3df51a50c66f9c57056288c7d4faf9dce413552d89215714320ac2b748e"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py && mypy tests/test_cqra_external_review_proposed.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T22:35:24Z",
+          "finished": "2026-11-17T22:35:24Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files",
+            "Success: no issues found in 1 source file"
+          ],
+          "output_sha256": "3093aa6c998bfbee60b0ac0ac5a93a0b8b8c32442e01bb5f1a07d160a0edb631"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/cqra_task_03.xml tests/test_cqra_external_review_proposed.py",
+          "expect": "exit 0; results build/test-results/cqra_task_03.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T22:35:24Z",
+          "finished": "2026-11-17T22:35:25Z",
+          "output_tail": [
+            "............                                                             [100%]",
+            "12 passed in 0.14s"
+          ],
+          "output_sha256": "1e7a2b94a32f949d284e67d2078d58730be5434f1e92caa42f6fbbb78b1816a2",
+          "results": {
+            "path": "build/test-results/cqra_task_03.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 12,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_cqra_hp_04_prompts_and_triage_prefill",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_triage_question_mark_fallback",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_extract_proposed_action_variants[Stale cache key omits round id. Proposed: include round_num in cache key-Stale cache key omits round id-include round_num in cache key]",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_extract_proposed_action_variants[Repeated stat calls; Suggestion: cache mtime per round file-Repeated stat calls-cache mtime per round file]",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_extract_proposed_action_variants[Null pointer risk \\u2014 Fix: guard None before strip-Null pointer risk-guard None before strip]",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_extract_proposed_action_variants[Missing timeout. proposed action: pass timeout=30-Missing timeout-pass timeout=30]",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_extract_proposed_action_variants[Thi\\u1ebfu ki\\u1ec3m tra r\\u1ed7ng. \\u0110\\u1ec1 xu\\u1ea5t: th\\xeam \\u0111i\\u1ec1u ki\\u1ec7n if not items-Thi\\u1ebfu ki\\u1ec3m tra r\\u1ed7ng-th\\xeam \\u0111i\\u1ec1u ki\\u1ec7n if not items]",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_extract_proposed_action_variants[Docstring mentions `Proposed: example` inline without real suffix-Docstring mentions `Proposed: example` inline without real suffix-]",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_extract_proposed_action_variants[Regex fails on `Fix: inner` token. Proposed: mask backtick spans first-Regex fails on `Fix: inner` token-mask backtick spans first]",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_extract_proposed_action_variants[Old note. Fix: first draft; Proposed: final surgical edit-Old note. Fix: first draft-final surgical edit]",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_extract_proposed_action_variants[Flag edge case: null id; Unproposed: keep as-is-Flag edge case: null id; Unproposed: keep as-is-]",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_extract_proposed_action_variants[Dangling marker. Proposed:   -Dangling marker. Proposed:-]",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/references/external-review-prompt.md",
+            "skills/dev-implementation/references/local-review-prompt.md",
+            "skills/dev-implementation/resources/scripts/run_external_review.py",
+            "tests/test_cqra_external_review_proposed.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}
