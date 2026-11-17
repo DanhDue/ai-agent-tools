@@ -2412,3 +2412,68 @@ wait
     assert seen_timeouts == [0.5]
     assert rc_s == 124
     assert err_s == "Process timeout: execution timed out after 0.5s"
+
+
+def test_fpg_st_03_subagent_returned_event_carries_brief_role_model_effort(
+    tmp_path: Path,
+) -> None:
+    """Spec §9: Runner subagent_returned checkpoint and event carry brief_role, model, and effort."""
+    real_home = tmp_path / "_isolated_home"
+    _write_json(
+        real_home / ".d3nexus" / "agy_profiles.json",
+        {
+            "schema_version": 1,
+            "pool": [{"profile": "p2", "priority": 1}],
+        },
+    )
+    repo = tmp_path / "repo_telemetry"
+    _init_git_repo(repo)
+    _copy_dev_impl_scripts(repo)
+    epic = "demo_epic"
+    features = repo / ".devtool" / "features"
+    features.mkdir(parents=True, exist_ok=True)
+    (repo / ".devtool" / "epic" / epic).mkdir(parents=True, exist_ok=True)
+    (repo / "src").mkdir(parents=True, exist_ok=True)
+    (repo / "src" / "a.py").write_text("A = 1\n", encoding="utf-8")
+    (features / "task_01.md").write_text(
+        _make_task_md("task_01", epic, allowed=["src/a.py"]),
+        encoding="utf-8",
+    )
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "[DEMO] Seed telemetry test")
+
+    runner = lifecycle_runner.LifecycleRunner(root=repo, epic_slug=epic)
+    runner.quota_gate = lambda *_a, **_kw: 0
+    runner.dispatcher.pool_dispatcher = lambda *_a, **_kw: agy_dispatch.DispatchResult(
+        status="ok",
+        profile_used="p2",
+        attempts=1,
+        exit_code=0,
+        reason=None,
+        report=[],
+    )
+    assert runner.step_implementation()
+
+    safe_slug = _state_envelope._sanitize_epic_slug(epic)
+    events_path = repo / ".devtool" / "logs" / f"events_{safe_slug}.jsonl"
+    events = [
+        json.loads(line)
+        for line in events_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    sub_events = [e for e in events if e.get("event") == "subagent_returned"]
+    assert len(sub_events) >= 1
+    ev = sub_events[0]
+    assert ev["persona"] == "programmer"
+    assert ev["brief_role"] == "task-implementer"
+    assert ev["model"] == "gemini-4-hydrogen-xhigh"
+    assert ev["effort"] == "xhigh"
+    assert ev["checkpoint"]["brief_role"] == "task-implementer"
+    assert ev["checkpoint"]["model"] == "gemini-4-hydrogen-xhigh"
+    assert ev["checkpoint"]["effort"] == "xhigh"
+
+    wave_events = [e for e in events if e.get("event") == "wave_merged"]
+    for w_ev in wave_events:
+        for opt_key in ("brief_role", "model", "effort"):
+            assert opt_key not in w_ev
+            assert opt_key not in w_ev["checkpoint"]

@@ -819,6 +819,7 @@ class LifecycleRunner:
         next_step: str = "",
         turns_since_checkpoint: int | None = None,
         warning: str | None = None,
+        extra: Mapping[str, Any] | None = None,
     ) -> None:
         turns_val = (
             self._turns_since_budget_checkpoint
@@ -841,6 +842,11 @@ class LifecycleRunner:
         if effective_warning:
             payload["warning"] = effective_warning
             self._pending_quota_warning = None
+        if extra:
+            for key in ("brief_role", "model", "effort"):
+                val = extra.get(key)
+                if isinstance(val, str) and val.strip():
+                    payload[key] = val.strip()
         self.checkpoint_writer(self.root, self.epic_slug, payload)
 
     def _halt_with_decision(
@@ -1149,6 +1155,11 @@ class LifecycleRunner:
                     wave=wave,
                     tasks_in_flight=[task_id] if task_id else None,
                     next_step=f"{role_label}:{target_label}{profile_part}",
+                    extra={
+                        "brief_role": brief_role,
+                        "model": str(getattr(binding, "model_id", "") or ""),
+                        "effort": str(getattr(binding, "effort", "") or ""),
+                    },
                 )
                 budget = self._effective_turn_budget()
                 if self._turns_since_budget_checkpoint >= budget:

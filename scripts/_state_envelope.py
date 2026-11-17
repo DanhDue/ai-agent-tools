@@ -736,6 +736,13 @@ def _normalize_checkpoint_block(
         block["warning"] = warning_raw.strip()
     elif warning_raw is not None and warning_raw != "":
         block["warning"] = warning_raw
+    for opt_key in ("brief_role", "model", "effort"):
+        opt_raw = checkpoint.get(opt_key)
+        if isinstance(opt_raw, str):
+            if opt_raw.strip():
+                block[opt_key] = opt_raw.strip()
+        elif opt_raw is not None and opt_raw != "":
+            block[opt_key] = str(opt_raw)
     return block
 
 
@@ -763,23 +770,25 @@ def update_epic_checkpoint(
         next_step = str(block.get("next_step") or "")
         event_name = str(block.get("event") or "")
         summary = f"checkpoint:{event_name}" + (f" -> {next_step}" if next_step else "")
-        pending_record.append(
-            {
-                "category": "checkpoint",
-                "ts": block["at"],
-                "event": event_name,
-                "persona": block["persona"],
-                "head_sha": block["head_sha"],
-                "wave": block["wave"],
-                "next_step": next_step,
-                "low_quota": block["low_quota"],
-                "stage": str(state.get("stage") or ""),
-                "sub_step": str(state.get("sub_step") or ""),
-                "sub_step_detail": str(state.get("sub_step_detail") or ""),
-                "message": summary,
-                "checkpoint": copy.deepcopy(block),
-            }
-        )
+        event_record: dict[str, Any] = {
+            "category": "checkpoint",
+            "ts": block["at"],
+            "event": event_name,
+            "persona": block["persona"],
+            "head_sha": block["head_sha"],
+            "wave": block["wave"],
+            "next_step": next_step,
+            "low_quota": block["low_quota"],
+            "stage": str(state.get("stage") or ""),
+            "sub_step": str(state.get("sub_step") or ""),
+            "sub_step_detail": str(state.get("sub_step_detail") or ""),
+            "message": summary,
+            "checkpoint": copy.deepcopy(block),
+        }
+        for opt_key in ("brief_role", "model", "effort"):
+            if opt_key in block:
+                event_record[opt_key] = block[opt_key]
+        pending_record.append(event_record)
 
     def _commit_stream(
         target_dirs: Sequence[Path], _committed_state: dict[str, Any]

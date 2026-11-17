@@ -875,3 +875,71 @@ def test_checkpoint_cross_repo_and_worktree_head_sha(tmp_path: Path) -> None:
     )
     assert wt_hb["checkpoint"]["head_sha"] == wt_sha
     assert wt_hb["checkpoint"]["head_sha"] != target_sha
+
+
+@pytest.mark.parametrize(
+    ("extra_fields", "expect_present"),
+    [
+        ({}, False),
+        ({"brief_role": "", "model": "   ", "effort": None}, False),
+        (
+            {
+                "brief_role": "task-implementer",
+                "model": "gemini-4-hydrogen-xhigh",
+                "effort": "xhigh",
+            },
+            True,
+        ),
+    ],
+    ids=["omitted", "blank_or_none", "non_empty"],
+)
+def test_update_epic_checkpoint_keeps_optional_telemetry_fields(
+    tmp_path: Path,
+    extra_fields: dict[str, object],
+    expect_present: bool,
+) -> None:
+    """Spec §9: brief_role, model, and effort are stored on block and event only when non-empty."""
+    repo = tmp_path / "repo"
+    (repo / ".devtool").mkdir(parents=True, exist_ok=True)
+    epic_slug = "telemetry_epic"
+    safe_slug = _state_envelope._sanitize_epic_slug(epic_slug)
+    payload: dict[str, object] = {
+        "event": "subagent_returned",
+        "persona": "programmer",
+        "next_step": "task-implementer:t1 profile=p2",
+        **extra_fields,
+    }
+    cp = _state_envelope.update_epic_checkpoint(repo, epic_slug, payload)
+    frozen_ten = [
+        "event",
+        "at",
+        "persona",
+        "head_sha",
+        "wave",
+        "tasks_done",
+        "tasks_in_flight",
+        "next_step",
+        "turns_since_checkpoint",
+        "low_quota",
+    ]
+    assert list(cp.keys())[:10] == frozen_ten
+
+    events_path = repo / ".devtool" / "logs" / f"events_{safe_slug}.jsonl"
+    rec = json.loads(events_path.read_text(encoding="utf-8").splitlines()[-1])
+
+    if expect_present:
+        assert cp["brief_role"] == "task-implementer"
+        assert cp["model"] == "gemini-4-hydrogen-xhigh"
+        assert cp["effort"] == "xhigh"
+        assert rec["brief_role"] == "task-implementer"
+        assert rec["model"] == "gemini-4-hydrogen-xhigh"
+        assert rec["effort"] == "xhigh"
+        assert rec["checkpoint"]["brief_role"] == "task-implementer"
+        assert rec["checkpoint"]["model"] == "gemini-4-hydrogen-xhigh"
+        assert rec["checkpoint"]["effort"] == "xhigh"
+    else:
+        assert list(cp.keys()) == frozen_ten
+        for key in ("brief_role", "model", "effort"):
+            assert key not in cp
+            assert key not in rec
+            assert key not in rec["checkpoint"]
