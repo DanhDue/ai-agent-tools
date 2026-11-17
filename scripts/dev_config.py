@@ -69,6 +69,11 @@ _SUBCOMMANDS = frozenset(
         "resolve",
     }
 )
+PROVIDER_PRESETS: dict[str, str] = {
+    "agy": "default",
+    "claude": "all-claude",
+    "codex": "all-codex",
+}
 _POOL_KEYS = ("gemini5h", "argonWeekly", "geminiWeekly", "creditsPool")
 
 
@@ -441,6 +446,44 @@ def cmd_models_remove(
     return 0
 
 
+def _write_active_preset(
+    project_root: Path,
+    *,
+    name: str,
+    scope: str,
+    real_home: Path | None = None,
+) -> dict[str, Any]:
+    _validate_scope(scope)
+
+    def _mutate(layer: dict[str, Any]) -> None:
+        layer["active_preset"] = name
+
+    merged: dict[str, Any] = _pc.locked_update_layer(
+        project_root,
+        scope,
+        _mutate,
+        real_home=real_home,
+    )
+    return merged
+
+
+def _masked_layer_for_binding(
+    binding: PersonaBinding,
+    expected_alias: str,
+    expected_effort: str,
+    fallback_layer: str,
+) -> str | None:
+    differing_layers: list[str] = []
+    if binding.alias != expected_alias:
+        differing_layers.append(binding.sources.get("model", fallback_layer))
+    if binding.effort != expected_effort:
+        differing_layers.append(binding.sources.get("effort", fallback_layer))
+    if not differing_layers:
+        return None
+    rank = _pc._LAYER_RANK
+    return max(differing_layers, key=lambda layer: int(rank.get(layer, -1)))
+
+
 def cmd_preset(
     project_root: Path,
     *,
@@ -449,12 +492,7 @@ def cmd_preset(
     real_home: Path | None = None,
 ) -> int:
     """Set active_preset in the global or project layer."""
-    _validate_scope(scope)
-
-    def _mutate(layer: dict[str, Any]) -> None:
-        layer["active_preset"] = name
-
-    _pc.locked_update_layer(project_root, scope, _mutate, real_home=real_home)
+    _write_active_preset(project_root, name=name, scope=scope, real_home=real_home)
     if scope == "global":
         proj_path = _pc.project_config_path(project_root)
         if proj_path.is_file():
@@ -477,6 +515,49 @@ def cmd_preset(
                         file=sys.stderr,
                     )
     print(f"Set active_preset to '{name}' in {scope} scope.")
+    return 0
+
+
+def cmd_provider(
+    project_root: Path,
+    *,
+    provider: str,
+    scope: str = "global",
+    real_home: Path | None = None,
+) -> int:
+    """Apply the mapped preset for a provider shortcut and print resulting bindings."""
+    preset_name = PROVIDER_PRESETS.get(provider)
+    if preset_name is None:
+        allowed = ", ".join(PROVIDER_PRESETS)
+        raise PersonaConfigError(
+            f"Unknown provider '{provider}'; expected one of {allowed}"
+        )
+    merged = _write_active_preset(
+        project_root,
+        name=preset_name,
+        scope=scope,
+        real_home=real_home,
+    )
+    bindings = _pc.resolve_all_personas(project_root, real_home=real_home)
+    preset_bindings = merged["presets"][preset_name]
+
+    print(f"active_preset: {preset_name} ({scope})")
+    for persona in PERSONAS:
+        b = bindings[persona]
+        print(f"{persona}: {b.cli} {b.model_id} {b.effort}")
+        expected = preset_bindings[persona]
+        mask_layer = _masked_layer_for_binding(
+            b,
+            str(expected["model"]),
+            str(expected["effort"]),
+            scope,
+        )
+        if mask_layer is not None:
+            print(
+                f"warning: {persona} is still bound to {b.alias} {b.effort} by the "
+                f'{mask_layer} layer; run "dev_config.py reset {persona} --scope {mask_layer}"',
+                file=sys.stderr,
+            )
     return 0
 
 
@@ -687,24 +768,52 @@ def cmd_resolve(
 
 def _normalize_argv(argv: Sequence[str]) -> list[str]:
     tokens = list(argv)
-    has_subcommand = any(tok in _SUBCOMMANDS for tok in tokens)
-    if not has_subcommand:
-        tokens = [
-            "models" if tok == "--models" else "low-quota" if tok == "--low-quota" else tok
-            for tok in tokens
-        ]
-    return tokens
+    normalized: list[str] = []
+    has_subcommand = False
+    skip_next = False
+    for tok in tokens:
+        if skip_next:
+            normalized.append(tok)
+            skip_next = False
+            continue
+        if tok == "--provider":
+            normalized.append(tok)
+            skip_next = True
+            continue
+        if tok in _SUBCOMMANDS:
+            has_subcommand = True
+        if tok == "--models":
+            normalized.append("models")
+        elif tok == "--low-quota":
+            normalized.append("low-quota")
+        else:
+            normalized.append(tok)
+    return tokens if has_subcommand else normalized
 
 
-def _build_parser() -> _DevConfigParser:
-    parser = _DevConfigParser(prog="dev_config.py")
+def _add_top_level_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--project-root",
         type=Path,
         default=None,
         help="Repository root (defaults to current working directory).",
     )
-    sub = parser.add_subparsers(dest="command", required=True, parser_class=_DevConfigParser)
+    parser.add_argument(
+        "--provider",
+        default=None,
+        help="Bind all personas to one provider's preset (agy, claude, codex).",
+    )
+    parser.add_argument(
+        "--scope",
+        default=argparse.SUPPRESS,
+        help="Target configuration layer ('global' or 'project'; default: global).",
+    )
+
+
+def _build_parser() -> _DevConfigParser:
+    parser = _DevConfigParser(prog="dev_config.py")
+    _add_top_level_options(parser)
+    sub = parser.add_subparsers(dest="command", required=False, parser_class=_DevConfigParser)
 
     p_status = sub.add_parser("status", help="Show resolved persona bindings and warnings.")
     p_status.add_argument("--json", action="store_true")
@@ -720,26 +829,26 @@ def _build_parser() -> _DevConfigParser:
     p_madd.add_argument("--id", required=True, dest="model_id")
     p_madd.add_argument("--efforts", required=True)
     p_madd.add_argument("--quota-pool", default=None)
-    p_madd.add_argument("--scope", default="global")
+    p_madd.add_argument("--scope", default=argparse.SUPPRESS)
 
     p_mrm = models_sub.add_parser("remove", help="Remove a model alias from a layer.")
     p_mrm.add_argument("alias")
-    p_mrm.add_argument("--scope", default="global")
+    p_mrm.add_argument("--scope", default=argparse.SUPPRESS)
 
     p_preset = sub.add_parser("preset", help="Select active preset.")
     p_preset.add_argument("name")
-    p_preset.add_argument("--scope", default="global")
+    p_preset.add_argument("--scope", default=argparse.SUPPRESS)
 
     p_set = sub.add_parser("set", help="Override a persona model and effort.")
     p_set.add_argument("persona")
     p_set.add_argument("model")
     p_set.add_argument("effort")
     p_set.add_argument("--fallback", default=None)
-    p_set.add_argument("--scope", default="global")
+    p_set.add_argument("--scope", default=argparse.SUPPRESS)
 
     p_reset = sub.add_parser("reset", help="Clear persona overrides.")
     p_reset.add_argument("persona", nargs="?", default=None)
-    p_reset.add_argument("--scope", default="global")
+    p_reset.add_argument("--scope", default=argparse.SUPPRESS)
 
     p_lq = sub.add_parser("low-quota", help="Toggle profile-scoped low-quota mode.")
     p_lq.add_argument("action")
@@ -748,7 +857,7 @@ def _build_parser() -> _DevConfigParser:
 
     p_cp = sub.add_parser("checkpoint", help="Configure turn budget between checkpoints.")
     p_cp.add_argument("--turns", type=int, required=True)
-    p_cp.add_argument("--scope", default="global")
+    p_cp.add_argument("--scope", default=argparse.SUPPRESS)
 
     p_qc = sub.add_parser("quota-check", help="Evaluate quota gate for personas.")
     p_qc.add_argument("--personas", default=None)
@@ -764,6 +873,23 @@ def _build_parser() -> _DevConfigParser:
 
 def _dispatch_args(args: argparse.Namespace, project_root: Path) -> int:
     cmd = args.command
+    if getattr(args, "provider", None) is not None:
+        if cmd is not None:
+            raise PersonaConfigError(f"Cannot combine --provider with subcommand '{cmd}'")
+        return cmd_provider(
+            project_root,
+            provider=args.provider,
+            scope=getattr(args, "scope", "global"),
+        )
+
+    scope = getattr(args, "scope", "global")
+    scoped = (
+        cmd in ("preset", "set", "reset", "checkpoint")
+        or (cmd == "models" and args.models_action in ("add", "remove"))
+    )
+    if hasattr(args, "scope") and not scoped:
+        raise PersonaConfigError(f"Subcommand '{cmd}' does not accept --scope")
+
     if cmd == "status":
         return cmd_status(project_root, json_output=bool(args.json))
     if cmd == "models":
@@ -775,13 +901,13 @@ def _dispatch_args(args: argparse.Namespace, project_root: Path) -> int:
                 model_id=args.model_id,
                 efforts_raw=args.efforts,
                 quota_pool=args.quota_pool,
-                scope=args.scope,
+                scope=scope,
             )
         if args.models_action == "remove":
-            return cmd_models_remove(project_root, alias=args.alias, scope=args.scope)
+            return cmd_models_remove(project_root, alias=args.alias, scope=scope)
         return cmd_models(project_root, persona=args.persona, json_output=bool(args.json))
     if cmd == "preset":
-        return cmd_preset(project_root, name=args.name, scope=args.scope)
+        return cmd_preset(project_root, name=args.name, scope=scope)
     if cmd == "set":
         return cmd_set(
             project_root,
@@ -789,10 +915,10 @@ def _dispatch_args(args: argparse.Namespace, project_root: Path) -> int:
             model=args.model,
             effort=args.effort,
             fallback=args.fallback,
-            scope=args.scope,
+            scope=scope,
         )
     if cmd == "reset":
-        return cmd_reset(project_root, persona=args.persona, scope=args.scope)
+        return cmd_reset(project_root, persona=args.persona, scope=scope)
     if cmd == "low-quota":
         return cmd_low_quota(
             project_root,
@@ -801,7 +927,7 @@ def _dispatch_args(args: argparse.Namespace, project_root: Path) -> int:
             profile=args.profile,
         )
     if cmd == "checkpoint":
-        return cmd_checkpoint(project_root, turns=args.turns, scope=args.scope)
+        return cmd_checkpoint(project_root, turns=args.turns, scope=scope)
     if cmd == "quota-check":
         parsed_personas: tuple[str, ...] | None = None
         if args.personas is not None:
@@ -819,13 +945,45 @@ def _dispatch_args(args: argparse.Namespace, project_root: Path) -> int:
     raise PersonaConfigError(f"Unknown command '{cmd}'")
 
 
+def _dispatch_provider_shortcut(
+    normalized: Sequence[str],
+    parser: _DevConfigParser,
+) -> int:
+    top_parser = _DevConfigParser(prog="dev_config.py", add_help=False)
+    _add_top_level_options(top_parser)
+    top_args, rest = top_parser.parse_known_args(normalized)
+    if rest:
+        subcmd = next((tok for tok in rest if tok in _SUBCOMMANDS), None)
+        if subcmd is not None:
+            raise PersonaConfigError(f"Cannot combine --provider with subcommand '{subcmd}'")
+        parser.error(f"unrecognized arguments: {' '.join(rest)}")
+    if top_args.provider is None:
+        parser.error("a subcommand or --provider is required")
+    project_root = (top_args.project_root or Path.cwd()).resolve()
+    return cmd_provider(
+        project_root,
+        provider=top_args.provider,
+        scope=getattr(top_args, "scope", "global"),
+    )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry point."""
     raw = sys.argv[1:] if argv is None else argv
+    normalized = _normalize_argv(raw)
     parser = _build_parser()
-    args = parser.parse_args(_normalize_argv(raw))
-    project_root = (args.project_root or Path.cwd()).resolve()
+    has_help = any(tok in ("-h", "--help") for tok in normalized)
+    has_provider = any(
+        tok == "--provider" or tok.startswith("--provider=") for tok in normalized
+    )
     try:
+        if has_provider and not has_help:
+            return _dispatch_provider_shortcut(normalized, parser)
+
+        args = parser.parse_args(normalized)
+        if args.provider is None and args.command is None:
+            parser.error("a subcommand or --provider is required")
+        project_root = (args.project_root or Path.cwd()).resolve()
         return _dispatch_args(args, project_root)
     except PersonaConfigError as exc:
         print(f"Error: {exc}", file=sys.stderr)

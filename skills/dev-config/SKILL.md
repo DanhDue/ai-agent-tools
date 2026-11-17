@@ -21,7 +21,8 @@ python3 scripts/dev_config.py <args>
 | `models [--persona P] [--json]` (alias `--models`) | List the merged model catalogue, allowed efforts, resolved IDs, `PATH` availability, and current persona users |
 | `models add ALIAS --cli CLI --id ID --efforts E1,E2 [--quota-pool POOL] [--scope global\|project]` | Add or replace a catalogue alias without editing JSON (`cli` in `agy`, `claude`, `codex`, `kiro`; optional `quota_pool` in `argonWeekly`, `gemini5h`, `provider`) |
 | `models remove ALIAS [--scope global\|project]` | Remove an alias from that layer (refused while any merged binding or fallback references it) |
-| `preset NAME [--scope global\|project]` | Set `active_preset` (`default`, `gemini-saver`, `claude-hybrid`, `all-hydrogen`, `codex-kiro`); warns when project settings mask a global change |
+| `preset NAME [--scope global\|project]` | Set `active_preset` (`default`, `gemini-saver`, `claude-hybrid`, `all-hydrogen`, `codex-kiro`, `all-claude`, `all-codex`); warns when project settings mask a global change |
+| `--provider agy\|claude\|codex [--scope global\|project]` | One-command quick-setup that sets `active_preset` to the provider's mapped preset and prints the resulting bindings; warns per persona if an override or higher layer masks it |
 | `set PERSONA MODEL EFFORT [--fallback MODEL] [--scope global\|project]` | Override `ai_architect_reviewer`, `orchestrator`, or `programmer` |
 | `reset [PERSONA] [--scope global\|project]` | Clear one or all persona overrides in the target layer |
 | `low-quota on\|off [--for HOURS] [--profile NAME]` (alias `--low-quota`) | Toggle profile-scoped low-quota mode in the global layer (default 5 hours; halves the turn budget) |
@@ -29,7 +30,7 @@ python3 scripts/dev_config.py <args>
 | `quota-check [--personas P1,P2] [--json]` | Evaluate each persona's consumed quota pool against `quota_thresholds`; exits `0` when sufficient or `quota_unknown`, `2` when insufficient |
 | `resolve PERSONA [--format json\|argv] [--mode read-only\|write]` | Print the resolved binding JSON or headless dispatch argv |
 
-Default `--scope` is `global` for `preset`, `set`, `reset`, `models add`, `models remove`, and `checkpoint`. Exit codes are `0` (success / sufficient or unknown quota), `1` (validation or usage error), and `2` (insufficient quota).
+Default `--scope` is `global` for `preset`, `--provider`, `set`, `reset`, `models add`, `models remove`, and `checkpoint`. Exit codes are `0` (success / sufficient or unknown quota), `1` (validation or usage error), and `2` (insufficient quota).
 
 ## Interactive `--models` Flow
 
@@ -41,6 +42,16 @@ When the user invokes `/d3nexus:dev-config --models` (or `/d3nexus:dev-config --
 4. Run `python3 scripts/dev_config.py set <persona> <model> <effort> --scope <scope>` for each selected persona.
 5. Finish by running `python3 scripts/dev_config.py status` and showing the updated table.
 
+## Provider Quick-Setup (`--provider`)
+
+| `--provider` | Preset | `ai_architect_reviewer` (Role 2.1) | `orchestrator` (Role 2.2) | `programmer` (Role 2.3) |
+|---|---|---|---|---|
+| `agy` | `default` | `argon` `high` | `hydrogen` `high` | `hydrogen` `xhigh` |
+| `claude` | `all-claude` | `claude-opus` `high` | `claude-sonnet` `high` | `claude-sonnet` `high` |
+| `codex` | `all-codex` | `codex-gpt` `high` | `codex-terra` `medium` | `codex-terra` `medium` |
+
+`--provider` writes only `active_preset` at the selected `--scope` (default `global`) without modifying `overrides`, `models`, `checkpoint_policy`, or `low_quota`.
+
 ## Presets and Quota Pools
 
 | Preset | `ai_architect_reviewer` (Role 2.1) | `orchestrator` (Role 2.2) | `programmer` (Role 2.3) |
@@ -50,6 +61,8 @@ When the user invokes `/d3nexus:dev-config --models` (or `/d3nexus:dev-config --
 | `claude-hybrid` | `claude-opus` `high` | `hydrogen` `high` | `hydrogen` `xhigh` |
 | `all-hydrogen` | `hydrogen` `xhigh` | `hydrogen` `high` | `hydrogen` `xhigh` |
 | `codex-kiro` | `kiro-opus` `high` | `codex-gpt` `medium` | `codex-gpt` `xhigh` |
+| `all-claude` | `claude-opus` `high` | `claude-sonnet` `high` | `claude-sonnet` `high` |
+| `all-codex` | `codex-gpt` `high` | `codex-terra` `medium` | `codex-terra` `medium` |
 
 - `agy` models with `argon` in the `id` template consume `argonWeekly`; other `agy` models consume `gemini5h`; `claude`, `codex`, and `kiro` consume `provider`.
 - When quota data is unreadable (`quota_unknown`), `quota-check` exits `0` and surfaces the warning without blocking; use `d3nexus:check-quota` for full multi-profile inspection.

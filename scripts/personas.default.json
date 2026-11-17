@@ -27,6 +27,11 @@
       "id": "gpt-6.1-sol",
       "efforts": ["medium", "high", "xhigh"]
     },
+    "codex-terra": {
+      "cli": "codex",
+      "id": "gpt-6.1-terra",
+      "efforts": ["medium", "high", "xhigh"]
+    },
     "kiro-opus": {
       "cli": "kiro",
       "id": "claude-opus-5.5",
@@ -117,6 +122,34 @@
         "model": "codex-gpt",
         "effort": "xhigh",
         "fallback_model": "claude-sonnet"
+      }
+    },
+    "all-claude": {
+      "ai_architect_reviewer": {
+        "model": "claude-opus",
+        "effort": "high"
+      },
+      "orchestrator": {
+        "model": "claude-sonnet",
+        "effort": "high"
+      },
+      "programmer": {
+        "model": "claude-sonnet",
+        "effort": "high"
+      }
+    },
+    "all-codex": {
+      "ai_architect_reviewer": {
+        "model": "codex-gpt",
+        "effort": "high"
+      },
+      "orchestrator": {
+        "model": "codex-terra",
+        "effort": "medium"
+      },
+      "programmer": {
+        "model": "codex-terra",
+        "effort": "medium"
       }
     }
   },
