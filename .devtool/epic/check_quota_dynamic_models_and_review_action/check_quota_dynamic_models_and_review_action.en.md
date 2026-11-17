@@ -20,7 +20,7 @@
 ## Meta Data
 
 - **Epic name**: `check_quota_dynamic_models_and_review_action`
-- **Status**: Queued (backlog) — behind `four_persona_governance`
+- **Status**: In Review
 - **PIC**: `nguyenhieu000690`
 - **Target release**: Next plugin release
 - **Platform**: Python tooling, Markdown skill prompts, TypeScript contract types, local HTTP servers, and HTML/Vanilla JS dashboards
@@ -38,8 +38,8 @@ This epic resolves two high-impact observability regressions discovered across t
    - Cross-profile pool aggregation via `retrieveUserQuotaSummary` is explicitly forbidden by the user: every profile must display strictly independent quota metrics.
 2. **Missing `PROPOSED ACTION` in `/check-tasks` Cross-Model Review**:
    - `skills/principal-review/references/principal-review-prompt.md:L56` mandates `. Proposed: <edit>`, whereas `skills/dev-implementation/references/external-review-prompt.md:L67` and `local-review-prompt.md:L50` omit `. Proposed: <edit>`.
-   - `run_external_review.py` hardcodes `?` in `top_risk_findings_section()` (`L2407-L2431`) and `triage()` stdout tables (`L2515-L2624`; `triage()` writes only to stdout while `fix_plan_round<N>.md` is drafted externally), while `check()` (`L2230-L2251`) enforces 5-column persisted tables (`len(cells) == 5`).
-   - `tasks_server.py` (`parse_review_results` `L525-L784`) searches only `cells[3]` with `(?:Proposed(?:\s+Action)?|Đề xuất):\s*(.+)$` (missing `Fix:`/`Suggestion:`, `\b` word boundaries, and last-match delimiter safety), assumes `cells[4]` is always `decision`, ignores `.devtool/epic/<epic>/fix_plan_round<N>.md` (across both `### Finding #N` / `## Summary Matrix` and `### Fix N` / `Planned Surgical Fix` conventions), and omits `fix_plan_round<N>.md` / `fix_plan.md` from `watch_paths` (`L770-L778`).
+   - `run_external_review.py` hardcodes `?` in `top_risk_findings_section()` (`L2440-L2466`) and `triage()` stdout tables (`L2548-L2659`; `triage()` writes only to stdout while `fix_plan_round<N>.md` is drafted externally), while `check()` (`L2263-L2286`) enforces 5-column persisted tables (`len(cells) == 5`).
+   - `tasks_server.py` (`parse_review_results` `L527-L806`) searches only `cells[3]` with `(?:Proposed(?:\s+Action)?|Đề xuất):\s*(.+)$` (missing `Fix:`/`Suggestion:`, `\b` word boundaries, and last-match delimiter safety), assumes `cells[4]` is always `decision`, ignores `.devtool/epic/<epic>/fix_plan_round<N>.md` (across both `### Finding #N` / `## Summary Matrix` and `### Fix N` / `Planned Surgical Fix` conventions), and omits `fix_plan_round<N>.md` / `fix_plan.md` from `watch_paths` (`L772-L780`).
 
 ## Goals and Non-Goals
 
@@ -54,7 +54,7 @@ This epic resolves two high-impact observability regressions discovered across t
 
 - Cross-profile pool grouping or `retrieveUserQuotaSummary` aggregation in UI or CLI.
 - Breaking 5-column persisted `review_results.md` compatibility enforced by `run_external_review.py check()`.
-- Modifying `four_persona_governance` active `.devtool/features/` tasks (`status: "backlog"` applies per Concurrent-Epic Backlog Rule).
+- Retroactively modifying `four_persona_governance` archived artefacts.
 
 ## Architecture and Technical Design
 
@@ -113,21 +113,17 @@ flowchart LR
    - Exports `ArgonMode = 'separate' | 'shared_gemini' | 'none'`, `ModelCatalogEntry`, `ProfileCapabilities`; aligns `QuotaBucket` with emitted runtime keys (`name`, `fraction`, `countdown`, `resetTime`, `resetTimeLocal?`, `unavailable`, `tags?`, `sharedPool?: boolean`, `mode?: ArgonMode`, keeping `id?`, `window?`, `remainingFraction?`, `description?`, `isAvailable?` optional); adds additive optional fields on `QuotaGroup` and `ProfileQuotaState`.
 
 4. **`skills/dev-implementation/resources/scripts/run_external_review.py`**:
-   - Keeps `render_round()`, `check()`, and `finding_rows()` enforcing 5-column `| # | Severity | Location | Problem | Decision |` tables in `review_results.md`.
-   - `top_risk_findings_section()` and `triage()` extract inline proposal clauses from `finding[3]` (`Problem`) using the shared marker regex and pre-fill the `Proposed action` cell in stdout triage tables (`?` only when absent); `triage()` prints only to stdout (`L2623`) and never writes `fix_plan_round<N>.md`.
+   - Keeps `render_round()` (`L1310-L1342`), `check()` (`L2263-L2286`), and `finding_rows()` (`L2339-L2342`) enforcing 5-column `| # | Severity | Location | Problem | Decision |` tables in `review_results.md`.
+   - `top_risk_findings_section()` (`L2440-L2466`) and `triage()` (`L2548-L2659`) extract inline proposal clauses from `finding[3]` (`Problem`) using the shared marker regex and pre-fill the `Proposed action` cell in stdout triage tables (`?` only when absent); `triage()` prints only to stdout (`L2656`) and never writes `fix_plan_round<N>.md`.
 
 5. **`skills/check-tasks/resources/scripts/tasks_server.py::parse_review_results`**:
-   - Preserves existing call signature; maps columns by normalized header name (`#`/`id`, `Severity`/`Mức độ`/`Sev`, `Location`/`File / Target`/`Target`, `Problem`, `Proposed Action`/`Action`, `Decision`) across 5-column (`Location`) and 6-column tables with positional fallback `[0..4]`; uses the shared word-boundary last-match regex (`Proposed:`, `Proposed action:`, `Fix:`, `Suggestion:`, `Đề xuất:`); applies best-effort fallback per `(round, finding_num)` to `.devtool/epic/<epic>/fix_plan_round<N>.md` and `fix_plan.md` across both `### Finding #N` / `## Summary Matrix` and `### Fix N [...#N...]` / `Planned Surgical Fix` / numbered `Finding #N` formats (preferring detailed per-finding prose over summary table cells); unconditionally adds expected `fix_plan_round<round>.md` and `fix_plan.md` (plus discovered `fix_plan_round*.md`) to `watch_paths` inside `_REVIEW_PARSE_CACHE`.
+   - Preserves existing call signature; maps columns by normalized header name (`#`/`id`, `Severity`/`Mức độ`/`Sev`, `Location`/`File / Target`/`Target`, `Problem`, `Proposed Action`/`Action`, `Decision`) across 5-column (`Location`) and 6-column tables with positional fallback `[0..4]`; uses the shared word-boundary last-match regex (`Proposed:`, `Proposed action:`, `Fix:`, `Suggestion:`, `Đề xuất:`); applies best-effort fallback per `(round, finding_num)` to `.devtool/epic/<epic>/fix_plan_round<N>.md` and `fix_plan.md` across both `### Finding #N` / `## Summary Matrix` and `### Fix N [...#N...]` / `Planned Surgical Fix` / numbered `Finding #N` formats (preferring detailed per-finding prose over summary table cells); unconditionally adds expected `fix_plan_round<round>.md` and `fix_plan.md` (plus discovered `fix_plan_round*.md`) to `watch_paths` (`L772-L780`) inside `_REVIEW_PARSE_CACHE`.
 
 ## Impact Analysis
 
 Shift-left impact analysis (`check_code_impact.py --base-ref main`) audited all target files and 21 downstream callers across tests and scripts:
 
-- **Upstream Git Conflict Status & Queued-Epic Overlap**: **0** unmerged commits against `main`. However, this epic is queued behind `four_persona_governance` (`status: "todo"` in `.devtool/features/`), which modifies overlapping files:
-  - `four_persona_governance` `task_04` & `task_06`: `skills/dev-implementation/resources/scripts/run_external_review.py`
-  - `four_persona_governance` `task_05`: `skills/check-tasks/resources/scripts/tasks_server.py`, `skills/check-tasks/resources/dashboard/tasks_dashboard.html`
-  - `four_persona_governance` `task_08`: `scripts/verify.sh`
-  When `check_quota_dynamic_models_and_review_action` is promoted after `four_persona_governance` lands, every affected line anchor in those four files MUST be re-baselined (using symbol-anchored edits or `package_epic.py --revise`) before Stage 3 execution. Note also that `skills/check-quota/resources/dashboard/quota_dashboard.html` may carry cached profile injections on main checkouts; Stage 3 tasks execute cleanly inside isolated branch worktrees.
+- **Upstream Git Conflict Status & `four_persona_governance` Merge Alignment**: **0** unmerged commits against `main`. Prerequisite queue blocker `four_persona_governance` (`task_04`/`task_06` on `run_external_review.py`, `task_05` on `tasks_server.py` and `tasks_dashboard.html`, `task_08` on `scripts/verify.sh`) merged at `21f268d` (recorded at `c084ad1`). All affected line anchors in `run_external_review.py`, `tasks_server.py`, `tasks_dashboard.html`, and `scripts/verify.sh` have been re-baselined to post-merge `main` (`c084ad1`), and `sync_task_status.py check-conflicts` reports `0 conflicts`. Note also that `skills/check-quota/resources/dashboard/quota_dashboard.html` may carry cached profile injections on main checkouts; Stage 3 tasks execute cleanly inside isolated branch worktrees.
 - **Downstream Compatibility**:
   - `parse_agy_models_output` retains its `list[str]` return signature (`test_agy_quota.py`, `refresh_session.py`).
   - Existing `/api/review` and `/api/epic/history` callers receive populated string `proposed_action` values in the existing finding dict shape (`test_check_tasks_server.py`, `test_cehm_history_aggregator.py`, `test_cehm_dashboard_modal_ui.py`).
@@ -164,12 +160,12 @@ All 17 BDD scenarios (`CQRA-HP-01` through `CQRA-FR-03`) are defined in [bdd_sce
 ## Rollout Strategy and Mitigation
 
 - Execute Wave 1 tasks (`Task 01`, `Task 02`, `Task 03`) in parallel over disjoint file sets inside worker slots before advancing to Wave 2 (`Task 04`, `Task 05`).
-- Because `four_persona_governance` currently holds active `todo` tasks in `.devtool/features/`, this epic initializes with `status: "backlog"` per Concurrent-Epic Backlog Rule and promotes cleanly once `four_persona_governance` lands or is superseded — re-baselining any shifted line anchors in `run_external_review.py`, `tasks_server.py`, `tasks_dashboard.html`, and `scripts/verify.sh` via `package_epic.py --revise` before execution.
+- Following `four_persona_governance` archival and merge (`21f268d`), this epic is promoted from `backlog` to `todo` with all shifted line anchors in `run_external_review.py`, `tasks_server.py`, `tasks_dashboard.html`, and `scripts/verify.sh` re-baselined to `c084ad1`.
 - Verify both existing regression suites (`test_agy_quota.py`, `test_refresh_session.py`, `test_run_external_review.py`, `test_check_tasks_server.py`, `test_cehm_history_aggregator.py`, `test_cehm_dashboard_modal_ui.py`) and `bash scripts/verify.sh` cleanly before Gate 4 convergence.
 
 ## Kanban Tasks Breakdown
 
-Confirmed 5-task breakdown (queued behind `four_persona_governance` per Concurrent-Epic Backlog Rule):
+Confirmed 5-task breakdown (promoted to `todo` after `four_persona_governance` completion):
 
 1. **[Task 01: Check-Quota Hybrid Model Discovery, `argonMode` Mirror, Schema Types & `refresh` Cache Persistence](task_01_check_quota_dynamic_models_and_argon_mode.md)** (`review_tier: "full"`) — Covers: `CQRA-HP-01`, `CQRA-HP-02`, `CQRA-EC-01`, `CQRA-ST-01`, `CQRA-AR-01`, `CQRA-FR-01`
 2. **[Task 02: Refresh-Session Shared-Pool Argon Ping Suppression Guard](task_02_refresh_session_shared_argon_guard.md)** (`review_tier: "full"`) — Covers: `CQRA-ST-02`, `CQRA-FR-02`

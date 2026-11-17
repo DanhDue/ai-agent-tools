@@ -1,6 +1,6 @@
 ---
 id: "task_03_review_prompts_and_triage_prefill"
-status: "backlog"
+status: "todo"
 priority: "high"
 assignee: null
 epic: "check_quota_dynamic_models_and_review_action"
@@ -25,9 +25,9 @@ Align external and local code review prompt contracts with Principal Review by e
    - Update finding format templates in `skills/dev-implementation/references/external-review-prompt.md` and `skills/dev-implementation/references/local-review-prompt.md` from `[Critical|Important|Minor] <artefact>:<location> — <problem>` to match `skills/principal-review/references/principal-review-prompt.md`:
      `[Critical|Important|Minor] <artefact>:<location> — <problem>. Proposed: <edit>`
 2. **Pre-Fill Proposals Without Breaking 5-Column `check()` (`skills/dev-implementation/resources/scripts/run_external_review.py`)**:
-   - Keep `render_round()` (`L1283-L1313`), `check()` (`L2230-L2251`), and `finding_rows()` (`L2306-L2307`) enforcing strictly 5-column markdown tables (`| # | Severity | Location | Problem | Decision |`) in persisted `review_results.md`.
-   - Extract `. Proposed: <edit>` via shared helper `_extract_proposed_action()` using the pinned marker regex `re.compile(r"(?:^|(?:[.;—]|\n)\s*)\b(?:Proposed(?:\s+action)?|Fix|Suggestion|Đề xuất):\s*", re.IGNORECASE)` applied to the **last** `finditer()` match, and pre-fill the `Proposed action` column cell in `top_risk_findings_section()` (`L2407-L2431`) and `triage()` (`L2515-L2624`) stdout tables (`?` only when omitted; `triage()` prints only to stdout at `L2623` and never writes `fix_plan_round<N>.md`).
-   - Preserve `parse_findings()` (`L1224-L1235`) retaining full finding tuples so inline `. Proposed: <edit>` survives into the persisted 5-column `Problem` cell for downstream dashboard parsing.
+   - Keep `render_round()` (`L1310-L1342`), `check()` (`L2263-L2286`), and `finding_rows()` (`L2339-L2342`) enforcing strictly 5-column markdown tables (`| # | Severity | Location | Problem | Decision |`) in persisted `review_results.md`.
+   - Extract `. Proposed: <edit>` via shared helper `_extract_proposed_action()` using the pinned marker regex `re.compile(r"(?:^|(?:[.;—]|\n)\s*)\b(?:Proposed(?:\s+action)?|Fix|Suggestion|Đề xuất):\s*", re.IGNORECASE)` applied to the **last** `finditer()` match, and pre-fill the `Proposed action` column cell in `top_risk_findings_section()` (`L2440-L2466`) and `triage()` (`L2548-L2659`) stdout tables (`?` only when omitted; `triage()` prints only to stdout at `L2656` and never writes `fix_plan_round<N>.md`).
+   - Preserve `parse_findings()` (`L1251-L1264`) retaining full finding tuples so inline `. Proposed: <edit>` survives into the persisted 5-column `Problem` cell for downstream dashboard parsing.
 3. **Unit Suite (`tests/test_cqra_external_review_proposed.py`)**:
    - Cover scenarios `CQRA-HP-04` and `CQRA-EC-04`.
 
@@ -53,7 +53,7 @@ Preserving 5 columns (`len(cells) == 5`) inside persisted `review_results.md` ma
 - **Target Files & Symbols**:
   - `skills/dev-implementation/references/external-review-prompt.md`: finding output specification
   - `skills/dev-implementation/references/local-review-prompt.md`: finding output specification
-  - `skills/dev-implementation/resources/scripts/run_external_review.py`: `parse_findings` (L1224-L1235), `render_round` (L1283-L1313), `check` (L2230-L2251), `finding_rows` (L2306-L2307), `top_risk_findings_section` (L2407-L2431), `triage` (L2515-L2624), new _extract_proposed_action
+  - `skills/dev-implementation/resources/scripts/run_external_review.py`: `parse_findings` (L1251-L1264), `render_round` (L1310-L1342), `check` (L2263-L2286), `finding_rows` (L2339-L2342), `top_risk_findings_section` (L2440-L2466), `triage` (L2548-L2659), new _extract_proposed_action
   - `tests/test_cqra_external_review_proposed.py`: new unit test suite
 - **Downstream Callers**: Task 05 (`tasks_server.py`), `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`, `skills/dev-implementation/resources/scripts/test_run_external_review.py`, `skills/dev-implementation/resources/scripts/test_local_review.py`, `tests/test_tto_external_review.py`.
 - **Cross-Platform Bridges**: Markdown table / `. Proposed: <edit>` wire contract consumed by `tasks_server.py::parse_review_results`.
@@ -98,9 +98,9 @@ Then Finding #1 pre-fills `clamp negative fraction` in the `Proposed action` col
 
 ## Decisions Already Made
 
-- Persisted `review_results.md` tables keep strictly 5 columns (`#`, `Severity`, `Location`, `Problem`, `Decision`) as emitted by `render_round()` (`L1307`) so `check()` (`L2230-L2251`) continues passing unchanged.
+- Persisted `review_results.md` tables keep strictly 5 columns (`#`, `Severity`, `Location`, `Problem`, `Decision`) as emitted by `render_round()` (`L1334`) so `check()` (`L2263-L2286`) continues passing unchanged.
 - `external-review-prompt.md` and `local-review-prompt.md` adopt the exact finding suffix `. Proposed: <edit>` used by `skills/principal-review/references/principal-review-prompt.md`.
-- `triage()` (`L2515-L2624`) prints the triage skeleton only to stdout (`L2623`) and never writes `fix_plan_round<N>.md`; `top_risk_findings_section()` and `triage()` extract inline proposal clauses into the `Proposed action` column cell in stdout tables and emit `?` only when no proposal suffix is present.
+- `triage()` (`L2548-L2659`) prints the triage skeleton only to stdout (`L2656`) and never writes `fix_plan_round<N>.md`; `top_risk_findings_section()` and `triage()` extract inline proposal clauses into the `Proposed action` column cell in stdout tables and emit `?` only when no proposal suffix is present.
 - Shared proposal marker extraction regex (matching Task 05): `re.compile(r"(?:^|(?:[.;—]|\n)\s*)\b(?:Proposed(?:\s+action)?|Fix|Suggestion|Đề xuất):\s*", re.IGNORECASE)` applied to the **last** `finditer()` match (`problem_text = text[:m.start()].strip()`, `proposed_action = text[m.end():].strip()`).
 
 ## Definition of Done
