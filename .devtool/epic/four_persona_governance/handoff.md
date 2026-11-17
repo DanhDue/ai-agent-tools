@@ -14,7 +14,7 @@
 ## Status
 
 - **Packaged**: 2026-11-17
-- **Design commit**: `1912c7e`
+- **Design commit**: `3802d7e`
 - **Base branch**: `main`
 - **PIC / Assigned Profile**: `danhdue` (e.g. `danhdue`, `buivantrong8901`, `huynhminhtien0510`)
 - **Gates passed**: 1 (spec), 2 (HLD and task breakdown)
@@ -69,11 +69,12 @@ None
 
 - **2026-11-17 (`66511cd`)**: Initial Stage 2 packaging
 - **2026-11-17 (`66511cd` -> `1912c7e`)**: Add SE-07 provider quick-setup (dev-config --provider agy|claude|codex): scenarios FPG-HP-10 and FPG-EC-06, new Task 09, Task 08 now also blocked by Task 09
+- **2026-11-17 (`1912c7e` -> `3802d7e`)**: SE-08: correct mypy argument order in Task 04 V5 and Task 06 V6 (flags after the last file); add --follow-imports=silent to Task 04 V5
 
 ## Rules for the Receiving Agent
 
 - Do not re-run `dev-brainstorming` or `dev-designer`. Raise a wrong or missing document at Gate 3.
 - Gate 3 computes wave-parallel execution automatically via `compute_execution_order.py four_persona_governance --parallel`, estimates wave heartbeat via `estimate_heartbeat.py`, dispatches independent wave tasks across isolated slots (`manage_worker_pool.py init|sync|merge|cleanup` / `workspace:"share"` subagents — pass `--task <task_id> [--wave <k>] --status working|review` on `sync` or use `sync_task_status.py task <task_id> in-progress|review` in single-worktree mode before dispatch/review, then `done` + commit in slot before `merge`), and pauses via `resume_context.py --pending-decision` only on Choice A gates or `CRITICAL_CONFLICT`.
-- Unless the design commit is `uncommitted`: if `git log 1912c7e..main -- .devtool/epic/four_persona_governance` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
+- Unless the design commit is `uncommitted`: if `git log 3802d7e..main -- .devtool/epic/four_persona_governance` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
 - This file is updated only by `package_epic.py --revise`, which records each re-anchoring under `## Revisions` and clears any pending revision decision for this epic.
 - Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.

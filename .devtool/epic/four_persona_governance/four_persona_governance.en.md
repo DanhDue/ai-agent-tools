@@ -346,3 +346,9 @@ and Fault Resilience (`FR`).
   (taken from Role 1.0's earlier question about Opus and Sonnet), the `high` effort of `gpt-6.1-sol`, and the id and
   efforts of `codex-terra` (derived from `gpt-6.1-sol`; unverifiable offline). It is Task 09 because Task 01 was
   already implemented and reviewed when the request arrived; Task 08 now also depends on Task 09.
+- **[SE-08] Verification rows: mypy argument order and scope**: Task 04 V5 and Task 06 V6 placed `--ignore-missing-imports`
+  between file arguments, which mypy 2.4 rejects with exit 2 (options after positionals). Both rows now keep the registered `type_check`
+  command of `.agents/quality/python-quality.json` as their prefix and put the flags after the last file. Task 04 V5 also adds `--follow-imports=silent`, so a type error in a module the row does not list
+  (for example the existing `Name "parser" is not defined` in `scripts/resume_context.py`, owned by Task 02) cannot fail
+  an unrelated task; the four existing `arg-type` errors in `integrate_branch.py` are in a listed Allowed file, so
+  Task 04 fixes them with typing-only changes.

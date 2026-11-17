@@ -14,7 +14,7 @@ review_tier: "full"
 
 # Task 4: English-Only Document Resolution and Exclusive Ownership Check
 
-Epic: [four_persona_governance](four_persona_governance.en.md)
+Epic: [four_persona_governance](../epic/four_persona_governance/four_persona_governance.en.md)
 
 ## Requirement Analysis
 
@@ -168,7 +168,7 @@ Then the same command exits 0
 | V3 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 skills/dev-implementation/resources/scripts/test_check_epic_readiness.py skills/dev-implementation/resources/scripts/test_sync_task_status.py skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py skills/dev-implementation/resources/scripts/test_check_task_contract.py` | exit 0 | — |
 | V7 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 skills/dev-implementation/resources/scripts/test_audit_epic.py skills/dev-implementation/resources/scripts/test_local_review.py skills/dev-implementation/resources/scripts/test_run_task_checks.py skills/finishing-a-development-branch/resources/scripts/test_integrate_branch.py tests/test_smoke_checklist_generator.py` | exit 0 | — |
 | V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/_epic_docs.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/package_epic.py skills/dev-implementation/resources/scripts/sync_task_status.py skills/dev-implementation/resources/scripts/check_bdd_traceability.py skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/audit_epic.py skills/dev-implementation/resources/scripts/local_review.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/task_contract.py skills/finishing-a-development-branch/resources/scripts/integrate_branch.py` | exit 0 | — |
-| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py --ignore-missing-imports skills/dev-implementation/resources/scripts/_epic_docs.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/package_epic.py skills/dev-implementation/resources/scripts/sync_task_status.py skills/dev-implementation/resources/scripts/check_bdd_traceability.py skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/audit_epic.py skills/dev-implementation/resources/scripts/local_review.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/task_contract.py skills/finishing-a-development-branch/resources/scripts/integrate_branch.py` | exit 0 | — |
+| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/_epic_docs.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/package_epic.py skills/dev-implementation/resources/scripts/sync_task_status.py skills/dev-implementation/resources/scripts/check_bdd_traceability.py skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/audit_epic.py skills/dev-implementation/resources/scripts/local_review.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/task_contract.py skills/finishing-a-development-branch/resources/scripts/integrate_branch.py --ignore-missing-imports --follow-imports=silent` | exit 0 | — |
 | V6 | TIER-C | `python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/fpg_task_04.xml tests/test_fpg_english_only_and_ownership.py` | exit 0; results build/test-results/fpg_task_04.xml | — |
 
 ## Stop and Report If
@@ -204,6 +204,10 @@ Then the same command exits 0
   pathspecs stay.
 - The baseline mypy `import-not-found` errors for sys.path-injected siblings are why V5 passes
   `--ignore-missing-imports`.
+- Source: `integrate_branch.py` has four existing mypy `arg-type` errors (near L253, L325, L328, L342) that V5 reports
+  because the file is listed. Fix them with typing-only changes (annotations or narrowing, no behaviour change). A
+  type error in a module that V5 does not list, such as `scripts/resume_context.py` (owned by Task 2), is outside
+  this task: V5 passes `--follow-imports=silent`, so it is not reported ([SE-08](../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)).
 - Tests load script modules via `importlib.util.spec_from_file_location` inside fixtures.
 
 ## Definition of Done
@@ -221,5 +225,5 @@ Downstream dependents (blocked by Task 4): `task_05`.
 
 ## References & Rollback
 
-- [Epic HLD](four_persona_governance.en.md)
+- [Epic HLD](../epic/four_persona_governance/four_persona_governance.en.md)
 - **Rollback**: Revert the task commit; `.en.md` epics behave as before.
