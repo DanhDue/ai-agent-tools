@@ -18,7 +18,7 @@ The orchestrator for epic-scale work. It owns **sequence and gates only** — ea
 
 ## The Sequence
 
-Human-facing lifecycle and resume diagrams live in [lifecycles.en.md](../../docs/lifecycles.en.md) and [lifecycles.vi.md](../../docs/lifecycles.vi.md). Runtime sequence (Interactive & Autonomous Pipeline Mode):
+Human-facing lifecycle and resume diagrams live in [lifecycles.en.md](../../docs/lifecycles.en.md). Runtime sequence (Interactive & Autonomous Pipeline Mode):
 
 1. **Stage 1 (Inception & Spec)**: `dev-brainstorming` -> Gate 1 approval -> Route to `dev-designer` (epic) or `writing-plans` (non-epic).
 2. **Stage 2 (Architecture & Tasks)**: `dev-designer` (Role 2.1) -> Gate 2 approval (`--checkpoint gate2_tasks_locked`) -> Provider priority prompt -> `/principal-review` (Max 3 rounds; Role 2.1 `principal-reviser` revises docs) -> Post-review Package (`package_epic.py`) & print implement prompt -> Choice (**Triển khai (tự động)** vs **Dừng lại**).
@@ -35,10 +35,9 @@ Human-facing lifecycle and resume diagrams live in [lifecycles.en.md](../../docs
 
 ## Document Contract
 
-Durable design documents MUST be emitted as synchronized `.en.md` (canonical) and `.vi.md` pairs with a linked ToC covering every `##` section (specs, HLDs, BDD scenarios, non-epic plans). Only `task_*.md` and `handoff.md` are English-only (`handoff.md` still requires a ToC).
+Every dev artefact is English-only and a single file. Specs, HLDs, BDD scenarios and non-epic plans carry a linked ToC covering every `##` section: `YYYY-MM-DD-<topic>-design.md`, `<epic_dir>.md`, `bdd_scenarios.md`, `docs/superpowers/plans/YYYY-MM-DD-<feature>.md`; legacy `.en.md` files are accepted, not produced. `task_*.md` and `handoff.md` stay English-only (`handoff.md` still requires a ToC). Vietnamese mirrors are not SSOT: never open or create one unless Role 1.0 asks ([rule 11](../../rules/CRITICAL_RULES.md#11-english-ssot-and-vietnamese-mirror-isolation)).
 
-### Markdown Quality Standards
-Enforce heading hierarchy, valid code block tags, resolving links, no trailing whitespace, and quoted flowchart labels in human docs.
+Authoring standards (Markdown quality, `Depends on epic` declaration) — read when authoring or reviewing an HLD or a human-facing document: [governance-checklists.md](references/governance-checklists.md#8-authoring-standards-from-the-dev-lifecycle-skill).
 
 ## The Five Gates
 
@@ -46,8 +45,8 @@ Every gate is a **human approval** except Gate 4 (machine verdict). Never cross 
 
 | Gate | Name | Approver | Enforced in | Handoff artefact |
 |------|------|----------|-------------|------------------|
-| **1** | Spec Approved | User | `dev-brainstorming` | `YYYY-MM-DD-<topic>-design.en.md` + `.vi.md` |
-| **2** | HLD & Task Breakdown | User | `dev-designer` | `<epic_dir>.en.md` + `.vi.md` + `bdd_scenarios.en.md` + `.vi.md` + `task_*.md` |
+| **1** | Spec Approved | User | `dev-brainstorming` | `YYYY-MM-DD-<topic>-design.md` |
+| **2** | HLD & Task Breakdown | User | `dev-designer` | `<epic_dir>.md` + `bdd_scenarios.md` + `task_*.md` |
 | **3** | Execution Order | Automated (Role 2.2 Orchestrator) | `dev-implementation` Phase 1 / Resume | auto-resolved order + bootstrapped worktree |
 | **4** | Quality LGTM & Check 2 | `audit_epic.py` + `check_bdd_traceability.py` + `quality_check` | `dev-implementation` Phase 4 | `audit_epic.py` + 🟢 report + coverage + BDD traceability + merge-ready branch |
 | **5** | Developer Kanban Sign-Off & Finish | User | `dev-implementation` Phase 4.1 / Stage 4 | User confirmation for branch finishing and archival |
@@ -71,17 +70,16 @@ For hands-off execution, `lifecycle_runner.py` drives Stage 2 and Stage 3:
 
 **Invoke `d3nexus:dev-brainstorming`.** Gate 1 is its user-approval step.
 - **Entry:** raw idea or requirement. **Exit (Gate 1):** user-approved spec passing self-review.
-- **Routing:** **Epic-scale code** → relocate spec variants to `.devtool/epic/<epic_dir>/`, update links, enter `dev-designer` (Stage 2). **Everything else** → `writing-plans`. Route decomposed sub-project specs independently; never merge multiple specs into one epic.
+- **Routing:** **Epic-scale code** → relocate the spec to `.devtool/epic/<epic_dir>/`, update links, enter `dev-designer` (Stage 2). **Everything else** → `writing-plans`. Route decomposed sub-project specs independently; never merge multiple specs into one epic.
 
 ### Stage 2 — Architecture & Tasks → `dev-designer`
 
 **Invoke `d3nexus:dev-designer`.**
 - **Entry:** Gate 1 spec in `.devtool/epic/<epic_dir>/`. **Exit (Gate 2):** user-confirmed task list and granularity.
 - **3-Tier Document Separation:**
-  - `<epic_dir>.{en,vi}.md` (HLD): System overview & Feature Maintenance Map (1 Architecture diagram, optional Sequence diagram, canonical entry points — no duplicate Gherkin).
-  - `bdd_scenarios.{en,vi}.md`: Adversarial edge-case, boundary, exception, and rollback suite across 5 dimensions.
+  - `<epic_dir>.md` (HLD): System overview & Feature Maintenance Map (1 Architecture diagram, optional Sequence diagram, canonical entry points — no duplicate Gherkin).
+  - `bdd_scenarios.md`: Adversarial edge-case, boundary, exception, and rollback suite across 5 dimensions.
   - `task_*.md`: Self-contained LLM Execution SSOT loaded one task at a time during Stage 3.
-Declare `- **Depends on epic**: <epic_slug_or_dir>[, ...]` in HLD Meta Data when an epic depends on others.
 
 ### Handoff Choice
 
@@ -94,11 +92,11 @@ Follow [references/principal-review.md](references/principal-review.md) across S
 - **End-of-Review Packaging:** Upon convergence, run `python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir> [--revise --reason "<reason>"]` (without `--revise` when `handoff.md` does not exist):
 1. **Preflight:** `python3 "$SCRIPTS"/check_epic_readiness.py <epic_dir>` (runs `check_task_contract.py --design`). First line prints task count.
 2. Copy `references/handoff-template.md` to `.devtool/epic/<epic_dir>/handoff.md` (`<N>` is the task count the preflight printed) and lint via `python3 "$CHECK_DOC" --require-toc .devtool/epic/<epic_dir>/handoff.md`.
-3. Mark packaged and verify both overview variants:
+3. Mark packaged and verify the English overview (`<epic_dir>.en.md` for a legacy epic):
    ```bash
    python3 "$SCRIPTS"/sync_task_status.py epic <epic_dir> Packaged
-   grep -n -E '^- \*\*(Status|Trạng thái)\*\*: Packaged' \
-     .devtool/epic/<epic_dir>/<epic_dir>.en.md .devtool/epic/<epic_dir>/<epic_dir>.vi.md
+   grep -n -E '^- \*\*Status\*\*: Packaged' \
+     .devtool/epic/<epic_dir>/<epic_dir>.md
    ```
    If previously queued, use `"Packaged (queued behind <epic>)"` in Open Notes. Commit `[<EPIC_NAME>] Package epic for handoff` (`auto_commit: true`).
 4. Run `/save-context` (`--state --epic <epic_slug> --status "Stage 2: Packaged & Ready"`), print `handoff.md` path and **`python3 scripts/resume_context.py --emit-prompt implement --epic <epic_slug>`**.
@@ -159,15 +157,15 @@ Never advance on a partial pass or re-run isolated checks.
 
 - Writing to `implementation_plan.md` or any native planning artifact.
 - Skipping `dev-brainstorming` because scope seems clear.
-- Routing an approved spec straight to implementation, skipping Stage 2 for epic-scale work.
+- Skipping Stage 2 on an approved epic-scale spec.
 - Merging sub-project specs into one epic.
 - Creating a worktree before resolving the dependency DAG (recreating an existing epic worktree in Resume Procedure is allowed).
 - Running `package_epic.py` before `/principal-review` completes, or invoking `dev-implementation` without presenting the post-package Handoff Choice (**Triển khai (tự động)** vs **Dừng lại**).
 - Packaging without preflight, or pushing without explicit permission.
-- Redoing design of an epic whose task files exist; use Updating an Existing Epic.
+- Redoing design when task files exist; use Updating an Existing Epic.
 - Merging to `develop` without Gate 4 🟢.
 - Granting Gate 4 without a passing traceability check on the same SHA, or without a passing `audit_epic.py`.
-- Ticking checkboxes or writing evidence by hand instead of running `run_task_checks.py`.
+- Ticking checkboxes or writing evidence by hand instead of `run_task_checks.py`.
 - Changing Verification tables, Allowed files, or protected paths without stopping to ask.
 - Prompting developer for intermediate Review Choice or Gate 3 confirmation pauses instead of running the automated pipeline.
 - Advancing to Stage 4 (Finish) without completing Cross-Model Review convergence and Gate 5 sign-off.
@@ -180,10 +178,10 @@ Never advance on a partial pass or re-run isolated checks.
 - Writing `dismissed` decisions in `review_results.md` without explicit developer words.
 - Merging to `develop` manually instead of through `integrate_branch.py land`.
 - Starting a task while integration with `develop` is failing.
-- Invoking `finishing-a-development-branch` without Gate 5 user sign-off.
-- Archiving tasks from `.devtool/features/done/` prematurely before Gate 5 sign-off.
+- Invoking `finishing-a-development-branch` without Gate 5 sign-off.
+- Archiving `.devtool/features/done/` tasks before Gate 5 sign-off.
 - Leaving completed tasks or draft specs unarchived after integration.
-- Translating `task_*.md`; task files remain English-only.
+- Opening or creating a `*.vi.md` mirror (not SSOT), or translating `task_*.md`.
 
 ## Stage Skills
 

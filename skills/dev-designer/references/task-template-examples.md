@@ -25,7 +25,7 @@ review_tier: "full"     # optional: "full" for high-risk/multi-module tasks; omi
 
 ### Canonical Section Layout (`task_<number>_<name>.md`)
 1. **Title**: `# Task <number>: <Task Name>`
-2. **Epic Reference**: `Epic: [<epic_name>](../epic/<epic_name>/<epic_name>.en.md)`
+2. **Epic Reference**: `Epic: [<epic_name>](../epic/<epic_name>/<epic_name>.md)`
 3. **Requirement Analysis**: Context, boundaries, and acceptance constraints for this single task.
 4. **Files**:
    - `Allowed files:` Exact paths or globs (`*`, `?`, `**`) this task may create `(new)`, edit, or delete (no bare directories; omit `.devtool/` status/mirror/evidence files except explicit protected paths).
@@ -39,7 +39,7 @@ review_tier: "full"     # optional: "full" for high-risk/multi-module tasks; omi
    - Android: `android-ui-audit`, `android-api-integration`, `moshi_dto_generator`
    - iOS: `ios-ui-audit`, `tuist generate`, `ArchTests`
 6. **Impact Analysis & Blast Radius**: Target Files & Symbols (with `(L<start>-L<end>)` for files `> 200` lines), Downstream Callers, Cross-Platform Bridges (`MethodChannel`), Target Coverage Threshold (`100%` Security, `>= 85%` Domain, `>= 80%` UI).
-7. **BDD Scenarios (`### BDD SCENARIOS`)**: `Covers: <ID>, <ID>` directly under heading (omit only on zero-scenario tooling tasks), followed by verbatim `Given / When / Then` blocks copied from `bdd_scenarios.en.md`.
+7. **BDD Scenarios (`### BDD SCENARIOS`)**: `Covers: <ID>, <ID>` directly under heading (omit only on zero-scenario tooling tasks), followed by verbatim `Given / When / Then` blocks copied from `bdd_scenarios.md`.
 8. **Verification (`## Verification`)**: See [`verification-rows.md`](verification-rows.md) and [`verification-row-grammar.md`](verification-row-grammar.md).
    ```markdown
    | ID | Phase | Command | Expect | Needs |
@@ -164,7 +164,7 @@ flowchart TD
 
 ## 5. HLD Document Structure & Diagram Lint Standards
 
-Required sections for `.devtool/epic/<epic_name>/<epic_name>.en.md` (and `.vi.md` companion at Stage 4):
+Required sections for `.devtool/epic/<epic_name>/<epic_name>.md` (English-only; a legacy `.en.md` name is accepted):
 1. **Table of Contents**: Links every `##` heading.
 2. **Meta Data**: Epic name, Status, `- **PIC**: <profile_account_id>`, Target Release, Platform, `- **Depends on epic**: <list or none>`, `Source Spec` link (when derived from `dev-brainstorming`).
 3. **Background**: Problem statement and goals.
@@ -175,10 +175,10 @@ Required sections for `.devtool/epic/<epic_name>/<epic_name>.en.md` (and `.vi.md
    - **Feature Maintenance Map**: Canonical Source Paths & Entry Points, Core Invariants & Config Knobs, Extension & Troubleshooting Guide.
    - **Integration Test Plan**: `Integration test roots:`, `Protected paths:`, `Integration results:`, optional `Integration results (live, needs: ...)`, and `## Verification Environment`.
 6. **Shared Contract Impact**: `None — self-contained feature` or schema/field/protocol rules + compatibility plan.
-7. **BDD Suite Reference**: Links `.devtool/epic/<epic_name>/bdd_scenarios.en.md` (do not inline raw Gherkin in the HLD).
+7. **BDD Suite Reference**: Links `.devtool/epic/<epic_name>/bdd_scenarios.md` (do not inline raw Gherkin in the HLD).
 8. **Rollout Strategy & Mitigation**: Phased rollout and rollback plan.
 9. **Kanban Tasks Breakdown**: Links to task files.
-10. **Spec Errata**: Symmetric `[SE-NN]` entries across `.en.md` and `.vi.md`.
+10. **Spec Errata**: `[SE-NN]` entries, each with its section reference and the decision taken.
 
 ### Diagram & Markdown Lint Rules
 - **Mermaid**: Always `flowchart` (never `graph`), quote labels containing `()[]{}::/&`, clean alphanumeric/underscore IDs, no trailing semicolons, close every `subgraph ... end`.

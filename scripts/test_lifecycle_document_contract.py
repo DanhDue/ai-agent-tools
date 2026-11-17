@@ -11,12 +11,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 EXPECTED: dict[str, tuple[str, ...]] = {
     "skills/dev-brainstorming/SKILL.md": (
-        "YYYY-MM-DD-<topic>-design.en.md",
-        "YYYY-MM-DD-<topic>-design.vi.md",
+        "YYYY-MM-DD-<topic>-design.md",
         "--require-toc",
-        "--require-bilingual",
         "## Shared Contract Warnings",
-        "## Cảnh báo Shared Contract",
         "check and warn only",
         "Silence is never consent",
     ),
@@ -27,12 +24,9 @@ EXPECTED: dict[str, tuple[str, ...]] = {
         "--require-bilingual",
     ),
     "skills/dev-designer/SKILL.md": (
-        "<epic_name>.en.md",
-        "<epic_name>.vi.md",
-        "bdd_scenarios.en.md",
-        "bdd_scenarios.vi.md",
+        "<epic_name>.md",
+        "bdd_scenarios.md",
         "--require-toc",
-        "--require-bilingual",
         "Task files are English-only",
         "check_bdd_traceability.py plan",
         "Covers:",
@@ -56,10 +50,8 @@ EXPECTED: dict[str, tuple[str, ...]] = {
         "diff-check",
     ),
     "skills/writing-plans/SKILL.md": (
-        "YYYY-MM-DD-<feature-name>.en.md",
-        "YYYY-MM-DD-<feature-name>.vi.md",
+        "YYYY-MM-DD-<feature-name>.md",
         "--require-toc",
-        "--require-bilingual",
     ),
     "skills/doc-designer/SKILL.md": (
         "<doc_dir>.en.md",
@@ -181,7 +173,7 @@ class LifecycleDocumentContractTest(unittest.TestCase):
         """[CDG-HP-04] Lifecycle document contracts enforce read-only brainstorming warnings, designer contract ordering, and diff-check template/CLI references."""
         brainstorming_text = (ROOT / "skills/dev-brainstorming/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("## Shared Contract Warnings", brainstorming_text)
-        self.assertIn("## Cảnh báo Shared Contract", brainstorming_text)
+        self.assertNotIn("## Cảnh báo Shared Contract", brainstorming_text)
         self.assertIn("check and warn only", brainstorming_text.lower())
         self.assertIn("silence is never consent", brainstorming_text.lower())
         self.assertIn("include in this epic", brainstorming_text)

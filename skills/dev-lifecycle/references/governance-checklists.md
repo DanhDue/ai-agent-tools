@@ -55,7 +55,7 @@
 - Unavailable model: no automatic fallback, no retry; checkpoint `model_unavailable`, record `--pending-decision "<persona> model <alias> unavailable" --decision-kind blocker --epic <slug>` with the advisory fallback command, and stop.
 
 ### 2.3 Window Title & Persistent Bar Colors (`.vscode/settings.json`)
-- **Title Format**: `"<ICON> [<REPO_NAME>] [@<account_id>] <Vietnamese Epic Name> - <Stage / Task>"` (`account_id` from `os.path.basename(os.environ["HOME"])` under `antigravity_homes/`; Vietnamese Epic Name from H1 of `<epic_slug>.vi.md` stripping `# Epic:`).
+- **Title Format**: `"<ICON> [<REPO_NAME>] [@<account_id>] <Vietnamese Epic Name> - <Stage / Task>"` (`account_id` from `os.path.basename(os.environ["HOME"])` under `antigravity_homes/`; Vietnamese Epic Name as Role 1.0 gave it in chat or as already shown in the current `window.title`; never read it from a `.vi.md` mirror, and fall back to the epic slug when unknown).
 - **Parity**: Keep `titleBar.inactiveBackground == titleBar.activeBackground` and `statusBar.inactiveBackground == statusBar.background`; leave `activityBar.background` default. Preserve existing developer `workbench.colorCustomizations`.
 - **Repo Color Signatures**:
   - `[LYRICS-SYNC]`: `#7f1d1d` (Crimson Red)
@@ -100,3 +100,41 @@
     `uv run pytest --ignore=tests/e2e -m "not slow and not acceptance and not live_llm" -n auto --dist loadscope --timeout=30 -q --tb=short`
 - **Tier 3 — Final Gate Convergence Only (Run Exactly Once per Epic)**:
   - Run Tier 2 + the session-scoped `tests/e2e` Playwright suite + `audit_epic.py` / `quality_check`.
+
+---
+
+## 6. Detail Relocated from CRITICAL_RULES.md
+
+Text removed from [CRITICAL_RULES.md](../../../rules/CRITICAL_RULES.md) to keep it under its 8192-byte cap, kept here verbatim. In `CRITICAL_RULES.md`, Rules 6, 8.6, and 9 link to this file; Rules 2, 5.1, 8.3, 8.5, and 10 keep the mandate inline without a link, while their trimmed wording and lists remain here (and in sections 1, 2, and 4).
+
+- **Rule 2 (Commit Message Format)**: Omit the body when the commit does one thing; otherwise pass two `-m` flags.
+- **Rule 5.1 (Option 1)**: Stage 3 stays in this session, so Role 2.2 runs on its model (the prompt names the `orchestrator` binding).
+- **Rule 5.1 (provider priority)**: `Claude -> Codex -> Kiro -> Argon`, ordered by `.devtool/review_config.json` as described in section 1.1.
+- **Rule 8.3 (model unavailable)**: Model unavailable (CLI, auth, quota): no fallback, no retry; checkpoint, `--pending-decision` with the fallback command, stop.
+- **Rule 8.5 (turn budget, low-quota & quota gate)**: Tool calls between checkpoints are capped by `checkpoint_policy.max_orchestrator_turns_before_checkpoint` (default 8). `/d3nexus:dev-config low-quota on` halves it, finishes the wave in flight, checkpoints `low_quota_stop`, records `--pending-decision`, stops. `dev_config.py quota-check` runs before Stage 3, each wave and each fix round: exit `2` checkpoints `quota_low`, records a `quota` pending decision, stops.
+- **Rule 8.6 (Choice A & English SSOT)**: Record Choice A pauses (`--pending-decision`, cleared on `--gate`/non-paused `--state`/`--revise`), creator PIC (`--detect-profile`), and English-only internal docs/code/commits (`docs, reports, code, commits`); `--complete` at Stage 4; sync `window.title` per section 2.3.
+- **Rule 10 (Zero-Fluff Output Cap)**: machine Verdicts (`PASS`/`FAIL`/`BLOCKED`, `🟢 LGTM`/`🟡 CONCERNS`/`🔴 BLOCKED`), Findings tables, JSON/provider gate results (`run_external_review.py`, `run_task_checks.py`), worker status contracts, or human Gate prompts (the full list is in section 4).
+
+---
+
+## 7. English SSOT and Vietnamese Mirror Isolation
+
+Extended checklist for [CRITICAL_RULES.md](../../../rules/CRITICAL_RULES.md) rule 8.6 and rule 11.
+
+- **English is the single source of truth.** Every persisted dev-lifecycle artefact is English-only: specs, HLDs, BDD scenarios, task files and their Verification tables, non-epic plans, `handoff.md`, review and fix-plan files, execution and Gate 5 reports, code comments, and commit messages.
+- **Chat language.** Chat with Role 1.0 may use Vietnamese. A Vietnamese explanation or mirror is produced only when Role 1.0 asks for it.
+- **New artefact names.** `YYYY-MM-DD-<topic>-design.md`, `<epic_dir>.md`, `bdd_scenarios.md` and `docs/superpowers/plans/YYYY-MM-DD-<feature>.md`. Legacy `<stem>.en.md` files are accepted, not produced.
+- **Mirror isolation.** A `.vi.md` file is a mirror, not SSOT. Agents never open, grep, glob or list it; searches over epic or doc directories exclude `*.vi.md`; subagent briefs and review bundles never name it. The only exceptions are a file Role 1.0 names explicitly and writing the `.vi.md` variant of a doc-lifecycle document.
+- **Stays bilingual.** The doc-lifecycle skills and the kit guides under `docs/`.
+
+---
+
+## 8. Authoring Standards from the dev-lifecycle Skill
+
+Text moved verbatim from [SKILL.md](../SKILL.md) to keep it within its 2500-word cap.
+
+### Markdown Quality Standards
+Enforce heading hierarchy, valid code block tags, resolving links, no trailing whitespace, and quoted flowchart labels in human docs.
+
+### Epic Dependencies
+Declare `- **Depends on epic**: <epic_slug_or_dir>[, ...]` in HLD Meta Data when an epic depends on others.

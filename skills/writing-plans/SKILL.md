@@ -15,18 +15,15 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 **Context:** If working in an isolated worktree, it should have been created via the `d3nexus:using-git-worktrees` skill at execution time.
 
-**Save plans as a synchronized pair:**
+**Save plans as one English-only file:**
 
-- English, canonical: `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.en.md`
-- Vietnamese: `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.vi.md`
+- `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md` (a legacy `.en.md` plan is accepted, not produced)
 - (User preferences for plan location override this default)
 
-Both variants MUST have the same structure, facts, task ordering, code samples, and a linked table
-of contents covering every `##` and `### Task` section. Write and update English first, then
-synchronize Vietnamese. `task_*.md` files created by other workflows remain English-only; that
-exception does not apply to an implementation plan.
+The plan MUST carry a linked table of contents covering every `##` and `### Task` section. Produce
+a Vietnamese explanation only when Role 1.0 explicitly asks for it.
 
-Both variants MUST strictly satisfy **Markdown & Diagram Lint Standards**:
+The plan MUST strictly satisfy **Markdown & Diagram Lint Standards**:
 - **Markdown Lint**: Single H1 title, no skipped heading levels, space after `#`, no trailing punctuation in headings, language tags on all fenced code blocks (no bare fences), and formatting hygiene (no trailing whitespace, no hard tabs).
 - **Mermaid Standards**: ALWAYS use `flowchart TD/LR` (NEVER legacy `graph TD/LR`), double-quote node labels containing special characters/parentheses/brackets/colons (e.g. `node["Text (Details)"]`), use clean alphanumeric IDs, and avoid trailing semicolons.
 - **Graphviz (DOT) Standards**: Follow semantic shapes (`diamond` for decisions `?`, `box` for actions, `plaintext` for commands, `ellipse` for states, `octagon` for warnings, `doublecircle` for start/complete), semicolons on every statement, and quoted labels.
@@ -62,8 +59,8 @@ Unit tests in isolation are necessary but insufficient to guarantee that a featu
 
 Before handing a plan to an executor, dispatch a reviewer subagent using
 [`plan-document-reviewer-prompt.md`](plan-document-reviewer-prompt.md). A plan that reads well to
-its author and is missing a step reads exactly the same either way. Review the canonical `.en.md`
-plan, apply every content fix to it, and then synchronize the `.vi.md` translation.
+its author and is missing a step reads exactly the same either way. Review the plan and apply every
+content fix to it.
 
 ## Scope Check
 
@@ -205,8 +202,7 @@ Every step must contain the actual content an engineer needs. These are **plan f
 
 ## Self-Review
 
-After writing the complete plan, look at the spec with fresh eyes and check the canonical English
-plan against it. This is a checklist you run yourself — not a subagent dispatch.
+After writing the complete plan, look at the spec with fresh eyes and check the plan against it. This is a checklist you run yourself — not a subagent dispatch.
 
 **1. Spec coverage:** Skim each section/requirement in the spec. Can you point to a task that implements it? List any gaps.
 
@@ -220,21 +216,18 @@ plan against it. This is a checklist you run yourself — not a subagent dispatc
 
 If you find issues, fix them inline. No need to re-review — just fix and move on. If you find a spec requirement with no task, add the task.
 
-Synchronize the Vietnamese plan after all English fixes, then verify both files mechanically:
+Verify the plan mechanically after all fixes:
 
 ```bash
 python3 skills/doc_quality_check/resources/scripts/check_document.py \
-  --require-toc --require-bilingual \
-  docs/superpowers/plans/YYYY-MM-DD-<feature-name>.en.md \
-  docs/superpowers/plans/YYYY-MM-DD-<feature-name>.vi.md
+  --require-toc docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md
 ```
 
 ## Execution Handoff
 
 After saving the plan, offer execution choice:
 
-**"Plan complete and saved to `docs/superpowers/plans/<filename>.en.md` and
-`docs/superpowers/plans/<filename>.vi.md`. Two execution options:**
+**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Two execution options:**
 
 **1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
 

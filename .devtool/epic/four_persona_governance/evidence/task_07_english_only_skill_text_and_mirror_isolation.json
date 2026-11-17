@@ -1,0 +1,208 @@
+{
+  "schema": 1,
+  "task": "task_07_english_only_skill_text_and_mirror_isolation",
+  "runs": {
+    "red": {
+      "head": "d78be53fa12fbd8cf4d6f1083774fb9b3332353b",
+      "tree": "6d65520d4f6e779962bc70b96162735fd3a57388",
+      "patch_id": "22cfac7922fb485682d06e0e54ff255fc793e2c3",
+      "started": "2026-11-17T12:46:49Z",
+      "finished": "2026-11-17T12:46:49Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_english_only_text.py::test_fpg_ar_04_dev_skills_are_english_only_and_isolate_mirrors",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T12:46:49Z",
+          "finished": "2026-11-17T12:46:49Z",
+          "output_tail": [
+            "E     skills/dev-designer/SKILL.md: contains --require-bilingual",
+            "E     skills/dev-designer/SKILL.md: contains --strict-bilingual",
+            "E     skills/dev-designer/references/task-template-examples.md:167: Required sections for `.devtool/epic/<epic_name>/<epic_name>.en.md` (and `.vi.md` companion at Stage 4):",
+            "E     skills/dev-designer/references/task-template-examples.md:181: 10. **Spec Errata**: Symmetric `[SE-NN]` entries across `.en.md` and `.vi.md`.",
+            "E     skills/dev-implementation/SKILL.md:227: 1. Update epic's Mermaid diagrams in both `<epic_dir>.en.md` and `.vi.md`.",
+            "E     skills/dev-implementation/references/external-review-prompt.md:3: You are an independent reviewer of a finished epic. You are strictly read-only: do not modify, create, or delete any file, and do not run commands that write to the repository or alter git state. Read only English SSOT artefacts (`*.en.md`; ignore `*.vi.md` mirrors), inspect the Diff-Only (`-U5`) code diff provided below rather than re-reading unchanged files, and report concisely with Zero-Fluff (findings, severity, file paths, and `Verdict: PASS|FAIL` only — do not restate `PASS:` facts).",
+            "E     skills/writing-plans/SKILL.md:21: - Vietnamese: `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.vi.md`",
+            "E     skills/writing-plans/SKILL.md:66: plan, apply every content fix to it, and then synchronize the `.vi.md` translation.",
+            "E     skills/writing-plans/SKILL.md:229: docs/superpowers/plans/YYYY-MM-DD-<feature-name>.vi.md",
+            "E     skills/writing-plans/SKILL.md:237: `docs/superpowers/plans/<filename>.vi.md`. Two execution options:**",
+            "E     skills/writing-plans/SKILL.md: contains --require-bilingual",
+            "E     skills/finishing-a-development-branch/SKILL.md:126: - Delta-sync any modified English design sections in `.devtool/epic/<epic_dir>/` (`<epic_dir>.en.md`, `*-design.en.md`) into their `.vi.md` companions and stamp/refresh `<!-- sync-en-sha256: <hex16> -->`.",
+            "E     skills/finishing-a-development-branch/SKILL.md:127: - Generate or sync `.devtool/epic/<epic_dir>/bdd_scenarios.vi.md` from `bdd_scenarios.en.md` matching all scenario IDs and ToC headings, stamped with `<!-- sync-en-sha256: <hex16> -->`.",
+            "E     skills/finishing-a-development-branch/SKILL.md:131: .devtool/epic/<epic_dir>/<epic_dir>.en.md .devtool/epic/<epic_dir>/<epic_dir>.vi.md \\",
+            "E     skills/finishing-a-development-branch/SKILL.md:132: .devtool/epic/<epic_dir>/bdd_scenarios.en.md .devtool/epic/<epic_dir>/bdd_scenarios.vi.md",
+            "E     skills/finishing-a-development-branch/SKILL.md: contains --require-bilingual",
+            "E     skills/finishing-a-development-branch/SKILL.md: contains --strict-bilingual",
+            "E     skills/principal-review/SKILL.md:24: - Architecture spec (`*-design.en.md`, `*-design.vi.md`)",
+            "E     skills/principal-review/SKILL.md:25: - Canonical HLD (`<epic_dir>.en.md`, `<epic_dir>.vi.md`)",
+            "E     skills/principal-review/SKILL.md:26: - BDD scenarios (`bdd_scenarios.en.md`, `bdd_scenarios.vi.md`)",
+            "E     skills/principal-review/references/principal-review-prompt.md:3: You are the Principal Reviewer who signs off this architectural design before implementation. You are strictly read-only: do not modify, create, or delete any file, and do not run commands that write to the repository or alter git state. Read only English SSOT artefacts (`*.en.md`; ignore `*.vi.md` mirrors), inspect only Diff-Only (`-U5`) deltas plus exact modified source hunks at `$sha`, and report with Zero-Fluff (actionable findings and `Verdict: PASS|FAIL` only).",
+            "E   assert not ['skills/dev-lifecycle/SKILL.md:21: Human-facing lifecycle and resume diagrams live in [lifecycles.en.md](../../docs/l...[\"HOME\"])` under `antigravity_homes/`; Vietnamese Epic Name from H1 of `<epic_slug>.vi.md` stripping `# Epic:`).', ...]",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_fpg_english_only_text.py::test_fpg_ar_04_dev_skills_are_english_only_and_isolate_mirrors",
+            "1 failed in 0.02s"
+          ],
+          "output_sha256": "4b4ee2a09d54a88871f5004b7a911aa61567daf162b5b373462eb241c11a0593"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "d78be53fa12fbd8cf4d6f1083774fb9b3332353b",
+      "tree": "90f0248ed6b103e3809bb3520a2ea58ed4cc85e7",
+      "patch_id": "689393c92c52d77be4532421c522907845b7df86",
+      "started": "2026-11-17T13:17:41Z",
+      "finished": "2026-11-17T13:17:43Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_english_only_text.py tests/test_tto_docs_and_slimming.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T13:17:41Z",
+          "finished": "2026-11-17T13:17:41Z",
+          "output_tail": [
+            "........                                                                 [100%]",
+            "8 passed in 0.02s"
+          ],
+          "output_sha256": "ad42a2ab3afa6fc6ecbb7c0942cf2d35150abbe8069bddd5d9cf3e35e8f08d9f"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 scripts/test_lifecycle_signals.py scripts/test_lifecycle_document_contract.py scripts/test_verifiable_handoff_text.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T13:17:41Z",
+          "finished": "2026-11-17T13:17:42Z",
+          "output_tail": [
+            "....................................                                   [100%]",
+            "36 passed, 2 subtests passed in 1.26s"
+          ],
+          "output_sha256": "2d5f66b30e6a377a46a9ae4943497d2c86daf1dc50a88dfde20103c44192676b"
+        },
+        {
+          "id": "V4",
+          "phase": "GREEN",
+          "command": "python3 skills/doc_quality_check/resources/scripts/check_document.py rules/CRITICAL_RULES.md skills/dev-lifecycle/SKILL.md skills/dev-designer/SKILL.md",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T13:17:42Z",
+          "finished": "2026-11-17T13:17:42Z",
+          "output_tail": [
+            "  checked 3 documents, 0 findings"
+          ],
+          "output_sha256": "ccb3cdbf8ddafe7102822473980f74a7e90c590f7612841835c349c617efcc25"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py scripts/test_lifecycle_signals.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T13:17:42Z",
+          "finished": "2026-11-17T13:17:42Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_fpg_english_only_text.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T13:17:42Z",
+          "finished": "2026-11-17T13:17:42Z",
+          "output_tail": [
+            "Success: no issues found in 8 source files"
+          ],
+          "output_sha256": "157a09cfcdfdfb5977479c5a1c08345149263a3e990a2ec976ef28aaeec9cae6"
+        },
+        {
+          "id": "V7",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/fpg_task_07.xml tests/test_fpg_english_only_text.py",
+          "expect": "exit 0; results build/test-results/fpg_task_07.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T13:17:42Z",
+          "finished": "2026-11-17T13:17:42Z",
+          "output_tail": [
+            ".                                                                        [100%]",
+            "1 passed in 0.01s"
+          ],
+          "output_sha256": "4bcefcc9f6c645923b9993ccf73ad92e6b400ca25458ea14e095857fc2131342",
+          "results": {
+            "path": "build/test-results/fpg_task_07.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 1,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_fpg_ar_04_dev_skills_are_english_only_and_isolate_mirrors",
+                  "classname": "tests.test_fpg_english_only_text",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "rules/CRITICAL_RULES.md",
+            "scripts/test_lifecycle_document_contract.py",
+            "scripts/test_lifecycle_signals.py",
+            "skills/dev-brainstorming/SKILL.md",
+            "skills/dev-designer/SKILL.md",
+            "skills/dev-designer/references/task-template-examples.md",
+            "skills/dev-implementation/SKILL.md",
+            "skills/dev-implementation/references/external-review-prompt.md",
+            "skills/dev-lifecycle/SKILL.md",
+            "skills/dev-lifecycle/references/governance-checklists.md",
+            "skills/finishing-a-development-branch/SKILL.md",
+            "skills/principal-review/SKILL.md",
+            "skills/principal-review/references/principal-review-prompt.md",
+            "skills/sync-shared-contracts/SKILL.md",
+            "skills/writing-plans/SKILL.md",
+            "tests/test_fpg_english_only_text.py",
+            "tests/test_tto_docs_and_slimming.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

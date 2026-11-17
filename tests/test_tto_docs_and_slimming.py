@@ -69,7 +69,7 @@ def test_tto_hp_05_slimmed_rules_and_skills_caps() -> None:
         / "references"
         / "task-template-examples.md"
     ).is_file()
-    assert "Stage 4" in dev_designer and "bdd_scenarios.en.md" in dev_designer
+    assert "Stage 4" in dev_designer and "bdd_scenarios.md" in dev_designer
     assert "target_files" in dev_designer and "200" in dev_designer
     assert 'review_tier: "full"' in dev_designer or "review_tier" in dev_designer
 
@@ -223,16 +223,18 @@ def test_tto_ec_05_selective_task_reviewer_and_prompt_rules() -> None:
 
 
 def test_tto_st_05_pre_finish_bilingual_sync_hook() -> None:
-    """[TTO-ST-05] Stage 4 Pre-Finish Hook delta-syncs .vi.md, stamps sha256, and enforces strict bilingual gates."""
+    """[TTO-ST-05] Stage 4 Pre-Finish Hook is English-only: it archives and cleans the Kanban without any bilingual sync."""
     finishing = _read("skills/finishing-a-development-branch/SKILL.md")
-    assert "sync-en-sha256" in finishing
-    assert "bdd_scenarios.vi.md" in finishing
-    assert "check_document.py --require-toc --require-bilingual" in finishing
-    assert "check_epic_readiness.py <epic_slug> --strict-bilingual" in finishing
-    assert (
-        "check_bdd_traceability.py plan --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md "
-        "--tasks .devtool/epic/<epic_dir>/task_*.md --strict-bilingual" in finishing
-    )
+    assert "### Pre-Finish Hook: Epic Archival & Kanban Clean-up" in finishing
+    for retired in (
+        "sync-en-sha256",
+        "bdd_scenarios.vi.md",
+        "--require-bilingual",
+        "--strict-bilingual",
+        "Bilingual Sync",
+    ):
+        assert retired not in finishing, f"Retired bilingual step remains: {retired}"
+    assert "sync_task_status.py" in finishing and "archive-done" in finishing
     assert "resume_context.py" in finishing and "--complete" in finishing
     assert "../../rules/CRITICAL_RULES.md#commit-message-format" in finishing
 
@@ -250,5 +252,5 @@ class TestTTODocsAndSlimming_Integration:
         test_tto_ec_05_selective_task_reviewer_and_prompt_rules()
 
     def test_tto_st_05_integration(self) -> None:
-        """[TTO-ST-05] Integration check for Stage 4 Pre-Finish bilingual sync hook."""
+        """[TTO-ST-05] Integration check for the English-only Stage 4 Pre-Finish hook."""
         test_tto_st_05_pre_finish_bilingual_sync_hook()

@@ -44,7 +44,7 @@ This skill is **Stage 3** of the Epic Lifecycle. The surrounding stages, the fiv
    - With no name, or no match, list the epic directories whose overview Status is not `Done` and ask which one. Never guess, even when only one is listed.
 1. **Load Lean Orchestration Context (Bounded Context):**
    - `.devtool/epic/<epic_dir>/handoff.md`, when present — packaging record and Open Notes (never edited manually; updated only via `package_epic.py <epic_dir> --revise --reason "<text>"`).
-   - `.devtool/epic/<epic_dir>/<epic_dir>.en.md` — canonical HLD & Maintenance Map ("Prompt to Maintain"; never `.vi.md` for decisions). Read `Meta Data`, `Architecture, Feature Map & Technical Design`, `Integration Test Plan`, and `Verification Environment`.
+   - `.devtool/epic/<epic_dir>/<epic_dir>.md` (legacy `<epic_dir>.en.md`) — canonical HLD & Maintenance Map ("Prompt to Maintain"; English SSOT, never open a `.vi.md` mirror). Read `Meta Data`, `Architecture, Feature Map & Technical Design`, `Integration Test Plan`, and `Verification Environment`.
    - Frontmatter, `Covers:`, and `Dependencies` of `.devtool/features/task_*.md` matching `epic: "<epic_slug>"` (read full task bodies one at a time in Phase 2).
    - Restore context and window title: `python3 scripts/resume_context.py --role orchestrator --epic <epic_slug>`.
    - Before Stage 3, each wave and each fix round run `python3 scripts/dev_config.py quota-check`; exit `2`: checkpoint `quota_low`, record a `quota` pending decision, stop.
@@ -52,7 +52,7 @@ This skill is **Stage 3** of the Epic Lifecycle. The surrounding stages, the fiv
 #### Bounded Context Injection & Spec Fidelity
 
 Before implementing any task in Phase 2, adhere strictly to Bounded Context Injection:
-1. Read **only** the active task file (`.devtool/features/task_*.md` — the Execution SSOT embedding assigned edge-case `### BDD SCENARIOS` from `bdd_scenarios.en.md` and `Decisions Already Made`).
+1. Read **only** the active task file (`.devtool/features/task_*.md` — the Execution SSOT embedding assigned edge-case `### BDD SCENARIOS` from `bdd_scenarios.md` and `Decisions Already Made`).
 2. Read listed `Allowed files:` and `Read-only context:` using **Rule 3 bounded reads** (`StartLine`/`EndLine` at `target_files` ranges + symbol search when files exceed `200` lines).
 3. Look up symbols in `Decisions Already Made` (avoid undirected whole-repo searches). Enforce **Rule 5 Zero-Fluff Output Cap** (omit filler narration while preserving Verdicts, Findings, and gate outputs).
 
@@ -224,7 +224,7 @@ Autonomous Mode: `lifecycle_runner.py` dispatches itself (`build_agy_command`, `
 ### Phase 3 — Doc Sync on Divergence
 
 Only when Phase 2 flags divergence:
-1. Update epic's Mermaid diagrams in both `<epic_dir>.en.md` and `.vi.md`.
+1. Update the epic's Mermaid diagrams in the English HLD `<epic_dir>.md` only.
 2. Update affected task file(s) prose.
 3. Commit separately:
    ```bash

@@ -21,9 +21,10 @@ Automatically invoked at the end of Stage 2 (`dev-lifecycle` / `dev-designer`) a
 
 - **Trigger**: Automatic immediately after developer confirms the `/principal-review` provider/model priority order at the end of Stage 2 (or standalone `/principal-review` on an epic).
 - **Scope**: Evaluates all epic artefacts in `.devtool/epic/<epic_dir>/`:
-  - Architecture spec (`*-design.en.md`, `*-design.vi.md`)
-  - Canonical HLD (`<epic_dir>.en.md`, `<epic_dir>.vi.md`)
-  - BDD scenarios (`bdd_scenarios.en.md`, `bdd_scenarios.vi.md`)
+  - Architecture spec (`*-design.md`)
+  - Canonical HLD (`<epic_dir>.md`)
+  - BDD scenarios (`bdd_scenarios.md`)
+  - Legacy `.en.md` names are accepted for these three; Vietnamese mirrors are not SSOT, so never review or open them
   - All Kanban tasks (`task_*.md`)
   - Packaging record (`handoff.md`, when already present)
 - **Execution**:
@@ -55,7 +56,7 @@ Invoked on-demand to review standalone design documents, architecture proposals,
 ## The Review & Triage Loop
 
 1. **Pre-Check**:
-   - For epics, `check_epic_readiness.py` runs first (enforcing R1–R8, BDD Scenario Count Parity `Count(bdd_scenarios.en.md) == Count(task_acceptance.md)`, and `check_task_contract.py --design`). If any check fails, or if `max_rounds` (default: `3`) has already been reached without `--force`, review halts immediately with `[PRECONDITION BLOCKED]` without calling external model CLIs (0 credits used).
+   - For epics, `check_epic_readiness.py` runs first (enforcing R1–R8, BDD Scenario Count Parity `Count(bdd_scenarios.md) == Count(task_acceptance.md)`, and `check_task_contract.py --design`). If any check fails, or if `max_rounds` (default: `3`) has already been reached without `--force`, review halts immediately with `[PRECONDITION BLOCKED]` without calling external model CLIs (0 credits used).
    - For standalone docs, structural validation checks that the file exists and has valid headings.
 
 2. **Provider Selection (`check-quota` Priority), 3-Round Convergence Funnel & Shared Context**:
