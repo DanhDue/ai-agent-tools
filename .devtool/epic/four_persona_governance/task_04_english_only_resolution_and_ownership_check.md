@@ -1,12 +1,13 @@
 ---
 id: "task_04_english_only_resolution_and_ownership_check"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T08:47:31Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T08:47:31Z"
 labels: ["english-only", "contract", "readiness"]
 order: "a4"
 review_tier: "full"

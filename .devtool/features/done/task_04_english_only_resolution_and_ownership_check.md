@@ -1,12 +1,13 @@
 ---
 id: "task_04_english_only_resolution_and_ownership_check"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T08:47:31Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T08:47:31Z"
 labels: ["english-only", "contract", "readiness"]
 order: "a4"
 review_tier: "full"
@@ -14,7 +15,7 @@ review_tier: "full"
 
 # Task 4: English-Only Document Resolution and Exclusive Ownership Check
 
-Epic: [four_persona_governance](../epic/four_persona_governance/four_persona_governance.en.md)
+Epic: [four_persona_governance](../../epic/four_persona_governance/four_persona_governance.en.md)
 
 ## Requirement Analysis
 
@@ -207,7 +208,7 @@ Then the same command exits 0
 - Source: `integrate_branch.py` has four existing mypy `arg-type` errors (near L253, L325, L328, L342) that V5 reports
   because the file is listed. Fix them with typing-only changes (annotations or narrowing, no behaviour change). A
   type error in a module that V5 does not list, such as `scripts/resume_context.py` (owned by Task 2), is outside
-  this task: V5 passes `--follow-imports=silent`, so it is not reported ([SE-08](../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)).
+  this task: V5 passes `--follow-imports=silent`, so it is not reported ([SE-08](../../epic/four_persona_governance/four_persona_governance.en.md#spec-errata)).
 - Tests load script modules via `importlib.util.spec_from_file_location` inside fixtures.
 
 ## Definition of Done
@@ -225,5 +226,5 @@ Downstream dependents (blocked by Task 4): `task_05`.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/four_persona_governance/four_persona_governance.en.md)
+- [Epic HLD](../../epic/four_persona_governance/four_persona_governance.en.md)
 - **Rollback**: Revert the task commit; `.en.md` epics behave as before.
