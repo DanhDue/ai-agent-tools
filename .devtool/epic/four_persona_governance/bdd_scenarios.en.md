@@ -88,6 +88,20 @@ And the review slice includes "solo_epic.md" and "bdd_scenarios.md"
 And upstream epic detection names "solo_epic"
 And upstream epic detection reports "bdd_scenarios.md" for "solo_epic" when that file exists only at the upstream revision and not in the working tree
 And when the base revision holds "solo_epic.en.md" and HEAD holds the renamed "solo_epic.md" with a changed "Integration results" line, the audit reports exactly that line change
+
+Scenario: [FPG-HP-10] [Tier C - Integration] dev-config --provider binds all three personas to one provider's models
+Given a temporary REAL_HOME and project with the kit default configuration and stub executables "agy", "claude" and "codex" on PATH
+When "dev_config.py --provider claude" runs
+Then it exits 0 and the global file holds "active_preset" "all-claude"
+And "dev_config.py resolve ai_architect_reviewer --format json" prints cli "claude", model_id "opus" and effort "high"
+And "dev_config.py resolve orchestrator --format json" and "dev_config.py resolve programmer --format json" print cli "claude", model_id "sonnet" and effort "high"
+When "dev_config.py --provider codex" runs
+Then "ai_architect_reviewer" resolves to cli "codex", model_id "gpt-6.1-sol" and effort "high"
+And "orchestrator" and "programmer" resolve to cli "codex", model_id "gpt-6.1-terra" and effort "medium"
+When "dev_config.py --provider agy" runs
+Then "ai_architect_reviewer" resolves to model_id "gemini-4-argon-high", "orchestrator" to "gemini-4-hydrogen-high" and "programmer" to "gemini-4-hydrogen-xhigh", the same bindings as the "default" preset
+When "dev_config.py --provider claude --scope project" runs
+Then the project file holds "active_preset" "all-claude" and the global file still holds "active_preset" "default"
 ```
 
 ---
@@ -126,6 +140,16 @@ Given repository "demo_repo" whose ".agents/config/personas.json" contains {"sch
 When "scan_repo" runs
 Then it returns without raising
 And "persona_bindings" is empty and "persona_config_error" contains "schema_version"
+
+Scenario: [FPG-EC-06] [Tier A - Unit] Invalid --provider use is rejected and an override that masks the provider is reported
+Given a global configuration file whose SHA-256 is recorded and a project file whose "overrides.programmer" is {"model": "hydrogen", "effort": "high"}
+When "dev_config.py --provider gemini" and "dev_config.py --provider claude status" run
+Then each exits 1 with a message naming the rejected value ("gemini" and "status")
+And the global configuration file SHA-256 is unchanged
+When "dev_config.py --provider claude" runs
+Then it exits 0 and prints a warning that names "programmer" and the "project" layer
+And "resolve_persona('programmer', root)" still returns model_id "gemini-4-hydrogen-high" with sources["effort"] == "project"
+And "ai_architect_reviewer" resolves to model_id "opus"
 ```
 
 ---

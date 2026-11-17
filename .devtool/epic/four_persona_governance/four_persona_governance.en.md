@@ -54,6 +54,8 @@ The source spec describes four problems; this HLD maps them onto the code that c
   session map and brief roles of spec §3.
 - One layered persona configuration (kit, global, project, CLI) and a `/d3nexus:dev-config` skill with
   `status`, `models`, `preset`, `set`, `reset`, `low-quota`, `checkpoint`, `quota-check` and `resolve`.
+- A one-command provider shortcut, `/d3nexus:dev-config --provider agy|claude|codex`, that binds all three
+  personas to one provider's models ([SE-07](#spec-errata)).
 - High-risk findings routed to a Role 2.1 `fix-planner`; the five halt criteria escalate to Role 1.0.
 - No automatic fallback: an unavailable model writes a checkpoint, records a blocker and stops.
 - Proactive checkpoints in the heartbeat, a turn budget, low-quota mode and an automatic quota gate.
@@ -163,6 +165,7 @@ flowchart TD
 |---|---|---|
 | Persona config resolution | `scripts/persona_config.py`, `scripts/personas.default.json` | `load_persona_config()`, `resolve_persona()`, `build_dispatch_argv()` |
 | dev-config CLI and skill | `skills/dev-config/SKILL.md` (agent instructions), `scripts/dev_config.py` | `main()` subcommands |
+| Provider quick-setup | `scripts/dev_config.py`, `scripts/personas.default.json` | `--provider`, presets `all-claude` and `all-codex` |
 | Quota gate | `scripts/dev_config.py` | `cmd_quota_check()` |
 | Checkpoints and briefs | `scripts/resume_context.py`, `scripts/_state_envelope.py` | `--checkpoint`, `update_epic_checkpoint()`, `_BRIEF_ROLE_CONTRACTS`, `emit_handoff_prompt()` |
 | Autonomous runner | `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` | `RunnerConfig`, `_draft_fix_plan()`, `step_implementation()`, `step_cross_model_review()` |
@@ -204,6 +207,7 @@ flowchart TD
    dev_config.py models add ALIAS --cli CLI --id ID --efforts E1,E2 [--quota-pool POOL] [--scope global|project]
    dev_config.py models remove ALIAS [--scope global|project]
    dev_config.py preset NAME [--scope global|project]
+   dev_config.py --provider agy|claude|codex [--scope global|project]   # the preset write for that provider's preset
    dev_config.py set PERSONA MODEL EFFORT [--fallback MODEL] [--scope global|project]
    dev_config.py reset [PERSONA] [--scope global|project]
    dev_config.py low-quota on|off [--for HOURS]      # alias: --low-quota
@@ -254,7 +258,7 @@ repository).
 
 Integration test roots: tests
 Protected paths: .agents/quality/**, .devtool/epic/four_persona_governance/bdd_scenarios.en.md
-Integration results: python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/four-persona-governance.xml tests/test_fpg_persona_config.py tests/test_fpg_dispatch_and_quota.py tests/test_fpg_checkpoint_and_briefs.py tests/test_fpg_runner_personas.py tests/test_fpg_english_only_and_ownership.py tests/test_fpg_dashboard_sync.py tests/test_fpg_governance_text.py tests/test_fpg_english_only_text.py tests/test_fpg_acceptance.py tests/test_lifecycle_runner.py tests/test_rsdh_state_envelope.py tests/test_check_tasks_fsm.py -> build/test-results/four-persona-governance.xml
+Integration results: python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/four-persona-governance.xml tests/test_fpg_persona_config.py tests/test_fpg_dispatch_and_quota.py tests/test_fpg_provider_shortcut.py tests/test_fpg_checkpoint_and_briefs.py tests/test_fpg_runner_personas.py tests/test_fpg_english_only_and_ownership.py tests/test_fpg_dashboard_sync.py tests/test_fpg_governance_text.py tests/test_fpg_english_only_text.py tests/test_fpg_acceptance.py tests/test_lifecycle_runner.py tests/test_rsdh_state_envelope.py tests/test_check_tasks_fsm.py -> build/test-results/four-persona-governance.xml
 
 | Boundary | Producer | Consumer | Verification Tier |
 |---|---|---|---|
@@ -276,7 +280,7 @@ Integration results: python3 -m pytest -q --tb=short --maxfail=3 --junitxml=buil
 
 ## Comprehensive BDD Scenario Coverage
 
-All 29 scenarios (`FPG-HP-01` to `FPG-FR-04`, including `FPG-HP-09`, `FPG-ST-05`, `FPG-ST-06` and `FPG-AR-05`) are defined in [bdd_scenarios.en.md](bdd_scenarios.en.md)
+All 31 scenarios (`FPG-HP-01` to `FPG-FR-04`, including `FPG-HP-09`, `FPG-HP-10`, `FPG-EC-06`, `FPG-ST-05`, `FPG-ST-06` and `FPG-AR-05`) are defined in [bdd_scenarios.en.md](bdd_scenarios.en.md)
 across Happy Path (`HP`), Edge Cases (`EC`), State Transitions (`ST`), Architecture and Concurrency (`AR`)
 and Fault Resilience (`FR`).
 
@@ -284,7 +288,8 @@ and Fault Resilience (`FR`).
 
 - Commit or stash the pending edits to `tasks_dashboard.html` and `quota_dashboard.html` on `main` before
   Gate 3, so Task 05 does not branch from a tree that conflicts at merge.
-- Waves: (1) Tasks 01, 04; (2) Task 02; (3) Tasks 03, 05; (4) Task 06; (5) Task 07; (6) Task 08.
+- Waves: (1) Tasks 01, 04; (2) Tasks 02, 09; (3) Tasks 03, 05; (4) Task 06; (5) Task 07; (6) Task 08. Task 09 depends only on
+  Task 01, so it takes the first free slot while Task 02 waits for Task 04; Task 08 waits for both.
 - Writes to the shared global `personas.json` take an exclusive file lock, so profiles and repositories that
   change bindings at the same time do not overwrite each other.
 - Legacy compatibility: `.en.md` resolution, the `assistant` role alias and the no-op `--strict-bilingual`
@@ -301,6 +306,7 @@ and Fault Resilience (`FR`).
 6. **[Task 06: Four-Persona Governance and Checkpoint Rules in Rules and Skills](task_06_four_persona_governance_text.md)** (`review_tier: "full"`) — Covers: `FPG-AR-03`
 7. **[Task 07: English-Only Dev-Lifecycle Skill Text and Vietnamese Mirror Isolation](task_07_english_only_skill_text_and_mirror_isolation.md)** (`review_tier: "full"`) — Covers: `FPG-AR-04`
 8. **[Task 08: Kit Guides, verify.sh Registration and End-to-End Acceptance](task_08_kit_guides_verify_registration_and_acceptance.md)** (`review_tier: "full"`) — Covers: `FPG-HP-08`
+9. **[Task 09: Provider Quick-Setup Shortcut](task_09_provider_quick_setup.md)** (`review_tier: "full"`) — Covers: `FPG-HP-10`, `FPG-EC-06`
 
 ## Spec Errata
 
@@ -331,3 +337,12 @@ and Fault Resilience (`FR`).
   claims the Kiro `HOME` handling with it. `cli_command` rewrites Claude model IDs and omits the `agy` effort,
   and the `HOME` rule lives in `execute`. `persona_config.py` owns its adapters and a `build_dispatch_env`
   helper instead.
+- **[SE-07] §5.2 Provider Quick-Setup**: Role 1.0 asked on 2026-11-17 for `/d3nexus:dev-config --provider <agy|claude|codex>`,
+  which spec §5.2 and §5.3 do not define. It binds all three personas in one command: `agy` uses the existing
+  `default` preset; `claude` uses the new preset `all-claude` (`claude-opus` high, `claude-sonnet` high,
+  `claude-sonnet` high); `codex` uses the new preset `all-codex` (`codex-gpt` high, `codex-terra` medium,
+  `codex-terra` medium) with a new catalogue alias `codex-terra` (`gpt-6.1-terra`). The presets of spec §5.2 grow
+  from five to seven. Four values were inferred, not stated, and await Role 1.0's confirmation: the Claude bindings
+  (taken from Role 1.0's earlier question about Opus and Sonnet), the `high` effort of `gpt-6.1-sol`, and the id and
+  efforts of `codex-terra` (derived from `gpt-6.1-sol`; unverifiable offline). It is Task 09 because Task 01 was
+  already implemented and reviewed when the request arrived; Task 08 now also depends on Task 09.
