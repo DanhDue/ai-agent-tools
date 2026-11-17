@@ -148,11 +148,15 @@ resume --emit-prompt principal-review --epic <epic_slug> --epic-dir <epic_dir>
 ### Bước 2: Dán Prompt vào Phiên làm việc
 
 ```text
-[PERSONA: Role 2.2 Orchestrator]
-Run `python3 scripts/resume_context.py --role orchestrator --epic <epic_slug>` first.
-Review the English SSOT docs and invoke `d3nexus:principal-review` (`Claude -> Codex -> Kiro -> Argon`, max 3 rounds).
-Delegate doc edits to a Role 2.1 `principal-reviser` subagent, then run `check_epic_readiness.py <epic_dir>`.
-Remember: You are strictly prohibited from reading/editing `src/` or `tests/`.
+[PERSONA: Role 2.1 AI Architect & Reviewer]
+You are acting as Role 2.1 AI Architect & Reviewer (Model: gemini-4-argon-high, Thinking/Effort: high).
+Startup command:
+python3 scripts/resume_context.py --role architect --epic <epic_slug>
+
+MANDATORY TASKS & RULES:
+1. Review the English SSOT docs: .devtool/epic/<epic_dir>/<epic_dir>.md, .devtool/epic/<epic_dir>/bdd_scenarios.md (HLD at .devtool/epic/<epic_dir>/<epic_dir>.md, BDD at .devtool/epic/<epic_dir>/bdd_scenarios.md).
+2. Run `d3nexus:principal-review` (`Claude -> Codex -> Kiro -> Argon`, max 3 rounds). Run `principal-reviser` inline in this Role 2.1 Stage 2 session or as a same-model subagent (`python3 scripts/dev_config.py resolve ai_architect_reviewer --format argv --mode write`), then run `check_epic_readiness.py <epic_dir>` in the main session.
+3. DO NOT read/edit `src/` or `tests/` or modify production code.
 ```
 
 ### Bước 3: Triage, Cập nhật Tài liệu, Đóng gói và Chuyển tiếp

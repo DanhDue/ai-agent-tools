@@ -8,7 +8,9 @@ Covers BDD Scenarios:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import importlib.util
+import io
 from pathlib import Path
 import re
 import shlex
@@ -633,3 +635,56 @@ def test_fpg_low_risk_clause_excludes_critical(rel: str) -> None:
     assert "any `Critical`" in high_clause, (
         f"{rel} missing 'any `Critical`' in High risk clause: {high_clause!r}"
     )
+
+
+def test_fpg_context_guide_principal_review_prompt_matches_emitter(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Scenario 1 Step 2 in context-memory-quick-guide.en.md matches resume_context.py --emit-prompt principal-review."""
+    fake_home = tmp_path / "home"
+    fake_repo = tmp_path / "repo"
+    fake_home.mkdir(parents=True)
+    fake_repo.mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(fake_home))
+    monkeypatch.setenv("REAL_HOME", str(fake_home))
+
+    scripts_dir = REPO_ROOT / "scripts"
+    script_path = scripts_dir / "resume_context.py"
+    added_sys_path = False
+    if str(scripts_dir) not in sys.path:
+        sys.path.insert(0, str(scripts_dir))
+        added_sys_path = True
+    mod_name = "_fpg_resume_context_probe"
+    spec = importlib.util.spec_from_file_location(mod_name, script_path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[mod_name] = mod
+    buf = io.StringIO()
+    try:
+        spec.loader.exec_module(mod)
+        with contextlib.redirect_stdout(buf):
+            mod.emit_handoff_prompt(
+                "principal-review",
+                "<epic_slug>",
+                epic_dir="<epic_dir>",
+                root=fake_repo,
+                real_home=fake_home,
+            )
+    finally:
+        sys.modules.pop(mod_name, None)
+        if added_sys_path and str(scripts_dir) in sys.path:
+            sys.path.remove(str(scripts_dir))
+
+    emitted = buf.getvalue().strip()
+    guide = _read("docs/context-memory-quick-guide.en.md")
+    scenario_1 = _section(guide, "## 3. Scenario 1")
+    step_2 = scenario_1.split("### Step 2:", 1)[1].split("### Step 3:", 1)[0]
+    match = re.search(r"```text\n(.*?)\n```", step_2, flags=re.DOTALL)
+    assert match is not None, "Missing fenced text block in Scenario 1 Step 2"
+    guide_block = match.group(1).strip()
+
+    assert guide_block.splitlines()[0] == emitted.splitlines()[0]
+    assert "--role architect" in guide_block
+    assert "--role orchestrator" not in guide_block
+    assert guide_block == emitted
