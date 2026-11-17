@@ -881,3 +881,133 @@ def test_no_profile_report_distinguishes_resident_busy_from_exhausted(
     else:
         assert res.report[0] == "Stopped: all agy profiles are out of quota."
         assert "- p1: 5-hour limit reached (resets 2026-11-17T12:00:00Z)" in res.report
+
+
+@pytest.mark.parametrize("host_profile", ["p1", "other"])
+def test_run_on_pool_enforces_timeout_and_process_group_isolation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    host_profile: str,
+) -> None:
+    """Pooled dispatch isolates child process group, enforces timeout_seconds, kills grandchildren, and releases lease."""
+    import signal
+    import time
+
+    pool_mod = _pool_mod()
+    dispatch_mod = _dispatch_mod()
+    persona_mod = _persona_mod()
+
+    real_home = tmp_path / "real_home"
+    repo = tmp_path / "repo"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir(parents=True)
+    _make_profile_dirs(real_home, ("p1",))
+    _init_git_repo(repo)
+    prompt_file = tmp_path / "prompt.txt"
+    prompt_file.write_text("long task\n", encoding="utf-8")
+
+    _write_json(
+        real_home / ".d3nexus" / "agy_profiles.json",
+        {
+            "schema_version": 1,
+            "pool": [{"profile": "p1", "priority": 1}],
+            "heartbeat_seconds": 0.05,
+            "lease_ttl_seconds": 2,
+        },
+    )
+
+    pgid_file = tmp_path / f"pgid_{host_profile}.txt"
+    gc_pid_file = tmp_path / f"gc_pid_{host_profile}.txt"
+
+    (bin_dir / "agy").write_text(
+        f"""#!/bin/sh
+sleep 3 &
+echo "$!" > {str(gc_pid_file)!r}
+ps -o pid=,pgid= -p $$ > {str(pgid_file)!r}
+wait
+""",
+        encoding="utf-8",
+    )
+    (bin_dir / "agy").chmod(0o755)
+    (bin_dir / "zsh").write_text(
+        f"""#!/bin/sh
+case "$*" in
+  *typeset*) exit 0 ;;
+esac
+sleep 3 &
+echo "$!" > {str(gc_pid_file)!r}
+ps -o pid=,pgid= -p $$ > {str(pgid_file)!r}
+wait
+""",
+        encoding="utf-8",
+    )
+    (bin_dir / "zsh").chmod(0o755)
+
+    hb_calls = 0
+    orig_hb = pool_mod.heartbeat
+
+    def spy_hb(
+        owner_id: str, *, real_home: Path | str | None = None, now: Any = None
+    ) -> bool:
+        nonlocal hb_calls
+        hb_calls += 1
+        return bool(orig_hb(owner_id, real_home=real_home, now=now))
+
+    monkeypatch.setattr(pool_mod, "heartbeat", spy_hb)
+    binding = persona_mod.resolve_persona("programmer", repo, real_home=real_home)
+    env_extra = {"PATH": f"{bin_dir}:{os.environ.get('PATH', '')}"}
+
+    t0 = time.monotonic()
+    try:
+        res = dispatch_mod.run_on_pool(
+            binding,
+            "write",
+            prompt_file=prompt_file,
+            cwd=repo,
+            log=tmp_path / f"timeout_{host_profile}.log",
+            owner={
+                "repo": "repo",
+                "epic": "e1",
+                "task": "t1",
+                "slot": 1,
+                "role": "runner",
+            },
+            real_home=real_home,
+            extra_env=env_extra,
+            host_profile=host_profile,
+            fetcher=_healthy_fetcher,
+            resident_probe=lambda _p: False,
+            timeout_seconds=0.5,
+        )
+    finally:
+        elapsed = time.monotonic() - t0
+
+    assert res.status == "task_failure"
+    assert res.exit_code == 124
+    assert res.reason == "timeout"
+    assert any("Process timeout:" in line for line in res.report)
+    assert elapsed < 1.5
+
+    parts = pgid_file.read_text(encoding="utf-8").strip().split()
+    assert len(parts) == 2
+    child_pid, child_pgid = int(parts[0]), int(parts[1])
+    assert child_pgid == child_pid
+    assert child_pgid != os.getpgrp()
+
+    gc_pid = int(gc_pid_file.read_text(encoding="utf-8").strip())
+    for _ in range(10):
+        try:
+            os.kill(gc_pid, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.05)
+    else:
+        os.kill(gc_pid, signal.SIGKILL)
+        pytest.fail(f"Grandchild process {gc_pid} survived process-group timeout kill")
+
+    st = pool_mod.pool_status(real_home=real_home)
+    assert st["profiles"][0]["leased_by"] == []
+
+    hb_after = hb_calls
+    time.sleep(0.15)
+    assert hb_calls == hb_after

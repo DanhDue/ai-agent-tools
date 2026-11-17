@@ -2314,3 +2314,101 @@ def test_fpg_st_03_inflight_return_after_sibling_halt_writes_subagent_returned(
         assert recorded_cps[0]["tasks_in_flight"] == ["task_02"]
         assert exit_code == (1 if scenario == "quota_midrun_no_retry" else 0)
     assert runner._turns_since_budget_checkpoint == expected_turns
+
+
+def test_model_dispatcher_pooled_dispatch_honors_timeout_seconds(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ModelDispatcher forwards timeout_seconds to pooled dispatch and preserves Process timeout stderr."""
+    import signal
+    import time
+
+    pool_mod = lifecycle_runner._agy_pool()
+    fake_home = tmp_path / "_isolated_home"
+    repo = tmp_path / "repo_f9"
+    _init_git_repo(repo)
+    (fake_home / "antigravity_homes" / "p1").mkdir(parents=True, exist_ok=True)
+    _write_json(
+        fake_home / ".d3nexus" / "agy_profiles.json",
+        {
+            "schema_version": 1,
+            "pool": [{"profile": "p1", "priority": 1}],
+            "heartbeat_seconds": 0.05,
+        },
+    )
+
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    gc_pid_file = tmp_path / "gc_pid.txt"
+    (bin_dir / "agy").write_text(
+        f"""#!/bin/sh
+sleep 3 &
+echo "$!" > {str(gc_pid_file)!r}
+wait
+""",
+        encoding="utf-8",
+    )
+    (bin_dir / "agy").chmod(0o755)
+
+    monkeypatch.setenv("AGY_PROFILE", "p1")
+    monkeypatch.setenv("PATH", f"{bin_dir}:{os.environ.get('PATH', '')}")
+    monkeypatch.setattr(
+        pool_mod,
+        "default_fetcher",
+        lambda _p: {
+            "status": "ACTIVE",
+            "gemini5h": {"fraction": 0.9, "resetTime": "2026-11-17T14:00:00Z"},
+            "geminiWeekly": {"fraction": 0.9, "resetTime": "2026-11-22T00:00:00Z"},
+        },
+    )
+    monkeypatch.setattr(pool_mod, "default_resident_probe", lambda _p: False)
+
+    disp = lifecycle_runner.ModelDispatcher(
+        worktree_dir=repo, timeout_seconds=0.5, real_home=fake_home
+    )
+    t0 = time.monotonic()
+    rc, _out, err = disp.dispatch("agy", ["--model", "gemini-4-hydrogen-xhigh"], "hi")
+    elapsed = time.monotonic() - t0
+
+    assert rc == 124
+    assert elapsed < 1.5
+    assert "Process timeout:" in err
+
+    gc_pid = int(gc_pid_file.read_text(encoding="utf-8").strip())
+    for _ in range(10):
+        try:
+            os.kill(gc_pid, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.05)
+    else:
+        os.kill(gc_pid, signal.SIGKILL)
+        pytest.fail(f"Grandchild process {gc_pid} survived ModelDispatcher timeout")
+
+    # Stubbed pool_dispatcher receives timeout_seconds and timeout report maps to stderr
+    seen_timeouts: list[Any] = []
+
+    def stub_pool(*_a: Any, **kw: Any) -> Any:
+        seen_timeouts.append(kw.get("timeout_seconds"))
+        return agy_dispatch.DispatchResult(
+            status="task_failure",
+            profile_used="p1",
+            attempts=1,
+            exit_code=124,
+            reason="timeout",
+            report=["Process timeout: execution timed out after 0.5s"],
+        )
+
+    disp_stub = lifecycle_runner.ModelDispatcher(
+        worktree_dir=repo,
+        timeout_seconds=0.5,
+        real_home=fake_home,
+        pool_dispatcher=stub_pool,
+    )
+    rc_s, _out_s, err_s = disp_stub.dispatch(
+        "agy", ["--model", "gemini-4-hydrogen-xhigh"], "hi"
+    )
+    assert seen_timeouts == [0.5]
+    assert rc_s == 124
+    assert err_s == "Process timeout: execution timed out after 0.5s"

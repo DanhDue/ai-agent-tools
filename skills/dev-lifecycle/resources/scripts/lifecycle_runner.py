@@ -636,6 +636,7 @@ class ModelDispatcher:
                 log=log_path,
                 owner=owner,
                 real_home=resolved_home,
+                timeout_seconds=self.timeout_seconds,
             )
             self._ctx_local.last_result = res
             self.last_dispatch_result = res
@@ -648,6 +649,16 @@ class ModelDispatcher:
         if status == "ok":
             return 0, log_output, ""
         if status == "task_failure":
+            if reason == "timeout":
+                timeout_err = (
+                    "\n".join(report)
+                    if report
+                    else (
+                        log_output.strip()
+                        or f"Process timeout: execution timed out after {self.timeout_seconds}s"
+                    )
+                )
+                return (rc or 1), log_output, timeout_err
             return (rc or 1), log_output, ""
         if status == "quota_midrun":
             return (rc or 1), log_output, "quota_midrun"

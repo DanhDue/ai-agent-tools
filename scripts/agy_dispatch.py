@@ -16,6 +16,7 @@ import signal
 import subprocess
 import sys
 import threading
+import time
 from types import FrameType, ModuleType
 from typing import TYPE_CHECKING, Any
 
@@ -197,6 +198,27 @@ def _coerce_launch_output(raw: Any) -> tuple[int, str, str]:
     return int(rc), str(out or ""), str(err or "")
 
 
+def _terminate_process_group(proc: subprocess.Popen[str]) -> None:
+    """Send SIGTERM then SIGKILL to a child's process group and drain pipes."""
+    pgid = proc.pid
+    with contextlib.suppress(ProcessLookupError, OSError):
+        os.killpg(pgid, signal.SIGTERM)
+
+    deadline = time.monotonic() + 1.0
+    alive = True
+    while time.monotonic() < deadline:
+        if proc.poll() is not None:
+            alive = False
+            break
+        time.sleep(0.05)
+
+    if alive:
+        with contextlib.suppress(ProcessLookupError, OSError):
+            os.killpg(pgid, signal.SIGKILL)
+    with contextlib.suppress(Exception):
+        proc.communicate(timeout=0.5)
+
+
 def _execute_launch(
     argv: list[str],
     *,
@@ -207,6 +229,7 @@ def _execute_launch(
     via_ag_run: bool,
     launcher: Callable[..., Any] | None,
     active_proc_holder: list[subprocess.Popen[str] | None],
+    timeout_seconds: float | None = None,
 ) -> tuple[int, str, str]:
     if launcher is not None:
         raw = launcher(
@@ -227,6 +250,7 @@ def _execute_launch(
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            start_new_session=True,
         )
     except FileNotFoundError:
         return 127, "", f"CLI binary '{argv[0]}' not found on PATH"
@@ -235,8 +259,15 @@ def _execute_launch(
 
     active_proc_holder[0] = proc
     try:
-        out, err = proc.communicate(input=stdin_text)
+        out, err = proc.communicate(input=stdin_text, timeout=timeout_seconds)
         return int(proc.returncode or 0), str(out or ""), str(err or "")
+    except subprocess.TimeoutExpired:
+        _terminate_process_group(proc)
+        return (
+            124,
+            "",
+            f"Process timeout: execution timed out after {timeout_seconds}s",
+        )
     finally:
         active_proc_holder[0] = None
 
@@ -371,6 +402,7 @@ def _dispatch_direct_non_pool(
     extra_agy_args: list[str],
     profile_label: str | None,
     launcher: Callable[..., Any] | None,
+    timeout_seconds: float | None = None,
 ) -> DispatchResult:
     base_argv = _pc.build_dispatch_argv(binding, mode)
     argv = [*base_argv, *extra_agy_args] if binding.cli == "agy" else base_argv
@@ -389,6 +421,7 @@ def _dispatch_direct_non_pool(
         via_ag_run=False,
         launcher=launcher,
         active_proc_holder=holder,
+        timeout_seconds=timeout_seconds,
     )
     failure_kind = _pc.classify_dispatch_failure(rc, out, err)
     _append_attempt_log(
@@ -413,14 +446,19 @@ def _dispatch_direct_non_pool(
     status = (
         "model_unavailable" if failure_kind == "model_unavailable" else "task_failure"
     )
-    reason = "model_unavailable" if status == "model_unavailable" else None
+    is_timeout = status == "task_failure" and rc == 124 and err.startswith("Process timeout:")
+    reason = (
+        "model_unavailable"
+        if status == "model_unavailable"
+        else ("timeout" if is_timeout else None)
+    )
     return DispatchResult(
         status=status,
         profile_used=profile_label,
         attempts=1,
         exit_code=rc,
         reason=reason,
-        report=[],
+        report=[err] if is_timeout else [],
     )
 
 
@@ -441,6 +479,7 @@ def _run_single_attempt(
     preflight: Callable[[], int | bool] | None,
     launcher: Callable[..., Any] | None,
     now: datetime | None,
+    timeout_seconds: float | None = None,
 ) -> tuple[DispatchResult | None, int, bool]:
     """Execute one leased attempt and return (result_or_none_to_rotate, exit_code, preflight_ok)."""
     active_proc: list[subprocess.Popen[str] | None] = [None]
@@ -452,7 +491,10 @@ def _run_single_attempt(
         def _handle_sigterm(signum: int, _frame: FrameType | None) -> None:
             proc_ref = active_proc[0]
             if proc_ref is not None and proc_ref.poll() is None:
-                proc_ref.terminate()
+                with contextlib.suppress(ProcessLookupError, OSError):
+                    os.killpg(proc_ref.pid, signal.SIGTERM)
+                with contextlib.suppress(OSError):
+                    proc_ref.terminate()
             raise SystemExit(128 + signum)
 
         prev_sigterm = signal.getsignal(signal.SIGTERM)
@@ -503,6 +545,7 @@ def _run_single_attempt(
                 via_ag_run=via_ag_run,
                 launcher=launcher,
                 active_proc_holder=active_proc,
+                timeout_seconds=timeout_seconds,
             ),
         )
         failure_kind = _pc.classify_dispatch_failure(rc, out, err)
@@ -534,14 +577,15 @@ def _run_single_attempt(
             )
 
         if failure_kind != "model_unavailable":
+            is_timeout = rc == 124 and err.startswith("Process timeout:")
             return (
                 DispatchResult(
                     status="task_failure",
                     profile_used=profile,
                     attempts=attempt_num,
                     exit_code=rc,
-                    reason=None,
-                    report=[],
+                    reason="timeout" if is_timeout else None,
+                    report=[err] if is_timeout else [],
                 ),
                 rc,
                 preflight_passed,
@@ -611,6 +655,7 @@ def run_on_pool(
     preflight: Callable[[], int | bool] | None = None,
     which: Callable[[str], str | None] = shutil.which,
     now: datetime | None = None,
+    timeout_seconds: float | None = None,
 ) -> DispatchResult:
     """Acquire an agy profile lease, run preflight/launch with heartbeat, and rotate on clean quota errors."""
     prompt_path = Path(prompt_file)
@@ -629,6 +674,7 @@ def run_on_pool(
             extra_agy_args=[],
             profile_label=None,
             launcher=launcher,
+            timeout_seconds=timeout_seconds,
         )
 
     resolved_real_home = _pc.get_real_home(real_home)
@@ -649,6 +695,7 @@ def run_on_pool(
             extra_agy_args=extra_agy_args,
             profile_label=resolved_host,
             launcher=launcher,
+            timeout_seconds=timeout_seconds,
         )
 
     active_thresholds = (
@@ -736,6 +783,7 @@ def run_on_pool(
             preflight=preflight,
             launcher=launcher,
             now=now,
+            timeout_seconds=timeout_seconds,
         )
         last_rc = rc
         if outcome is not None:
