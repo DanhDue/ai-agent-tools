@@ -1,12 +1,13 @@
 ---
 id: "task_06_four_persona_governance_text"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T12:22:20Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T12:22:20Z"
 labels: ["governance", "architecture", "docs"]
 order: "a6"
 review_tier: "full"
@@ -14,7 +15,7 @@ review_tier: "full"
 
 # Task 6: Four-Persona Governance and Checkpoint Rules in Rules and Skills
 
-Epic: [four_persona_governance](../epic/four_persona_governance/four_persona_governance.en.md)
+Epic: [four_persona_governance](../../epic/four_persona_governance/four_persona_governance.en.md)
 
 ## Requirement Analysis
 
@@ -173,11 +174,11 @@ And no dev-lifecycle skill tells an agent to launch agy with a hand-built HOME o
 
 ## Dependencies & Blockers
 
-Blocked by [Task 3](../epic/four_persona_governance/task_03_runner_personas_risk_routing_and_quota_stops.md) and [Task 5](../epic/four_persona_governance/task_05_check_tasks_dashboard_persona_and_quota_sync.md).
+Blocked by [Task 3](../../epic/four_persona_governance/task_03_runner_personas_risk_routing_and_quota_stops.md) and [Task 5](../../epic/four_persona_governance/task_05_check_tasks_dashboard_persona_and_quota_sync.md).
 
 Downstream dependents (blocked by Task 6): `task_07`.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/four_persona_governance/four_persona_governance.en.md)
+- [Epic HLD](../../epic/four_persona_governance/four_persona_governance.en.md)
 - **Rollback**: Revert the task commit to restore the Tri-Role text.

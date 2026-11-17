@@ -1,12 +1,13 @@
 ---
 id: "task_06_four_persona_governance_text"
-status: "todo"
+status: "done"
+completedAt: "2026-11-17T12:22:20Z"
 priority: "high"
 assignee: null
 epic: "four_persona_governance"
 dueDate: null
 created: "2026-11-17T10:00:00Z"
-modified: "2026-11-17T10:00:00Z"
+modified: "2026-11-17T12:22:20Z"
 labels: ["governance", "architecture", "docs"]
 order: "a6"
 review_tier: "full"
