@@ -90,6 +90,8 @@ EXPECTED: dict[str, tuple[str, ...]] = {
         "Resume Procedure",
         "handoff.md",
         "space- or comma-separated values",  # LF-HP-04
+    ),
+    "skills/dev-implementation/references/entry-point-and-resume.md": (
         "re-enters at Phase 2 step 2",  # LF-ST-04
         "may ride along in that commit",  # LF-ST-06
     ),
@@ -254,11 +256,11 @@ class LifecycleDocumentContractTest(unittest.TestCase):
         self.assertIn("Gate 4 grants `🟢 LGTM`", skill_text)
 
     def test_mvls_hp_04_implementation_skill_concise_and_orchestrated(self) -> None:
-        """[MVLS-HP-04] dev-implementation is <= 4600 words, has no diagram fences, and preserves orchestration."""
+        """[MVLS-HP-04] dev-implementation is <= 4500 words, has no diagram fences, and preserves orchestration."""
         impl_path = ROOT / "skills/dev-implementation/SKILL.md"
         text = impl_path.read_text(encoding="utf-8")
         words = len(text.split())
-        self.assertLessEqual(words, 4600, f"SKILL.md exceeds word limit: {words} > 4600")
+        self.assertLessEqual(words, 4500, f"SKILL.md exceeds word limit: {words} > 4500")
         self.assertNotIn("```mermaid", text, "SKILL.md must not contain Mermaid diagram fences")
         self.assertNotIn("```dot", text, "SKILL.md must not contain Graphviz DOT diagram fences")
 
@@ -274,7 +276,7 @@ class LifecycleDocumentContractTest(unittest.TestCase):
 
     def test_mvls_fr_04_gate_4_semantic_test_fakery_rejected(self) -> None:
         """[MVLS-FR-04] Gate 4 rejects semantic test fakery without claiming universal mechanical coverage."""
-        impl_path = ROOT / "skills/dev-implementation/SKILL.md"
+        impl_path = ROOT / "skills/dev-implementation/references/gate4-semantic-integrity.md"
         text = impl_path.read_text(encoding="utf-8")
         self.assertIn("No Reconstructed Logic", text)
         self.assertIn("Immutable Real Artifacts", text)
@@ -400,14 +402,15 @@ class PrincipalReviewWorkflowTest(unittest.TestCase):
         self.assertIn("round <n>: PASS", phase1_section)
         self.assertIn("round <n>: decided", phase1_section)
 
-        resume_section = text.split("#### Resume Procedure", 1)[1].split("### Phase 1", 1)[0]
+        entry_ref = ROOT / "skills/dev-implementation/references/entry-point-and-resume.md"
+        resume_section = entry_ref.read_text(encoding="utf-8").split("## Resume Procedure", 1)[1]
         self.assertIn("Principal Review", resume_section)
         self.assertIn("not run", resume_section)
         self.assertIn("round <n>: PASS", resume_section)
         self.assertIn("round <n>: decided", resume_section)
 
         words = len(text.split())
-        self.assertLessEqual(words, 4600, f"dev-implementation/SKILL.md exceeds word limit: {words} > 4600")
+        self.assertLessEqual(words, 4500, f"dev-implementation/SKILL.md exceeds word limit: {words} > 4500")
 
 
 class TestReviewSkillContracts(unittest.TestCase):
@@ -475,6 +478,10 @@ class TestReviewSkillContracts(unittest.TestCase):
             "skills/test-driven-development/SKILL.md",
         ):
             text = (ROOT / rel).read_text(encoding="utf-8")
+            if rel == "skills/dev-implementation/SKILL.md":
+                text += (ROOT / "skills/dev-implementation/references/worker-execution-rules.md").read_text(
+                    encoding="utf-8"
+                )
             for token in ("@pytest.mark.parametrize", "Tier 1", "Tier 2", "Tier 3", 'scope="session"'):
                 self.assertIn(token, text, f"{rel} missing test efficiency token: {token}")
 

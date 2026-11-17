@@ -76,47 +76,11 @@ Before implementing any task in Phase 2, adhere strictly to Bounded Context Inje
 
 #### Entry-Point Detection
 
-Read these signals, all read-only, from the main checkout:
-
-```bash
-test -f .devtool/epic/<epic_dir>/handoff.md && echo packaged-handoff
-test -f .devtool/epic/<epic_dir>/principal_review.md && python3 "$SKILL_DIR"/resources/scripts/run_external_review.py check --kind principal --epic-dir <epic_dir>
-grep -m1 -E '^- \*\*Status\*\*:' .devtool/epic/<epic_dir>/<epic_dir>.en.md
-git rev-parse --verify --quiet refs/heads/epic/<epic_slug>
-for remote in $(git remote); do git ls-remote --heads "$remote" "epic/<epic_slug>"; done
-git worktree list --porcelain | grep -E '^worktree .*/\.worktrees/<epic_dir>$'
-python3 "$SKILL_DIR"/resources/scripts/compute_execution_order.py <epic_slug> \
-  --features-dir .devtool/epic/<epic_dir>
-```
-
-If the HLD declares `- **Depends on epic**:`, verify prerequisites first:
-```bash
-python3 "$SKILL_DIR"/resources/scripts/sync_task_status.py check-prereqs <epic_dir>
-```
-If this exits `1`, halt immediately and report the blocking prerequisite epics. Do not proceed to execution until all prerequisite epics are finished and merged into `develop` (or the target base branch).
-
-`git ls-remote` asks each remote directly, so an epic branch pushed from another clone shows before any fetch; if a remote cannot be reached, fall back to `git branch -r --list '*/epic/<epic_slug>'`. The last command reads the epic's task mirrors (`sync_task_status.py` keeps them in step with `.devtool/features/` and `.devtool/features/done/`); its flattened order prints each task's status as `[priority, status]`. Evaluate the rows top-down — first match wins — and announce it: "Entry point: row N — <state>."
-
-| # | Signals | State | Entry point |
-|---|---------|-------|-------------|
-| 1 | Overview Status is `Done` | Finished, or Stage 4 interrupted | With no epic branch left, report finished and stop. With epic branch still present, Stage 4 was interrupted or its PR is still open: report and ask |
-| 2 | No epic branch, and any task is `backlog` | Queued behind another epic | Stop. Check conflicts via `python3 "$SKILL_DIR"/resources/scripts/sync_task_status.py check-conflicts <epic_dir>`, and promote tasks to `todo` via `sync_task_status.py promote <epic_dir> [--force]` when confirmed |
-| 3 | No epic branch locally or on remote, no worktree, every task `todo` | Not started — packaged if `handoff.md` exists | Phase 1 as written: Gate 3, then new worktree |
-| 4 | Epic branch exists, no worktree, some task not `done` | Interrupted, worktree removed | Resume Procedure |
-| 5 | Worktree exists, some task not `done` | Interrupted midway through Stage 3 | Resume Procedure |
-| 6 | Epic branch exists, every task `done` | Tasks finished | Recreate worktree if missing (`git worktree add .worktrees/<epic_dir> epic/<epic_slug>`, no `-b`) and bootstrap (Phase 1 step 5), run Resume Procedure preflight (step 2), then Phase 4 in full; its PASS presents Review Choice |
-| 7 | Anything else — branch only on remote, or tasks `in-progress` or `done` with no epic branch | Inconsistent | Stop, report signals, ask |
+**MANDATORY: read [references/entry-point-and-resume.md](references/entry-point-and-resume.md) before Phase 1.** It holds the read-only signals and the 7-row entry table. Evaluate the rows top-down (first match wins) and announce it: "Entry point: row N — <state>."
 
 #### Resume Procedure
 
-For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
-
-1. Row 4 only: recreate worktree from existing branch, `git worktree add .worktrees/<epic_dir> epic/<epic_slug>` with no `-b`. For rows 4 and 5, check bootstrap with Phase 1 step 5's platform checks and re-run if needed.
-2. In the worktree, run `python3 "$INTEGRATE" preflight --base develop`. A rebase in progress, or diverged base, is handled per Phase 2 step 7 before anything else.
-3. Find the interrupted task: one at `in-progress` or `review`. If worktree has uncommitted changes, collect `git status --short`.
-4. **Gate 3 (resume).** Check mirror scan summary against task mirror count and read Manual review advised section. State the Principal Review status (`not run`, `round <n>: PASS`, or `round <n>: decided`), and stop with the triage if that check exits 1. Run Phase 1 step 3's BDD mapping check and task contract check, including retrofit if needed. Commit any retrofit on epic branch staging only touched files (both `bdd_scenarios`, both HLD variants, task files — never `git add -A`). The interrupted task's own status fields may ride along in that commit; that is expected. Present tasks already `done` with commits (`git log --oneline develop..epic/<epic_slug>`), remaining order with `done` tasks removed, choice on uncommitted changes (keep or discard), and request permission to fast-forward `develop`. Wait for confirmation.
-5. If overview Status begins with `Packaged`, run `python3 "$SKILL_DIR"/resources/scripts/sync_task_status.py epic <epic_dir> "In Progress"`.
-6. Enter Phase 2 at the interrupted task — a task at `review` re-enters at Phase 2 step 2; a task at `in-progress` resumes implementation with kept changes — or at the first remaining task.
+Rows 4 and 5 only. **MANDATORY: read [references/entry-point-and-resume.md](references/entry-point-and-resume.md#resume-procedure) before Phase 1.** Phase 1 step 4's `git worktree add -b` never runs here.
 
 ### Phase 1 — Execution Plan
 
@@ -193,28 +157,7 @@ Autonomous Mode: `lifecycle_runner.py` dispatches itself (`build_agy_command`, `
 3. **`task-reviewer` (Role 2.1, fresh read-only subagent)**: Dispatched by the Orchestrator only when Selective Gating triggers, after it runs `sync ... --status review`. Audits diff + AST + Zero Fakery via `run_task_checks.py status` and `check_bdd_traceability.py` only; never edits or commits. On `PASS` the Orchestrator marks `done` and commits.
 4. **Merge & Cleanup (Orchestrator)**: see steps 4–5 below (then `--checkpoint wave_merged`); `cleanup` before Phase 4; revisions use `package_epic.py --revise --reason "<text>" <epic_dir>`.
 
-   **Test Assertion Health, Anti-Bloat & Tiered Execution**: Never assert only inside `if path.exists()`; always assert `found > 0`. Enforce:
-   - **Mandatory Parametrization**: Never copy-paste `def test_*` functions across input variations; consolidate into `@pytest.mark.parametrize` (or table tests).
-   - **No Trivial Boilerplate Tests**: Ban tests asserting only Python language features, Pydantic defaults, or trivial getters/setters; verify distinct Spec/HLD contracts.
-   - **Fixture Scope Discipline**: Read-only fixtures (JSON snapshots, AST trees, mock servers, headless browsers) MUST use `scope="module"` or `scope="session"`, never `scope="function"`.
-   - **Tier 1 (Task & Fix Rounds)**: Static checks + scoped parallel files (`uv run pytest <changed_test_files> -n auto --timeout=30 -q --tb=short`); never `tests/e2e` or repo-wide pytest. **Tier 2 (Pre-Gate)**: `uv run pytest --ignore=tests/e2e -m "not slow and not acceptance and not live_llm" -n auto --dist loadscope --timeout=30 -q --tb=short`. **Tier 3 (Final Gate Convergence Only)**: Tier 2 + session-scoped `tests/e2e` + `audit_epic.py` / `@quality_check`.
-
-   **Tri-Persona Subagent Execution Model**: Operate across the 3-Tier Testing Standard:
-   1. **Expert QA (Red Team)**: Authors adversarial BDD scenarios (`HP`, `EC`, `ST`, `AR`, `FR`) split cleanly between `[Tier A - Unit]` and `[Tier C - Integration]`.
-   2. **Principal Engineer (TDD Master — Tier A)**: Executes RED failing test -> minimal GREEN code -> REFACTOR/lint/strict types in task files only.
-   3. **System Integration & E2E Engineer (Tier C)**: Authors integration/browser suites (`integration_test/`, `*FlowTest.kt`, `App/Tests`, `tests/e2e/`, `tests/integration/`) exercising real DI, navigation, and persistence.
-
-   #### Anti-Rationalization and Doubt-Driven Verification
-
-   Reject rationalizations that cut testing corners:
-   - **"Node test is sufficient for web UI"**: REJECTED. Node tests prove only pure data logic. Web defects occur in DOM queries and CSS rendering. Tier C requires headless Playwright with Zero-Console-Error watchdog.
-   - **"Mock data in stub is enough"**: REJECTED. Method stubs bypass JSON deserialization and network interceptors. Wire fixtures from `shared-contracts/` are mandatory.
-   - **"Red console errors are harmless warnings"**: REJECTED. Zero-Console-Error rule fails Gate 4 on any browser console error.
-   - **"Cannot launch simulator, unit test instead"**: REJECTED. Mobile Tier C requires Subcutaneous testing with real DI and in-memory persistence.
-   - **"HTML ported from mockup, selectors match"**: REJECTED. Tier C2 UI tests MUST assert `getComputedStyle` and `getBoundingClientRect` properties against the Visual Companion design.
-
-   **Doubt-Driven Verification Protocol**:
-   Before claiming done on any task: `CLAIM` Tier C coverage -> `EXTRACT` test reports -> `DOUBT` mock isolation -> `RECONCILE` real headless/subcutaneous tests.
+   **Worker execution rules** (test assertion health, anti-bloat and tiered test execution; the Tri-Persona model; anti-rationalization and doubt-driven verification): read [references/worker-execution-rules.md](references/worker-execution-rules.md) before acting as, or dispatching, a `task-implementer`.
 
    > [!CRITICAL]
    > ### 🎯 MANDATORY 100% BDD-TO-TEST TRACEABILITY RULE
@@ -332,11 +275,7 @@ Resolve candidate SHA (`git rev-parse HEAD`) on a clean tree:
 
 #### Semantic Test Integrity Governance (Gate 4 Rules)
 
-Gate 4 enforces strict semantic test integrity to prevent false-confidence passes. Registered providers and auditors reject test fakery with **`FAIL`**:
-1. **No Reconstructed Logic**: Tests MUST import and invoke production code directly from Allowed files. Tests MUST NOT reconstruct production logic (such as retry loops, progress tracking, mapping transformations, or configuration defaults) locally within test helpers or mock harnesses. If a test reconstructs production logic instead of invoking production symbols, the review reports FAIL.
-2. **Immutable Real Artifacts**: Tests MUST execute against genuine, immutable repository artifacts, schemas, and fixtures. Tests MUST NOT substitute synthetic artifacts or mock data that alter scenario anchors or weaken contractual invariants. If a test substitutes synthetic artifacts that alter scenario anchors, the review reports FAIL.
-
-*(Note: These are Gate 4 semantic integrity requirements evaluated by specialist providers and audits; no universal cross-language mechanical coverage claim is made.)*
+Gate 4 rejects test fakery with **`FAIL`**: **No Reconstructed Logic** and **Immutable Real Artifacts**. Read [references/gate4-semantic-integrity.md](references/gate4-semantic-integrity.md) before running or judging Gate 4.
 
 ### Automated Transition to Cross-Model Review (Zero Intermediate Confirmation)
 

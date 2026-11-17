@@ -14,7 +14,9 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-IMPLEMENTATION = (ROOT / "skills/dev-implementation/SKILL.md").read_text()
+IMPLEMENTATION = (ROOT / "skills/dev-implementation/SKILL.md").read_text() + (
+    ROOT / "skills/dev-implementation/references/entry-point-and-resume.md"
+).read_text()
 LIFECYCLE = (ROOT / "skills/dev-lifecycle/SKILL.md").read_text()
 TEMPLATE = (ROOT / "skills/dev-lifecycle/references/handoff-template.md").read_text()
 SYNC = ROOT / "skills/dev-implementation/resources/scripts/sync_task_status.py"

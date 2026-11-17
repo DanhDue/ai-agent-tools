@@ -32,8 +32,8 @@ def test_tto_hp_05_slimmed_rules_and_skills_caps() -> None:
     """[TTO-HP-05] Rules and dev-designer stay within UTF-8 byte caps, task-observer blocks subagents, and checklists offload."""
     critical_rules = _read("rules/CRITICAL_RULES.md")
     assert critical_rules.startswith("---\ntrigger: always_on\n---")
-    assert len(critical_rules.encode("utf-8")) <= 10240, (
-        f"CRITICAL_RULES.md too large: {len(critical_rules.encode('utf-8'))} bytes > 10240"
+    assert len(critical_rules.encode("utf-8")) <= 8192, (
+        f"CRITICAL_RULES.md too large: {len(critical_rules.encode('utf-8'))} bytes > 8192"
     )
     assert (
         "## 8. Mandatory Two-Tier Project Memory & Four-Persona Discipline"
@@ -100,8 +100,8 @@ def test_tto_hp_05_lifecycle_word_caps() -> None:
 
     dev_impl = _read("skills/dev-implementation/SKILL.md")
     impl_words = _word_count(dev_impl)
-    assert impl_words <= 4600, (
-        f"dev-implementation/SKILL.md word count {impl_words} > 4600"
+    assert impl_words <= 4500, (
+        f"dev-implementation/SKILL.md word count {impl_words} > 4500"
     )
     assert "dev_config.py resolve" in dev_impl
     assert "gemini-4-hydrogen-xhigh" in dev_impl
