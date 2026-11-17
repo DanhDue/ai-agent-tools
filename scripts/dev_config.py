@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import shlex
+import socket
 import sys
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, NoReturn
@@ -52,9 +53,12 @@ def _load_module_by_path(name: str, path: Path, *, extra_sys_path: Path | None =
 
 
 _pc = _load_module_by_path("persona_config", _SCRIPTS_DIR / "persona_config.py")
+_pool = _load_module_by_path("agy_profile_pool", _SCRIPTS_DIR / "agy_profile_pool.py")
+_dispatch = _load_module_by_path("agy_dispatch", _SCRIPTS_DIR / "agy_dispatch.py")
 PERSONAS: tuple[str, ...] = _pc.PERSONAS
 ALLOWED_CLIS: frozenset[str] = _pc.ALLOWED_CLIS
 PersonaConfigError = _pc.PersonaConfigError
+AgyPoolError = _pool.AgyPoolError
 
 _SUBCOMMANDS = frozenset(
     {
@@ -67,6 +71,8 @@ _SUBCOMMANDS = frozenset(
         "checkpoint",
         "quota-check",
         "resolve",
+        "profiles",
+        "dispatch",
     }
 )
 PROVIDER_PRESETS: dict[str, str] = {
@@ -149,16 +155,30 @@ def _evaluate_binding_quota(
 
     pool = _pc.quota_pool_for(binding)
     if pool == "argonWeekly":
+        verdict = _pool.evaluate_agy_quota(payload, "argonWeekly", thresholds)
         argon = payload.get("argonWeekly")
-        frac = float(argon.get("fraction", 0.0)) if isinstance(argon, Mapping) else 0.0
-        ok = _agy_status_ok(payload) and frac >= thresholds["agy_argon_min_fraction"]
+        frac = (
+            float(argon.get("fraction", 0.0))
+            if isinstance(argon, Mapping) and argon.get("fraction") is not None
+            else 0.0
+        )
+        ok = _agy_status_ok(payload) and verdict.sufficient
         return ok, f"Argon={frac * 100:.1f}%", None
 
     if pool == "gemini5h":
+        verdict = _pool.evaluate_agy_quota(payload, "gemini5h", thresholds)
         g5h = payload.get("gemini5h")
-        frac = float(g5h.get("fraction", 0.0)) if isinstance(g5h, Mapping) else 0.0
-        ok = _agy_status_ok(payload) and frac >= thresholds["5h_min_fraction"]
-        return ok, f"5H={frac * 100:.1f}%", None
+        frac_5h = (
+            float(g5h.get("fraction", 0.0))
+            if isinstance(g5h, Mapping) and g5h.get("fraction") is not None
+            else 0.0
+        )
+        g7d = payload.get("geminiWeekly")
+        ok = _agy_status_ok(payload) and verdict.sufficient
+        if isinstance(g7d, Mapping) and g7d.get("fraction") is not None:
+            frac_7d = float(g7d["fraction"])
+            return ok, f"5H={frac_5h * 100:.1f}% 7D={frac_7d * 100:.1f}%", None
+        return ok, f"5H={frac_5h * 100:.1f}%", None
 
     status = str(payload.get("status", ""))
     if binding.cli in ("claude", "codex"):
@@ -687,6 +707,58 @@ def cmd_checkpoint(
     return 0
 
 
+def _check_agy_pool_quota(
+    project_root: Path,
+    binding: PersonaBinding,
+    thresholds: Mapping[str, float],
+    *,
+    fetcher: Callable[[str], dict[str, Any]] | None,
+    resident_probe: Callable[[str], bool] | None,
+    real_home: Path | None,
+) -> tuple[bool, str, str | None]:
+    pool_fetcher = fetcher if fetcher is not None else _pool.default_fetcher
+    fetched_by_profile: dict[str, dict[str, Any]] = {}
+
+    def _tracking_fetcher(profile: str) -> dict[str, Any]:
+        data = dict(pool_fetcher(profile) or {})
+        fetched_by_profile[profile] = data
+        return data
+
+    acq = _pool.acquire(
+        {
+            "repo": project_root.name,
+            "epic": "quota-check",
+            "task": binding.persona,
+            "role": "orchestrator",
+        },
+        real_home=real_home,
+        host_profile=_pool.detect_host_profile(),
+        quota_pool=_pc.quota_pool_for(binding),
+        thresholds=thresholds,
+        fetcher=_tracking_fetcher,
+        resident_probe=resident_probe,
+        wait_seconds=0,
+        dry_run=True,
+    )
+    if acq.profile is not None:
+        chosen = fetched_by_profile.get(acq.profile)
+        if chosen is None:
+            st = _pool.pool_status(real_home=real_home)
+            for item in st.get("profiles", []):
+                if item.get("profile") == acq.profile and isinstance(item.get("quota"), Mapping):
+                    chosen = dict(item["quota"])
+                    break
+        if chosen:
+            _, q_line, warn = _evaluate_binding_quota(binding, chosen, thresholds)
+            detail = f"profile={acq.profile} ({q_line})" if q_line else f"profile={acq.profile}"
+            return True, detail, warn
+        return True, f"profile={acq.profile}", None
+
+    skip_desc = ", ".join(f"{k}:{v}" for k, v in acq.skipped.items())
+    detail = f"{acq.reason} ({skip_desc})" if skip_desc else str(acq.reason)
+    return False, detail, None
+
+
 def cmd_quota_check(
     project_root: Path,
     *,
@@ -694,6 +766,7 @@ def cmd_quota_check(
     json_output: bool = False,
     fetcher: Callable[[str], dict[str, Any]] | None = None,
     real_home: Path | None = None,
+    resident_probe: Callable[[str], bool] | None = None,
 ) -> int:
     """Check quota sufficiency for resolved personas against quota_thresholds."""
     target_personas = tuple(personas) if personas is not None else PERSONAS
@@ -703,21 +776,33 @@ def cmd_quota_check(
     review_mod = _load_external_review_module()
     thresholds = _load_quota_thresholds(project_root, review_mod)
     active_fetcher = fetcher if fetcher is not None else review_mod._default_quota_fetcher
+    pool_cfg = _pool.load_pool_config(real_home=real_home)
+    has_pool = bool(pool_cfg["pool"])
 
     quota_cache: dict[str, dict[str, Any]] = {}
     results: list[dict[str, Any]] = []
     for persona in target_personas:
         binding = _pc.resolve_persona(persona, project_root, real_home=real_home)
-        if binding.cli not in quota_cache:
-            try:
-                quota_cache[binding.cli] = dict(active_fetcher(binding.cli) or {})
-            except Exception:
-                quota_cache[binding.cli] = {}
-        ok, quota_line, warning = _evaluate_binding_quota(
-            binding,
-            quota_cache[binding.cli],
-            thresholds,
-        )
+        if binding.cli == "agy" and has_pool:
+            ok, quota_line, warning = _check_agy_pool_quota(
+                project_root,
+                binding,
+                thresholds,
+                fetcher=fetcher,
+                resident_probe=resident_probe,
+                real_home=real_home,
+            )
+        else:
+            if binding.cli not in quota_cache:
+                try:
+                    quota_cache[binding.cli] = dict(active_fetcher(binding.cli) or {})
+                except Exception:
+                    quota_cache[binding.cli] = {}
+            ok, quota_line, warning = _evaluate_binding_quota(
+                binding,
+                quota_cache[binding.cli],
+                thresholds,
+            )
         results.append(
             {
                 "persona": persona,
@@ -764,6 +849,184 @@ def cmd_resolve(
     payload["argv"] = argv
     print(json.dumps(payload, indent=2))
     return 0
+
+
+def cmd_profiles_list(
+    project_root: Path,
+    *,
+    json_output: bool = False,
+    real_home: Path | None = None,
+) -> int:
+    """List agy pool profiles, live leases, exhaustion state, and cached quota."""
+    _ = project_root
+    status = _pool.pool_status(real_home=real_home)
+    if json_output:
+        print(json.dumps(status, indent=2))
+        return 0
+    print(f"Pool state: {status['state']} (earliest_reset: {status['earliest_reset'] or 'none'})")
+    if not status["profiles"]:
+        print("No profiles configured in agy pool.")
+        return 0
+    for entry in status["profiles"]:
+        leases = entry["leased_by"]
+        lease_str = (
+            ", ".join(f"{l['epic']}/{l['task']}/slot {l['slot']}" for l in leases)
+            if leases
+            else "free"
+        )
+        ex_str = (
+            f"exhausted({entry['exhausted_reason']} until {entry['exhausted_until']})"
+            if entry["exhausted_until"]
+            else "ok"
+        )
+        print(
+            f"  {entry['profile']} (priority={entry['priority']}, max_concurrent={entry['max_concurrent']}): "
+            f"leases=[{lease_str}] status={ex_str}"
+        )
+    return 0
+
+
+def cmd_profiles_add(
+    project_root: Path,
+    *,
+    name: str,
+    priority: int = 1,
+    max_concurrent: int = _pool.DEFAULT_MAX_CONCURRENT,
+    real_home: Path | None = None,
+) -> int:
+    """Add an existing isolated Antigravity profile directory to the global pool."""
+    _ = project_root
+    _pool.add_profile(
+        name,
+        priority=priority,
+        max_concurrent=max_concurrent,
+        real_home=real_home,
+    )
+    print(f"Added profile '{name}' (priority={priority}, max_concurrent={max_concurrent}).")
+    return 0
+
+
+def cmd_profiles_remove(
+    project_root: Path,
+    *,
+    name: str,
+    real_home: Path | None = None,
+) -> int:
+    """Remove a profile from the global pool (refuses while a live lease is held)."""
+    _ = project_root
+    _pool.remove_profile(name, real_home=real_home)
+    print(f"Removed profile '{name}' from pool.")
+    return 0
+
+
+def cmd_profiles_release(
+    project_root: Path,
+    *,
+    name: str,
+    force: bool = False,
+    real_home: Path | None = None,
+) -> int:
+    """Release leases held on `name`, requiring --force when live leases exist."""
+    _ = project_root
+    released = _pool.release_profile_leases(name, force=force, real_home=real_home)
+    print(f"Released {released} lease(s) on profile '{name}'.")
+    return 0
+
+
+def cmd_profiles_clear(
+    project_root: Path,
+    *,
+    name: str | None = None,
+    real_home: Path | None = None,
+) -> int:
+    """Clear exhaustion timestamps and cached quota for one or all pool profiles."""
+    _ = project_root
+    cleared = _pool.clear_exhausted(name, real_home=real_home)
+    target = name if name is not None else f"{len(cleared)} profile(s)"
+    print(f"Cleared exhaustion state for {target}.")
+    return 0
+
+
+def cmd_profiles_probe(
+    project_root: Path,
+    *,
+    name: str | None = None,
+    fetcher: Callable[[str], Mapping[str, Any]] | None = None,
+    real_home: Path | None = None,
+) -> int:
+    """Probe one or all pool profiles and refresh the sanitized quota cache."""
+    _ = project_root
+    probed = _pool.probe_profiles(name, fetcher=fetcher, real_home=real_home)
+    for prof_name, quota in probed.items():
+        status_val = quota.get("status", "unknown") if quota else "unknown"
+        print(f"Probed '{prof_name}': status={status_val}")
+    return 0
+
+
+def cmd_dispatch(
+    project_root: Path,
+    *,
+    persona: str,
+    mode: str = "write",
+    prompt_file: Path,
+    cwd: Path,
+    log: Path,
+    epic: str | None = None,
+    task: str | None = None,
+    slot: int | None = None,
+    role: str = "orchestrator",
+    wait: float = 0.0,
+    real_home: Path | None = None,
+    fetcher: Callable[[str], Mapping[str, Any]] | None = None,
+    resident_probe: Callable[[str], bool] | None = None,
+    launcher: Callable[..., Any] | None = None,
+    preflight: Callable[[], int | bool] | None = None,
+    extra_env: Mapping[str, str] | None = None,
+) -> int:
+    """Resolve persona binding, dispatch through agy pool (or directly for other CLIs), and print JSON."""
+    _validate_persona_name(persona)
+    if mode not in ("write", "read-only"):
+        raise PersonaConfigError(f"Invalid mode '{mode}'; expected 'write' or 'read-only'")
+    if role not in ("orchestrator", "runner"):
+        raise AgyPoolError(f"Invalid role '{role}'; expected 'orchestrator' or 'runner'")
+    if wait < 0:
+        raise AgyPoolError(f"Invalid --wait '{wait}'; must be >= 0")
+    if not prompt_file.is_file():
+        raise AgyPoolError(f"Prompt file does not exist: {prompt_file}")
+    if not cwd.is_dir():
+        raise AgyPoolError(f"Working directory does not exist: {cwd}")
+
+    binding = _pc.resolve_persona(persona, project_root, real_home=real_home)
+    owner = {
+        "repo": cwd.resolve().name,
+        "epic": epic or "",
+        "task": task or "",
+        "slot": slot,
+        "role": role,
+        "pid": os.getpid(),
+        "host": socket.gethostname(),
+    }
+    res = _dispatch.run_on_pool(
+        binding,
+        mode,
+        prompt_file=prompt_file,
+        cwd=cwd,
+        log=log,
+        owner=owner,
+        real_home=real_home,
+        extra_env=extra_env,
+        wait_seconds=wait,
+        launcher=launcher,
+        fetcher=fetcher,
+        resident_probe=resident_probe,
+        preflight=preflight,
+    )
+    print(json.dumps(asdict(res), indent=2))
+    if res.status == "ok":
+        return 0
+    if res.status in ("no_profile", "quota_midrun"):
+        return 2
+    return 1
 
 
 def _normalize_argv(argv: Sequence[str]) -> list[str]:
@@ -868,6 +1131,44 @@ def _build_parser() -> _DevConfigParser:
     p_res.add_argument("--format", dest="fmt", default="json")
     p_res.add_argument("--mode", default="write")
 
+    p_profiles = sub.add_parser("profiles", help="Manage the global agy profile pool and leases.")
+    profiles_sub = p_profiles.add_subparsers(
+        dest="profiles_action",
+        parser_class=_DevConfigParser,
+    )
+    p_plist = profiles_sub.add_parser("list", help="List pool profiles, leases, and exhaustion state.")
+    p_plist.add_argument("--json", action="store_true")
+
+    p_padd = profiles_sub.add_parser("add", help="Add an Antigravity profile to the pool.")
+    p_padd.add_argument("name")
+    p_padd.add_argument("--priority", type=int, default=1)
+    p_padd.add_argument("--max-concurrent", type=int, default=_pool.DEFAULT_MAX_CONCURRENT)
+
+    p_prm = profiles_sub.add_parser("remove", help="Remove a profile from the pool.")
+    p_prm.add_argument("name")
+
+    p_prel = profiles_sub.add_parser("release", help="Release leases held on a profile.")
+    p_prel.add_argument("name")
+    p_prel.add_argument("--force", action="store_true")
+
+    p_pclr = profiles_sub.add_parser("clear", help="Clear exhaustion state for a profile or all.")
+    p_pclr.add_argument("name", nargs="?", default=None)
+
+    p_pprb = profiles_sub.add_parser("probe", help="Probe quota and refresh cache.")
+    p_pprb.add_argument("name", nargs="?", default=None)
+
+    p_disp = sub.add_parser("dispatch", help="Dispatch a persona task through the agy pool.")
+    p_disp.add_argument("--persona", required=True)
+    p_disp.add_argument("--mode", default="write")
+    p_disp.add_argument("--prompt-file", type=Path, required=True)
+    p_disp.add_argument("--cwd", type=Path, required=True)
+    p_disp.add_argument("--log", type=Path, required=True)
+    p_disp.add_argument("--epic", default=None)
+    p_disp.add_argument("--task", default=None)
+    p_disp.add_argument("--slot", type=int, default=None)
+    p_disp.add_argument("--role", default="orchestrator")
+    p_disp.add_argument("--wait", type=float, default=0.0)
+
     return parser
 
 
@@ -942,6 +1243,43 @@ def _dispatch_args(args: argparse.Namespace, project_root: Path) -> int:
         )
     if cmd == "resolve":
         return cmd_resolve(project_root, persona=args.persona, fmt=args.fmt, mode=args.mode)
+    if cmd == "profiles":
+        action = args.profiles_action
+        if action in (None, "list"):
+            return cmd_profiles_list(
+                project_root,
+                json_output=bool(getattr(args, "json", False)),
+            )
+        if action == "add":
+            return cmd_profiles_add(
+                project_root,
+                name=args.name,
+                priority=args.priority,
+                max_concurrent=args.max_concurrent,
+            )
+        if action == "remove":
+            return cmd_profiles_remove(project_root, name=args.name)
+        if action == "release":
+            return cmd_profiles_release(project_root, name=args.name, force=bool(args.force))
+        if action == "clear":
+            return cmd_profiles_clear(project_root, name=args.name)
+        if action == "probe":
+            return cmd_profiles_probe(project_root, name=args.name)
+        raise AgyPoolError(f"Unknown profiles action '{action}'")
+    if cmd == "dispatch":
+        return cmd_dispatch(
+            project_root,
+            persona=args.persona,
+            mode=args.mode,
+            prompt_file=args.prompt_file,
+            cwd=args.cwd,
+            log=args.log,
+            epic=args.epic,
+            task=args.task,
+            slot=args.slot,
+            role=args.role,
+            wait=args.wait,
+        )
     raise PersonaConfigError(f"Unknown command '{cmd}'")
 
 
@@ -983,9 +1321,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         args = parser.parse_args(normalized)
         if args.provider is None and args.command is None:
             parser.error("a subcommand or --provider is required")
-        project_root = (args.project_root or Path.cwd()).resolve()
+        if args.project_root is not None:
+            project_root = args.project_root.resolve()
+        elif args.command == "dispatch" and getattr(args, "cwd", None) is not None:
+            project_root = args.cwd.resolve()
+        else:
+            project_root = Path.cwd().resolve()
         return _dispatch_args(args, project_root)
-    except PersonaConfigError as exc:
+    except (PersonaConfigError, AgyPoolError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 

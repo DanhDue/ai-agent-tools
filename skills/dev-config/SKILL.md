@@ -1,11 +1,11 @@
 ---
 name: dev-config
-description: Configures layered AI persona model bindings, presets, model catalogue aliases, turn budgets, profile-scoped low-quota mode, and the pre-dispatch quota gate via dev_config.py. Use when inspecting or switching persona models, toggling low-quota mode, or checking provider quota before lifecycle waves.
+description: Configures layered AI persona model bindings, presets, model catalogue aliases, turn budgets, profile-scoped low-quota mode, the pre-dispatch quota gate, the global agy profile pool, and pooled dispatch via dev_config.py. Use when inspecting or switching persona models, toggling low-quota mode, managing agy profile pools, dispatching pooled tasks, or checking provider quota before lifecycle waves.
 ---
 
 # dev-config
 
-Manages the four-persona model configuration across kit defaults (`scripts/personas.default.json`), global user settings (`$REAL_HOME/.d3nexus/personas.json`), project overrides (`.agents/config/personas.json`), and one-off CLI flags.
+Manages the four-persona model configuration across kit defaults (`scripts/personas.default.json`), global user settings (`$REAL_HOME/.d3nexus/personas.json`), project overrides (`.agents/config/personas.json`), global `agy` profile pool settings (`$REAL_HOME/.d3nexus/agy_profiles.json` and `agy_profile_leases.json`), and one-off CLI flags.
 
 ## Invocation Mapping
 
@@ -27,10 +27,17 @@ python3 scripts/dev_config.py <args>
 | `reset [PERSONA] [--scope global\|project]` | Clear one or all persona overrides in the target layer |
 | `low-quota on\|off [--for HOURS] [--profile NAME]` (alias `--low-quota`) | Toggle profile-scoped low-quota mode in the global layer (default 5 hours; halves the turn budget) |
 | `checkpoint --turns N [--scope global\|project]` | Set `checkpoint_policy.max_orchestrator_turns_before_checkpoint` (default `8`) |
-| `quota-check [--personas P1,P2] [--json]` | Evaluate each persona's consumed quota pool against `quota_thresholds`; exits `0` when sufficient or `quota_unknown`, `2` when insufficient |
+| `quota-check [--personas P1,P2] [--json]` | Evaluate each persona's consumed quota pool against `quota_thresholds` (both 5-hour and weekly Gemini windows for `agy`, and dry-run pool check when a pool is configured); exits `0` when sufficient or `quota_unknown`, `2` when insufficient |
 | `resolve PERSONA [--format json\|argv] [--mode read-only\|write]` | Print the resolved binding JSON or headless dispatch argv |
+| `profiles list [--json]` | Show configured `agy` pool profiles, live leases, exhaustion resets, and cached quota |
+| `profiles add NAME [--priority N] [--max-concurrent N]` | Add an existing non-symlink `$REAL_HOME/antigravity_homes/NAME` directory to the pool |
+| `profiles remove NAME` | Remove a profile from the pool (refused while any live lease exists; release first) |
+| `profiles release NAME [--force]` | Release leases on a profile (requires `--force` when a live lease is held) |
+| `profiles clear [NAME]` | Clear exhaustion timestamps and cached quota for one or all profiles without modifying leases |
+| `profiles probe [NAME]` | Probe quota for one or all pool profiles and refresh the sanitized cache |
+| `dispatch --persona P [--mode write\|read-only] --prompt-file F --cwd D --log L [--epic E] [--task T] [--slot N] [--role orchestrator\|runner] [--wait SECONDS]` | Dispatch a persona task through the `agy` profile pool (or directly for `claude`/`codex`/`kiro`) and print JSON `DispatchResult` |
 
-Default `--scope` is `global` for `preset`, `--provider`, `set`, `reset`, `models add`, `models remove`, and `checkpoint`. Exit codes are `0` (success / sufficient or unknown quota), `1` (validation or usage error), and `2` (insufficient quota).
+Default `--scope` is `global` for `preset`, `--provider`, `set`, `reset`, `models add`, `models remove`, and `checkpoint`. Exit codes are `0` (success / sufficient or unknown quota), `1` (validation, usage, `task_failure`, `model_unavailable`, or `preflight_failed`), and `2` (insufficient quota, `no_profile`, or `quota_midrun`).
 
 ## Interactive `--models` Flow
 
@@ -66,3 +73,11 @@ When the user invokes `/d3nexus:dev-config --models` (or `/d3nexus:dev-config --
 
 - `agy` models with `argon` in the `id` template consume `argonWeekly`; other `agy` models consume `gemini5h`; `claude`, `codex`, and `kiro` consume `provider`.
 - When quota data is unreadable (`quota_unknown`), `quota-check` exits `0` and surfaces the warning without blocking; use `d3nexus:check-quota` for full multi-profile inspection.
+
+## Agy Profile Pool and Pooled Dispatch
+
+- **Allow-list (`$REAL_HOME/.d3nexus/agy_profiles.json`)**: An explicit priority-ordered list of `agy` profiles (empty by default). An empty pool dispatches once on the host profile with no lease, leaving non-pool workflows unchanged.
+- **Exclusive Leases (`$REAL_HOME/.d3nexus/agy_profile_leases.json`)**: `ag_run` launches allow one lease per profile; `direct` launches on the profile hosting the session allow up to `max_concurrent` (default `2`) leases. Stale leases expire by heartbeat age (`lease_ttl_seconds`, default `180`) or dead local owner PID.
+- **Launch Safety**: Non-host profiles run via `zsh -ic 'ag_run "$0" cli "$@"'` only after preflight verifies `_ag_link_ok`, `_ag_rel_link`, and `ag_run` are defined; `HOME`, `AGY_PROFILE`, and `TMPDIR` are never exported in the calling process.
+- **Quota Windows & Rotation**: Both Gemini 5-hour (`>= 5h_min_fraction`) and weekly (`> 7d_min_fraction`) windows are checked. On a pre-work quota error (`HEAD` and `git status --porcelain` unchanged, ignoring `.vscode/settings.json`), `dispatch` rotates to the next pool profile; mid-work quota errors return `quota_midrun` (exit `2`) without retrying.
+- **Exhaustion Recovery**: When every profile is exhausted, `dispatch` returns `no_profile` (exit `2`) with an actionable report listing reset times, `/d3nexus:dev-config profiles clear`, and explicit `/d3nexus:dev-config set programmer ...` commands without ever switching models automatically.
