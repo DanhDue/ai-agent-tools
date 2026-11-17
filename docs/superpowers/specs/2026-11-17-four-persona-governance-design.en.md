@@ -31,11 +31,16 @@
   - [6.3. Vietnamese Mirrors and Context Loading](#63-vietnamese-mirrors-and-context-loading)
   - [6.4. What Stays Bilingual](#64-what-stays-bilingual)
 - [7. Exclusive File Ownership Check](#7-exclusive-file-ownership-check)
-- [8. check-tasks Dashboard Sync](#8-check-tasks-dashboard-sync)
-- [9. Testing Strategy](#9-testing-strategy)
-- [10. Dependencies, Assumptions, and Risks](#10-dependencies-assumptions-and-risks)
-- [11. Open Items](#11-open-items)
-- [12. Shared Contract Warnings](#12-shared-contract-warnings)
+- [8. Proactive Checkpoints and Low-Quota Mode](#8-proactive-checkpoints-and-low-quota-mode)
+  - [8.1. Checkpoint Record](#81-checkpoint-record)
+  - [8.2. Mandatory Checkpoint Events](#82-mandatory-checkpoint-events)
+  - [8.3. Turn Budget](#83-turn-budget)
+  - [8.4. Low-Quota Mode](#84-low-quota-mode)
+- [9. check-tasks Dashboard Sync](#9-check-tasks-dashboard-sync)
+- [10. Testing Strategy](#10-testing-strategy)
+- [11. Dependencies, Assumptions, and Risks](#11-dependencies-assumptions-and-risks)
+- [12. Open Items](#12-open-items)
+- [13. Shared Contract Warnings](#13-shared-contract-warnings)
 
 ## 1. Problem Statement
 
@@ -54,6 +59,10 @@ Every dev-lifecycle design artefact (spec, HLD, BDD scenarios, non-epic plan) is
 synchronised `.en.md` / `.vi.md` pair. The Vietnamese variant doubles authoring and review tokens, is
 loaded into agent context alongside the English one, and is rarely read by the Human Architect.
 
+Agents cannot see the provider's quota bar. State is saved only when an agent decides to call
+`/save-context`, which it tends to do late; a session that hits its 5-hour limit mid-wave loses the
+in-flight picture, and the next session has to reconstruct it from git and task files.
+
 ## 2. Goals and Non-Goals
 
 Goals:
@@ -64,13 +73,15 @@ Goals:
 3. Make dev-lifecycle artefacts English-only, keep chat with the Human Architect free to use
    Vietnamese, and stop agents loading `.vi.md` files.
 4. Enforce exclusive file ownership between tasks that may run in parallel.
+5. Never lose lifecycle state to a sudden quota cut-off: checkpoint proactively at fixed events and on a
+   turn budget, and let the user switch the kit into a low-quota mode that stops at the next safe point.
 
 Non-goals:
 
 - The doc-lifecycle (`doc-brainstorming`, `doc-designer`, `doc-implementation`, `doc_quality_check`)
   is unchanged and stays bilingual.
 - No automatic model fallback (see [5.5](#55-unavailable-models)).
-- No local Ollama persona binding (see [11. Open Items](#11-open-items)).
+- No local Ollama persona binding (see [12. Open Items](#12-open-items)).
 - No change to the external review provider priority (`/principal-review`, `/cross-model-review`) or
   its `.devtool/review_config.json` keys other than `providers.assistant` and `providers.programmer`.
 - No migration of existing `.vi.md` files in consuming repositories; they are left in place.
@@ -233,7 +244,9 @@ The resolver ignores `.devtool/review_config.json["providers"]["assistant"|"prog
     "all-hydrogen": {},
     "codex-kiro": {}
   },
-  "overrides": {}
+  "overrides": {},
+  "checkpoint_policy": {"max_orchestrator_turns_before_checkpoint": 8},
+  "low_quota": {}
 }
 ```
 
@@ -254,6 +267,7 @@ Rules:
 - `cli` is one of `agy`, `claude`, `codex`, `kiro`.
 - `fallback_model` is advisory only: it is printed when the bound model is unavailable and is never used
   automatically.
+- `checkpoint_policy` and `low_quota` are described in [8](#8-proactive-checkpoints-and-low-quota-mode).
 - Validation fails on an unknown alias, an effort outside the alias's `efforts`, an unknown persona key, or
   an unknown `schema_version`.
 
@@ -264,10 +278,12 @@ maps `/d3nexus:dev-config <args>` to the script.
 
 | Command | Effect |
 |---------|--------|
-| `status` | Table of persona → CLI, resolved model ID, effort, fallback, and the layer each value came from; lists presets; prints validation and legacy-key warnings; flags a CLI missing from `PATH` |
+| `status` | Table of persona → CLI, resolved model ID, effort, fallback, and the layer each value came from; lists presets; shows the turn budget and low-quota state with its expiry; prints validation and legacy-key warnings; flags a CLI missing from `PATH` |
 | `preset <name> [--scope global\|project]` | Sets `active_preset` (default scope `global`); warns when a project layer masks the change |
 | `set <persona> <model> <effort> [--fallback <model>] [--scope global\|project]` | Writes `overrides.<persona>` |
 | `reset [<persona>] [--scope global\|project]` | Clears one or all overrides |
+| `low-quota on\|off [--for <hours>]` (alias `--low-quota`) | Toggles low-quota mode for the current profile, see [8.4](#84-low-quota-mode) |
+| `checkpoint --turns <n> [--scope global\|project]` | Sets `max_orchestrator_turns_before_checkpoint` |
 | `resolve <persona> [--format json\|argv] [--mode read-only\|write]` | Machine interface used by every dispatch site |
 
 Writes are atomic (temp file plus rename) and validated before replacing the file. The resolver lives in
@@ -293,14 +309,16 @@ The rule that an in-runtime subagent tool may stand in only if it pins the exact
 
 ### 5.5. Unavailable Models
 
-There is no automatic fallback. When a dispatch fails because the CLI is missing, authentication fails,
-or the provider reports exhausted quota, the Orchestrator (or `lifecycle_runner.py`, with halt state
+There is no automatic fallback and no retry. On the first dispatch failure caused by a missing CLI, failed
+authentication, or exhausted quota (`HTTP 429`, `RESOURCE_EXHAUSTED`, `ResourceExhausted`, or the
+CLI's own quota message), the Orchestrator (or `lifecycle_runner.py`, with halt state
 `MODEL_UNAVAILABLE`):
 
-1. Records `resume_context.py --pending-decision "<persona> model <alias> unavailable" --decision-kind blocker --epic <slug>`.
-2. Prints the advisory fallback as a ready command, for example
-   `/d3nexus:dev-config set programmer claude-sonnet high`.
-3. Stops calling tools.
+1. Writes a `model_unavailable` checkpoint ([8.2](#82-mandatory-checkpoint-events)).
+2. Records `resume_context.py --pending-decision "<persona> model <alias> unavailable" --decision-kind blocker --epic <slug>`.
+3. Prints the advisory fallback as a ready command, for example
+   `/d3nexus:dev-config set programmer claude-sonnet high`, and suggests switching profile.
+4. Stops calling tools.
 
 A task failure (red tests, failing checks) is not a model failure and never triggers this path.
 
@@ -360,7 +378,66 @@ tasks with no path between them in the `Blocked by` graph, their `Allowed files`
 repository paths without symbol or line anchors, must be disjoint. A violation fails readiness and names
 the pair and the shared paths; Role 2.1 fixes it by adding a `Blocked by` edge or by reassigning the file.
 
-## 8. check-tasks Dashboard Sync
+## 8. Proactive Checkpoints and Low-Quota Mode
+
+### 8.1. Checkpoint Record
+
+A checkpoint extends the existing per-epic heartbeat, `.devtool/state/<slug>.heartbeat.json`, which is
+already written atomically under a lock, mirrored between the root and worktrees, and read by
+`resume_context.py` and check-tasks. No second state file is introduced. A new command writes it:
+
+```bash
+python3 scripts/resume_context.py --checkpoint <event> --epic <slug> [--next "<next step>"]
+```
+
+It sets a `checkpoint` block in the heartbeat — `event`, `at`, `persona`, `head_sha`, `wave`,
+`tasks_done`, `tasks_in_flight`, `next_step`, `turns_since_checkpoint` (reset to 0), `low_quota` — updates
+`Next Immediate Step` in `.devtool/state/<slug>.md`, and appends a `checkpoint` event to
+`events_<slug>.jsonl`. Plain `resume_context.py` prints the latest checkpoint first, so a fresh session
+resumes from it.
+
+### 8.2. Mandatory Checkpoint Events
+
+| Event | Written by | When |
+|-------|-----------|------|
+| `gate2_tasks_locked` | 2.1 | Immediately after the HLD and `task_01..task_0N` are confirmed and Gate 2 is recorded |
+| `subagent_returned` | 2.2 | After reading each subagent's summary contract, before the next dispatch |
+| `wave_merged` | 2.2 | After every wave's slots are merged, whatever the wave size |
+| `model_unavailable` | 2.2 or runner | On the first quota, auth or missing-CLI failure, before halting ([5.5](#55-unavailable-models)) |
+| `turn_budget` | 2.2 | When the turn budget in [8.3](#83-turn-budget) is reached |
+| `low_quota_stop` | 2.2 | At the safe point where low-quota mode stops ([8.4](#84-low-quota-mode)) |
+
+These are written into the relevant SKILL.md steps (`dev-designer`, `dev-implementation`,
+`subagent-driven-development`, `cross-model-review`) and into `lifecycle_runner.py`.
+
+### 8.3. Turn Budget
+
+`checkpoint_policy.max_orchestrator_turns_before_checkpoint` (default 8) bounds the number of tool calls a
+Stage 3 main session makes between checkpoints. `lifecycle_runner.py` enforces it exactly. An interactive
+session cannot count its own calls reliably, so the rule is best-effort there; the event checkpoints in
+[8.2](#82-mandatory-checkpoint-events) are the guarantee, because every subagent return already forces one.
+
+### 8.4. Low-Quota Mode
+
+`/d3nexus:dev-config low-quota on` (or `--low-quota`) is for the moment the user sees the 5-hour bar at
+roughly 15–20 %.
+
+- **Scope.** Quota belongs to an account, so the flag is stored in the global layer keyed by the profile
+  from `resume_context.py --detect-profile`: `"low_quota": {"<profile>": {"enabled": true, "expires_at": "<ts>"}}`.
+  It expires after 5 hours by default (`--for <hours>`), so a forgotten flag does not throttle the next
+  window. `off` clears it.
+- **Effects.**
+  - The turn budget is halved (8 becomes 4).
+  - Reports are reduced to the structured outputs Rule 10 protects (verdicts, findings tables, gate
+    results, summary contracts); narration and recaps are dropped.
+  - Optional work is skipped: `task-observer` logging and narrative Doc Sync prose.
+  - The Orchestrator finishes the task or wave in flight, writes a `low_quota_stop` checkpoint, prints the
+    resume prompt (`--emit-prompt implement`), records a `--pending-decision`, and stops. It does not start
+    a new wave.
+- **Never skipped.** Gates, `gate4-verifier`, reviews required by selective gating, `/cross-model-review`
+  rounds, and every halt criterion.
+
+## 9. check-tasks Dashboard Sync
 
 `/d3nexus:check-tasks` harvests lifecycle state into its CLI and web dashboard, so every new script and
 state introduced here must surface there:
@@ -377,10 +454,13 @@ state introduced here must surface there:
 - **New halts.** `MODEL_UNAVAILABLE` and `fix-planner` `ESCALATE` arrive through `pending_decision.json`
   (`decision_kind: blocker`) and the runner's halt state, and render as human-action-required alongside the
   existing circuit-breaker halts.
+- **Checkpoints.** The epic card shows the latest checkpoint event, its age and `next_step` from the
+  heartbeat; the repository panel shows a low-quota badge with its expiry for the current profile; a
+  `low_quota_stop` renders as human action.
 - **Telemetry.** Each dispatch appends an event to `events_<slug>.jsonl` carrying `persona`, `brief_role`,
   `model` and `effort`, so the epic history modal shows which persona and model did each step.
 
-## 9. Testing Strategy
+## 10. Testing Strategy
 
 Tests are parametrised per the kit's anti-test-bloat rules.
 
@@ -394,19 +474,29 @@ Tests are parametrised per the kit's anti-test-bloat rules.
 - `resolve_epic_doc`: `.md` preferred, `.en.md` fallback, `.vi.md` never returned.
 - Context exclusion: no `.vi.md` path appears in any emitted prompt or review bundle.
 - Ownership check: disjoint pass, shared-file fail, dependency-ordered pair pass.
+- Checkpoints: each event writes the heartbeat block, the state `.md` and one jsonl event under the lock;
+  root and worktree mirrors agree; `resume_context.py` prints the latest checkpoint first.
+- Runner: turn budget triggers a checkpoint at exactly N calls (N/2 in low-quota mode); `model_unavailable`
+  checkpoint precedes the halt and no retry is dispatched; low-quota mode completes the in-flight wave,
+  starts no new one, and stops.
+- `dev-config low-quota`: per-profile storage, expiry, `off`.
 - check-tasks: HLD resolution never returns `.vi.md`; new role labels; persona panel with a valid and an
-  invalid config; `MODEL_UNAVAILABLE` and `ESCALATE` render as human action; dispatch events carry persona
-  fields.
+  invalid config; `MODEL_UNAVAILABLE`, `ESCALATE` and `low_quota_stop` render as human action; checkpoint
+  and low-quota badge render; dispatch events carry persona fields.
 - Contract tests (`test_lifecycle_document_contract.py`, `test_resume_context.py` and others asserting
   role strings) updated to the new numbering.
 - `scripts/verify.sh` passes, including link and ToC checks on every edited skill.
 
-## 10. Dependencies, Assumptions, and Risks
+## 11. Dependencies, Assumptions, and Risks
 
 - **Role renumbering is wide.** Old "Role 2.1" meant the human; now it means the AI Architect. Every
   reference across about 25 files and several string-asserting tests must move in one epic, or the kit
   contradicts itself. Mitigation: one mapping table, and a test asserting no `Tri-Role` term or old
   numbering remains in `skills/` and `rules/`.
+- **Interactive turn counting is best-effort.** Only the runner counts exactly; event checkpoints carry the
+  guarantee in interactive sessions.
+- **A main session that is itself cut off cannot checkpoint.** Low-quota mode and the per-subagent
+  checkpoints bound the loss to the work since the last subagent return.
 - **Main-session model is not enforceable.** The handoff prompt names the expected model; the kit cannot
   verify it.
 - **`agy` model naming.** The `{effort}` template assumes the current `agy` naming; a change in `agy`
@@ -418,14 +508,14 @@ Tests are parametrised per the kit's anti-test-bloat rules.
   dashboard.
 - No dependency on another epic or on a third-party release.
 
-## 11. Open Items
+## 12. Open Items
 
 - Local Ollama as a persona binding — a future option, deliberately excluded from the catalogue now.
 - Quota-aware preset suggestion in `dev-config status` (reading `check-quota` data).
 - A hard `Read(**/*.vi.md)` permission deny; not adopted, because it would also block reading a file the
   user names.
 
-## 12. Shared Contract Warnings
+## 13. Shared Contract Warnings
 
 This repository has no `shared-contracts/` directory, so no contract check applies and no warnings were
 raised.
