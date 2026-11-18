@@ -456,6 +456,10 @@ SUITES = [
     ("21", "pytest",   "tests/test_cqra_external_review_proposed.py", 15, False),
     ("21", "pytest",   "tests/test_cqra_quota_ui.py", 45, False),
     ("21", "pytest",   "tests/test_cqra_review_action_e2e.py", 50, False),
+
+    # 22. Check-Tasks Kanban Sticky Scroll & Check-Quota Dynamic 4-Provider Tiers suites
+    ("22", "pytest",   "tests/test_check_tasks_kanban_and_telemetry_fixes.py", 35, False),
+    ("22", "pytest",   "tests/test_check_quota_dynamic_provider_tiers.py", 45, False),
 ]
 
 active_suites = [
