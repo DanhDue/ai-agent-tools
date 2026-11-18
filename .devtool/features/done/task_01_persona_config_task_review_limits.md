@@ -1,13 +1,13 @@
 ---
 id: "task_01_persona_config_task_review_limits"
-status: "todo"
-completedAt: null
+status: "done"
+completedAt: "2026-11-18T09:24:38Z"
 priority: "high"
 assignee: null
 epic: "review_cap_and_risk_triage"
 dueDate: null
 created: "2026-11-18T06:25:00Z"
-modified: "2026-11-18T06:25:00Z"
+modified: "2026-11-18T09:24:38Z"
 labels: ["config", "cli", "contract"]
 order: "a1"
 review_tier: "full"

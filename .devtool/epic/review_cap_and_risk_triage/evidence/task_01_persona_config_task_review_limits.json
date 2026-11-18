@@ -1,0 +1,214 @@
+{
+  "schema": 1,
+  "task": "task_01_persona_config_task_review_limits",
+  "runs": {
+    "red": {
+      "head": "146ae31608a8e5b5fe158494eb0d64544bd1786e",
+      "tree": "fc3b3651737a7a6f85e5a5cc65ebc392b9b06b62",
+      "patch_id": "13b3ab40e2950e99512e443a9fcb0ba2553d30e3",
+      "started": "2026-11-18T09:15:16Z",
+      "finished": "2026-11-18T09:15:16Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_trc_persona_limits.py::test_trc_hp_01_layered_task_review_limits_and_status_json",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T09:15:16Z",
+          "finished": "2026-11-18T09:15:16Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "__________ test_trc_hp_01_layered_task_review_limits_and_status_json ___________",
+            "tests/test_trc_persona_limits.py:66: in test_trc_hp_01_layered_task_review_limits_and_status_json",
+            "    assert getattr(persona_config, \"resolve_task_review_limits\", None) is not None, (",
+            "E   AssertionError: persona_config.resolve_task_review_limits must exist",
+            "E   assert None is not None",
+            "E    +  where None = getattr(persona_config, 'resolve_task_review_limits', None)",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_trc_persona_limits.py::test_trc_hp_01_layered_task_review_limits_and_status_json",
+            "1 failed in 0.04s"
+          ],
+          "output_sha256": "fe7a778086062b1f02761f96406e25cb33cb77cd9b6eb6c88503546e7f0b5a91"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "146ae31608a8e5b5fe158494eb0d64544bd1786e",
+      "tree": "28eb422438b5a3a4497220532a74a3022f575fdb",
+      "patch_id": "107fbd51c3bf4d3e03ee23c95a9ee4ab6eee6ae6",
+      "started": "2026-11-18T09:17:38Z",
+      "finished": "2026-11-18T09:17:43Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_trc_persona_limits.py tests/test_fpg_persona_config.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T09:17:38Z",
+          "finished": "2026-11-18T09:17:40Z",
+          "output_tail": [
+            "..................................................                       [100%]",
+            "50 passed in 1.86s"
+          ],
+          "output_sha256": "815f80f44674537d459272cf7ba932a4b2facef79ac1fab7fdbd8894f0260365"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py scripts/persona_config.py scripts/dev_config.py tests/test_trc_persona_limits.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T09:17:40Z",
+          "finished": "2026-11-18T09:17:40Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py scripts/persona_config.py scripts/dev_config.py tests/test_trc_persona_limits.py --ignore-missing-imports --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T09:17:40Z",
+          "finished": "2026-11-18T09:17:40Z",
+          "output_tail": [
+            "Success: no issues found in 10 source files"
+          ],
+          "output_sha256": "14fdf673bd175fe32ef42df34666481bb15e465313f7dbef32d0aea2ba76a26e"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/trc_task_01.xml tests/test_trc_persona_limits.py tests/test_fpg_persona_config.py",
+          "expect": "exit 0; results build/test-results/trc_task_01.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T09:17:40Z",
+          "finished": "2026-11-18T09:17:42Z",
+          "output_tail": [
+            "..................................................                       [100%]",
+            "50 passed in 1.89s"
+          ],
+          "output_sha256": "416a1a3403e694755ddcc0b5a1751169e3dd46d965df0d01cfe9e4e78fed4088",
+          "results": {
+            "path": "build/test-results/trc_task_01.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 14,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_trc_hp_01_layered_task_review_limits_and_status_json",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload0-max_task_review_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload1-max_task_review_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload2-max_task_review_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload3-max_task_review_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload4-max_task_review_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload5-max_task_review_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload6-max_fix_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload7-max_fix_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload8-max_fix_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload9-max_fix_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload10-max_fix_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_boundary_zero_fix_passes_and_merged_validation",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_fr_01_missing_layers_and_malformed_json_fail_closed",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            ".agents/config/personas.json",
+            "scripts/dev_config.py",
+            "scripts/persona_config.py",
+            "scripts/personas.default.json",
+            "tests/test_trc_persona_limits.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

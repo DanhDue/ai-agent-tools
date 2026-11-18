@@ -177,5 +177,7 @@
   "checkpoint_policy": {
     "max_orchestrator_turns_before_checkpoint": 8
   },
-  "low_quota": {}
+  "low_quota": {},
+  "max_task_review_passes": 2,
+  "max_fix_passes": 1
 }

@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "max_task_review_passes": 2,
+  "max_fix_passes": 1
+}

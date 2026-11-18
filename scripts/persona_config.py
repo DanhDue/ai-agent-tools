@@ -23,6 +23,8 @@ AGY_QUOTA_POOLS: frozenset[str] = frozenset({"argonWeekly", "gemini5h"})
 SCHEMA_VERSION: int = 1
 DEFAULT_TURN_BUDGET: int = 8
 DEFAULT_LOW_QUOTA_HOURS: float = 5.0
+DEFAULT_MAX_TASK_REVIEW_PASSES: int = 2
+DEFAULT_MAX_FIX_PASSES: int = 1
 
 KIT_DEFAULTS_PATH: Path = Path(__file__).resolve().with_name("personas.default.json")
 _LAYER_RANK: dict[str, int] = {"kit": 0, "global": 1, "project": 2, "cli": 3}
@@ -39,6 +41,8 @@ _ALLOWED_TOP_KEYS: frozenset[str] = frozenset(
         "overrides",
         "checkpoint_policy",
         "low_quota",
+        "max_task_review_passes",
+        "max_fix_passes",
     }
 )
 _CODEX_EFFORT_MAP: dict[str, str] = {
@@ -126,6 +130,19 @@ def config_path_for_scope(
     raise PersonaConfigError(f"Invalid scope '{scope}'; expected 'global' or 'project'")
 
 
+def _validate_task_review_limits(cfg: Mapping[str, Any]) -> None:
+    max_rev = cfg.get("max_task_review_passes", DEFAULT_MAX_TASK_REVIEW_PASSES)
+    if type(max_rev) is not int or max_rev < 1:
+        raise PersonaConfigError(
+            f"Invalid max_task_review_passes '{max_rev}'; must be a positive integer"
+        )
+    max_fix = cfg.get("max_fix_passes", DEFAULT_MAX_FIX_PASSES)
+    if type(max_fix) is not int or max_fix < 0:
+        raise PersonaConfigError(
+            f"Invalid max_fix_passes '{max_fix}'; must be a non-negative integer"
+        )
+
+
 def _read_layer_json(path: Path, *, required: bool = False) -> dict[str, Any]:
     if not path.is_file():
         if required:
@@ -147,6 +164,7 @@ def _read_layer_json(path: Path, *, required: bool = False) -> dict[str, Any]:
     if unknown_keys:
         bad = min(unknown_keys)
         raise PersonaConfigError(f"Unknown top-level key '{bad}' in '{path}'")
+    _validate_task_review_limits(raw)
     return raw
 
 
@@ -347,6 +365,7 @@ def _validate_policy_and_low_quota(cfg: Mapping[str, Any]) -> None:
                 raise PersonaConfigError(
                     f"Invalid low_quota expires_at '{expires_at}' for profile '{profile}'"
                 )
+    _validate_task_review_limits(cfg)
 
 
 def validate_merged_config(cfg: Mapping[str, Any]) -> None:
@@ -389,7 +408,7 @@ def _merge_and_validate(layers: list[tuple[str, dict[str, Any]]]) -> dict[str, A
 def load_persona_config(
     project_root: Path,
     *,
-    real_home: Path | None = None,
+    real_home: Path | str | None = None,
 ) -> dict[str, Any]:
     """Load, deep-merge, and validate kit, global, and project persona configurations."""
     layers = _load_layers(project_root, real_home=real_home)
@@ -579,6 +598,19 @@ def effective_turn_budget(
     if low_quota_state(project_root, profile, now=now, real_home=real_home) is not None:
         return max(1, base_turns // 2)
     return base_turns
+
+
+def resolve_task_review_limits(
+    project_root: Path,
+    *,
+    real_home: Path | str | None = None,
+) -> tuple[int, int]:
+    """Resolve layered (max_task_review_passes, max_fix_passes) limits for a workspace."""
+    cfg = load_persona_config(project_root, real_home=real_home)
+    return (
+        int(cfg.get("max_task_review_passes", DEFAULT_MAX_TASK_REVIEW_PASSES)),
+        int(cfg.get("max_fix_passes", DEFAULT_MAX_FIX_PASSES)),
+    )
 
 
 def quota_pool_for(binding: PersonaBinding) -> str:
