@@ -1,0 +1,198 @@
+{
+  "schema": 1,
+  "task": "task_04_quota_dashboard_dynamic_ui",
+  "runs": {
+    "red": {
+      "head": "35ca4d13fe6646bb251646a04f9c9eaa25be77a7",
+      "tree": "50cbfc0879fb0bd6270d849e9538aab4e0a213ae",
+      "patch_id": "1bb8a14d8d580003ef73dd5f606a3863b6f2322d",
+      "started": "2026-11-17T23:48:23Z",
+      "finished": "2026-11-17T23:48:25Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_cqra_quota_ui.py::test_cqra_hp_03_quota_dashboard_cdp_dynamic_badges_and_shared_pool",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T23:48:23Z",
+          "finished": "2026-11-17T23:48:24Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "______ test_cqra_hp_03_quota_dashboard_cdp_dynamic_badges_and_shared_pool ______",
+            "tests/test_cqra_quota_ui.py:764: in test_cqra_hp_03_quota_dashboard_cdp_dynamic_badges_and_shared_pool",
+            "    assert expected_badge in dom_snapshot[\"sharedHeaderText\"], (",
+            "E   AssertionError: Missing badge 'ULTRA' in shared card header: '\\n              \\n              \\n                \\n                nguyenhieu000690\\n                \\n                \\n                  ℹ\\n                \\n                \\n                \\n                  \\n        \\n          ◆ PRO\\n        \\n      \\n                  \\n        \\n          Priority: 50\\n        \\n      \\n                  \\n        \\n          ✣ Argon\\n        \\n      \\n                \\n                \\n          \\n             ACTIVE\\n          \\n        \\n              \\n\\n              \\n              \\n                \\n\\n                \\n\\n                \\n                \\n                \\n                  ⚡ Refresh nhanh\\n                \\n\\n                \\n                \\n                \\n                \\n                  🎯 Kích hoạt\\n                \\n\\n                \\n                \\n                  \\n                    ⏰ Lên lịch\\n                  \\n                  \\n                \\n                \\n                \\n\\n                \\n                \\n                  💻 Mở CLI\\n                \\n\\n                \\n                \\n                \\n                  🖥️ Mở IDE\\n                \\n                \\n\\n                \\n              \\n            '",
+            "E   assert 'ULTRA' in '\\n              \\n              \\n                \\n                nguyenhieu000690\\n                \\n             ...   \\n                  🖥️ Mở IDE\\n                \\n                \\n\\n                \\n              \\n            '",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_cqra_quota_ui.py::test_cqra_hp_03_quota_dashboard_cdp_dynamic_badges_and_shared_pool",
+            "1 failed in 0.92s"
+          ],
+          "output_sha256": "4567ca88feccd22fda52947d64237dc33c13ef22bc7e233c7d38d931b0a50dca"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "35ca4d13fe6646bb251646a04f9c9eaa25be77a7",
+      "tree": "11be5944261d5deb183919a9903979fabf696e5b",
+      "patch_id": "6b25654ead595b9ae658f488f242afe4ff211234",
+      "started": "2026-11-17T23:59:40Z",
+      "finished": "2026-11-18T00:00:07Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_cqra_quota_ui.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T23:59:40Z",
+          "finished": "2026-11-17T23:59:41Z",
+          "output_tail": [
+            "........                                                                 [100%]",
+            "8 passed in 0.93s"
+          ],
+          "output_sha256": "1e6e6c584187a87b154591c4667efbd9c2e59b2e0ae73048bcad11abfad4d53a"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_rsdh_quota_modal_stack.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T23:59:41Z",
+          "finished": "2026-11-17T23:59:53Z",
+          "output_tail": [
+            "........                                                                 [100%]",
+            "8 passed in 12.33s"
+          ],
+          "output_sha256": "cac1c99d1a5c6b7a9ed1883fcbce6253bbf64195d18e2b319a767e542ff4d0b5"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_cqra_quota_ui.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T23:59:53Z",
+          "finished": "2026-11-17T23:59:53Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py && mypy tests/test_cqra_quota_ui.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T23:59:53Z",
+          "finished": "2026-11-17T23:59:53Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files",
+            "Success: no issues found in 1 source file"
+          ],
+          "output_sha256": "3093aa6c998bfbee60b0ac0ac5a93a0b8b8c32442e01bb5f1a07d160a0edb631"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/cqra_task_04.xml tests/test_cqra_quota_ui.py tests/test_rsdh_quota_modal_stack.py",
+          "expect": "exit 0; results build/test-results/cqra_task_04.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T23:59:53Z",
+          "finished": "2026-11-18T00:00:06Z",
+          "output_tail": [
+            "................                                                         [100%]",
+            "16 passed in 12.80s"
+          ],
+          "output_sha256": "d33f7491bc0a6ba0146b8c3abef899560ba799f810236b24ec0ac11d3a1e6dee",
+          "results": {
+            "path": "build/test-results/cqra_task_04.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 8,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_cqra_hp_03_quota_dashboard_cdp_dynamic_badges_and_shared_pool",
+                  "classname": "tests.test_cqra_quota_ui",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_hp_03_integration",
+                  "classname": "tests.test_cqra_quota_ui.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_02_legacy_payload_and_none_argon_safe_dom[legacy_cached-expected_present0-expected_absent0-60.0]",
+                  "classname": "tests.test_cqra_quota_ui",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_02_legacy_payload_and_none_argon_safe_dom[free_acct-expected_present1-expected_absent1-40.0]",
+                  "classname": "tests.test_cqra_quota_ui",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_02_legacy_payload_and_none_argon_safe_dom[xss_probe-expected_present2-expected_absent2-45.0]",
+                  "classname": "tests.test_cqra_quota_ui",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ar_02_quota_score_excludes_argon_and_preserves_filter[0.8-True-shared_gemini-True-False-True]",
+                  "classname": "tests.test_cqra_quota_ui",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ar_02_quota_score_excludes_argon_and_preserves_filter[0.2-False-separate-True-False-True]",
+                  "classname": "tests.test_cqra_quota_ui",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ar_02_quota_score_excludes_argon_and_preserves_filter[0.0-False-none-False-True-False]",
+                  "classname": "tests.test_cqra_quota_ui",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/check-quota/resources/dashboard/quota_dashboard.html",
+            "tests/test_cqra_quota_ui.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

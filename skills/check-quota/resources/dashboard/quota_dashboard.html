@@ -62,6 +62,8 @@
     }
 
     .profile-card {
+      display: flex;
+      flex-direction: column;
       border-radius: 20px !important;
       border: 1px solid rgba(148, 163, 184, 0.22) !important;
       background: rgba(15, 23, 42, 0.65) !important;
@@ -684,8 +686,8 @@
   <!-- Profile Info Modal Dialog (ℹ) -->
   <div id="profileInfoModal"
     class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-    <div
-      class="bg-[var(--card)] border border-[var(--border)] rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4">
+    <div id="profile-info-modal"
+      class="bg-[var(--card)] border border-[var(--border)] rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto custom-scrollbar p-5 sm:p-6 shadow-2xl space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-[var(--border)]">
         <div class="flex items-center gap-2">
           <span class="text-sky-400 text-xl">ℹ️</span>
@@ -720,6 +722,38 @@
           <div class="bg-[var(--background)] rounded-xl p-2.5 border border-[var(--border)]">
             <div class="text-[11px] text-[var(--muted-foreground)]">Gói dịch vụ (Tier)</div>
             <div id="infoModalTier" class="mt-1 font-semibold text-xs text-sky-400">PRO (Priority 50)</div>
+          </div>
+        </div>
+
+        <!-- Dynamic Capabilities & Model Rosters -->
+        <div id="infoModalCapabilitiesSection"
+          class="bg-[var(--background)] rounded-xl p-3 border border-[var(--border)] space-y-2.5">
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <span class="text-[11px] font-semibold text-purple-300">Capabilities &amp; Model Discovery</span>
+            <div id="infoModalBadges" class="flex items-center gap-1 flex-wrap"></div>
+          </div>
+          <div
+            class="grid grid-cols-1 sm:grid-cols-3 gap-1.5 text-[10px] font-mono text-[var(--muted-foreground)] bg-black/30 rounded-lg p-2 border border-slate-800/80">
+            <div class="truncate" title="Argon Quota Mode">Mode: <span id="infoModalArgonMode"
+                class="text-purple-300 font-semibold">--</span></div>
+            <div class="truncate" title="Models Fetched At">Fetched: <span id="infoModalModelsFetchedAt"
+                class="text-slate-300">--</span></div>
+            <div class="truncate" title="Group Description Signature">Sig: <span id="infoModalGroupDescSig"
+                class="text-sky-300">--</span></div>
+          </div>
+          <div id="infoModalModelGroups" class="space-y-2 pt-0.5">
+            <div>
+              <div class="text-[11px] font-semibold text-sky-400">Gemini Models</div>
+              <div id="infoModalGeminiModels" class="mt-1 flex flex-wrap gap-1 text-[11px] text-slate-200">--</div>
+            </div>
+            <div>
+              <div class="text-[11px] font-semibold text-amber-400">Claude &amp; GPT</div>
+              <div id="infoModalClaudeModels" class="mt-1 flex flex-wrap gap-1 text-[11px] text-slate-200">--</div>
+            </div>
+            <div>
+              <div class="text-[11px] font-semibold text-purple-400">Argon / Orchestrator</div>
+              <div id="infoModalArgonModels" class="mt-1 flex flex-wrap gap-1 text-[11px] text-slate-200">--</div>
+            </div>
           </div>
         </div>
 
@@ -2249,18 +2283,113 @@
       }
     }
 
+    function resolveArgonMode(data) {
+      if (!data || typeof data !== "object") return "none";
+      const capMode = data.capabilities && typeof data.capabilities.argonMode === "string"
+        ? data.capabilities.argonMode
+        : "";
+      if (capMode === "separate" || capMode === "shared_gemini" || capMode === "none") {
+        return capMode;
+      }
+      const bucketMode = data.argonWeekly && typeof data.argonWeekly.mode === "string"
+        ? data.argonWeekly.mode
+        : "";
+      if (bucketMode === "separate" || bucketMode === "shared_gemini" || bucketMode === "none") {
+        return bucketMode;
+      }
+      if (data.argonWeekly && data.argonWeekly.sharedPool === true) {
+        return "shared_gemini";
+      }
+      const legacyHasArgon = data.hasArgon !== undefined
+        ? Boolean(data.hasArgon)
+        : Boolean(data.argonWeekly && !data.argonWeekly.unavailable);
+      if (legacyHasArgon && !(data.argonWeekly && data.argonWeekly.unavailable)) {
+        return "separate";
+      }
+      return "none";
+    }
+
+    function isSharedArgonPool(data) {
+      const mode = resolveArgonMode(data);
+      if (mode === "none") return false;
+      return Boolean(mode === "shared_gemini" || (data && data.argonWeekly && data.argonWeekly.sharedPool === true));
+    }
+
+    function getGroupModelList(data, groupKey) {
+      const list = data && data.groupModels && Array.isArray(data.groupModels[groupKey])
+        ? data.groupModels[groupKey]
+        : [];
+      const out = [];
+      list.forEach((item) => {
+        const trimmed = String(item ?? "").trim();
+        if (trimmed && !out.includes(trimmed)) out.push(trimmed);
+      });
+      return out;
+    }
+
+    function getArgonOrchestratorModels(data) {
+      if (!data || resolveArgonMode(data) === "none") return [];
+      const out = [];
+      const pushUnique = (val) => {
+        const trimmed = String(val ?? "").trim();
+        if (trimmed && !out.includes(trimmed)) out.push(trimmed);
+      };
+      getGroupModelList(data, "argon").forEach(pushUnique);
+      getGroupModelList(data, "gemini").forEach((m) => {
+        const lower = m.toLowerCase();
+        if (lower.includes("argon") || lower.includes("orchestrator")) pushUnique(m);
+      });
+      if (Array.isArray(data.modelCatalog)) {
+        data.modelCatalog.forEach((entry) => {
+          if (!entry || typeof entry !== "object") return;
+          const tags = Array.isArray(entry.tags) ? entry.tags.map((t) => String(t).toLowerCase()) : [];
+          const label = String(entry.label || entry.id || "").trim();
+          const lowerId = String(entry.id || "").toLowerCase();
+          const lowerLabel = label.toLowerCase();
+          if (
+            entry.quotaFamily === "argon" ||
+            tags.includes("argon") ||
+            tags.includes("orchestrator") ||
+            lowerId.includes("argon") ||
+            lowerId.includes("orchestrator") ||
+            lowerLabel.includes("argon") ||
+            lowerLabel.includes("orchestrator")
+          ) {
+            pushUnique(label);
+          }
+        });
+      }
+      return out;
+    }
+
     function getTierBadgeHTML(tier = "PRO") {
-      const isDev = tier.toLowerCase().includes("dev");
-      if (isDev) {
+      const raw = String(tier || "PRO").trim();
+      const upper = raw.toUpperCase();
+      if (upper.includes("DEV")) {
         return `
-          <span class="pill-badge bg-slate-700 text-slate-200 border border-slate-600 shadow-sm">
+          <span class="pill-badge bg-slate-700 text-slate-200 border border-slate-600 shadow-sm" data-tier-badge="DEV">
             <span class="text-[9px]">◆</span> DEV
           </span>
         `;
       }
+      if (upper.includes("ULTRA")) {
+        return `
+          <span class="pill-badge bg-gradient-to-r from-indigo-600 to-purple-600 text-white border border-purple-400/50 shadow-sm tracking-wide" data-tier-badge="ULTRA">
+            <span class="text-[10px]">✦</span> ULTRA
+          </span>
+        `;
+      }
+      if (upper === "FREE") {
+        return `
+          <span class="pill-badge bg-slate-800 text-slate-300 border border-slate-600/80 shadow-sm tracking-wide" data-tier-badge="FREE">
+            <span class="text-[10px]">◇</span> FREE
+          </span>
+        `;
+      }
+      const safeTier = escapeHtml(upper || "PRO");
       return `
-        <span class="pill-badge bg-[#3b66f5] text-white shadow-sm tracking-wide">
-          <span class="text-[10px]">◆</span> PRO
+        <span class="pill-badge bg-[#3b66f5] text-white shadow-sm tracking-wide" data-tier-badge="${safeTier}">
+          <span class="text-[10px]">◆</span> ${safeTier}
         </span>
       `;
     }
@@ -2268,18 +2397,75 @@
     function getPriorityBadgeHTML(priority = 50) {
       return `
         <span class="pill-badge bg-[#181b26] text-slate-300 border border-slate-700/60 font-mono">
-          Priority: ${priority}
+          Priority: ${escapeHtml(priority)}
         </span>
       `;
     }
 
-    function getArgonBadgeHTML(hasArgon) {
+    function getArgonBadgeHTML(hasArgon, isSharedPool = false) {
       if (!hasArgon) return '';
+      const tooltipAttr = isSharedPool ? ' title="Shared w/ Gemini Pool"' : '';
       return `
-        <span class="pill-badge bg-[#261938] text-[#d8b4fe] border border-[#7e3ace] shadow-sm">
+        <span class="pill-badge bg-[#261938] text-[#d8b4fe] border border-[#7e3ace] shadow-sm" data-capability-badge="Argon"${tooltipAttr}>
           <span class="text-[#c084fc] text-[10px]">✣</span> Argon
         </span>
       `;
+    }
+
+    function getCapabilityBadgesHTML(data) {
+      const argonMode = resolveArgonMode(data);
+      const sharedPool = isSharedArgonPool(data);
+      const tierUpper = String(data?.capabilities?.tier || data?.tier || "PRO").trim().toUpperCase();
+      const tierNames = new Set(["ULTRA", "PRO", "FREE", "DEV", tierUpper]);
+
+      const rawBadges = Array.isArray(data?.capabilities?.badges) ? data.capabilities.badges : null;
+      const badges = [];
+      const pushBadge = (label) => {
+        const trimmed = String(label ?? "").trim();
+        if (!trimmed || tierNames.has(trimmed.toUpperCase())) return;
+        if (trimmed.toLowerCase() === "argon" && argonMode === "none") return;
+        if (!badges.some((b) => b.toLowerCase() === trimmed.toLowerCase())) {
+          badges.push(trimmed);
+        }
+      };
+
+      if (rawBadges) {
+        rawBadges.forEach(pushBadge);
+      } else if (data?.capabilities && typeof data.capabilities === "object") {
+        if (data.capabilities.hasCarbon) pushBadge("Carbon");
+        if (argonMode !== "none") pushBadge("Argon");
+        if (data.capabilities.hasOrchestrator) pushBadge("Orchestrator");
+      }
+      if (argonMode !== "none" && !badges.some((b) => b.toLowerCase() === "argon")) {
+        pushBadge("Argon");
+      }
+
+      return badges.map((badge) => {
+        const lower = badge.toLowerCase();
+        if (lower === "argon") {
+          return getArgonBadgeHTML(true, sharedPool);
+        }
+        if (lower === "carbon") {
+          return `
+            <span class="pill-badge bg-cyan-950/70 text-cyan-200 border border-cyan-500/50 shadow-sm" data-capability-badge="Carbon">
+              <span class="text-cyan-400 text-[10px]">◈</span> Carbon
+            </span>
+          `;
+        }
+        if (lower === "orchestrator") {
+          return `
+            <span class="pill-badge bg-indigo-950/70 text-indigo-200 border border-indigo-500/50 shadow-sm" data-capability-badge="Orchestrator">
+              <span class="text-indigo-400 text-[10px]">⌘</span> Orchestrator
+            </span>
+          `;
+        }
+        const safe = escapeHtml(badge);
+        return `
+          <span class="pill-badge bg-slate-800/80 text-slate-200 border border-slate-600/70 shadow-sm" data-capability-badge="${safe}">
+            ${safe}
+          </span>
+        `;
+      }).join("");
     }
 
     function getStatusBadgeHTML(status) {
@@ -2324,12 +2510,16 @@
         .replace(/'/g, '&#39;');
     }
 
-    function renderDetailModelCard(icon, iconColor, title, timerStr, fraction, hasTags = false, unavailable = false, badgeText = "") {
+    function renderDetailModelCard(icon, iconColor, title, timerStr, fraction, hasTags = false, unavailable = false, badgeText = "", subtitle = "") {
       const safeIcon = escapeHtml(icon);
       const safeIconColor = escapeHtml(iconColor);
       const safeTitle = escapeHtml(title);
       const safeTimerStr = escapeHtml(timerStr);
       const safeBadge = typeof badgeText === 'string' && badgeText.trim() ? escapeHtml(badgeText.trim()) : '';
+      const safeSubtitle = typeof subtitle === 'string' && subtitle.trim() ? escapeHtml(subtitle.trim()) : '';
+      const subtitleHTML = safeSubtitle
+        ? `<div class="text-[11px] text-slate-400 leading-snug mb-1.5 truncate" data-model-roster="true" title="${safeSubtitle}">${safeSubtitle}</div>`
+        : '';
 
       if (unavailable) {
         return `
@@ -2342,6 +2532,7 @@
                 ${safeBadge ? `<span class="pill-badge bg-slate-800/80 text-slate-300 border border-slate-700/70 text-[10px] py-0 px-1.5 font-medium shrink-0" title="${safeBadge}" style="border-radius: 9999px !important;">${safeBadge}</span>` : ''}
               </div>
             </div>
+            ${subtitleHTML}
             <div class="w-full bg-slate-800/60 border border-slate-700/50 rounded-full h-2 relative overflow-hidden progress-track" style="border-radius: 9999px !important; isolation: isolate;">
               <div class="bg-slate-700/40 h-full rounded-full progress-fill" style="width: 0%; border-radius: 9999px !important;"></div>
             </div>
@@ -2351,8 +2542,9 @@
 
       const numericFraction = Number(fraction);
       const safeFraction = Number.isFinite(numericFraction) ? Math.max(0, Math.min(1, numericFraction)) : 0;
-      const pct = (safeFraction * 100).toFixed(1);
-      const theme = getColorTheme(parseFloat(pct));
+      const pctRaw = (safeFraction * 100).toFixed(1);
+      const pct = pctRaw.endsWith('.0') ? pctRaw.slice(0, -2) : pctRaw;
+      const theme = getColorTheme(parseFloat(pctRaw));
 
       const tagsHTML = hasTags ? `
         <div class="flex items-center gap-1 ml-1.5">
@@ -2378,10 +2570,10 @@
               <span class="${theme.textColor} font-bold">${pct}%</span>
             </div>
           </div>
-          
+          ${subtitleHTML}
           <!-- Full 100% Progress Bar: Unified color fill & matching track -->
           <div class="w-full ${theme.trackBg} rounded-full h-2 relative overflow-hidden border progress-track" style="border-radius: 9999px !important; isolation: isolate;">
-            <div class="${theme.barBg} ${theme.barGlow} h-full rounded-full transition-all duration-700 progress-fill" style="width: ${pct}%; border-radius: 9999px !important;"></div>
+            <div class="${theme.barBg} ${theme.barGlow} h-full rounded-full transition-all duration-700 progress-fill" style="width: ${pctRaw}%; border-radius: 9999px !important;"></div>
           </div>
         </div>
       `;
@@ -2396,8 +2588,8 @@
      *    - Row 2: Gemini Weekly & Claude Weekly
      *    - Row 3: Gemini 4 Argon Weekly (full width)
      */
-    function renderProfileCard(profile, data) {
-      const hasArgon = data.hasArgon !== undefined ? data.hasArgon : (data.argonWeekly && !data.argonWeekly.unavailable);
+    function renderProfileCard(profile, rawData) {
+      const data = rawData && typeof rawData === "object" ? rawData : {};
       const isSelected = selectedBatchProfiles.has(profile);
       const isAuthNeeded = (data.status === "AUTH NEEDED" || data.status === "NEED_LOGIN" || data.status === "NOT LOGGED IN");
       const isDisabled = (data.status === "DISABLED" || data.isAppeal);
@@ -2461,7 +2653,7 @@
                   ondblclick="copyProfileNameToClipboard('${profile}')"
                   class="text-sm sm:text-base font-bold font-mono ${data.isProvider ? (profile === 'claude' ? 'text-amber-400' : (profile === 'codex' ? 'text-white font-extrabold' : 'text-purple-300 font-extrabold drop-shadow-[0_0_10px_rgba(192,132,252,0.45)]')) : 'text-sky-400'} tracking-tight cursor-pointer hover:opacity-80 transition-colors select-none inline-flex items-center gap-1.5"
                   title="Nhấn đúp (Double-click) để sao chép '${profile}' vào clipboard"
-                >${profile === 'kiro' ? '<span class="text-base select-none inline-block hover:scale-125 transition-transform" title="Kiro Cute Ghost">👻</span>' : ''}${data.displayName || profile}</span>
+                >${profile === 'kiro' ? '<span class="text-base select-none inline-block hover:scale-125 transition-transform" title="Kiro Cute Ghost">👻</span>' : ''}${escapeHtml(data.displayName || profile)}</span>
                 ${!data.isProvider ? `
                 <button 
                   onclick="openProfileInfoModal('${profile}')" 
@@ -2498,9 +2690,9 @@
                   </span>
                   ` : ''}
                 `)) : `
-                  ${getTierBadgeHTML(data.tier || 'PRO')}
-                  ${getPriorityBadgeHTML(data.priority || 50)}
-                  ${getArgonBadgeHTML(hasArgon)}
+                  ${getTierBadgeHTML(data.capabilities?.tier || data.tier || 'PRO')}
+                  ${getPriorityBadgeHTML(data.priority ?? 50)}
+                  ${getCapabilityBadgesHTML(data)}
                 `}
                 ${getStatusBadgeHTML(data.status || 'ACTIVE')}
               </div>
@@ -2724,24 +2916,71 @@
                 <span>Used: ${data.creditsPool?.used ?? 7.48} / ${data.creditsPool?.limit ?? 1000} credits</span>
                 <span>Overages: ${data.overageStatus ?? 'DISABLED'}</span>
               </div>
-              ` : `
+              ` : (() => {
+                const geminiModels = getGroupModelList(data, "gemini");
+                const claudeModels = getGroupModelList(data, "claude");
+                const argonModels = getArgonOrchestratorModels(data);
+                const g5h = data.gemini5h || {};
+                const c5h = data.claude5h || {};
+                const gWeekly = data.geminiWeekly || {};
+                const cWeekly = data.claudeWeekly || {};
+                const aWeekly = data.argonWeekly || {};
+                const g5Title = geminiModels.length > 0 && (!g5h.name || g5h.name === "Gemini 3.8 / Pro 5H")
+                  ? "Gemini Models 5H"
+                  : (g5h.name || "Gemini 3.8 / Pro 5H");
+                const c5Title = claudeModels.length > 0 && (!c5h.name || c5h.name === "Claude 5.5 / GPT 5H")
+                  ? "Claude & GPT 5H"
+                  : (c5h.name || "Claude 5.5 / GPT 5H");
+                const geminiRoster = geminiModels.join(", ");
+                const claudeRoster = claudeModels.join(", ");
+                const argonRoster = argonModels.join(", ");
+                const argonMode = resolveArgonMode(data);
+                const sharedPool = isSharedArgonPool(data);
+
+                let argonRowHTML = "";
+                if (argonMode === "shared_gemini" || sharedPool) {
+                  const mirroredUnavailable = Boolean(
+                    (aWeekly.unavailable === undefined ? true : aWeekly.unavailable) &&
+                    gWeekly.unavailable
+                  );
+                  const mirroredFraction = (!aWeekly.unavailable && aWeekly.fraction !== undefined)
+                    ? aWeekly.fraction
+                    : (gWeekly.fraction ?? 0);
+                  const mirroredCountdown = (
+                    !aWeekly.unavailable &&
+                    aWeekly.countdown &&
+                    aWeekly.countdown !== "Unavailable N/A"
+                  )
+                    ? aWeekly.countdown
+                    : (gWeekly.countdown || "⏱ --");
+                  argonRowHTML = `
+              <!-- Row 3: Argon Weekly (Shared w/ Gemini Pool Mirror) -->
+              <div>
+                ${renderDetailModelCard("✦", "text-purple-400", aWeekly.name || "Gemini 4 Argon Weekly", mirroredCountdown, mirroredFraction, Boolean(aWeekly.tags), mirroredUnavailable, "Shared w/ Gemini Pool", argonRoster)}
+              </div>`;
+                } else if (argonMode === "separate") {
+                  argonRowHTML = `
+              <!-- Row 3: Argon Weekly (Dedicated Weekly Bucket) -->
+              <div>
+                ${renderDetailModelCard("✦", "text-purple-400", aWeekly.name || "Gemini 4 Argon Weekly", aWeekly.countdown || "", aWeekly.fraction ?? 0, Boolean(aWeekly.tags), Boolean(aWeekly.unavailable), "", argonRoster)}
+              </div>`;
+                }
+
+                return `
               <!-- Row 1: Gemini 5H (Col 1) & Claude 5H (Col 2) -->
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                ${renderDetailModelCard("✦", "text-sky-400", data.gemini5h.name, data.gemini5h.countdown, data.gemini5h.fraction, false, data.gemini5h.unavailable)}
-                ${renderDetailModelCard("✺", "text-orange-400", data.claude5h.name, data.claude5h.countdown, data.claude5h.fraction, false, data.claude5h.unavailable)}
+                ${renderDetailModelCard("✦", "text-sky-400", g5Title, g5h.countdown || "", g5h.fraction ?? 0, false, Boolean(g5h.unavailable), "", geminiRoster)}
+                ${renderDetailModelCard("✺", "text-orange-400", c5Title, c5h.countdown || "", c5h.fraction ?? 0, false, Boolean(c5h.unavailable), "", claudeRoster)}
               </div>
 
               <!-- Row 2: Gemini Weekly (Col 1) & Claude Weekly (Col 2) -->
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                ${renderDetailModelCard("✦", "text-sky-400", data.geminiWeekly.name, data.geminiWeekly.countdown, data.geminiWeekly.fraction, false, data.geminiWeekly.unavailable)}
-                ${renderDetailModelCard("✺", "text-orange-400", data.claudeWeekly.name, data.claudeWeekly.countdown, data.claudeWeekly.fraction, false, data.claudeWeekly.unavailable)}
+                ${renderDetailModelCard("✦", "text-sky-400", gWeekly.name || "Gemini Weekly", gWeekly.countdown || "", gWeekly.fraction ?? 0, false, Boolean(gWeekly.unavailable))}
+                ${renderDetailModelCard("✺", "text-orange-400", cWeekly.name || "Claude Weekly", cWeekly.countdown || "", cWeekly.fraction ?? 0, false, Boolean(cWeekly.unavailable))}
               </div>
-
-              <!-- Row 3: Argon Weekly (Full width across the profile card) -->
-              <div>
-                ${renderDetailModelCard("✦", "text-purple-400", data.argonWeekly.name, data.argonWeekly.countdown, data.argonWeekly.fraction, data.argonWeekly.tags, data.argonWeekly.unavailable)}
-              </div>
-              `))}
+              ${argonRowHTML}
+              `;
+              })()))}
 
               ${data.status === "AUTH NEEDED" ? `
               <!-- Auth Needed Warning Banner with Login Button -->
@@ -2844,8 +3083,8 @@
 
       if (currentSortOrder === "ARGON_FIRST") {
         const sortedSatellites = nonProviders.sort((a, b) => {
-          const haA = PROFILES_DATA[a]?.hasArgon ? 1 : 0;
-          const haB = PROFILES_DATA[b]?.hasArgon ? 1 : 0;
+          const haA = matchesArgonFilter(PROFILES_DATA[a]) ? 1 : 0;
+          const haB = matchesArgonFilter(PROFILES_DATA[b]) ? 1 : 0;
           if (haA !== haB) return haB - haA;
           return a.localeCompare(b);
         });
@@ -3045,6 +3284,18 @@
       showToast(`🔀 Đã sắp xếp lại danh sách tài khoản!`, "info");
     }
 
+    function matchesArgonFilter(data) {
+      if (!data || data.isProvider) return false;
+      const mode = resolveArgonMode(data);
+      if (mode === "none") return false;
+      const unavailable = Boolean(
+        data.argonWeekly &&
+        data.argonWeekly.unavailable &&
+        !(mode === "shared_gemini" && data.geminiWeekly && !data.geminiWeekly.unavailable)
+      );
+      return Boolean((data.hasArgon || mode === "shared_gemini" || mode === "separate") && !unavailable);
+    }
+
     function renderAllProfiles() {
       const grid = document.getElementById("profilesGrid");
       if (!grid) return;
@@ -3072,7 +3323,7 @@
           sProviders++;
         } else {
           sProfiles++;
-          if (d.hasArgon && !(d.argonWeekly && d.argonWeekly.unavailable)) sArgon++;
+          if (matchesArgonFilter(d)) sArgon++;
           if (d.status === "DISABLED" || d.isAppeal) sDisabled++;
           else if (d.status === "AUTH NEEDED" || d.status === "NEED_LOGIN" || d.status === "NOT LOGGED IN") sAuthNeeded++;
           else if (d.status === "EXHAUSTED") sExhausted++;
@@ -3091,14 +3342,20 @@
           (b?.scopeLabel && String(b.scopeLabel).toLowerCase().includes(search)) ||
           (b?.kind && String(b.kind).toLowerCase().includes(search))
         );
-        if (search && !profile.toLowerCase().includes(search) && !(data.displayName && data.displayName.toLowerCase().includes(search)) && !bucketMatch) return;
+        const rosterMatch = search && (
+          getGroupModelList(data, "gemini").some((m) => m.toLowerCase().includes(search)) ||
+          getGroupModelList(data, "claude").some((m) => m.toLowerCase().includes(search)) ||
+          getArgonOrchestratorModels(data).some((m) => m.toLowerCase().includes(search)) ||
+          (Array.isArray(data.capabilities?.badges) && data.capabilities.badges.some((b) => String(b).toLowerCase().includes(search)))
+        );
+        if (search && !profile.toLowerCase().includes(search) && !(data.displayName && data.displayName.toLowerCase().includes(search)) && !bucketMatch && !rosterMatch) return;
         if (statusFilter && statusFilter !== "ALL") {
           if (statusFilter === "PROVIDERS") {
             if (!data.isProvider) return;
           } else if (statusFilter === "ACTIVE") {
             if (data.isProvider || data.status === "DISABLED" || data.isAppeal || data.status === "AUTH NEEDED" || data.status === "NEED_LOGIN" || data.status === "NOT LOGGED IN" || data.status === "EXHAUSTED") return;
           } else if (statusFilter === "ARGON") {
-            if (data.isProvider || !data.hasArgon || (data.argonWeekly && data.argonWeekly.unavailable)) return;
+            if (!matchesArgonFilter(data)) return;
           } else if (statusFilter === "AUTH NEEDED") {
             if (data.isProvider || (data.status !== "AUTH NEEDED" && data.status !== "NEED_LOGIN" && data.status !== "NOT LOGGED IN")) return;
           } else if (statusFilter === "DISABLED") {
@@ -3156,7 +3413,7 @@
     }
 
     function isProfileFreeTier(data) {
-      return Boolean(data && String(data.tier || '').toUpperCase() === 'FREE');
+      return Boolean(data && String(data.tier || data.capabilities?.tier || '').toUpperCase() === 'FREE');
     }
 
     function isProfileSchedulable(profile, data) {
@@ -4249,6 +4506,19 @@
     /**
      * Requirement: Profile Info Modal (ℹ) Handlers
      */
+    function renderModalModelPills(models, fallbackText, extraBadge = "") {
+      const safeExtra = extraBadge
+        ? `<span class="pill-badge bg-amber-950/60 text-amber-200 border border-amber-700/60 text-[10px] py-0 px-1.5 font-medium" title="${escapeHtml(extraBadge)}">${escapeHtml(extraBadge)}</span>`
+        : "";
+      if (!Array.isArray(models) || models.length === 0) {
+        return `<span class="text-[11px] text-[var(--muted-foreground)] italic">${escapeHtml(fallbackText)}</span>${safeExtra}`;
+      }
+      const pills = models.map((m) => (
+        `<span class="px-2 py-0.5 rounded-md bg-slate-800/90 border border-slate-700/80 text-[11px] font-mono text-slate-200">${escapeHtml(m)}</span>`
+      )).join("");
+      return `${pills}${safeExtra}`;
+    }
+
     function openProfileInfoModal(profile) {
       openInnerModal("profileInfoModal", () => {
         const data = PROFILES_DATA[profile] || {};
@@ -4264,10 +4534,60 @@
           statusEl.innerHTML = `<span class="text-emerald-400 font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> 🟢 Đang hoạt động (ACTIVE)</span>`;
         }
 
-        document.getElementById("infoModalTier").textContent = `${data.tier || 'PRO'} (Priority ${data.priority || 50})${data.hasArgon ? ' • Argon Support' : ''}`;
+        const displayTier = String(data.capabilities?.tier || data.tier || "PRO").trim().toUpperCase();
+        const argonMode = resolveArgonMode(data);
+        const sharedPool = isSharedArgonPool(data);
+        const argonSuffix = argonMode !== "none"
+          ? (sharedPool ? " • Argon (Shared w/ Gemini Pool)" : " • Argon Support")
+          : "";
+        document.getElementById("infoModalTier").textContent = `${displayTier} (Priority ${data.priority ?? 50})${argonSuffix}`;
         document.getElementById("infoModalCliCmd").textContent = `${profile}-cli`;
         document.getElementById("infoModalHomePath").textContent = `~/antigravity_homes/${profile}`;
         document.getElementById("infoModalKeychainPath").textContent = `~/antigravity_homes/${profile}/Library/Keychains/${profile}.keychain-db`;
+
+        const badgesEl = document.getElementById("infoModalBadges");
+        if (badgesEl) {
+          badgesEl.innerHTML = `${getTierBadgeHTML(displayTier)}${getCapabilityBadgesHTML(data)}`;
+        }
+        const modeEl = document.getElementById("infoModalArgonMode");
+        if (modeEl) {
+          modeEl.textContent = sharedPool ? `${argonMode} (Shared w/ Gemini Pool)` : argonMode;
+        }
+        const fetchedEl = document.getElementById("infoModalModelsFetchedAt");
+        if (fetchedEl) {
+          fetchedEl.textContent = data.modelsFetchedAt || "Legacy cache";
+        }
+        const sigEl = document.getElementById("infoModalGroupDescSig");
+        if (sigEl) {
+          sigEl.textContent = data.groupDescSig || "—";
+        }
+
+        const geminiModels = getGroupModelList(data, "gemini");
+        const claudeModels = getGroupModelList(data, "claude");
+        const argonModels = getArgonOrchestratorModels(data);
+
+        const gemGroupEl = document.getElementById("infoModalGeminiModels");
+        if (gemGroupEl) {
+          gemGroupEl.innerHTML = renderModalModelPills(
+            geminiModels,
+            data.gemini5h?.name || "Gemini 3.8 / Pro"
+          );
+        }
+        const cldGroupEl = document.getElementById("infoModalClaudeModels");
+        if (cldGroupEl) {
+          cldGroupEl.innerHTML = renderModalModelPills(
+            claudeModels,
+            data.claude5h?.name || "Claude 5.5 / GPT"
+          );
+        }
+        const argGroupEl = document.getElementById("infoModalArgonModels");
+        if (argGroupEl) {
+          argGroupEl.innerHTML = renderModalModelPills(
+            argonModels,
+            argonMode === "none" ? "None / Unavailable" : (data.argonWeekly?.name || "Gemini 4 Argon"),
+            sharedPool ? "Shared w/ Gemini Pool" : ""
+          );
+        }
 
         const copyEmailBtn = document.getElementById("copyEmailText");
         if (copyEmailBtn) copyEmailBtn.textContent = "Sao chép";

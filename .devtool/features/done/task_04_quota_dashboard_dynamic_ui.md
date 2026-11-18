@@ -1,13 +1,13 @@
 ---
 id: "task_04_quota_dashboard_dynamic_ui"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "check_quota_dynamic_models_and_review_action"
 dueDate: null
 created: "2026-11-18T03:11:00Z"
-modified: "2026-11-18T03:11:00Z"
-completedAt: null
+modified: "2026-11-18T00:04:44Z"
+completedAt: "2026-11-18T00:04:44Z"
 labels: ["check-quota", "ui", "frontend"]
 order: "a4"
 review_tier: "full"
@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 4: Quota Dashboard Web UI Dynamic Badges, Group Model Rosters, Shared-Pool Mirror & Modal
 
-Epic: [check_quota_dynamic_models_and_review_action](../epic/check_quota_dynamic_models_and_review_action/check_quota_dynamic_models_and_review_action.en.md)
+Epic: [check_quota_dynamic_models_and_review_action](../../epic/check_quota_dynamic_models_and_review_action/check_quota_dynamic_models_and_review_action.en.md)
 
 ## Requirement Analysis
 
@@ -118,11 +118,11 @@ And both profiles match the `ARGON` filter predicate via `hasArgon` and active `
 
 ## Dependencies & Blockers
 
-Blocked by [Task 1](../epic/check_quota_dynamic_models_and_review_action/task_01_check_quota_dynamic_models_and_argon_mode.md).
+Blocked by [Task 1](../../epic/check_quota_dynamic_models_and_review_action/task_01_check_quota_dynamic_models_and_argon_mode.md).
 
 Downstream dependents (blocked by Task 4): `task_05`.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/check_quota_dynamic_models_and_review_action/check_quota_dynamic_models_and_review_action.en.md)
+- [Epic HLD](../../epic/check_quota_dynamic_models_and_review_action/check_quota_dynamic_models_and_review_action.en.md)
 - **Rollback**: Revert task commit to restore `skills/check-quota/resources/dashboard/quota_dashboard.html`.
