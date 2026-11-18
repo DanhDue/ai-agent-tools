@@ -1,13 +1,13 @@
 ---
 id: "task_01_check_quota_dynamic_models_and_argon_mode"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "check_quota_dynamic_models_and_review_action"
 dueDate: null
 created: "2026-11-18T03:11:00Z"
-modified: "2026-11-18T03:11:00Z"
-completedAt: null
+modified: "2026-11-17T23:03:45Z"
+completedAt: "2026-11-17T23:03:45Z"
 labels: ["check-quota", "architecture", "contract"]
 order: "a1"
 review_tier: "full"

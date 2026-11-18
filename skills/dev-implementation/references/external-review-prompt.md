@@ -64,7 +64,7 @@ End your answer with these exact lines and nothing after them (no markdown boldi
 
 Verdict: PASS
 (or `Verdict: CHANGES REQUIRED`)
-[Critical|Important|Minor] <artefact>:<location> — <problem>
+[Critical|Important|Minor] <artefact>:<location> — <problem>. Proposed: <edit>
 
 Rules for Severity & Verdict:
 - Use `Critical` for a defect that breaks the epic's goal, `Important` for one that must be fixed before merge, and `Minor` for anything else.

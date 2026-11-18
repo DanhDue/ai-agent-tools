@@ -47,7 +47,7 @@ Then the verdict block, which ends your answer. Use these exact lines and nothin
 
 Verdict: PASS
 (or `Verdict: CHANGES REQUIRED`)
-[Critical|Important|Minor] <artefact>:<location> — <problem>
+[Critical|Important|Minor] <artefact>:<location> — <problem>. Proposed: <edit>
 
 Rules for the verdict block:
 
@@ -60,5 +60,5 @@ Rules for the verdict block:
 An example verdict block:
 
 Verdict: CHANGES REQUIRED
-[Important] tests/test_total.py:22 — `assert total` passes for any non-zero total, so V4 cannot fail for the rounding defect its Definition of Done bullet claims
-[Minor] src/billing/total.py:9 — the constant `ROUNDING = 2` duplicates the HLD default without naming its source
+[Important] tests/test_total.py:22 — `assert total` passes for any non-zero total, so V4 cannot fail for the rounding defect its Definition of Done bullet claims. Proposed: assert the exact rounded total
+[Minor] src/billing/total.py:9 — the constant `ROUNDING = 2` duplicates the HLD default without naming its source. Proposed: import ROUNDING from the canonical module

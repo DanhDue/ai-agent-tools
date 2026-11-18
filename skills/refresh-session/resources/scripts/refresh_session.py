@@ -1303,58 +1303,173 @@ def check_profile_auth_token(profile: str) -> bool:
     return has_valid_fallback_oauth_token(profile_home)
 
 
+def _classify_cached_profile_argon(prof_data: Any) -> str:
+    """Classify cached dashboard profile entry into 'separate', 'shared_gemini', or 'none'."""
+    if not isinstance(prof_data, dict):
+        return "none"
+    caps = prof_data.get("capabilities")
+    argon_raw = prof_data.get("argonWeekly")
+    argon_weekly = argon_raw if isinstance(argon_raw, dict) else {}
+    if isinstance(caps, dict) and isinstance(caps.get("argonMode"), str):
+        cap_mode = caps["argonMode"].strip()
+        if cap_mode == "separate":
+            if argon_weekly.get("sharedPool") is True or bool(argon_weekly.get("unavailable", False)):
+                return "none"
+            return "separate"
+        if cap_mode in ("shared_gemini", "none"):
+            return cap_mode
+    if argon_weekly.get("sharedPool") is True or argon_weekly.get("mode") == "shared_gemini":
+        return "shared_gemini"
+    if bool(prof_data.get("hasArgon")) and not bool(argon_weekly.get("unavailable", False)):
+        return "separate"
+    return "none"
+
+
+def _get_cached_profile_argon_mode(profile: str) -> str:
+    """Inspect cached dashboard PROFILES_DATA and return 'separate', 'shared_gemini', 'none', or 'missing'."""
+    decoder = json.JSONDecoder()
+    marker = "const PROFILES_DATA ="
+    for raw_candidate in _DASHBOARD_HTML_CANDIDATES:
+        try:
+            cand_path = Path(raw_candidate)
+            if not cand_path.is_file():
+                continue
+            content = cand_path.read_text(encoding="utf-8")
+            i1 = content.find(marker)
+            if i1 == -1:
+                continue
+            data, _ = decoder.raw_decode(content[i1 + len(marker) :].lstrip())
+            if isinstance(data, dict) and profile in data:
+                return _classify_cached_profile_argon(data.get(profile))
+        except Exception:
+            continue
+    return "missing"
+
+
 def check_profile_has_argon(profile: str) -> bool:
-    """Check whether an Antigravity profile supports Argon model from cached dashboard data."""
-    for p in _DASHBOARD_HTML_CANDIDATES:
-        if p.is_file():
-            try:
-                content = p.read_text(encoding="utf-8")
-                marker = "const PROFILES_DATA ="
-                end_marker = "\n};"
-                i1 = content.find(marker)
-                if i1 != -1:
-                    i2 = content.find(end_marker, i1)
-                    if i2 != -1:
-                        raw_json = content[i1 + len(marker):i2 + len(end_marker)].strip().rstrip(";")
-                        data = json.loads(raw_json)
-                        prof_data = data.get(profile, {})
-                        return bool(prof_data.get("hasArgon") and not prof_data.get("argonWeekly", {}).get("unavailable", False))
-            except Exception:
-                pass
-    return False
+    """Check whether an Antigravity profile has a separate Argon quota bucket in cached dashboard data."""
+    return _get_cached_profile_argon_mode(profile) == "separate"
 
 
-def _extract_usage_buckets(cmd_data: dict[str, Any]) -> dict[str, Any]:
-    """Parse `/usage` command payload into normalized per-bucket state."""
-    plan_raw = str(cmd_data.get("plan_name") or cmd_data.get("tier") or "").strip().upper()
-    groups = cmd_data.get("groups") or []
+def _parse_bucket_entry(raw_bucket: dict[str, Any]) -> dict[str, Any]:
+    """Normalize a single `/usage` bucket dictionary safely."""
+    raw_frac = raw_bucket.get("remaining_fraction")
+    if raw_frac is None:
+        raw_frac = raw_bucket.get("fraction")
+    try:
+        frac_val = float(1.0 if raw_frac is None else raw_frac)
+    except (TypeError, ValueError):
+        frac_val = 1.0
+    return {
+        "available": True,
+        "fraction": frac_val,
+        "reset_time": str(raw_bucket.get("reset_time") or raw_bucket.get("resetTime") or ""),
+        "description": str(raw_bucket.get("description") or ""),
+    }
+
+
+def _extract_usage_buckets(
+    cmd_data: dict[str, Any],
+    available_models: list[str] | None = None,
+) -> dict[str, Any]:
+    """Parse `/usage` command payload into normalized per-bucket state and argonMode."""
+    safe_cmd = cmd_data if isinstance(cmd_data, dict) else {}
+    plan_raw = str(safe_cmd.get("plan_name") or safe_cmd.get("tier") or "").strip().upper()
+    raw_groups = safe_cmd.get("groups")
+    groups = [g for g in raw_groups if isinstance(g, dict)] if isinstance(raw_groups, list) else []
+    raw_avail = available_models if available_models is not None else safe_cmd.get("available_models")
+    norm_avail = [
+        m.strip()
+        for m in (raw_avail if isinstance(raw_avail, (list, tuple, set)) else [])
+        if isinstance(m, str) and m.strip()
+    ]
+
+    empty_bucket = {"available": False, "fraction": 1.0, "reset_time": "", "description": ""}
+    gem_weekly: dict[str, Any] = dict(empty_bucket)
+    group_descriptions: dict[str, str] = {"gemini": "", "claude": "", "argon": ""}
+    group_models: dict[str, list[str]] = {"gemini": [], "claude": [], "argon": []}
+    has_dedicated_argon_group = False
+
     buckets: dict[str, Any] = {
         "has_groups": bool(groups),
         "tier": "FREE" if "FREE" in plan_raw else ("PRO" if groups else plan_raw or "PRO"),
-        "gem_5h": {"available": False, "fraction": 1.0, "reset_time": "", "description": ""},
-        "cld_5h": {"available": False, "fraction": 1.0, "reset_time": "", "description": ""},
-        "argon_weekly": {"available": False, "fraction": 1.0, "reset_time": "", "description": ""},
+        "gem_5h": dict(empty_bucket),
+        "cld_5h": dict(empty_bucket),
+        "argon_weekly": dict(empty_bucket),
     }
+
     for grp in groups:
-        g_name = str(grp.get("name") or "").lower()
-        for b in grp.get("buckets") or []:
+        g_name = str(grp.get("name") or "").strip().lower()
+        g_desc = str(grp.get("description") or "").strip()
+        tokens = [tok.strip() for tok in g_desc.split(",") if tok.strip()]
+
+        family = ""
+        if "argon" in g_name:
+            family = "argon"
+            has_dedicated_argon_group = True
+        elif "gemini" in g_name:
+            family = "gemini"
+        elif "claude" in g_name or "gpt" in g_name:
+            family = "claude"
+
+        if family:
+            if g_desc:
+                group_descriptions[family] = g_desc
+            for tok in tokens:
+                if tok not in group_models[family]:
+                    group_models[family].append(tok)
+
+        raw_buckets = grp.get("buckets")
+        for b in raw_buckets if isinstance(raw_buckets, list) else []:
+            if not isinstance(b, dict):
+                continue
             win = b.get("window")
-            entry = {
-                "available": True,
-                "fraction": float(b.get("remaining_fraction", 1.0)),
-                "reset_time": str(b.get("reset_time") or ""),
-                "description": str(b.get("description") or ""),
-            }
-            if "gemini models" in g_name and win == "5h":
-                buckets["gem_5h"] = entry
-            elif "claude" in g_name and win == "5h":
+            entry = _parse_bucket_entry(b)
+            if family == "gemini":
+                if win == "5h" or (win is None and not buckets["gem_5h"]["available"]):
+                    buckets["gem_5h"] = entry
+                elif win in ("weekly", "7d"):
+                    gem_weekly = entry
+            elif family == "claude" and (win == "5h" or (win is None and not buckets["cld_5h"]["available"])):
                 buckets["cld_5h"] = entry
-            elif "argon" in g_name and win == "weekly":
+            elif family == "argon" and (win in ("weekly", "7d") or win is None):
                 buckets["argon_weekly"] = entry
 
     has_5h = buckets["gem_5h"]["available"] or buckets["cld_5h"]["available"]
     if groups and not has_5h:
         buckets["tier"] = "FREE"
+
+    gemini_group_active = is_bucket_activated(buckets["gem_5h"], 5 * 3600) or is_bucket_activated(
+        gem_weekly, 7 * 86400
+    )
+    model_tokens: list[str] = []
+    for fam_tokens in group_models.values():
+        for tok in fam_tokens:
+            low_tok = tok.lower()
+            if low_tok not in model_tokens:
+                model_tokens.append(low_tok)
+    for mod_id in norm_avail:
+        low_mod = mod_id.lower()
+        if low_mod not in model_tokens:
+            model_tokens.append(low_mod)
+
+    gemini_has_argon = "argon" in group_descriptions["gemini"].lower() or any(
+        "argon" in m.lower() for m in norm_avail
+    )
+    if has_dedicated_argon_group:
+        argon_mode = "separate"
+    elif groups and gemini_has_argon:
+        argon_mode = "shared_gemini"
+    else:
+        argon_mode = "none"
+
+    buckets["has_dedicated_argon_group"] = has_dedicated_argon_group
+    buckets["gemini_group_active"] = gemini_group_active
+    buckets["group_descriptions"] = group_descriptions
+    buckets["group_models"] = group_models
+    buckets["model_tokens"] = model_tokens
+    buckets["argonMode"] = argon_mode
+    buckets["argon_mode"] = argon_mode
     return buckets
 
 
@@ -1378,6 +1493,7 @@ def _probe_profile_usage_and_models(
     usage_buckets: dict[str, Any] = {"has_groups": False}
     available_models: list[str] = []
     is_appeal = False
+    parsed_cmd_data: dict[str, Any] | None = None
 
     try:
         proc_usage = subprocess.run(
@@ -1395,9 +1511,13 @@ def _probe_profile_usage_and_models(
         if proc_usage.returncode == 0 and proc_usage.stdout:
             try:
                 parsed = json.loads(proc_usage.stdout.strip())
-                cmd_data = parsed.get("command", {}).get("data", {})
-                if isinstance(cmd_data, dict) and cmd_data.get("groups"):
-                    usage_buckets = _extract_usage_buckets(cmd_data)
+                if isinstance(parsed, dict):
+                    cmd_obj = parsed.get("command")
+                    data_obj = cmd_obj.get("data") if isinstance(cmd_obj, dict) else parsed.get("data")
+                    cmd_data = data_obj if isinstance(data_obj, dict) else parsed
+                    if isinstance(cmd_data, dict) and cmd_data.get("groups"):
+                        parsed_cmd_data = cmd_data
+                        usage_buckets = _extract_usage_buckets(cmd_data)
             except (TypeError, ValueError):
                 pass
     except Exception:
@@ -1419,6 +1539,9 @@ def _probe_profile_usage_and_models(
             available_models = parse_agy_models_output(proc_models.stdout)
     except Exception:
         pass
+
+    if parsed_cmd_data is not None and available_models:
+        usage_buckets = _extract_usage_buckets(parsed_cmd_data, available_models=available_models)
 
     return usage_buckets, available_models, is_appeal
 
@@ -1481,6 +1604,42 @@ def _run_isolated_agy_model_ping(
         return False, False, f"Timed out after {timeout}s ({model_id})"
     except Exception as exc:
         return False, False, str(exc)
+
+
+def _normalize_probe_result(probe_raw: Any) -> tuple[dict[str, Any], list[str], bool]:
+    """Normalize `_probe_profile_usage_and_models` output safely on malformed or empty payloads."""
+    if isinstance(probe_raw, tuple) and len(probe_raw) == 3:
+        raw_buckets, raw_models, raw_appeal = probe_raw
+    else:
+        raw_buckets = probe_raw if isinstance(probe_raw, dict) else {}
+        raw_models = []
+        raw_appeal = False
+    buckets = raw_buckets if isinstance(raw_buckets, dict) else {}
+    models = [
+        m.strip()
+        for m in (raw_models if isinstance(raw_models, (list, tuple, set)) else [])
+        if isinstance(m, str) and m.strip()
+    ]
+    return buckets, models, bool(raw_appeal)
+
+
+def _resolve_live_argon_mode(usage_buckets: dict[str, Any], available_models: list[str]) -> str:
+    """Resolve argonMode ('separate', 'shared_gemini', or 'none') for live usage buckets."""
+    explicit = usage_buckets.get("argonMode") or usage_buckets.get("argon_mode")
+    if explicit in ("separate", "shared_gemini", "none"):
+        if (
+            explicit == "none"
+            and not usage_buckets.get("has_dedicated_argon_group")
+            and any("argon" in m.lower() for m in available_models)
+        ):
+            return "shared_gemini"
+        return str(explicit)
+    argon_b = usage_buckets.get("argon_weekly")
+    if isinstance(argon_b, dict) and argon_b.get("available") and not argon_b.get("sharedPool"):
+        return "separate"
+    if any("argon" in m.lower() for m in available_models):
+        return "shared_gemini"
+    return "none"
 
 
 def ping_profile(profile_name: str, timeout: int = 50) -> dict[str, Any]:
@@ -1556,9 +1715,10 @@ def ping_profile(profile_name: str, timeout: int = 50) -> dict[str, Any]:
     failures: list[str] = []
 
     with tempfile.TemporaryDirectory(prefix=f"agy_ping_{profile_name}_") as sandbox_cwd:
-        usage_buckets, available_models, appeal_detected = _probe_profile_usage_and_models(
+        probe_raw = _probe_profile_usage_and_models(
             agy_bin, env=env, cwd=sandbox_cwd, timeout=min(timeout, 45)
         )
+        usage_buckets, available_models, appeal_detected = _normalize_probe_result(probe_raw)
         if appeal_detected:
             result["status"] = "SKIPPED"
             result["error"] = "Profile is disabled for Terms of Service (Appeal needed)"
@@ -1573,13 +1733,19 @@ def ping_profile(profile_name: str, timeout: int = 50) -> dict[str, Any]:
         has_live = bool(usage_buckets.get("has_groups"))
         now_ts = time.time()
 
-        gem_bucket = usage_buckets.get("gem_5h") if has_live else {"available": True}
-        cld_bucket = usage_buckets.get("cld_5h") if has_live else {"available": True}
+        raw_gem = usage_buckets.get("gem_5h") if has_live else {"available": True}
+        raw_cld = usage_buckets.get("cld_5h") if has_live else {"available": True}
+        gem_bucket = raw_gem if isinstance(raw_gem, dict) else {"available": False}
+        cld_bucket = raw_cld if isinstance(raw_cld, dict) else {"available": False}
         if has_live:
-            argon_bucket = usage_buckets["argon_weekly"]
-            has_argon = bool(argon_bucket.get("available")) or any("argon" in m for m in available_models)
+            raw_argon = usage_buckets.get("argon_weekly")
+            argon_bucket = raw_argon if isinstance(raw_argon, dict) else {"available": False}
+            argon_mode = _resolve_live_argon_mode(usage_buckets, available_models)
+            has_argon = argon_mode == "separate" and bool(argon_bucket.get("available"))
         else:
-            has_argon = check_profile_has_argon(profile_name) or any("argon" in m for m in available_models)
+            cached_mode = _get_cached_profile_argon_mode(profile_name)
+            argon_mode = cached_mode if cached_mode in ("separate", "shared_gemini") else "none"
+            has_argon = argon_mode == "separate" and check_profile_has_argon(profile_name)
             argon_bucket = {"available": has_argon}
 
         should_gem = bool(gem_bucket.get("available")) and not (has_live and is_bucket_activated(gem_bucket, 5 * 3600, now_ts=now_ts))
@@ -1588,13 +1754,14 @@ def ping_profile(profile_name: str, timeout: int = 50) -> dict[str, Any]:
         argon_near_reset = False
         if has_argon and has_live and argon_bucket.get("reset_time"):
             try:
-                dt_a = datetime.datetime.fromisoformat(argon_bucket["reset_time"].replace("Z", "+00:00"))
+                dt_a = datetime.datetime.fromisoformat(str(argon_bucket["reset_time"]).replace("Z", "+00:00"))
                 rem_a = dt_a.timestamp() - now_ts
                 argon_near_reset = 0 < rem_a < 7 * 3600
             except Exception:
                 pass
         should_argon = (
-            has_argon
+            argon_mode == "separate"
+            and has_argon
             and not argon_near_reset
             and not (has_live and is_bucket_activated(argon_bucket, 7 * 86400, now_ts=now_ts))
         )

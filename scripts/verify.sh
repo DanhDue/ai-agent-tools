@@ -449,6 +449,13 @@ SUITES = [
     ("20", "pytest",   "tests/test_cehm_history_aggregator.py", 15, False),
     ("20", "pytest",   "tests/test_cehm_dashboard_modal_ui.py", 15, False),
     ("20", "pytest",   "tests/test_cehm_e2e_cdp.py", 50, False),
+
+    # 21. Check-Quota Dynamic Models & Review Proposed Action suites
+    ("21", "pytest",   "tests/test_cqra_quota_discovery.py", 20, False),
+    ("21", "pytest",   "tests/test_cqra_refresh_session_argon.py", 15, False),
+    ("21", "pytest",   "tests/test_cqra_external_review_proposed.py", 15, False),
+    ("21", "pytest",   "tests/test_cqra_quota_ui.py", 45, False),
+    ("21", "pytest",   "tests/test_cqra_review_action_e2e.py", 50, False),
 ]
 
 active_suites = [

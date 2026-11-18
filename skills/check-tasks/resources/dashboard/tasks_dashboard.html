@@ -4206,8 +4206,8 @@ let currentReviewRepo = null;
     }
 
     function formatReviewTokens(txt) {
-      if (!txt) return '<span style="color: #64748b;">—</span>';
-      const src = String(txt);
+      if (!txt || !String(txt).trim()) return '<span style="color: #64748b;">—</span>';
+      const src = String(txt).trim();
       const tokenRegex = /(?:\[([^\]]+)\]\(([^)]+)\))|(?:`([^`]+)`)|(?:\[([A-Z0-9_\-]+)\])|(?:\{[^{}]+\})|(?:"(?:\\.|[^"\\])*")|(?:\b(?:src\/|\.devtool\/|[a-zA-Z0-9_\-]+\/)[a-zA-Z0-9_\-\.\/]+\.[a-zA-Z0-9]+(?::\d+(?:-\d+)?)?)|(?:\b[a-zA-Z0-9_\-]+\.(?:py|json|md|ts|js|html|dart|kt|swift)(?::\d+(?:-\d+)?)?\b)|(?:\b(?:CPPO-[A-Z0-9\-]+|ST-\d+|T[1-9](?:[–\-]T[1-9])?|T[1-9]\/T[1-9]|Step\s+\d+(?:(?:->|→)Step\s+\d+)?)\b)|(?:\b[a-zA-Z_][a-zA-Z0-9]*_[a-zA-Z0-9_]+\b)|(?:\b[A-Z0-9]+_[A-Z0-9_]+\b)|(?:\b(?:FAIL|PASS|CLEAN|AUTO_PASS|AUTO_FIX|CHANGES REQUIRED)\b)|(?:\b[A-Z][a-z0-9]+(?:[A-Z0-9][a-z0-9]*)+\b)|(?:\b[a-z][a-z0-9]*[A-Z][a-zA-Z0-9]*\b)|(?:\b(?:null|nil|None|true|false|True|False|Re-Align|agent|unknown)\b)/g;
 
       let lastIndex = 0;
@@ -4271,8 +4271,8 @@ let currentReviewRepo = null;
             <td style="padding: 8px 10px; font-size: 11px; word-break: break-word; line-height: 1.4;">
               ${formatReviewLocation(f.location)}
             </td>
-            <td style="padding: 8px 10px; font-size: 11px; line-height: 1.5; color: #cbd5e1;">${formatReviewTokens(f.problem || '')}</td>
-            <td style="padding: 8px 10px; font-size: 11px; line-height: 1.5; color: #f1f5f9;">${formatReviewTokens(f.proposed_action || '')}</td>
+            <td style="padding: 8px 10px; font-size: 11px; line-height: 1.5; color: #cbd5e1; word-break: break-word;">${formatReviewTokens(f.problem || '')}</td>
+            <td style="padding: 8px 10px; font-size: 11px; line-height: 1.5; color: #f1f5f9; word-break: break-word; white-space: pre-line;">${formatReviewTokens(f.proposed_action || '')}</td>
             <td style="padding: 8px 10px; font-size: 11px; line-height: 1.5;">${formatReviewDecision(f.decision)}</td>
           </tr>
         `;

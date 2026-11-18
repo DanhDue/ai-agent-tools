@@ -1,13 +1,13 @@
 ---
 id: "task_04_quota_dashboard_dynamic_ui"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "check_quota_dynamic_models_and_review_action"
 dueDate: null
 created: "2026-11-18T03:11:00Z"
-modified: "2026-11-18T03:11:00Z"
-completedAt: null
+modified: "2026-11-18T00:04:44Z"
+completedAt: "2026-11-18T00:04:44Z"
 labels: ["check-quota", "ui", "frontend"]
 order: "a4"
 review_tier: "full"

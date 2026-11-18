@@ -1,0 +1,218 @@
+{
+  "schema": 1,
+  "task": "task_01_check_quota_dynamic_models_and_argon_mode",
+  "runs": {
+    "red": {
+      "head": "5d1d7c02103868e769acc680a59a8a5f110313ba",
+      "tree": "7858bc12af89404029c63c879e06be9cc59ff620",
+      "patch_id": "a996dc96390cc46e8ce3746cb22c70a9f42ceda8",
+      "started": "2026-11-17T22:50:35Z",
+      "finished": "2026-11-17T22:50:35Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_cqra_quota_discovery.py::test_cqra_hp_01_ultra_shared_pool_discovery_and_mirror",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T22:50:35Z",
+          "finished": "2026-11-17T22:50:35Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "____________ test_cqra_hp_01_ultra_shared_pool_discovery_and_mirror ____________",
+            "tests/test_cqra_quota_discovery.py:220: in test_cqra_hp_01_ultra_shared_pool_discovery_and_mirror",
+            "    assert \"plan_name\" in result",
+            "E   AssertionError: assert 'plan_name' in {'profile': 'nguyenhieu000690', 'success': True, 'duration': 0.00021386146545410156, 'groups': [{'name': 'Gemini Model...'2026-11-18T10:00:00Z'}, {'window': 'weekly', 'remaining_fraction': 0.9, 'reset_time': '2026-11-24T00:00:00Z'}]}], ...}",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_cqra_quota_discovery.py::test_cqra_hp_01_ultra_shared_pool_discovery_and_mirror",
+            "1 failed in 0.06s"
+          ],
+          "output_sha256": "f2007a618f01b5a6ca015fb50d96fd41586efdd1fa99a1e6665692169931e090"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "5d1d7c02103868e769acc680a59a8a5f110313ba",
+      "tree": "530c1b2fe0c818ae0ea4962c4fd3aca97ea95857",
+      "patch_id": "a93172cb25c4ba731c326d443a5c59aa46f06a06",
+      "started": "2026-11-17T22:58:45Z",
+      "finished": "2026-11-17T22:58:46Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_cqra_quota_discovery.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T22:58:45Z",
+          "finished": "2026-11-17T22:58:45Z",
+          "output_tail": [
+            "....................                                                     [100%]",
+            "20 passed in 0.07s"
+          ],
+          "output_sha256": "db3988c5aa61c1f984246df6ea9d0e2032da7e891357d094b54e240a3ea50fe1"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest tests/test_agy_quota.py tests/test_kiro_quota.py && python3 -m pytest -q --tb=short --maxfail=3 tests/test_claude_quota.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T22:58:45Z",
+          "finished": "2026-11-17T22:58:45Z",
+          "output_tail": [
+            "...........................................",
+            "----------------------------------------------------------------------",
+            "Ran 43 tests in 0.045s",
+            "OK",
+            "\u001b[1m\u001b[38;2;56;189;248m======================================================================================\u001b[0m",
+            "\u001b[1m\u001b[38;2;114;188;130m  🚀 AI MULTI-PROFILE QUOTA LIVE WEB SERVER (DAEMON)\u001b[0m",
+            "     URL : \u001b[1;37mhttp://127.0.0.1:59999\u001b[0m",
+            "     PID : \u001b[1;37m99999\u001b[0m  |  Logs: \u001b[38;2;148;163;184m/tmp/agy_quota_server.log\u001b[0m",
+            "\u001b[1m\u001b[38;2;56;189;248m======================================================================================\u001b[0m",
+            "  ✨ \u001b[1mChạy ngầm độc lập (Detached Process):\u001b[0m",
+            "     • Bạn có thể \u001b[1m\u001b[38;2;114;188;130mtắt Terminal này hoàn toàn\u001b[0m, web vẫn tiếp tục hoạt động!",
+            "     • Tự động kết nối và tương tác Live Refresh với 23 profiles.",
+            "     • Dừng server khi cần bằng lệnh: \u001b[1m\u001b[38;2;245;158;11mcheck-quota --stop\u001b[0m",
+            "\u001b[38;2;245;158;11mℹ️ Quota Web Server hiện không chạy trên cổng 59998.\u001b[0m",
+            "...........                                                        [100%]",
+            "11 passed, 6 subtests passed in 0.09s"
+          ],
+          "output_sha256": "8f12a68274f91e87aeaf5f472301e0e0552e6b00937c302e12f72fa06f6ef82c"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_cqra_quota_discovery.py && ruff check --select E9,F63,F7,F821,F841,B007,B904 scripts/agy_quota.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T22:58:45Z",
+          "finished": "2026-11-17T22:58:45Z",
+          "output_tail": [
+            "All checks passed!",
+            "All checks passed!"
+          ],
+          "output_sha256": "d63ab3df51a50c66f9c57056288c7d4faf9dce413552d89215714320ac2b748e"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py && mypy tests/test_cqra_quota_discovery.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T22:58:45Z",
+          "finished": "2026-11-17T22:58:45Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files",
+            "Success: no issues found in 1 source file"
+          ],
+          "output_sha256": "3093aa6c998bfbee60b0ac0ac5a93a0b8b8c32442e01bb5f1a07d160a0edb631"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/cqra_task_01.xml tests/test_cqra_quota_discovery.py tests/test_agy_quota.py tests/test_claude_quota.py",
+          "expect": "exit 0; results build/test-results/cqra_task_01.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T22:58:45Z",
+          "finished": "2026-11-17T22:58:46Z",
+          "output_tail": [
+            "..............................................................     [100%]",
+            "62 passed, 6 subtests passed in 0.17s"
+          ],
+          "output_sha256": "2a64f4d867f6ba3ebcf610011abf67ecf7e06bdf92a6cae8a2ba354f3f81d413",
+          "results": {
+            "path": "build/test-results/cqra_task_01.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 9,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_cqra_hp_01_ultra_shared_pool_discovery_and_mirror",
+                  "classname": "tests.test_cqra_quota_discovery",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_hp_02_pro_separate_argon_merges_catalog_and_preserves_labels[-PRO]",
+                  "classname": "tests.test_cqra_quota_discovery",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_hp_02_pro_separate_argon_merges_catalog_and_preserves_labels[Google AI Pro-PRO]",
+                  "classname": "tests.test_cqra_quota_discovery",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_hp_02_pro_separate_argon_merges_catalog_and_preserves_labels[Google AI Ultra-ULTRA]",
+                  "classname": "tests.test_cqra_quota_discovery",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_01_auth_needed_and_disabled_never_invoke_agy_models",
+                  "classname": "tests.test_cqra_quota_discovery",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_st_01_hybrid_cache_transitions_and_single_profile_refresh",
+                  "classname": "tests.test_cqra_quota_discovery",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ar_01_strict_per_profile_isolation_ping_suppression_and_cli_views",
+                  "classname": "tests.test_cqra_quota_discovery",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_01_malformed_descriptions_and_models_timeout_degrade_softly[cached_state0-none-expected_gemini_models0]",
+                  "classname": "tests.test_cqra_quota_discovery",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_01_malformed_descriptions_and_models_timeout_degrade_softly[cached_state1-shared_gemini-expected_gemini_models1]",
+                  "classname": "tests.test_cqra_quota_discovery",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/agy_quota.py",
+            "scripts/types/quota_dashboard.types.ts",
+            "tests/test_cqra_quota_discovery.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

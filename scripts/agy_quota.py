@@ -126,6 +126,372 @@ def parse_agy_models_output(stdout: str) -> list[str]:
     return models
 
 
+HYBRID_MODELS_TTL_SECONDS = 86400
+_MODELS_NOISE_TOKENS = {"model", "models", "available", "id", "name"}
+_RAW_ARGON_SKU_LABELS = {
+    "gemini-argon-wtu-weekly": "Gemini 4 Argon",
+    "gemini-argon-weekly": "Gemini 4 Argon",
+    "gemini-argon": "Gemini 4 Argon",
+}
+
+
+def _canonical_model_label(model_id: str, inline_label: str = "") -> str:
+    """Map an `agy models` ID to its clean human-readable family label."""
+    mid = model_id.lower()
+    if "orchestrator" in mid:
+        if "argon" in mid or "g1-pro" in mid:
+            return "Orchestrator (Argon)"
+        if "carbon" in mid:
+            return "Orchestrator (Carbon)"
+        return "Orchestrator"
+    if "carbon" in mid and "gemini" in mid:
+        m = re.search(r"gemini-(\d+(?:[.-]\d+)?)-carbon", mid)
+        ver = m.group(1).replace("-", ".") if m else "4"
+        return f"Gemini {ver} Carbon"
+    if "argon" in mid:
+        m = re.search(r"gemini-(\d+(?:[.-]\d+)?)-argon", mid)
+        ver = m.group(1).replace("-", ".") if m else "4"
+        return f"Gemini {ver} Argon"
+    if "hydrogen" in mid:
+        m = re.search(r"gemini-(\d+(?:[.-]\d+)?)-hydrogen", mid)
+        ver = m.group(1).replace("-", ".") if m else "4"
+        return f"Gemini {ver} Hydrogen"
+    if "flash" in mid and "gemini" in mid:
+        m = re.search(r"gemini-(\d+(?:[.-]\d+)?)-flash", mid)
+        ver = m.group(1).replace("-", ".") if m else "3.8"
+        suffix = " Flash-Lite" if "lite" in mid else " Flash"
+        return f"Gemini {ver}{suffix}"
+    if any(k in mid for k in ("claude", "sonnet", "opus", "haiku")):
+        variant = "Sonnet" if "sonnet" in mid else ("Opus" if "opus" in mid else "Haiku")
+        m = re.search(r"(?:sonnet|opus|haiku)-(\d+(?:[.-]\d+)?)", mid)
+        ver = f" {m.group(1).replace('-', '.')}" if m else ""
+        return f"Claude {variant}{ver}"
+    if "gpt-oss-120b" in mid:
+        return "GPT-OSS 120B"
+    if inline_label:
+        return inline_label
+    return model_id
+
+
+def parse_agy_models_catalog(stdout: str) -> list[dict]:
+    """Parse `agy models` stdout into structured `{id, label, quotaFamily, tags}` entries."""
+    if not isinstance(stdout, str) or not stdout.strip():
+        return []
+    inline_labels: dict[str, str] = {}
+    for raw in stdout.splitlines():
+        parts = raw.strip().split(None, 1)
+        if len(parts) == 2:
+            inline_labels.setdefault(parts[0], parts[1].strip())
+
+    catalog: list[dict] = []
+    for model_id in parse_agy_models_output(stdout):
+        mid = model_id.lower()
+        if mid in _MODELS_NOISE_TOKENS:
+            continue
+        tags: list[str] = []
+        if "carbon" in mid:
+            tags.append("carbon")
+        if "argon" in mid or ("orchestrator" in mid and "g1-pro" in mid):
+            tags.append("argon")
+        if "orchestrator" in mid:
+            tags.append("orchestrator")
+        if "hydrogen" in mid:
+            tags.append("hydrogen")
+        if "flash" in mid:
+            tags.append("flash")
+        if any(k in mid for k in ("claude", "sonnet", "opus", "haiku")):
+            tags.append("claude")
+        if "gpt" in mid:
+            tags.append("gpt")
+        if "g1-pro" in mid:
+            tags.append("g1-pro")
+
+        if "claude" in tags or "gpt" in tags:
+            quota_family = "claude"
+        elif "argon" in tags:
+            quota_family = "argon"
+        elif "gemini" in mid or any(
+            t in tags for t in ("carbon", "hydrogen", "flash", "orchestrator")
+        ):
+            quota_family = "gemini"
+        else:
+            quota_family = "other"
+
+        catalog.append(
+            {
+                "id": model_id,
+                "label": _canonical_model_label(model_id, inline_labels.get(model_id, "")),
+                "quotaFamily": quota_family,
+                "tags": tags,
+            }
+        )
+    return catalog
+
+
+def parse_usage_group_models(groups: list) -> dict:
+    """Extract normalized model names and deterministic SHA-256 signature from `/usage` groups."""
+    group_descriptions: dict[str, str] = {"gemini": "", "claude": "", "argon": ""}
+    group_models: dict[str, list[str]] = {"gemini": [], "claude": [], "argon": []}
+    has_dedicated_argon = False
+    sig_pairs: list[tuple[str, str]] = []
+
+    if isinstance(groups, list):
+        for g in groups:
+            if not isinstance(g, dict):
+                continue
+            raw_name = g.get("name")
+            norm_name = re.sub(r"\s+", " ", str(raw_name or "")).strip()
+            g_low = norm_name.lower()
+            raw_desc = g.get("description")
+            norm_desc = (
+                re.sub(r"\s+", " ", raw_desc).strip() if isinstance(raw_desc, str) else ""
+            )
+            sig_pairs.append((g_low, norm_desc))
+
+            family: str | None = None
+            if "argon" in g_low:
+                family = "argon"
+                has_dedicated_argon = True
+            elif "claude" in g_low or "gpt" in g_low:
+                family = "claude"
+            elif "gemini" in g_low:
+                family = "gemini"
+
+            if family is None:
+                continue
+            if norm_desc and not group_descriptions[family]:
+                group_descriptions[family] = norm_desc
+
+            seen_lower = {m.lower() for m in group_models[family]}
+            for token in norm_desc.split(","):
+                clean = re.sub(r"\s+", " ", token).strip()
+                if not clean:
+                    continue
+                mapped = _RAW_ARGON_SKU_LABELS.get(clean.lower(), clean)
+                if mapped.lower() not in seen_lower:
+                    group_models[family].append(mapped)
+                    seen_lower.add(mapped.lower())
+
+    sig_payload = json.dumps(sorted(sig_pairs), ensure_ascii=False, separators=(",", ":"))
+    group_desc_sig = hashlib.sha256(sig_payload.encode("utf-8")).hexdigest()[:16]
+    return {
+        "groupDescriptions": group_descriptions,
+        "groupModels": group_models,
+        "groupDescSig": group_desc_sig,
+        "hasDedicatedArgonGroup": has_dedicated_argon,
+    }
+
+
+def classify_argon_mode(
+    groups: list | None,
+    group_models: dict | None = None,
+    model_catalog: list[dict] | None = None,
+    available_models: list[str] | None = None,
+    cached_entry: dict | None = None,
+) -> str:
+    """Classify profile Argon quota mode as `'separate'`, `'shared_gemini'`, or `'none'`."""
+    usage_parsed = parse_usage_group_models(groups if isinstance(groups, list) else [])
+    if usage_parsed["hasDedicatedArgonGroup"]:
+        return "separate"
+
+    gm = group_models if isinstance(group_models, dict) else usage_parsed["groupModels"]
+    gem_desc_low = (usage_parsed["groupDescriptions"].get("gemini") or "").lower()
+    gem_models_low = " ".join(str(x).lower() for x in (gm.get("gemini") or []))
+    if "argon" in gem_desc_low or "argon" in gem_models_low:
+        return "shared_gemini"
+
+    for entry in model_catalog or []:
+        if isinstance(entry, dict):
+            if "argon" in (entry.get("tags") or []) or entry.get("quotaFamily") == "argon":
+                return "shared_gemini"
+
+    for mid in available_models or []:
+        m_low = str(mid).lower()
+        if "argon" in m_low or ("orchestrator" in m_low and "g1-pro" in m_low):
+            return "shared_gemini"
+
+    no_live_descriptions = not any(usage_parsed["groupDescriptions"].values())
+    if (
+        no_live_descriptions
+        and not model_catalog
+        and not available_models
+        and isinstance(cached_entry, dict)
+    ):
+        cached_caps = cached_entry.get("capabilities")
+        allowed_cached = (
+            ("shared_gemini", "none")
+            if groups
+            else ("separate", "shared_gemini", "none")
+        )
+        if isinstance(cached_caps, dict) and cached_caps.get("argonMode") in allowed_cached:
+            return str(cached_caps["argonMode"])
+
+    return "none"
+
+
+def _reconcile_group_models(
+    usage_parsed: dict,
+    model_catalog: list[dict],
+    cached_entry: dict | None = None,
+) -> dict[str, list[str]]:
+    """Reconcile `/usage` group descriptions with `agy models` catalog entries."""
+    base = usage_parsed.get("groupModels") or {}
+    merged: dict[str, list[str]] = {
+        "gemini": list(base.get("gemini") or []),
+        "claude": list(base.get("claude") or []),
+        "argon": list(base.get("argon") or []),
+    }
+
+    if (
+        not any(merged.values())
+        and not model_catalog
+        and isinstance(cached_entry, dict)
+        and isinstance(cached_entry.get("groupModels"), dict)
+    ):
+        cgm = cached_entry["groupModels"]
+        for fam in ("gemini", "claude", "argon"):
+            merged[fam] = list(cgm.get(fam) or [])
+        return merged
+
+    had_gemini_desc = bool(merged["gemini"])
+    had_claude_desc = bool(merged["claude"])
+    has_dedicated_argon = bool(usage_parsed.get("hasDedicatedArgonGroup"))
+
+    if not has_dedicated_argon:
+        seen_argon = {x.lower() for x in merged["argon"]}
+        for item in merged["gemini"]:
+            if "argon" in item.lower() and item.lower() not in seen_argon:
+                merged["argon"].append(item)
+                seen_argon.add(item.lower())
+    elif not merged["argon"]:
+        merged["argon"].append("Gemini 4 Argon")
+
+    for entry in model_catalog or []:
+        if not isinstance(entry, dict):
+            continue
+        fam = entry.get("quotaFamily")
+        lbl = str(entry.get("label") or "").strip()
+        tags = entry.get("tags") or []
+        if not lbl or fam not in ("gemini", "claude", "argon"):
+            continue
+        if fam == "argon":
+            if lbl.lower() not in {x.lower() for x in merged["argon"]}:
+                merged["argon"].append(lbl)
+        elif fam == "gemini":
+            if not had_gemini_desc or "orchestrator" in tags:
+                if lbl == "Orchestrator" and any(
+                    "orchestrator" in x.lower() for x in merged["gemini"] + merged["argon"]
+                ):
+                    continue
+                if lbl.lower() not in {x.lower() for x in merged["gemini"]}:
+                    merged["gemini"].append(lbl)
+        elif fam == "claude" and not had_claude_desc:
+            if lbl.lower() not in {x.lower() for x in merged["claude"]}:
+                merged["claude"].append(lbl)
+
+    return merged
+
+
+def _derive_profile_capabilities(
+    tier: str,
+    plan_name: str,
+    has_dedicated_argon: bool,
+    argon_mode: str,
+    group_models: dict,
+    model_catalog: list[dict],
+    available_models: list[str],
+) -> dict:
+    """Compute `{tier, hasCarbon, hasArgon, argonMode, hasOrchestrator, badges}`."""
+    has_argon = argon_mode != "none"
+    labels_low = " ".join(
+        str(x).lower()
+        for fam in ("gemini", "claude", "argon")
+        for x in (group_models.get(fam) or [])
+    )
+    has_carbon = (
+        ("carbon" in labels_low)
+        or any("carbon" in (m.get("tags") or []) for m in (model_catalog or []))
+        or any("carbon" in str(mid).lower() for mid in (available_models or []))
+    )
+    has_orchestrator = (
+        ("orchestrator" in labels_low)
+        or any("orchestrator" in (m.get("tags") or []) for m in (model_catalog or []))
+        or any("orchestrator" in str(mid).lower() for mid in (available_models or []))
+    )
+
+    plan_up = str(plan_name or "").upper()
+    if tier == "FREE":
+        cap_tier = "FREE"
+    elif "ULTRA" in plan_up or (not has_dedicated_argon and has_carbon):
+        cap_tier = "ULTRA"
+    else:
+        cap_tier = "PRO"
+
+    badges = [cap_tier]
+    if has_carbon:
+        badges.append("Carbon")
+    if has_argon:
+        badges.append("Argon")
+    if has_orchestrator:
+        badges.append("Orchestrator")
+
+    return {
+        "tier": cap_tier,
+        "hasCarbon": has_carbon,
+        "hasArgon": has_argon,
+        "argonMode": argon_mode,
+        "hasOrchestrator": has_orchestrator,
+        "badges": badges,
+    }
+
+
+def _is_models_cache_warm(
+    cached_entry: dict | None,
+    live_sig: str,
+    now_ts: float | None = None,
+) -> bool:
+    """Return True when cached model catalog has matching signature and age <= 24h."""
+    if not isinstance(cached_entry, dict) or not live_sig:
+        return False
+    if cached_entry.get("groupDescSig") != live_sig:
+        return False
+    if "modelCatalog" not in cached_entry and "availableModels" not in cached_entry:
+        return False
+    fetched_raw = str(cached_entry.get("modelsFetchedAt") or "").strip()
+    if not fetched_raw:
+        return False
+    try:
+        dt = datetime.datetime.fromisoformat(fetched_raw.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=datetime.timezone.utc)
+        now_val = now_ts if now_ts is not None else time.time()
+        age = now_val - dt.timestamp()
+        return -300.0 <= age <= HYBRID_MODELS_TTL_SECONDS
+    except Exception:
+        return False
+
+
+def _is_separate_argon_cached(cached_entry: dict | None) -> bool:
+    """Return True only when cached profile uses a standalone (`separate`) Argon bucket."""
+    if not isinstance(cached_entry, dict):
+        return False
+    caps = cached_entry.get("capabilities")
+    arg_w = cached_entry.get("argonWeekly") or {}
+    if isinstance(caps, dict) and caps.get("argonMode") in (
+        "separate",
+        "shared_gemini",
+        "none",
+    ):
+        return caps.get("argonMode") == "separate" and not bool(
+            arg_w.get("unavailable", False)
+        )
+    if arg_w.get("sharedPool") is True or arg_w.get("mode") == "shared_gemini":
+        return False
+    return bool(cached_entry.get("hasArgon", False)) and not bool(
+        arg_w.get("unavailable", False)
+    )
+
+
 def select_model_from_candidates(available_models: list[str], candidates, default: str) -> str:
     """Select first available preferred model ID, or safe default."""
     mod = _load_refresh_session_module()
@@ -241,9 +607,12 @@ RESET       = "\033[0m"
 BOLD        = "\033[1m"
 
 # Model & Status Badges
-TAG_PRO      = "\033[48;2;59;102;245m\033[1;37m ◆ PRO \033[0m"
-TAG_PRIORITY = "\033[48;2;24;27;38m\033[38;2;160;174;192m Priority: 50 \033[0m"
-TAG_ARGON    = "\033[48;2;38;25;56m\033[38;2;192;132;252m ✣ Argon \033[0m"
+TAG_ULTRA        = "\033[48;2;124;58;237m\033[1;37m ✦ ULTRA \033[0m"
+TAG_PRO          = "\033[48;2;59;102;245m\033[1;37m ◆ PRO \033[0m"
+TAG_PRIORITY     = "\033[48;2;24;27;38m\033[38;2;160;174;192m Priority: 50 \033[0m"
+TAG_CARBON       = "\033[48;2;14;116;144m\033[38;2;165;243;252m ◈ Carbon \033[0m"
+TAG_ARGON        = "\033[48;2;38;25;56m\033[38;2;192;132;252m ✣ Argon \033[0m"
+TAG_ORCHESTRATOR = "\033[48;2;20;83;45m\033[38;2;134;239;172m ⚙ Orchestrator \033[0m"
 TAG_HIGH     = "\033[48;2;76;29;149m\033[38;2;216;180;254m High \033[0m"
 TAG_MED      = "\033[48;2;30;58;138m\033[38;2;191;219;254m Med \033[0m"
 TAG_LOW      = "\033[48;2;15;23;42m\033[38;2;148;163;184m Low \033[0m"
@@ -748,9 +1117,9 @@ def probe_blocked_profile(profile: str) -> dict:
                 "error": f"Tài khoản {profile} vẫn đang bị Google tạm ngưng (ToS Violation). Vui lòng gửi đơn kháng nghị (Submit an appeal). Mã lỗi: {err_id}"
             }
 
-        # 4. Prompt succeeded with returncode 0! Verify Argon as well if profile has Argon
-        current = load_cached_profiles().get(profile, {})
-        has_argon = current.get("hasArgon", False) and not current.get("argonWeekly", {}).get("unavailable", False)
+        # 4. Prompt succeeded with returncode 0! Verify standalone Argon only when argonMode == "separate"
+        current = _peek_cached_profile(profile)
+        has_argon = _is_separate_argon_cached(current)
         if has_argon:
             time.sleep(round(random.uniform(1.8, 3.2), 2))
             other_prompts = [p for p in NATURAL_PROMPTS if p != prompt] or NATURAL_PROMPTS
@@ -880,8 +1249,31 @@ def check_profile_auth_token(profile: str) -> bool:
     return has_valid_fallback_oauth_token(profile_home)
 
 
-def fetch_quota_for_profile(profile: str, force_probe: bool = False) -> dict:
-    """Execute agy --output-format json -p '/usage' for a given profile."""
+def _query_agy_models_stdout(env: dict[str, str], cwd: str) -> str | None:
+    """Invoke `agy models` inside an isolated cwd, returning stdout or None on failure/timeout."""
+    try:
+        res = subprocess.run(
+            [AGY_BIN, "models"],
+            env=env,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=25,
+        )
+        if res.returncode == 0:
+            return res.stdout or ""
+    except Exception:
+        pass
+    return None
+
+
+def fetch_quota_for_profile(
+    profile: str,
+    force_probe: bool = False,
+    batch_mode: bool = False,
+    cached_override: dict | None = None,
+) -> dict:
+    """Execute agy --output-format json -p '/usage' (plus Hybrid + Cache `agy models`) for a profile."""
     ag_home = f"{REAL_HOME}/antigravity_homes/{profile}"
     if not os.path.isdir(ag_home):
         return {"profile": profile, "success": False, "error": f"Profile home not found: {ag_home}"}
@@ -924,43 +1316,109 @@ def fetch_quota_for_profile(profile: str, force_probe: bool = False) -> dict:
     try:
         with tempfile.TemporaryDirectory(prefix=f"agy_usage_{profile}_") as sandbox_cwd:
             proc = subprocess.run(cmd, env=env, cwd=sandbox_cwd, capture_output=True, text=True, timeout=45)
-        duration = time.time() - t0
-        all_out = (proc.stdout or "") + " " + (proc.stderr or "")
+            duration = time.time() - t0
+            all_out = (proc.stdout or "") + " " + (proc.stderr or "")
 
-        appeal_out_id = check_profile_appeal_status(profile, all_out)
-        if appeal_out_id:
-            return {
-                "profile": profile,
-                "success": False,
-                "status": "DISABLED",
-                "is_appeal": True,
-                "error_id": appeal_out_id,
-                "duration": duration,
-                "error": "Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal)"
-            }
+            appeal_out_id = check_profile_appeal_status(profile, all_out)
+            if appeal_out_id:
+                return {
+                    "profile": profile,
+                    "success": False,
+                    "status": "DISABLED",
+                    "is_appeal": True,
+                    "error_id": appeal_out_id,
+                    "duration": duration,
+                    "error": "Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal)"
+                }
 
-        if proc.returncode != 0:
-            return {
-                "profile": profile,
-                "success": False,
-                "duration": duration,
-                "error": proc.stderr.strip() or f"Process exited with code {proc.returncode}"
-            }
+            if proc.returncode != 0:
+                return {
+                    "profile": profile,
+                    "success": False,
+                    "duration": duration,
+                    "error": proc.stderr.strip() or f"Process exited with code {proc.returncode}"
+                }
 
-        stdout = proc.stdout.strip()
-        data = json.loads(stdout)
-        cmd_data = data.get("command", {}).get("data", {})
-        groups = cmd_data.get("groups", [])
-        plan_raw = str(cmd_data.get("plan_name") or cmd_data.get("tier") or "").strip().upper()
-        items = parse_quota_items(groups)
-        has_5h = items["gem_5h"]["available"] or items["cld_5h"]["available"]
-        tier = "FREE" if ("FREE" in plan_raw or (groups and not has_5h)) else "PRO"
+            stdout = proc.stdout.strip()
+            data = json.loads(stdout)
+            cmd_data = (data.get("command") or {}).get("data") or {}
+            raw_groups = cmd_data.get("groups")
+            groups = raw_groups if isinstance(raw_groups, list) else []
+            plan_raw = str(
+                cmd_data.get("plan_name")
+                or cmd_data.get("tier")
+                or cmd_data.get("tier_name")
+                or ""
+            ).strip().upper()
+            items = parse_quota_items(groups)
+            has_5h = items["gem_5h"]["available"] or items["cld_5h"]["available"]
+            tier = "FREE" if ("FREE" in plan_raw or (groups and not has_5h)) else "PRO"
+
+            usage_parsed = parse_usage_group_models(groups)
+            group_desc_sig = usage_parsed["groupDescSig"]
+            cached_entry = dict(_peek_cached_profile(profile))
+            if isinstance(cached_override, dict):
+                cached_entry.update(cached_override)
+
+            should_fetch_models = (not batch_mode) or (
+                not _is_models_cache_warm(cached_entry, group_desc_sig)
+            )
+            models_stdout = (
+                _query_agy_models_stdout(env, sandbox_cwd) if should_fetch_models else None
+            )
+
+        if models_stdout is not None:
+            available_models = parse_agy_models_output(models_stdout)
+            model_catalog = parse_agy_models_catalog(models_stdout)
+            models_fetched_at = datetime.datetime.now(datetime.timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
+        else:
+            available_models = list(cached_entry.get("availableModels") or [])
+            cached_cat = cached_entry.get("modelCatalog")
+            model_catalog = (
+                list(cached_cat)
+                if isinstance(cached_cat, list)
+                else (
+                    parse_agy_models_catalog("\n".join(available_models))
+                    if available_models
+                    else []
+                )
+            )
+            models_fetched_at = str(cached_entry.get("modelsFetchedAt") or "")
+
+        group_models = _reconcile_group_models(usage_parsed, model_catalog, cached_entry)
+        argon_mode = classify_argon_mode(
+            groups,
+            group_models=group_models,
+            model_catalog=model_catalog,
+            available_models=available_models,
+            cached_entry=cached_entry,
+        )
+        capabilities = _derive_profile_capabilities(
+            tier=tier,
+            plan_name=plan_raw,
+            has_dedicated_argon=bool(usage_parsed["hasDedicatedArgonGroup"]),
+            argon_mode=argon_mode,
+            group_models=group_models,
+            model_catalog=model_catalog,
+            available_models=available_models,
+        )
+
         return {
             "profile": profile,
             "success": True,
             "duration": duration,
             "groups": groups,
             "tier": tier,
+            "plan_name": plan_raw,
+            "groupModels": group_models,
+            "groupDescSig": group_desc_sig,
+            "availableModels": available_models,
+            "modelCatalog": model_catalog,
+            "modelsFetchedAt": models_fetched_at,
+            "argonMode": argon_mode,
+            "capabilities": capabilities,
         }
     except subprocess.TimeoutExpired:
         return {"profile": profile, "success": False, "duration": 45.0, "error": "Request timed out (45s)"}
@@ -1021,6 +1479,53 @@ def parse_quota_items(groups: list) -> dict:
     return items
 
 
+def _resolve_result_model_meta(result: dict) -> tuple[dict[str, list[str]], str, dict]:
+    """Extract or derive `(group_models, argon_mode, capabilities)` from a quota result dict."""
+    groups = result.get("groups") or []
+    usage_parsed = parse_usage_group_models(groups)
+    model_catalog = result.get("modelCatalog") if isinstance(result.get("modelCatalog"), list) else []
+    available_models = (
+        result.get("availableModels") if isinstance(result.get("availableModels"), list) else []
+    )
+    group_models = (
+        result["groupModels"]
+        if isinstance(result.get("groupModels"), dict)
+        else _reconcile_group_models(usage_parsed, model_catalog)
+    )
+    argon_mode = str(
+        result.get("argonMode")
+        or classify_argon_mode(groups, group_models, model_catalog, available_models)
+    )
+    items = parse_quota_items(groups)
+    has_5h = items["gem_5h"]["available"] or items["cld_5h"]["available"]
+    tier = str(result.get("tier") or ("PRO" if has_5h else "FREE"))
+    capabilities = (
+        result["capabilities"]
+        if isinstance(result.get("capabilities"), dict)
+        else _derive_profile_capabilities(
+            tier=tier,
+            plan_name=str(result.get("plan_name") or ""),
+            has_dedicated_argon=bool(usage_parsed["hasDedicatedArgonGroup"]),
+            argon_mode=argon_mode,
+            group_models=group_models,
+            model_catalog=model_catalog,
+            available_models=available_models,
+        )
+    )
+    return group_models, argon_mode, capabilities
+
+
+def _short_card_group_title(models: list[str], suffix: str, fallback: str) -> str:
+    """Build a bounded <=23-char card header from dynamic group model names."""
+    if not models:
+        return fallback
+    lead = models[0]
+    candidate = f"{lead} {suffix}".strip()
+    if len(candidate) <= 23:
+        return candidate
+    return fallback
+
+
 def print_dashboard_cards(result: dict):
     """Render the full Dashboard matching the user's reference image."""
     profile = result["profile"]
@@ -1040,35 +1545,55 @@ def print_dashboard_cards(result: dict):
         return
 
     items = parse_quota_items(result.get("groups", []))
+    group_models, argon_mode, capabilities = _resolve_result_model_meta(result)
 
     # Determine status tag based only on available buckets
     avail_fractions = [
-        item["fraction"] for k, item in items.items()
+        item["fraction"] for item in items.values()
         if item and item.get("available")
     ]
     if not avail_fractions or min(avail_fractions) <= 0.0:
-        status_tag = f"\033[38;2;239;68;68m🔴 EXHAUSTED\033[0m"
+        status_tag = "\033[38;2;239;68;68m🔴 EXHAUSTED\033[0m"
     else:
-        status_tag = f"\033[38;2;114;188;130m🟢 ACTIVE\033[0m"
-
-    has_argon = items["argon_weekly"].get("available", False)
-    argon_tag_str = f"  {TAG_ARGON}" if has_argon else ""
+        status_tag = "\033[38;2;114;188;130m🟢 ACTIVE\033[0m"
 
     has_5h = items["gem_5h"].get("available", False) or items["cld_5h"].get("available", False)
-    if has_5h:
+    cap_tier = capabilities.get("tier") or ("PRO" if has_5h else "FREE")
+    if cap_tier == "ULTRA":
+        tier_tag = TAG_ULTRA
+        priority_tag = TAG_PRIORITY
+    elif has_5h:
         tier_tag = TAG_PRO
         priority_tag = TAG_PRIORITY
     else:
         tier_tag = "\033[48;2;217;119;6m\033[1;37m FREE \033[0m"
         priority_tag = "\033[48;2;24;27;38m\033[38;2;160;174;192m Priority: 20 \033[0m"
 
-    print(f"\n{BOLD}{WHITE}✦ Profile: {CYAN}{profile}{RESET}  {tier_tag}  {priority_tag}{argon_tag_str}  {status_tag}")
+    extra_badges: list[str] = []
+    if capabilities.get("hasCarbon"):
+        extra_badges.append(TAG_CARBON)
+    if capabilities.get("hasArgon") or items["argon_weekly"].get("available", False):
+        extra_badges.append(TAG_ARGON)
+    if capabilities.get("hasOrchestrator"):
+        extra_badges.append(TAG_ORCHESTRATOR)
+    extra_tag_str = ("  " + "  ".join(extra_badges)) if extra_badges else ""
+
+    print(f"\n{BOLD}{WHITE}✦ Profile: {CYAN}{profile}{RESET}  {tier_tag}  {priority_tag}{extra_tag_str}  {status_tag}")
+    if group_models.get("gemini"):
+        print(f"  {CYAN}✦ Gemini Models{RESET} : {GRAY}{', '.join(group_models['gemini'])}{RESET}")
+    if group_models.get("claude"):
+        print(f"  \033[38;2;251;146;60m✺ Claude & GPT{RESET}  : {GRAY}{', '.join(group_models['claude'])}{RESET}")
+    if group_models.get("argon"):
+        argon_note = " (Shared Gemini)" if argon_mode == "shared_gemini" else ""
+        print(f"  \033[38;2;192;132;252m✣ Argon Models{RESET}  : {GRAY}{', '.join(group_models['argon'])}{argon_note}{RESET}")
 
     # Row 1: Gemini 5H  &  Claude 5H
     gem_5h_time = format_countdown(items["gem_5h"]["reset_time"])
     cld_5h_time = format_countdown(items["cld_5h"]["reset_time"])
-    c1 = render_card("✦", CYAN, "Gemini 3.8 / Pro 5H", gem_5h_time, items["gem_5h"]["fraction"], width=45, available=items["gem_5h"]["available"])
-    c2 = render_card("✺", "\033[38;2;251;146;60m", "Claude 5.5 / GPT 5H", cld_5h_time, items["cld_5h"]["fraction"], width=45, available=items["cld_5h"]["available"])
+    gem_5h_title = _short_card_group_title(group_models.get("gemini", []), "5H", "Gemini 3.8 / Pro 5H")
+    cld_5h_title = _short_card_group_title(group_models.get("claude", []), "5H", "Claude 5.5 / GPT 5H")
+    c1 = render_card("✦", CYAN, gem_5h_title, gem_5h_time, items["gem_5h"]["fraction"], width=45, available=items["gem_5h"]["available"])
+    c2 = render_card("✺", "\033[38;2;251;146;60m", cld_5h_title, cld_5h_time, items["cld_5h"]["fraction"], width=45, available=items["cld_5h"]["available"])
     for l1, l2 in zip(c1, c2):
         print(l1 + "  " + l2)
 
@@ -1087,10 +1612,19 @@ def print_dashboard_cards(result: dict):
         for l in c5_5h:
             print(l)
 
-    # Row 4: Argon Weekly (Full width card with High/Med/Low tags or INACTIVE tag)
-    arg_w_time = format_countdown(items["argon_weekly"]["reset_time"])
-    tags_str = f"{TAG_HIGH} {TAG_MED} {TAG_LOW}" if items["argon_weekly"]["available"] else None
-    c5 = render_card("✦", CYAN, "Gemini 4 Argon Weekly", arg_w_time, items["argon_weekly"]["fraction"], width=92, tags=tags_str, available=items["argon_weekly"]["available"])
+    # Row 4: Argon Weekly (independent separate bucket OR mirrored Shared Gemini Pool)
+    if argon_mode == "shared_gemini":
+        arg_w_avail = bool(items["gem_weekly"]["available"])
+        arg_w_frac = items["gem_weekly"]["fraction"]
+        arg_w_time = format_countdown(items["gem_weekly"]["reset_time"])
+        arg_w_title = "Gemini 4 Argon Weekly (Shared Gemini)"
+    else:
+        arg_w_avail = bool(items["argon_weekly"]["available"]) and argon_mode == "separate"
+        arg_w_frac = items["argon_weekly"]["fraction"]
+        arg_w_time = format_countdown(items["argon_weekly"]["reset_time"])
+        arg_w_title = "Gemini 4 Argon Weekly"
+    tags_str = f"{TAG_HIGH} {TAG_MED} {TAG_LOW}" if arg_w_avail else None
+    c5 = render_card("✦", CYAN, arg_w_title, arg_w_time, arg_w_frac, width=92, tags=tags_str, available=arg_w_avail)
     for l in c5:
         print(l)
 
@@ -1159,12 +1693,33 @@ def print_all_summary(results: list, show_providers: bool = True):
             continue
 
         items = parse_quota_items(res.get("groups", []))
+        group_models, argon_mode, _caps = _resolve_result_model_meta(res)
+        argon_item = (
+            dict(items["gem_weekly"])
+            if argon_mode == "shared_gemini"
+            else items["argon_weekly"]
+        )
         bar_gem_w = render_mini_bar(items["gem_weekly"])
         bar_gem_5h = render_mini_bar(items["gem_5h"])
         bar_cld_w = render_mini_bar(items["cld_weekly"])
-        bar_arg_w = render_mini_bar(items["argon_weekly"])
+        bar_arg_w = render_mini_bar(argon_item)
 
         print(f"{BOLD}{profile:<18}{RESET} | {bar_gem_w} | {bar_gem_5h} | {bar_cld_w} | {bar_arg_w}")
+        if argon_mode == "shared_gemini" or any(group_models.values()):
+            sub_parts: list[str] = []
+            if argon_mode == "shared_gemini":
+                mirrored_pct = max(0.0, min(1.0, float(argon_item.get("fraction", 0.0)))) * 100.0
+                mirrored_rst = format_countdown(argon_item.get("reset_time", ""))
+                sub_parts.append(f"Argon: (Shared Gemini) {mirrored_pct:5.1f}% {mirrored_rst}")
+            roster = (group_models.get("gemini") or []) + (group_models.get("claude") or [])
+            if roster:
+                roster_txt = ", ".join(roster)
+                if len(roster_txt) > 54:
+                    roster_txt = roster_txt[:51] + "..."
+                sub_parts.append(f"Models: {roster_txt}")
+            if sub_parts:
+                detail = " · ".join(sub_parts)
+                print(f"{'':<18} | {DIM}↳ {detail}{RESET}")
 
     print(f"{BOLD}{WHITE}{'=' * table_w}{RESET}\n")
 
@@ -2517,6 +3072,53 @@ def load_cached_profiles() -> dict:
     return CACHED_PROFILES_DATA
 
 
+_ORIG_LOAD_CACHED_PROFILES = load_cached_profiles
+
+
+def _peek_cached_profile(profile: str) -> dict:
+    """Read-only lookup of a single profile's cached entry without external provider side effects."""
+    if load_cached_profiles is not _ORIG_LOAD_CACHED_PROFILES:
+        data = load_cached_profiles()
+        return dict(data.get(profile, {})) if isinstance(data, dict) else {}
+    if CACHED_PROFILES_DATA and profile in CACHED_PROFILES_DATA:
+        entry = CACHED_PROFILES_DATA.get(profile)
+        return dict(entry) if isinstance(entry, dict) else {}
+    p = get_dashboard_html_path()
+    if p.is_file():
+        try:
+            content = p.read_text(encoding="utf-8")
+            marker = "const PROFILES_DATA ="
+            end_marker = "\n};"
+            idx1 = content.find(marker)
+            if idx1 != -1:
+                idx2 = content.find(end_marker, idx1)
+                if idx2 != -1:
+                    raw_json = content[idx1 + len(marker):idx2 + len(end_marker)].strip()
+                    if raw_json.endswith(";"):
+                        raw_json = raw_json[:-1].strip()
+                    parsed = json.loads(raw_json)
+                    if isinstance(parsed, dict) and isinstance(parsed.get(profile), dict):
+                        return dict(parsed[profile])
+        except Exception:
+            pass
+    return {}
+
+
+def _preserve_cached_model_meta(target: dict, cached_entry: dict) -> dict:
+    """Copy existing model discovery metadata onto `DISABLED` / `AUTH NEEDED` payloads."""
+    for key in (
+        "availableModels",
+        "modelCatalog",
+        "groupModels",
+        "capabilities",
+        "modelsFetchedAt",
+        "groupDescSig",
+    ):
+        if key in cached_entry:
+            target[key] = cached_entry[key]
+    return target
+
+
 def update_cached_profile(profile: str, data: dict):
     global CACHED_PROFILES_DATA
     if not CACHED_PROFILES_DATA:
@@ -2559,14 +3161,14 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
     if profile == "kiro":
         return fetch_kiro_quota()
 
-    current = load_cached_profiles().get(profile, {})
+    current = _peek_cached_profile(profile)
     email = current.get("email") or f"{profile}@gmail.com"
     tier = current.get("tier", "PRO")
     priority = current.get("priority", 50)
 
     if result.get("is_appeal") or result.get("status") == "DISABLED":
         appeal_err_id = result.get("error_id") or check_profile_appeal_status(profile) or "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
-        return {
+        return _preserve_cached_model_meta({
             "email": email,
             "tier": tier,
             "priority": priority,
@@ -2580,12 +3182,12 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
             "geminiWeekly": {"name": "Gemini Weekly", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True},
             "claudeWeekly": {"name": "Claude Weekly", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True},
             "argonWeekly": {"name": "Gemini 4 Argon Weekly", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True, "tags": True},
-        }
+        }, current)
 
     if not result.get("success"):
         appeal_err_id = check_profile_appeal_status(profile)
         if appeal_err_id:
-            return {
+            return _preserve_cached_model_meta({
                 "email": email,
                 "tier": tier,
                 "priority": priority,
@@ -2599,8 +3201,8 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
                 "geminiWeekly": {"name": "Gemini Weekly", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True},
                 "claudeWeekly": {"name": "Claude Weekly", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True},
                 "argonWeekly": {"name": "Gemini 4 Argon Weekly", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True, "tags": True},
-            }
-        return {
+            }, current)
+        return _preserve_cached_model_meta({
             "email": email,
             "tier": tier,
             "priority": priority,
@@ -2612,15 +3214,64 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
             "geminiWeekly": {"name": "Gemini Weekly", "fraction": 1.0, "countdown": "⏱ Auth needed", "unavailable": True},
             "claudeWeekly": {"name": "Claude Weekly", "fraction": 1.0, "countdown": "⏱ Auth needed", "unavailable": True},
             "argonWeekly": {"name": "Gemini 4 Argon Weekly", "fraction": 0.0, "countdown": "⏱ Auth needed", "unavailable": True, "tags": True},
-        }
+        }, current)
 
-    groups = result.get("groups", [])
+    raw_groups = result.get("groups")
+    groups = raw_groups if isinstance(raw_groups, list) else []
     items = parse_quota_items(groups)
+    usage_parsed = parse_usage_group_models(groups)
+    group_desc_sig = str(result.get("groupDescSig") or usage_parsed["groupDescSig"])
 
-    has_argon = items["argon_weekly"]["available"]
+    available_models = (
+        list(result["availableModels"])
+        if isinstance(result.get("availableModels"), list)
+        else list(current.get("availableModels") or [])
+    )
+    if isinstance(result.get("modelCatalog"), list):
+        model_catalog = list(result["modelCatalog"])
+    elif isinstance(current.get("modelCatalog"), list):
+        model_catalog = list(current["modelCatalog"])
+    elif available_models:
+        model_catalog = parse_agy_models_catalog("\n".join(available_models))
+    else:
+        model_catalog = []
+
+    models_fetched_at = str(
+        result.get("modelsFetchedAt")
+        if result.get("modelsFetchedAt") is not None
+        else (current.get("modelsFetchedAt") or "")
+    )
+    group_models = (
+        result["groupModels"]
+        if isinstance(result.get("groupModels"), dict)
+        else _reconcile_group_models(usage_parsed, model_catalog, current)
+    )
+    argon_mode = str(
+        result.get("argonMode")
+        or classify_argon_mode(
+            groups,
+            group_models=group_models,
+            model_catalog=model_catalog,
+            available_models=available_models,
+            cached_entry=current,
+        )
+    )
+
     has_5h = items["gem_5h"]["available"] or items["cld_5h"]["available"]
-    tier = "PRO" if has_5h else "FREE"
-    priority = 50 if has_5h else 20
+    plan_raw = str(result.get("plan_name") or "").upper()
+    tier = "FREE" if ("FREE" in plan_raw or (groups and not has_5h)) else ("PRO" if has_5h else "FREE")
+    priority = 50 if tier == "PRO" else 20
+
+    capabilities = _derive_profile_capabilities(
+        tier=tier,
+        plan_name=plan_raw,
+        has_dedicated_argon=bool(usage_parsed["hasDedicatedArgonGroup"]),
+        argon_mode=argon_mode,
+        group_models=group_models,
+        model_catalog=model_catalog,
+        available_models=available_models,
+    )
+    has_argon = argon_mode != "none"
 
     is_exhausted = (
         items["gem_5h"]["fraction"] == 0 and
@@ -2633,11 +3284,8 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
     gem_5h_reset = items["gem_5h"]["reset_time"]
     gem_w_reset = items["gem_weekly"]["reset_time"]
 
-    # Compute exact local reset time and accurate real-time countdown
-    now_utc = datetime.datetime.now(datetime.timezone.utc)
     gem_5h_ts = 0
     local_5h_reset = ""
-    is_5h_active = False
 
     if gem_5h_reset:
         try:
@@ -2681,7 +3329,55 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
         countdown_w_str += f" ({local_w_reset})"
 
     countdown_cld_w_str = format_countdown(items["cld_weekly"]["reset_time"]) if items["cld_weekly"]["reset_time"] else "⏱ 6d 20h"
-    countdown_arg_str = format_countdown(items["argon_weekly"]["reset_time"]) if items["argon_weekly"]["reset_time"] else ("⏱ 6d 20h" if has_argon else "Unavailable N/A")
+
+    gemini_weekly_bucket = {
+        "name": "Gemini Weekly",
+        "fraction": items["gem_weekly"]["fraction"],
+        "countdown": countdown_w_str,
+        "resetTime": gem_w_reset,
+        "resetTimeLocal": local_w_reset,
+        "unavailable": not items["gem_weekly"]["available"],
+    }
+
+    if argon_mode == "shared_gemini":
+        argon_weekly_bucket = {
+            "name": "Gemini 4 Argon Weekly",
+            "fraction": gemini_weekly_bucket["fraction"],
+            "countdown": gemini_weekly_bucket["countdown"],
+            "resetTime": gemini_weekly_bucket["resetTime"],
+            "resetTimeLocal": gemini_weekly_bucket["resetTimeLocal"],
+            "unavailable": gemini_weekly_bucket["unavailable"],
+            "tags": True,
+            "sharedPool": True,
+            "mode": "shared_gemini",
+        }
+    elif argon_mode == "separate":
+        countdown_arg_str = (
+            format_countdown(items["argon_weekly"]["reset_time"])
+            if items["argon_weekly"]["reset_time"]
+            else ("⏱ 6d 20h" if items["argon_weekly"]["available"] else "Unavailable N/A")
+        )
+        argon_weekly_bucket = {
+            "name": "Gemini 4 Argon Weekly",
+            "fraction": items["argon_weekly"]["fraction"] if items["argon_weekly"]["available"] else 0.0,
+            "countdown": countdown_arg_str,
+            "resetTime": items["argon_weekly"]["reset_time"],
+            "unavailable": not items["argon_weekly"]["available"],
+            "tags": True,
+            "sharedPool": False,
+            "mode": "separate",
+        }
+    else:
+        argon_weekly_bucket = {
+            "name": "Gemini 4 Argon Weekly",
+            "fraction": 0.0,
+            "countdown": "Unavailable N/A",
+            "resetTime": "",
+            "unavailable": True,
+            "tags": True,
+            "sharedPool": False,
+            "mode": "none",
+        }
 
     return {
         "email": email,
@@ -2708,14 +3404,7 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
             "resetTime": items["cld_5h"]["reset_time"],
             "unavailable": not items["cld_5h"]["available"],
         },
-        "geminiWeekly": {
-            "name": "Gemini Weekly",
-            "fraction": items["gem_weekly"]["fraction"],
-            "countdown": countdown_w_str,
-            "resetTime": gem_w_reset,
-            "resetTimeLocal": local_w_reset,
-            "unavailable": not items["gem_weekly"]["available"],
-        },
+        "geminiWeekly": gemini_weekly_bucket,
         "claudeWeekly": {
             "name": "Claude Weekly",
             "fraction": items["cld_weekly"]["fraction"],
@@ -2723,14 +3412,13 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
             "resetTime": items["cld_weekly"]["reset_time"],
             "unavailable": not items["cld_weekly"]["available"],
         },
-        "argonWeekly": {
-            "name": "Gemini 4 Argon Weekly",
-            "fraction": items["argon_weekly"]["fraction"] if items["argon_weekly"]["available"] else 0.0,
-            "countdown": countdown_arg_str,
-            "resetTime": items["argon_weekly"]["reset_time"],
-            "unavailable": not has_argon,
-            "tags": True,
-        },
+        "argonWeekly": argon_weekly_bucket,
+        "availableModels": available_models,
+        "modelCatalog": model_catalog,
+        "groupModels": group_models,
+        "capabilities": capabilities,
+        "modelsFetchedAt": models_fetched_at,
+        "groupDescSig": group_desc_sig,
     }
 
 
@@ -2852,8 +3540,7 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
         }
 
     t0 = time.time()
-    cached_profiles = load_cached_profiles()
-    cached_p = cached_profiles.get(profile, {})
+    cached_p = _peek_cached_profile(profile)
 
     # Always probe live quota before deciding which buckets need activation
     live_q = fetch_quota_for_profile(profile)
@@ -2904,7 +3591,26 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
         q_items = parse_quota_items(live_q["groups"])
         gem_bucket = q_items["gem_5h"]
         cld_bucket = q_items["cld_5h"]
-        arg_bucket = q_items["argon_weekly"]
+        live_argon_mode = str(
+            live_q.get("argonMode")
+            or classify_argon_mode(
+                live_q.get("groups"),
+                group_models=live_q.get("groupModels"),
+                model_catalog=live_q.get("modelCatalog"),
+                available_models=live_q.get("availableModels"),
+                cached_entry=cached_p,
+            )
+        )
+        if live_argon_mode == "separate":
+            arg_bucket = q_items["argon_weekly"]
+        else:
+            arg_bucket = {
+                "fraction": 0.0,
+                "reset_time": "",
+                "description": "",
+                "available": False,
+            }
+        effective_argon_mode = live_argon_mode
     else:
         gem_bucket = _bucket_from_cached_entry(
             cached_p.get("gemini5h"), default_available=(tier == "PRO" or not tier)
@@ -2912,12 +3618,18 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
         cld_bucket = _bucket_from_cached_entry(
             cached_p.get("claude5h"), default_available=(tier == "PRO" or not tier)
         )
+        cached_separate_argon = _is_separate_argon_cached(cached_p)
         arg_bucket = _bucket_from_cached_entry(
             cached_p.get("argonWeekly"),
-            default_available=bool(cached_p.get("hasArgon")),
+            default_available=cached_separate_argon,
         )
-        if not cached_p.get("hasArgon"):
+        if not cached_separate_argon:
             arg_bucket["available"] = False
+        effective_argon_mode = (
+            "separate"
+            if cached_separate_argon
+            else str((cached_p.get("capabilities") or {}).get("argonMode") or "none")
+        )
 
     gemini_available = bool(gem_bucket.get("available"))
     claude_available = bool(cld_bucket.get("available"))
@@ -2958,6 +3670,8 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
                 active_parts.append("Argon < 7h (bỏ qua)")
             else:
                 active_parts.append("Argon đã kích hoạt")
+        elif effective_argon_mode == "shared_gemini":
+            active_parts.append("Argon (Shared Gemini Pool)")
         else:
             active_parts.append("Không hỗ trợ Argon")
 
@@ -2992,7 +3706,12 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
     act_names: list[str] = []
 
     with tempfile.TemporaryDirectory(prefix=f"agy_ping_{profile}_") as sandbox_cwd:
-        available_models = _discover_profile_models(env, sandbox_cwd)
+        pre_discovered = live_q.get("availableModels")
+        available_models = (
+            list(pre_discovered)
+            if isinstance(pre_discovered, list) and pre_discovered
+            else _discover_profile_models(env, sandbox_cwd)
+        )
         bucket_plan = []
         if should_ping_gemini:
             gem_model = select_model_from_candidates(
@@ -3044,11 +3763,58 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
     total_dur = int((time.time() - t0) * 1000)
     jitter_applied = round(jitter_applied, 2)
 
+    seed_model_meta: dict = {}
+    live_fetched_at = str(live_q.get("modelsFetchedAt") or "").strip()
+    if isinstance(live_q.get("availableModels"), list) and (
+        live_q["availableModels"] or live_fetched_at
+    ):
+        seed_model_meta["availableModels"] = list(live_q["availableModels"])
+    elif available_models:
+        seed_model_meta["availableModels"] = list(available_models)
+
+    if isinstance(live_q.get("modelCatalog"), list) and (
+        live_q["modelCatalog"] or live_fetched_at
+    ):
+        seed_model_meta["modelCatalog"] = list(live_q["modelCatalog"])
+    elif seed_model_meta.get("availableModels"):
+        seed_model_meta["modelCatalog"] = parse_agy_models_catalog(
+            "\n".join(seed_model_meta["availableModels"])
+        )
+
+    if live_fetched_at:
+        seed_model_meta["modelsFetchedAt"] = live_fetched_at
+    elif seed_model_meta.get("availableModels"):
+        seed_model_meta["modelsFetchedAt"] = datetime.datetime.now(
+            datetime.timezone.utc
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    live_sig = str(live_q.get("groupDescSig") or "").strip()
+    if not live_sig and isinstance(live_q.get("groups"), list) and live_q["groups"]:
+        live_sig = str(parse_usage_group_models(live_q["groups"])["groupDescSig"] or "")
+    if live_sig:
+        seed_model_meta["groupDescSig"] = live_sig
+
+    if isinstance(live_q.get("groupModels"), dict):
+        seed_model_meta["groupModels"] = live_q["groupModels"]
+    if isinstance(live_q.get("capabilities"), dict):
+        seed_model_meta["capabilities"] = live_q["capabilities"]
+
     # Post-ping quota refresh to update dashboard immediately
-    post_q = fetch_quota_for_profile(profile)
+    post_q = fetch_quota_for_profile(
+        profile, batch_mode=True, cached_override=seed_model_meta or None
+    )
     post_quota_formatted = None
     if post_q.get("success"):
-        post_quota_formatted = format_profile_for_dashboard(profile, post_q)
+        post_q_merged = dict(post_q)
+        for meta_key in (
+            "availableModels",
+            "modelCatalog",
+            "modelsFetchedAt",
+            "groupDescSig",
+        ):
+            if meta_key in seed_model_meta and not post_q_merged.get(meta_key):
+                post_q_merged[meta_key] = seed_model_meta[meta_key]
+        post_quota_formatted = format_profile_for_dashboard(profile, post_q_merged)
         update_cached_profile(profile, post_quota_formatted)
 
     jitter_str = f", Jitter {jitter_applied}s" if jitter_applied > 0 else ""
@@ -3174,7 +3940,7 @@ def scan_all_profiles_parallel(profiles: list) -> list:
     with ThreadPoolExecutor(max_workers=3) as executor:
         future_to_profile = {}
         for p in profiles:
-            future_to_profile[executor.submit(fetch_quota_for_profile, p)] = p
+            future_to_profile[executor.submit(fetch_quota_for_profile, p, False, True)] = p
             time.sleep(0.2)
         for future in as_completed(future_to_profile):
             try:
@@ -4098,39 +4864,30 @@ def main():
         if not os.path.isdir(ag_home):
             print(f"{RED}❌ Profile home not found: {ag_home}{RESET}\n")
             return
-        if not check_profile_auth_token(sub_target):
+        t0 = time.time()
+        post_q = fetch_quota_for_profile(sub_target)
+        dur = int((time.time() - t0) * 1000)
+        if post_q.get("status") == "AUTH NEEDED":
             print(f"{AMBER}⚠️ Profile '{sub_target}' chưa đăng nhập CLI. Vui lòng chạy '{sub_target}-cli' trong Terminal để đăng nhập trước.{RESET}\n")
             return
-        # Unlock Keychain if exists
-        profile_kc = f"{ag_home}/Library/Keychains/{sub_target}.keychain-db"
-        if os.path.exists(profile_kc):
-            subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, profile_kc], capture_output=True)
-        env = os.environ.copy()
-        env.update({"HOME": ag_home, "AGY_PROFILE": sub_target, "AGY_CLI_MODE": "1", "TMPDIR": f"/tmp/ag_{sub_target}", "BROWSER": "true"})
-        t0 = time.time()
-        try:
-            res = subprocess.run([AGY_BIN, "--output-format", "json", "-p", "/usage"], env=env, capture_output=True, text=True, timeout=25)
-            dur = int((time.time() - t0) * 1000)
-            out_all = (res.stdout or "") + " " + (res.stderr or "")
-
-            if check_profile_appeal_status(sub_target, out_all):
-                print(f"\n{RED}🚫 LỖI: Tài khoản '{sub_target}' đã bị VÔ HIỆU HÓA do vi phạm Điều khoản dịch vụ!{RESET}")
-                print(f"  {AMBER}Thông báo từ Google: This service has been disabled in this account for violation of Terms of Service.{RESET}")
-                print(f"  {CYAN}👉 Vui lòng gửi đơn kháng nghị (Submit an appeal) tới Google để tiếp tục sử dụng:{RESET}")
-                print(f"     {WHITE}https://docs.google.com/forms/d/e/1FAIpQLScOJWibQ_-hYuVv63kJTgEqlgAaOwRLGFTbXm-QY1gz8U0CGA/viewform{RESET}\n")
-                return
-
-            if res.returncode == 0:
-                post_q = fetch_quota_for_profile(sub_target)
-                if post_q.get("success"):
-                    format_profile_for_dashboard(sub_target, post_q)
-                print(f"{GREEN}✅ Refreshed profile '{sub_target}' in {dur}ms! Session quota synchronized.{RESET}\n")
+        if post_q.get("is_appeal") or post_q.get("status") == "DISABLED":
+            formatted_dis = format_profile_for_dashboard(sub_target, post_q)
+            update_cached_profile(sub_target, formatted_dis)
+            print(f"\n{RED}🚫 LỖI: Tài khoản '{sub_target}' đã bị VÔ HIỆU HÓA do vi phạm Điều khoản dịch vụ!{RESET}")
+            print(f"  {AMBER}Thông báo từ Google: This service has been disabled in this account for violation of Terms of Service.{RESET}")
+            print(f"  {CYAN}👉 Vui lòng gửi đơn kháng nghị (Submit an appeal) tới Google để tiếp tục sử dụng:{RESET}")
+            print(f"     {WHITE}https://docs.google.com/forms/d/e/1FAIpQLScOJWibQ_-hYuVv63kJTgEqlgAaOwRLGFTbXm-QY1gz8U0CGA/viewform{RESET}\n")
+            return
+        if post_q.get("success"):
+            formatted = format_profile_for_dashboard(sub_target, post_q)
+            update_cached_profile(sub_target, formatted)
+            print(f"{GREEN}✅ Refreshed profile '{sub_target}' in {dur}ms! Session quota synchronized.{RESET}\n")
+        else:
+            err_msg = post_q.get("error", "Refresh failed")
+            if "timed out" in str(err_msg).lower():
+                print(f"{RED}❌ Refresh timed out (45s){RESET}\n")
             else:
-                print(f"{RED}❌ Refresh failed ({dur}ms): {res.stderr.strip()}{RESET}\n")
-        except subprocess.TimeoutExpired:
-            print(f"{RED}❌ Refresh timed out (25s){RESET}\n")
-        except Exception as e:
-            print(f"{RED}❌ Error: {str(e)}{RESET}\n")
+                print(f"{RED}❌ Refresh failed ({dur}ms): {err_msg}{RESET}\n")
         return
 
     if target == "all":
@@ -4165,7 +4922,7 @@ def main():
         with ThreadPoolExecutor(max_workers=3) as executor:
             future_to_profile = {}
             for p in profiles:
-                future_to_profile[executor.submit(fetch_quota_for_profile, p)] = p
+                future_to_profile[executor.submit(fetch_quota_for_profile, p, False, True)] = p
                 time.sleep(0.2)
             for future in as_completed(future_to_profile):
                 res = future.result()
@@ -4173,6 +4930,9 @@ def main():
                 print(f"  • {res['profile']}: {'DONE' if res.get('success') else 'FAILED'}")
 
         results.sort(key=lambda x: profiles.index(x["profile"]) if x["profile"] in profiles else 999)
+        for r in results:
+            formatted = format_profile_for_dashboard(r["profile"], r)
+            update_cached_profile(r["profile"], formatted)
 
         if filter_active:
             results = [r for r in results if r.get("success")]

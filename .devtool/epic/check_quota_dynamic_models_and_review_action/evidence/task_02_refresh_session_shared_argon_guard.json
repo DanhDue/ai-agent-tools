@@ -1,0 +1,307 @@
+{
+  "schema": 1,
+  "task": "task_02_refresh_session_shared_argon_guard",
+  "runs": {
+    "red": {
+      "head": "394783dec2c196ce67983222f33223973a558690",
+      "tree": "458b7cef53dc3ba09b26f1d64db7f41903f3f9da",
+      "patch_id": "b253b6d6a635d137de25484347f01fd97c5a5b6c",
+      "started": "2026-11-17T23:14:02Z",
+      "finished": "2026-11-17T23:14:03Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_cqra_refresh_session_argon.py::test_cqra_st_02_suppresses_argon_ping_for_shared_gemini",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T23:14:02Z",
+          "finished": "2026-11-17T23:14:02Z",
+          "output_tail": [
+            "FF                                                                       [100%]",
+            "=================================== FAILURES ===================================",
+            "_ test_cqra_st_02_suppresses_argon_ping_for_shared_gemini[ultra_shared_active-pro_sep_inactive_argon-expected_ultra_pinged0-1] _",
+            "tests/test_cqra_refresh_session_argon.py:395: in test_cqra_st_02_suppresses_argon_ping_for_shared_gemini",
+            "    assert ultra_argon_models == []",
+            "E   AssertionError: assert ['gemini-4-argon-low'] == []",
+            "E     ",
+            "E     Left contains one more item: 'gemini-4-argon-low'",
+            "E     Use -v to get more diff",
+            "_ test_cqra_st_02_suppresses_argon_ping_for_shared_gemini[ultra_shared_inactive_gem-pro_sep_active_argon-expected_ultra_pinged1-0] _",
+            "tests/test_cqra_refresh_session_argon.py:395: in test_cqra_st_02_suppresses_argon_ping_for_shared_gemini",
+            "    assert ultra_argon_models == []",
+            "E   AssertionError: assert ['gemini-4-argon-low'] == []",
+            "E     ",
+            "E     Left contains one more item: 'gemini-4-argon-low'",
+            "E     Use -v to get more diff",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_cqra_refresh_session_argon.py::test_cqra_st_02_suppresses_argon_ping_for_shared_gemini[ultra_shared_active-pro_sep_inactive_argon-expected_ultra_pinged0-1]",
+            "FAILED tests/test_cqra_refresh_session_argon.py::test_cqra_st_02_suppresses_argon_ping_for_shared_gemini[ultra_shared_inactive_gem-pro_sep_active_argon-expected_ultra_pinged1-0]",
+            "2 failed in 0.04s"
+          ],
+          "output_sha256": "20772185ea2d9acf79d845a728df8338c9c6f8dc2f6684a5a5b80b3114315e83"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "394783dec2c196ce67983222f33223973a558690",
+      "tree": "3b245d1078e044ac2913d61b3bc40ec533da7c8e",
+      "patch_id": "4bfc59bfa033fa5563e2b1b7b871aa7fc7dd0909",
+      "started": "2026-11-17T23:21:50Z",
+      "finished": "2026-11-17T23:21:51Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_cqra_refresh_session_argon.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T23:21:50Z",
+          "finished": "2026-11-17T23:21:50Z",
+          "output_tail": [
+            ".......................                                                  [100%]",
+            "23 passed in 0.05s"
+          ],
+          "output_sha256": "8efc32be4600f610c83709c309a90e8a1695e6e506345e6ff1c7d78e3792dccc"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/refresh-session/resources/scripts/test_refresh_session.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T23:21:50Z",
+          "finished": "2026-11-17T23:21:51Z",
+          "output_tail": [
+            "  • Claude: PASS (10.0ms, 1 tokens)",
+            "Session refresh complete. 5-hour rolling quota window is active.",
+            "Waiting 30s delay buffer after reset minute...",
+            "Pinging Claude in isolated environment...",
+            "Session Refresh Summary:",
+            "  • Claude: PASS (10.0ms, 1 tokens)",
+            "Session refresh complete. 5-hour rolling quota window is active.",
+            "Pinging Claude in isolated environment...",
+            "Pinging Codex in isolated environment...",
+            "Pinging danhdue in isolated environment...",
+            "Pinging hau in isolated environment...",
+            "Session Refresh Summary:",
+            "  • Claude: PASS (10.0ms, 1 tokens)",
+            "  • Claude: PASS (10.0ms, 1 tokens)",
+            "  • danhdue: PASS (10.0ms, 0 tokens)",
+            "  • danhdue: PASS (10.0ms, 0 tokens)",
+            "Session refresh complete. 5-hour rolling quota window is active.",
+            "Pinging danhdue in isolated environment...",
+            "Session Refresh Summary:",
+            "  • danhdue: PASS (110.0ms, 0 tokens)",
+            "Session refresh complete. 5-hour rolling quota window is active.",
+            "Pinging Claude in isolated environment...",
+            "Session Refresh Summary:",
+            "  • Claude: SKIPPED (Session active (3h remaining))",
+            "Session refresh complete. 5-hour rolling quota window is active."
+          ],
+          "output_sha256": "ae8602914d0aee81fc4c305befd81313b9e311f1cc664916ffbfaaceb06edeb4"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_cqra_refresh_session_argon.py && ruff check --select E9,F63,F7,F821,F841,B007,B904 skills/refresh-session/resources/scripts/refresh_session.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T23:21:51Z",
+          "finished": "2026-11-17T23:21:51Z",
+          "output_tail": [
+            "All checks passed!",
+            "All checks passed!"
+          ],
+          "output_sha256": "d63ab3df51a50c66f9c57056288c7d4faf9dce413552d89215714320ac2b748e"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py && mypy tests/test_cqra_refresh_session_argon.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T23:21:51Z",
+          "finished": "2026-11-17T23:21:51Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files",
+            "Success: no issues found in 1 source file"
+          ],
+          "output_sha256": "3093aa6c998bfbee60b0ac0ac5a93a0b8b8c32442e01bb5f1a07d160a0edb631"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/cqra_task_02.xml tests/test_cqra_refresh_session_argon.py tests/test_agy_quota.py",
+          "expect": "exit 0; results build/test-results/cqra_task_02.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-17T23:21:51Z",
+          "finished": "2026-11-17T23:21:51Z",
+          "output_tail": [
+            "......................................................                   [100%]",
+            "54 passed in 0.10s"
+          ],
+          "output_sha256": "dabaa1124d36bb2e98f498edf3fdebedc1a55c9f6f47ecbeb4b0e0e32125fde6",
+          "results": {
+            "path": "build/test-results/cqra_task_02.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 23,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_cqra_st_02_extract_usage_buckets_argon_mode[ultra_shared_active-extra_models0-shared_gemini-False-True]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_st_02_extract_usage_buckets_argon_mode[ultra_shared_inactive_gem-extra_models1-shared_gemini-False-False]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_st_02_extract_usage_buckets_argon_mode[pro_sep_inactive_argon-extra_models2-separate-True-True]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_st_02_extract_usage_buckets_argon_mode[no_argon-extra_models3-shared_gemini-False-True]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_st_02_extract_usage_buckets_argon_mode[no_argon-extra_models4-none-False-True]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_st_02_suppresses_argon_ping_for_shared_gemini[ultra_shared_active-pro_sep_inactive_argon-expected_ultra_pinged0-1]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_st_02_suppresses_argon_ping_for_shared_gemini[ultra_shared_inactive_gem-pro_sep_active_argon-expected_ultra_pinged1-0]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_check_profile_has_argon_cache_modes[shared_cached-False]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_check_profile_has_argon_cache_modes[legacy_shared-False]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_check_profile_has_argon_cache_modes[none_cached-False]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_check_profile_has_argon_cache_modes[corrupt_probe-False]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_check_profile_has_argon_cache_modes[separate_cached-True]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_check_profile_has_argon_cache_modes[legacy_separate-True]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_corrupted_probe_and_shared_cache_fallback_zero_argon_pings[shared_cached-mock_probe_return0-False-0]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_corrupted_probe_and_shared_cache_fallback_zero_argon_pings[shared_cached-mock_probe_return1-False-0]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_corrupted_probe_and_shared_cache_fallback_zero_argon_pings[corrupt_probe-mock_probe_return2-False-0]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_corrupted_probe_and_shared_cache_fallback_zero_argon_pings[corrupt_probe-mock_probe_return3-False-0]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_corrupted_probe_and_shared_cache_fallback_zero_argon_pings[corrupt_probe-None-True-0]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_corrupted_probe_and_shared_cache_fallback_zero_argon_pings[separate_cached-mock_probe_return5-False-1]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_probe_profile_usage_and_models_malformed_cli_output[{}-]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_probe_profile_usage_and_models_malformed_cli_output[null-]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_probe_profile_usage_and_models_malformed_cli_output[{\"command\": null}-# header\\n---]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_probe_profile_usage_and_models_malformed_cli_output[{truncated-json-]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/refresh-session/resources/scripts/refresh_session.py",
+            "tests/test_cqra_refresh_session_argon.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

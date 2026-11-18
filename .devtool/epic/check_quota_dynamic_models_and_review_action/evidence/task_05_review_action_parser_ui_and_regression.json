@@ -1,0 +1,483 @@
+{
+  "schema": 1,
+  "task": "task_05_review_action_parser_ui_and_regression",
+  "runs": {
+    "red": {
+      "head": "b63eab72d3fcf96108ad8eb4b91ee31ed991fc15",
+      "tree": "6589dd54bd58cf02c27c6ad91912c8c64b8d1dfa",
+      "patch_id": "ce7d90efa84a95f1c08d1b807e5de5bddd61d880",
+      "started": "2026-11-18T00:18:06Z",
+      "finished": "2026-11-18T00:18:07Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_cqra_review_action_e2e.py::test_cqra_hp_05_cross_model_proposed_action_cdp_e2e",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T00:18:06Z",
+          "finished": "2026-11-18T00:18:07Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "_____________ test_cqra_hp_05_cross_model_proposed_action_cdp_e2e ______________",
+            "tests/test_cqra_review_action_e2e.py:445: in test_cqra_hp_05_cross_model_proposed_action_cdp_e2e",
+            "    assert len(r1_findings) == 1",
+            "E   AssertionError: assert 2 == 1",
+            "E    +  where 2 = len([{'id': '---', 'severity': '---', 'location': '---', 'problem': '---', ...}, {'id': '1', 'severity': 'Important', 'location': 'src/ingest.py:42', 'problem': 'Precedence drift across ingest sources', ...}])",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_cqra_review_action_e2e.py::test_cqra_hp_05_cross_model_proposed_action_cdp_e2e",
+            "1 failed in 0.55s"
+          ],
+          "output_sha256": "84309ee3798a5b1da41d0262e7ae64b604f9c5d335bec203ccc231eee4af8c0e"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "b63eab72d3fcf96108ad8eb4b91ee31ed991fc15",
+      "tree": "7acbdb54b6a53f941a0b5fedfb89d22eafa28988",
+      "patch_id": "2f84d2146363eef20fa9676b6ea9f0649c357574",
+      "started": "2026-11-18T00:26:14Z",
+      "finished": "2026-11-18T00:26:37Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_cqra_review_action_e2e.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T00:26:14Z",
+          "finished": "2026-11-18T00:26:15Z",
+          "output_tail": [
+            "............                                                             [100%]",
+            "12 passed in 0.85s"
+          ],
+          "output_sha256": "6036a0ada43866405445fdb43e67706fde9ba6d9b4204a7f386aa6abd718912e"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_check_tasks_server.py tests/test_cehm_history_aggregator.py tests/test_cehm_dashboard_modal_ui.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T00:26:15Z",
+          "finished": "2026-11-18T00:26:18Z",
+          "output_tail": [
+            "..............................................                           [100%]",
+            "46 passed in 3.78s"
+          ],
+          "output_sha256": "623148d9b25e356e91c41d620a87bac4e94d27cffd421036ab51ae13103b7c6d"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_cqra_review_action_e2e.py && ruff check --select E9,F63,F7,F821,F841,B007,B904 skills/check-tasks/resources/scripts/tasks_server.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T00:26:18Z",
+          "finished": "2026-11-18T00:26:19Z",
+          "output_tail": [
+            "All checks passed!",
+            "All checks passed!"
+          ],
+          "output_sha256": "d63ab3df51a50c66f9c57056288c7d4faf9dce413552d89215714320ac2b748e"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py && mypy skills/check-tasks/resources/scripts/tasks_server.py tests/test_cqra_review_action_e2e.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T00:26:19Z",
+          "finished": "2026-11-18T00:26:19Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files",
+            "Success: no issues found in 2 source files"
+          ],
+          "output_sha256": "e309622c6eed5c8baa55d292d9ad8e4a4660ea1f16a998fd4bacec99d3c8b78c"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/cqra-integration.xml tests/test_cqra_quota_discovery.py tests/test_cqra_refresh_session_argon.py tests/test_cqra_external_review_proposed.py tests/test_cqra_quota_ui.py tests/test_cqra_review_action_e2e.py tests/test_agy_quota.py tests/test_check_tasks_server.py tests/test_cehm_history_aggregator.py tests/test_cehm_dashboard_modal_ui.py tests/test_rsdh_quota_modal_stack.py tests/test_claude_quota.py",
+          "expect": "exit 0; results build/test-results/cqra-integration.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T00:26:19Z",
+          "finished": "2026-11-18T00:26:37Z",
+          "output_tail": [
+            "........................................................................ [ 42%]",
+            "........................................................................ [ 84%]",
+            "...........................                                        [100%]",
+            "171 passed, 6 subtests passed in 18.18s"
+          ],
+          "output_sha256": "3b0bf8040f9ae46fed19b4aa7262b57d33cd22043c2e4895f25ae3a8b09ad65c",
+          "results": {
+            "path": "build/test-results/cqra-integration.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 64,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_cqra_hp_01_ultra_shared_pool_discovery_and_mirror",
+                  "classname": "tests.test_cqra_quota_discovery",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_hp_02_pro_separate_argon_merges_catalog_and_preserves_labels[-PRO]",
+                  "classname": "tests.test_cqra_quota_discovery",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_hp_02_pro_separate_argon_merges_catalog_and_preserves_labels[Google AI Pro-PRO]",
+                  "classname": "tests.test_cqra_quota_discovery",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_hp_02_pro_separate_argon_merges_catalog_and_preserves_labels[Google AI Ultra-ULTRA]",
+                  "classname": "tests.test_cqra_quota_discovery",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_01_auth_needed_and_disabled_never_invoke_agy_models",
+                  "classname": "tests.test_cqra_quota_discovery",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_st_01_hybrid_cache_transitions_and_single_profile_refresh",
+                  "classname": "tests.test_cqra_quota_discovery",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ar_01_strict_per_profile_isolation_ping_suppression_and_cli_views",
+                  "classname": "tests.test_cqra_quota_discovery",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_01_malformed_descriptions_and_models_timeout_degrade_softly[cached_state0-none-expected_gemini_models0]",
+                  "classname": "tests.test_cqra_quota_discovery",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_01_malformed_descriptions_and_models_timeout_degrade_softly[cached_state1-shared_gemini-expected_gemini_models1]",
+                  "classname": "tests.test_cqra_quota_discovery",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_st_02_extract_usage_buckets_argon_mode[ultra_shared_active-extra_models0-shared_gemini-False-True]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_st_02_extract_usage_buckets_argon_mode[ultra_shared_inactive_gem-extra_models1-shared_gemini-False-False]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_st_02_extract_usage_buckets_argon_mode[pro_sep_inactive_argon-extra_models2-separate-True-True]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_st_02_extract_usage_buckets_argon_mode[no_argon-extra_models3-shared_gemini-False-True]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_st_02_extract_usage_buckets_argon_mode[no_argon-extra_models4-none-False-True]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_st_02_suppresses_argon_ping_for_shared_gemini[ultra_shared_active-pro_sep_inactive_argon-expected_ultra_pinged0-1]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_st_02_suppresses_argon_ping_for_shared_gemini[ultra_shared_inactive_gem-pro_sep_active_argon-expected_ultra_pinged1-0]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_check_profile_has_argon_cache_modes[shared_cached-False]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_check_profile_has_argon_cache_modes[legacy_shared-False]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_check_profile_has_argon_cache_modes[none_cached-False]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_check_profile_has_argon_cache_modes[corrupt_probe-False]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_check_profile_has_argon_cache_modes[separate_cached-True]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_check_profile_has_argon_cache_modes[legacy_separate-True]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_corrupted_probe_and_shared_cache_fallback_zero_argon_pings[shared_cached-mock_probe_return0-False-0]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_corrupted_probe_and_shared_cache_fallback_zero_argon_pings[shared_cached-mock_probe_return1-False-0]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_corrupted_probe_and_shared_cache_fallback_zero_argon_pings[corrupt_probe-mock_probe_return2-False-0]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_corrupted_probe_and_shared_cache_fallback_zero_argon_pings[corrupt_probe-mock_probe_return3-False-0]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_corrupted_probe_and_shared_cache_fallback_zero_argon_pings[corrupt_probe-None-True-0]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_corrupted_probe_and_shared_cache_fallback_zero_argon_pings[separate_cached-mock_probe_return5-False-1]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_probe_profile_usage_and_models_malformed_cli_output[{}-]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_probe_profile_usage_and_models_malformed_cli_output[null-]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_probe_profile_usage_and_models_malformed_cli_output[{\"command\": null}-# header\\n---]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_02_probe_profile_usage_and_models_malformed_cli_output[{truncated-json-]",
+                  "classname": "tests.test_cqra_refresh_session_argon",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_hp_04_prompts_and_triage_prefill",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_triage_question_mark_fallback",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_extract_proposed_action_variants[Stale cache key omits round id. Proposed: include round_num in cache key-Stale cache key omits round id-include round_num in cache key]",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_extract_proposed_action_variants[Repeated stat calls; Suggestion: cache mtime per round file-Repeated stat calls-cache mtime per round file]",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_extract_proposed_action_variants[Null pointer risk \\u2014 Fix: guard None before strip-Null pointer risk-guard None before strip]",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_extract_proposed_action_variants[Missing timeout. proposed action: pass timeout=30-Missing timeout-pass timeout=30]",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_extract_proposed_action_variants[Thi\\u1ebfu ki\\u1ec3m tra r\\u1ed7ng. \\u0110\\u1ec1 xu\\u1ea5t: th\\xeam \\u0111i\\u1ec1u ki\\u1ec7n if not items-Thi\\u1ebfu ki\\u1ec3m tra r\\u1ed7ng-th\\xeam \\u0111i\\u1ec1u ki\\u1ec7n if not items]",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_extract_proposed_action_variants[Docstring mentions `Proposed: example` inline without real suffix-Docstring mentions `Proposed: example` inline without real suffix-]",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_extract_proposed_action_variants[Regex fails on `Fix: inner` token. Proposed: mask backtick spans first-Regex fails on `Fix: inner` token-mask backtick spans first]",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_extract_proposed_action_variants[Old note. Fix: first draft; Proposed: final surgical edit-Old note. Fix: first draft-final surgical edit]",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_extract_proposed_action_variants[Flag edge case: null id; Unproposed: keep as-is-Flag edge case: null id; Unproposed: keep as-is-]",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_04_extract_proposed_action_variants[Dangling marker. Proposed:   -Dangling marker. Proposed:-]",
+                  "classname": "tests.test_cqra_external_review_proposed",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_hp_03_quota_dashboard_cdp_dynamic_badges_and_shared_pool",
+                  "classname": "tests.test_cqra_quota_ui",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_hp_03_integration",
+                  "classname": "tests.test_cqra_quota_ui.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_02_legacy_payload_and_none_argon_safe_dom[legacy_cached-expected_present0-expected_absent0-60.0]",
+                  "classname": "tests.test_cqra_quota_ui",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_02_legacy_payload_and_none_argon_safe_dom[free_acct-expected_present1-expected_absent1-40.0]",
+                  "classname": "tests.test_cqra_quota_ui",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_02_legacy_payload_and_none_argon_safe_dom[xss_probe-expected_present2-expected_absent2-45.0]",
+                  "classname": "tests.test_cqra_quota_ui",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ar_02_quota_score_excludes_argon_and_preserves_filter[0.8-True-shared_gemini-True-False-True]",
+                  "classname": "tests.test_cqra_quota_ui",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ar_02_quota_score_excludes_argon_and_preserves_filter[0.2-False-separate-True-False-True]",
+                  "classname": "tests.test_cqra_quota_ui",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ar_02_quota_score_excludes_argon_and_preserves_filter[0.0-False-none-False-True-False]",
+                  "classname": "tests.test_cqra_quota_ui",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_hp_05_cross_model_proposed_action_cdp_e2e",
+                  "classname": "tests.test_cqra_review_action_e2e",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_03_four_row_matrix_and_multiline_fix_block",
+                  "classname": "tests.test_cqra_review_action_e2e",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_03_parametrized_prefixes_backticks_and_fallbacks[Prompt omits `. Proposed: <edit>` and Unproposed: label. Fix: append suffix-None--Prompt omits `. Proposed: <edit>` and Unproposed: label-append suffix]",
+                  "classname": "tests.test_cqra_review_action_e2e",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_03_parametrized_prefixes_backticks_and_fallbacks[Thi\\u1ebfu ki\\u1ec3m tra \\u0111\\u1ea7u v\\xe0o \\u2014 \\u0110\\u1ec1 xu\\u1ea5t: tr\\u1ea3 v\\u1ec1 s\\u1edbm khi r\\u1ed7ng-None--Thi\\u1ebfu ki\\u1ec3m tra \\u0111\\u1ea7u v\\xe0o-tr\\u1ea3 v\\u1ec1 s\\u1edbm khi r\\u1ed7ng]",
+                  "classname": "tests.test_cqra_review_action_e2e",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_03_parametrized_prefixes_backticks_and_fallbacks[Slow batch query. Proposed action: batch keys per chunk-None--Slow batch query-batch keys per chunk]",
+                  "classname": "tests.test_cqra_review_action_e2e",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_03_parametrized_prefixes_backticks_and_fallbacks[Missing fallback parser-fix_plan.md-fix_plan_body3-Missing fallback parser-Parse numbered bold blocks cleanly\\n- Preserve continuation bullets until next item.]",
+                  "classname": "tests.test_cqra_review_action_e2e",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_03_parametrized_prefixes_backticks_and_fallbacks[Colon outside bold marker-fix_plan_round1.md-fix_plan_body4-Colon outside bold marker-Normalize bold colon variants]",
+                  "classname": "tests.test_cqra_review_action_e2e",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_03_parametrized_prefixes_backticks_and_fallbacks[Legacy matrix row only-fix_plan_round1.md-fix_plan_body5-Legacy matrix row only-Guard empty slice before indexing]",
+                  "classname": "tests.test_cqra_review_action_e2e",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_ec_03_verify_sh_registers_all_five_cqra_suites",
+                  "classname": "tests.test_cqra_review_action_e2e",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_st_03_fix_plan_watch_paths_cache_invalidation",
+                  "classname": "tests.test_cqra_review_action_e2e",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_03_malformed_fix_plan_resilience[broken_fp]",
+                  "classname": "tests.test_cqra_review_action_e2e",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cqra_fr_03_malformed_fix_plan_resilience[broken_pipes]",
+                  "classname": "tests.test_cqra_review_action_e2e",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/verify.sh",
+            "skills/check-tasks/resources/dashboard/tasks_dashboard.html",
+            "skills/check-tasks/resources/scripts/tasks_server.py",
+            "tests/test_cqra_review_action_e2e.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}
