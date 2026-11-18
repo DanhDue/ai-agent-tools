@@ -1,13 +1,13 @@
 ---
 id: "task_05_review_action_parser_ui_and_regression"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "check_quota_dynamic_models_and_review_action"
 dueDate: null
 created: "2026-11-18T03:11:00Z"
-modified: "2026-11-18T03:11:00Z"
-completedAt: null
+modified: "2026-11-18T00:32:46Z"
+completedAt: "2026-11-18T00:32:46Z"
 labels: ["check-tasks", "http-api", "ui", "integration"]
 order: "a5"
 review_tier: "full"

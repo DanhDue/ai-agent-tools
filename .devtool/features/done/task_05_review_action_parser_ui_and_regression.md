@@ -1,13 +1,13 @@
 ---
 id: "task_05_review_action_parser_ui_and_regression"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "check_quota_dynamic_models_and_review_action"
 dueDate: null
 created: "2026-11-18T03:11:00Z"
-modified: "2026-11-18T03:11:00Z"
-completedAt: null
+modified: "2026-11-18T00:32:46Z"
+completedAt: "2026-11-18T00:32:46Z"
 labels: ["check-tasks", "http-api", "ui", "integration"]
 order: "a5"
 review_tier: "full"
@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 5: `tasks_server.py` Multi-Strategy `Proposed Action` Extraction, `fix_plan` Fallback, Dashboard UI & Full Regression
 
-Epic: [check_quota_dynamic_models_and_review_action](../epic/check_quota_dynamic_models_and_review_action/check_quota_dynamic_models_and_review_action.en.md)
+Epic: [check_quota_dynamic_models_and_review_action](../../epic/check_quota_dynamic_models_and_review_action/check_quota_dynamic_models_and_review_action.en.md)
 
 ## Requirement Analysis
 
@@ -126,11 +126,11 @@ Then both HTTP endpoints respond with status `200`, valid JSON `reviews` metadat
 
 ## Dependencies & Blockers
 
-Blocked by [Task 1](../epic/check_quota_dynamic_models_and_review_action/task_01_check_quota_dynamic_models_and_argon_mode.md), [Task 2](../epic/check_quota_dynamic_models_and_review_action/task_02_refresh_session_shared_argon_guard.md), [Task 3](../epic/check_quota_dynamic_models_and_review_action/task_03_review_prompts_and_triage_prefill.md), [Task 4](../epic/check_quota_dynamic_models_and_review_action/task_04_quota_dashboard_dynamic_ui.md).
+Blocked by [Task 1](../../epic/check_quota_dynamic_models_and_review_action/task_01_check_quota_dynamic_models_and_argon_mode.md), [Task 2](../../epic/check_quota_dynamic_models_and_review_action/task_02_refresh_session_shared_argon_guard.md), [Task 3](../../epic/check_quota_dynamic_models_and_review_action/task_03_review_prompts_and_triage_prefill.md), [Task 4](../../epic/check_quota_dynamic_models_and_review_action/task_04_quota_dashboard_dynamic_ui.md).
 
 Downstream dependents (blocked by Task 5): None.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/check_quota_dynamic_models_and_review_action/check_quota_dynamic_models_and_review_action.en.md)
+- [Epic HLD](../../epic/check_quota_dynamic_models_and_review_action/check_quota_dynamic_models_and_review_action.en.md)
 - **Rollback**: Revert task commit to restore `skills/check-tasks/resources/scripts/tasks_server.py`, `skills/check-tasks/resources/dashboard/tasks_dashboard.html`, and `scripts/verify.sh`.

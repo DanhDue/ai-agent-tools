@@ -524,6 +524,344 @@ def _file_stat_sig(path: Path) -> tuple[int, int] | None:
         return None
 
 
+_INLINE_PROPOSAL_RE = re.compile(
+    r"(?:^|(?:[.;—]|\n)\s*)\b(?:Proposed(?:\s+action)?|Fix|Suggestion|Đề xuất):\s*",
+    re.IGNORECASE,
+)
+_FIX_PLAN_ACTION_KEY_RE = re.compile(
+    r"^(\s*)(?:[-*]\s+)?\*\*(?:Proposed\s+Action(?:\s*\([^*\n]*\))?|Planned\s+Surgical\s+Fix|Surgical\s+Fix|Action|Fix)\s*(?::\*\*\s*|\*\*:\s*)(.*)$",
+    re.IGNORECASE,
+)
+_FIX_PLAN_SIBLING_KEY_RE = re.compile(
+    r"^(\s*)(?:[-*]\s+)?\*\*[A-Za-z0-9_][^`*\n]*?(?::\*\*|\*\*:)",
+)
+_PLACEHOLDER_ACTIONS = {"", "?", "—", "-", "n/a", "none"}
+
+
+def _extract_inline_proposal(problem_full: str) -> tuple[str, str]:
+    """Extract trailing proposal text outside inline backtick code spans."""
+    masked = re.sub(r"`[^`]*`", lambda m: " " * len(m.group(0)), problem_full)
+    last_match: re.Match[str] | None = None
+    for match in _INLINE_PROPOSAL_RE.finditer(masked):
+        last_match = match
+    if last_match is None:
+        return problem_full, ""
+    return (
+        problem_full[: last_match.start()].strip(),
+        problem_full[last_match.end() :].strip(),
+    )
+
+
+def _split_md_table_row(line: str) -> list[str]:
+    """Split a markdown pipe-delimited row while honoring escaped pipes."""
+    raw_cells = re.split(r"(?<!\\)\|", line.strip())
+    cells = [c.strip().replace(r"\|", "|") for c in raw_cells]
+    if cells and cells[0] == "":
+        cells.pop(0)
+    if cells and cells[-1] == "":
+        cells.pop()
+    return cells
+
+
+def _is_md_separator_row(cells: list[str]) -> bool:
+    """Return True when all non-empty cells are markdown alignment dashes."""
+    non_empty = [c for c in cells if c]
+    return bool(non_empty) and all(
+        re.fullmatch(r":?-{2,}:?", c) is not None for c in non_empty
+    )
+
+
+def _norm_header_cell(cell: str) -> str:
+    """Normalize a markdown table header cell for case-insensitive matching."""
+    cleaned = cell.strip().strip("*_`").strip()
+    return re.sub(r"\s+", " ", cleaned.lower())
+
+
+def _is_review_table_header(cells: list[str]) -> bool:
+    """Return True when `cells` represent a review triage table header row."""
+    if len(cells) < 4 or re.fullmatch(r"#?\d+", cells[0].strip()):
+        return False
+    norms = [_norm_header_cell(c) for c in cells]
+    return any(n in {"severity", "mức độ", "sev"} for n in norms)
+
+
+def _map_review_table_columns(header_cells: list[str]) -> dict[str, int]:
+    """Map review table header cells to semantic keys with canonical 5-col fallback."""
+    col_map: dict[str, int] = {}
+    for idx, raw_col in enumerate(header_cells):
+        norm = _norm_header_cell(raw_col)
+        if "id" not in col_map and norm in {"#", "id", "no", "no.", "finding", "finding #"}:
+            col_map["id"] = idx
+        elif "severity" not in col_map and norm in {"severity", "mức độ", "sev"}:
+            col_map["severity"] = idx
+        elif "location" not in col_map and norm in {
+            "location",
+            "file / target",
+            "file/target",
+            "target",
+            "file",
+            "artefact",
+            "artifact",
+            "vị trí",
+        }:
+            col_map["location"] = idx
+        elif "problem" not in col_map and (
+            norm in {"problem", "issue", "finding / problem", "description", "vấn đề"}
+            or "problem" in norm
+        ):
+            col_map["problem"] = idx
+        elif "proposed_action" not in col_map and (
+            norm
+            in {
+                "proposed action",
+                "action",
+                "proposed",
+                "proposed fix",
+                "planned surgical fix",
+                "surgical fix",
+                "đề xuất",
+                "hành động đề xuất",
+            }
+            or "proposed action" in norm
+        ):
+            col_map["proposed_action"] = idx
+        elif "decision" not in col_map and (
+            norm
+            in {
+                "decision",
+                "status",
+                "fixed in(commit)",
+                "fixed in (commit)",
+                "fixed in",
+                "triage",
+                "quyết định",
+            }
+            or "decision" in norm
+            or "fixed in" in norm
+        ):
+            col_map["decision"] = idx
+
+    claimed = set(col_map.values())
+    for key, default_idx in (("id", 0), ("severity", 1), ("location", 2), ("problem", 3)):
+        if key not in col_map and default_idx not in claimed and default_idx < len(header_cells):
+            col_map[key] = default_idx
+            claimed.add(default_idx)
+    if "decision" not in col_map:
+        if 4 not in claimed and len(header_cells) >= 5:
+            col_map["decision"] = 4
+        elif 5 not in claimed and len(header_cells) >= 6:
+            col_map["decision"] = 5
+    return col_map
+
+
+def _extract_numeric_id(raw: str) -> str | None:
+    """Extract normalized integer ID string from `#1` / `1` / `Finding #1`, or None."""
+    m = re.search(r"(\d+)", raw.strip())
+    return str(int(m.group(1))) if m else None
+
+
+def _format_action_parts(first_val: str, cont: list[str]) -> str:
+    """Join lead inline action text and continuation bullets cleanly."""
+    if first_val and not cont:
+        return first_val
+    if not first_val and len(cont) == 1:
+        return re.sub(r"^[-*]\s+", "", cont[0]).strip()
+    parts = ([first_val] if first_val else []) + cont
+    return "\n".join(parts).strip()
+
+
+def _collect_action_continuation(
+    lines: list[str], key_indent: int | None
+) -> list[str]:
+    """Collect multi-line continuation bullets/prose until next sibling key or table."""
+    cont: list[str] = []
+    base_indent = 0 if key_indent is None else key_indent
+    for sub_line in lines:
+        stripped = sub_line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("|") or re.match(r"^(?:`{3,}|~{3,})", stripped):
+            break
+        m_sib = _FIX_PLAN_SIBLING_KEY_RE.match(sub_line)
+        if m_sib and (key_indent is None or len(m_sib.group(1)) <= key_indent):
+            break
+        sub_indent = len(sub_line) - len(sub_line.lstrip())
+        if cont and sub_indent <= base_indent and not stripped.startswith(("-", "*")):
+            break
+        cont.append(stripped)
+    return cont
+
+
+def _extract_block_action(
+    block_lines: list[str], numbered_head: str | None
+) -> str:
+    """Extract proposed action prose from a per-finding heading or numbered block."""
+    for idx, b_line in enumerate(block_lines):
+        m_act = _FIX_PLAN_ACTION_KEY_RE.match(b_line)
+        if m_act:
+            cont = _collect_action_continuation(
+                block_lines[idx + 1 :], len(m_act.group(1))
+            )
+            return _format_action_parts(m_act.group(2).strip(), cont)
+    if numbered_head is not None:
+        cont = _collect_action_continuation(block_lines, None)
+        return _format_action_parts(numbered_head, cont)
+    return ""
+
+
+def _parse_fix_plan_summary_tables(non_fenced_lines: list[str]) -> dict[str, str]:
+    """Extract best-effort `# -> Action` mappings from summary markdown tables."""
+    summary: dict[str, str] = {}
+    table_cols: tuple[int, int] | None = None
+    for line in non_fenced_lines:
+        s = line.strip()
+        if not s.startswith("|"):
+            table_cols = None
+            continue
+        cells = _split_md_table_row(s)
+        if _is_md_separator_row(cells):
+            continue
+        norms = [_norm_header_cell(c) for c in cells]
+        id_col = next(
+            (
+                i
+                for i, n in enumerate(norms)
+                if n in {"#", "id", "no", "no.", "finding", "finding #", "item"}
+            ),
+            None,
+        )
+        act_col = next(
+            (
+                i
+                for i, n in enumerate(norms)
+                if i != id_col
+                and (
+                    n
+                    in {
+                        "action",
+                        "proposed action",
+                        "planned surgical fix",
+                        "surgical fix",
+                        "proposed fix",
+                        "fix",
+                        "planned fix",
+                        "remediation",
+                        "đề xuất",
+                    }
+                    or "proposed action" in n
+                    or "surgical fix" in n
+                )
+            ),
+            None,
+        )
+        if (
+            id_col is not None
+            and act_col is not None
+            and not re.fullmatch(r"#?\d+", cells[id_col].strip())
+        ):
+            table_cols = (id_col, act_col)
+            continue
+        if table_cols is not None:
+            c_id, c_act = table_cols
+            if c_id < len(cells) and c_act < len(cells):
+                fid = _extract_numeric_id(cells[c_id])
+                act = cells[c_act].strip()
+                if fid and act.lower() not in _PLACEHOLDER_ACTIONS:
+                    summary.setdefault(fid, act)
+    return summary
+
+
+def _parse_fix_plan_actions(
+    fix_plan_path: Path, expected_round: int | None = None
+) -> dict[str, str]:
+    """Best-effort parse of per-finding actions from `fix_plan_roundN.md` / `fix_plan.md`."""
+    if not fix_plan_path.is_file():
+        return {}
+    try:
+        content = fix_plan_path.read_text(encoding="utf-8", errors="replace")
+        fence_re = re.compile(r"^\s*(`{3,}|~{3,})")
+        current_fence = ""
+        clean_lines: list[str] = []
+        for raw_line in content.splitlines():
+            m_fence = fence_re.match(raw_line)
+            if current_fence:
+                if raw_line.strip().startswith(current_fence):
+                    current_fence = ""
+                continue
+            if m_fence:
+                current_fence = m_fence.group(1)
+                continue
+            clean_lines.append(raw_line)
+
+        if expected_round is not None:
+            for hdr_line in clean_lines[:10]:
+                if re.match(r"^\s*#{2,6}\s+", hdr_line):
+                    break
+                m_decl = re.search(
+                    r"(?:^#\s+.*?\bRound\s+(\d+)\b|\*\*Round\*\*\s*:\s*(\d+))",
+                    hdr_line,
+                    re.IGNORECASE,
+                )
+                if m_decl:
+                    decl_num = int(m_decl.group(1) or m_decl.group(2))
+                    if decl_num != expected_round:
+                        return {}
+                    break
+
+        summary_actions = _parse_fix_plan_summary_tables(clean_lines)
+        detailed_actions: dict[str, str] = {}
+        blocks: list[tuple[list[str], list[str], str | None]] = []
+
+        for line in clean_lines:
+            stripped = line.strip()
+            m_finding_h = re.match(
+                r"^\s*#{2,4}\s+(?:\[[^\]\n]+\]\s*)?(?:Finding\s+#?(\d+)|#(\d+))\b",
+                line,
+                re.IGNORECASE,
+            )
+            m_fix_h = re.match(
+                r"^\s*#{2,4}\s+Fix\s+(\d+)\b(.*)$", line, re.IGNORECASE
+            )
+            m_num_item = re.match(
+                r"^\s*\d+\.\s+\*\*(?:Finding\s*)?#(\d+)(?:\b[^*\n]*)?(?::\*\*\s*|\*\*:\s*|\*\*\s*[—–-]\s*)(.*)$",
+                line,
+                re.IGNORECASE,
+            )
+            if m_finding_h:
+                primary_id = str(int(m_finding_h.group(1) or m_finding_h.group(2)))
+                extra = [str(int(x)) for x in re.findall(r"#(\d+)", line)]
+                ids = list(dict.fromkeys([primary_id, *extra]))
+                blocks.append((ids, [], None))
+            elif m_fix_h:
+                hash_ids = [str(int(x)) for x in re.findall(r"#(\d+)", m_fix_h.group(2))]
+                ids = list(dict.fromkeys(hash_ids)) or [str(int(m_fix_h.group(1)))]
+                blocks.append((ids, [], None))
+            elif m_num_item:
+                blocks.append(
+                    ([str(int(m_num_item.group(1)))], [], m_num_item.group(2).strip())
+                )
+            elif re.match(r"^\s*#{1,6}\s+", line) or re.match(
+                r"^\d+\.\s+", line
+            ) or re.match(r"^\s*(?:---+|\*\*\*+|___+)\s*$", stripped):
+                blocks.append(([], [], None))
+            elif blocks and blocks[-1][0]:
+                blocks[-1][1].append(line)
+
+        for target_ids, b_lines, num_head in blocks:
+            if not target_ids:
+                continue
+            act_text = _extract_block_action(b_lines, num_head)
+            if act_text and act_text.lower() not in _PLACEHOLDER_ACTIONS:
+                for fid in target_ids:
+                    detailed_actions[fid] = act_text
+
+        merged = dict(summary_actions)
+        merged.update(detailed_actions)
+        return merged
+    except Exception:
+        return {}
+
+
 def parse_review_results(
     repo_dir: Path,
     active_epic: str | None = None,
@@ -710,49 +1048,85 @@ def parse_review_results(
         round_content[: m_raw_split.start()] if m_raw_split else round_content
     )
 
-    # Parse 5-column triage table: | # | Severity | Location | Problem | Decision |
+    # Parse 5/6-column triage tables with header-aware column detection
     lines = table_section.splitlines()
     in_table = False
+    col_map: dict[str, int] = {
+        "id": 0,
+        "severity": 1,
+        "location": 2,
+        "problem": 3,
+        "decision": 4,
+    }
     findings: list[dict[str, str]] = []
     for line in lines:
         s = line.strip()
-        if s.startswith("|") and ("Severity" in s or "Mức độ" in s or "Sev" in s):
+        if not s.startswith("|"):
+            if in_table:
+                in_table = False
+            continue
+        cells = _split_md_table_row(s)
+        if _is_review_table_header(cells):
             in_table = True
+            col_map = _map_review_table_columns(cells)
             continue
         if in_table:
-            if not s.startswith("|") or s.startswith("|---"):
-                if not s.startswith("|"):
-                    in_table = False
+            if s.startswith("|---") or _is_md_separator_row(cells):
                 continue
-            raw_cells = re.split(r"(?<!\\)\|", s)
-            cells = [c.strip().replace(r"\|", "|") for c in raw_cells]
-            if cells and cells[0] == "":
-                cells.pop(0)
-            if cells and cells[-1] == "":
-                cells.pop()
             if len(cells) >= 5:
-                problem_full = cells[3]
-                problem_text = problem_full
-                proposed_action = ""
-                m_prop = re.search(
-                    r"(?:Proposed(?:\s+Action)?|Đề xuất):\s*(.+)$",
-                    problem_full,
-                    re.IGNORECASE | re.DOTALL,
+                id_idx = col_map.get("id", 0)
+                sev_idx = col_map.get("severity", 1)
+                loc_idx = col_map.get("location", 2)
+                prob_idx = col_map.get("problem", 3)
+                prop_idx = col_map.get("proposed_action")
+                dec_idx = col_map.get("decision")
+
+                problem_full = cells[prob_idx] if prob_idx < len(cells) else ""
+                problem_text, inline_action = _extract_inline_proposal(problem_full)
+                explicit_action = (
+                    cells[prop_idx].strip()
+                    if prop_idx is not None and prop_idx < len(cells)
+                    else ""
                 )
-                if m_prop:
-                    proposed_action = m_prop.group(1).strip()
-                    problem_text = problem_full[: m_prop.start()].strip()
+                if explicit_action.lower() in _PLACEHOLDER_ACTIONS:
+                    explicit_action = ""
 
                 findings.append(
                     {
-                        "id": cells[0],
-                        "severity": cells[1],
-                        "location": cells[2],
+                        "id": cells[id_idx] if id_idx < len(cells) else "",
+                        "severity": cells[sev_idx] if sev_idx < len(cells) else "",
+                        "location": cells[loc_idx] if loc_idx < len(cells) else "",
                         "problem": problem_text,
-                        "proposed_action": proposed_action,
-                        "decision": cells[4],
+                        "proposed_action": explicit_action or inline_action,
+                        "decision": (
+                            cells[dec_idx]
+                            if dec_idx is not None and dec_idx < len(cells)
+                            else ""
+                        ),
                     }
                 )
+
+    if any(not f["proposed_action"] for f in findings):
+        fallback_maps = [
+            _parse_fix_plan_actions(
+                review_file.parent / f"fix_plan_round{round_to_extract}.md"
+            ),
+            _parse_fix_plan_actions(
+                review_file.parent / f"fix_plan_round_{round_to_extract}.md"
+            ),
+            _parse_fix_plan_actions(
+                review_file.parent / "fix_plan.md", expected_round=round_to_extract
+            ),
+        ]
+        for finding in findings:
+            if finding["proposed_action"]:
+                continue
+            fid = _extract_numeric_id(finding["id"]) or finding["id"].strip()
+            for fb_map in fallback_maps:
+                if fid in fb_map and fb_map[fid]:
+                    finding["proposed_action"] = fb_map[fid]
+                    break
+
     result["findings"] = findings
 
     # Parse raw output
@@ -777,7 +1151,17 @@ def parse_review_results(
             else "review_results.md"
         )
         watch_paths.append(review_file.parent / sibling_name)
-    watch_sigs = tuple((p, _file_stat_sig(p)) for p in watch_paths)
+    watch_paths.extend(
+        [
+            review_file.parent / f"fix_plan_round{round_to_extract}.md",
+            review_file.parent / f"fix_plan_round_{round_to_extract}.md",
+            review_file.parent / "fix_plan.md",
+        ]
+    )
+    with contextlib.suppress(OSError):
+        watch_paths.extend(sorted(review_file.parent.glob("fix_plan_round*.md")))
+    deduped_watch_paths = list(dict.fromkeys(watch_paths))
+    watch_sigs = tuple((p, _file_stat_sig(p)) for p in deduped_watch_paths)
     with _REVIEW_PARSE_CACHE_LOCK:
         if len(_REVIEW_PARSE_CACHE) >= _REVIEW_PARSE_CACHE_MAX:
             _REVIEW_PARSE_CACHE.pop(next(iter(_REVIEW_PARSE_CACHE)), None)
