@@ -20,7 +20,7 @@
 ## Meta Data
 
 - **Epic name**: `review_cap_and_risk_triage`
-- **Status**: Draft
+- **Status**: Packaged (2026-11-18)
 - **PIC**: `nguyenhieu000690`
 - **Target release**: Next plugin release
 - **Platform**: Python 3 CLI tooling, Markdown skills and governance rules (`ai-agent-tools`)
