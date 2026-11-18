@@ -97,14 +97,29 @@ To isolate Fix Pass 1's exact delta without mutating `HEAD` or the slot's real g
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Working_Pass1: sync --status working (reset counters=0)
-    Working_Pass1 --> Review_Pass1: sync --status review (review=1, write-tree pass1_tree_sha)
-    Review_Pass1 --> Finalized_Merged: finalize-slot --mode pass1-approved
-    Review_Pass1 --> Fix_Pass1: sync --status working --no-reset (requires >=1 BLOCKER; fix=1)
-    Fix_Pass1 --> Risk_Triage: triage-fix (inspects git diff pass1_tree_sha)
-    Risk_Triage --> Finalized_Merged: Tier1 Eligible + Tier2 LOW -> finalize-slot --mode tier2-short-circuit
-    Risk_Triage --> Review_Pass2: Tier1 HIGH_RISK or Tier2 MEDIUM/HIGH -> sync --status review (review=2)
-    Review_Pass2 --> Finalized_Merged: Mechanical GREEN -> finalize-slot --mode pass2-complete (0 Fix Pass 2)
+    state "Idle (counters = 0)" as Idle
+    state "Working Pass 1 (TDD implementation)" as Working_Pass1
+    state "Review Pass 1 (review = 1, snapshot pass1_tree_sha)" as Review_Pass1
+    state "Fix Pass 1 (fix = 1, max_fix_passes = 1)" as Fix_Pass1
+    state "Risk Triage (Tier 1 + Tier 2)" as Risk_Triage
+    state "Review Pass 2 (review = 2, Delta-Only cap)" as Review_Pass2
+    state "Finalized and Merged (done + reset slot)" as Finalized_Merged
+    state "Halted on Gate Failure (exit 1 or exit 2)" as Halted_Error
+
+    [*] --> Idle
+    Idle --> Working_Pass1: sync working (reset slot)
+    Working_Pass1 --> Finalized_Merged: needs_review false and mechanical gates PASS
+    Working_Pass1 --> Review_Pass1: sync review (pass 1)
+    Review_Pass1 --> Finalized_Merged: APPROVED (or 0 blockers coerced)
+    Review_Pass1 --> Fix_Pass1: CHANGES_REQUESTED with at least 1 BLOCKER
+    Fix_Pass1 --> Halted_Error: mechanical verify FAIL
+    Fix_Pass1 --> Risk_Triage: mechanical verify PASS, run triage-fix
+    Risk_Triage --> Finalized_Merged: Tier 1 eligible and Tier 2 LOW
+    Risk_Triage --> Review_Pass2: Tier 1 HIGH_RISK or Tier 2 MEDIUM / HIGH
+    Review_Pass2 --> Finalized_Merged: mechanical gates PASS (0 Fix Pass 2, log audit note)
+    Review_Pass2 --> Halted_Error: mechanical gates FAIL
+    Finalized_Merged --> Idle: merge into epic branch
+    Halted_Error --> [*]
 ```
 
 | Command / Transition | Preconditions Checked | Mutation / Exit Behavior |
@@ -217,12 +232,12 @@ When any trigger fires, `tier1_status` is `"HIGH_RISK"`, `triggers` lists every 
 flowchart TD
     A["Fix Pass 1 Complete + run_task_checks.py verify PASS"] --> B["Run manage_worker_pool.py triage-fix"]
     B --> C{"tier1_status?"}
-    C -->|"HIGH_RISK"| P2["sync --status review (pass 2) + Dispatch Role 2.1 Delta-Only"]
+    C -->|"HIGH_RISK"| P2["sync review (pass 2) + Dispatch Role 2.1 Delta-Only"]
     C -->|"ELIGIBLE_FOR_SHORT_CIRCUIT"| D["Role 2.2 Evaluates bounded_diff vs pass1_blockers In-Place"]
     D --> E{"RiskAssessment.risk_level?"}
-    E -->|"LOW"| F["finalize-slot --mode tier2-short-circuit --risk-level LOW"]
+    E -->|"LOW"| F["finalize-slot (mode=tier2-short-circuit, risk=LOW)"]
     E -->|"MEDIUM or HIGH"| P2
-    P2 --> G["finalize-slot --mode pass2-complete (Audit Note if Residual Warning)"]
+    P2 --> G["finalize-slot (mode=pass2-complete, log audit note if residual)"]
     F --> H["Task Marked done + Committed + Merged into Epic Branch"]
     G --> H
 ```
