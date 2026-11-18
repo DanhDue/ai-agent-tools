@@ -989,7 +989,11 @@ def test_live_chrome_cdp_kanban_sticky_scroll_and_unnumbered_stage_titles(
             "deltaY": 10,
         },
     )
-    time.sleep(0.1)
+    _wait_for_js_condition(
+        cdp,
+        "document.querySelector('#kanban-dashboard-wrapper-lyrics-sync .kanban-columns-scroll').scrollLeft >= 130",
+        timeout=3.0,
+    )
     after_diag_wheel = cdp.eval_js(
         """(() => {
           const w = document.getElementById('kanban-dashboard-wrapper-lyrics-sync');
@@ -1004,18 +1008,24 @@ def test_live_chrome_cdp_kanban_sticky_scroll_and_unnumbered_stage_titles(
     assert after_diag_wheel["backlogTop"] == 0
     assert after_diag_wheel["overviewLeft"] == pre_wheel["beforeLeft"]
 
-    # 3. Real Shift+Wheel horizontal gesture over empty To Do column
+    # 3. Real Shift+Wheel (modifiers=8, deltaX=0, deltaY=120) horizontal gesture over empty To Do column
+    prev_scroll_left = int(after_diag_wheel["scrollLeft"])
     cdp.call(
         "Input.dispatchMouseEvent",
         {
             "type": "mouseWheel",
             "x": pre_wheel["todoCenter"]["x"],
             "y": pre_wheel["todoCenter"]["y"],
-            "deltaX": 120,
-            "deltaY": 0,
+            "modifiers": 8,
+            "deltaX": 0,
+            "deltaY": 120,
         },
     )
-    time.sleep(0.1)
+    _wait_for_js_condition(
+        cdp,
+        f"document.querySelector('#kanban-dashboard-wrapper-lyrics-sync .kanban-columns-scroll').scrollLeft > {prev_scroll_left}",
+        timeout=3.0,
+    )
     after_todo_wheel = cdp.eval_js(
         """(() => {
           const w = document.getElementById('kanban-dashboard-wrapper-lyrics-sync');
@@ -1035,7 +1045,11 @@ def test_live_chrome_cdp_kanban_sticky_scroll_and_unnumbered_stage_titles(
     cdp.eval_js(
         "document.querySelector('#kanban-dashboard-wrapper-lyrics-sync .kanban-columns-scroll').scrollLeft = 0; true;"
     )
-    time.sleep(0.05)
+    _wait_for_js_condition(
+        cdp,
+        "document.querySelector('#kanban-dashboard-wrapper-lyrics-sync .kanban-columns-scroll').scrollLeft === 0",
+        timeout=3.0,
+    )
     cdp.call(
         "Input.dispatchMouseEvent",
         {
@@ -1046,7 +1060,11 @@ def test_live_chrome_cdp_kanban_sticky_scroll_and_unnumbered_stage_titles(
             "deltaY": 220,
         },
     )
-    time.sleep(0.1)
+    _wait_for_js_condition(
+        cdp,
+        "document.querySelector('[data-scroll-id=\"kanban-col-lyrics-sync-backlog\"]').scrollTop >= 180",
+        timeout=3.0,
+    )
     after_vert_wheel = cdp.eval_js(
         """(() => {
           const w = document.getElementById('kanban-dashboard-wrapper-lyrics-sync');

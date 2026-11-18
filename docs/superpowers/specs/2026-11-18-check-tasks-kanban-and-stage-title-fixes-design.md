@@ -18,7 +18,7 @@
 
 ## 1. Problem Statement and Root Causes
 
-Inspection of the live `/check-tasks` web dashboard (`skills/check-tasks/resources/dashboard/tasks_dashboard.html`) and backend harvester (`skills/check-tasks/resources/scripts/check_tasks.py`) against multi-epic repositories revealed four concrete UI and telemetry defects:
+Inspection of the live `/check-tasks` web dashboard (`skills/check-tasks/resources/dashboard/tasks_dashboard.html`) and backend harvester (`skills/check-tasks/resources/scripts/check_tasks.py`) against multi-epic repositories revealed six concrete UI and telemetry defects:
 
 1. **Unpinned Kanban Overview Sidebar**: In `renderKanbanDashboard()`, the outer board uses `display: grid; grid-template-columns: 220px 1fr`. Because bare `1fr` resolves to `minmax(auto, 1fr)` in CSS Grid and parent Tier 1 wrappers do not enforce `min-width: 0; max-width: 100%`, wide 5-column content stretches the container instead of keeping the `220px` `OVERVIEW` sidebar pinned stationary on the left.
 2. **Per-Column Horizontal Scrollbars Instead of a Unified 5-Column Scroll Track**: Each `.kanban-col-cards` sets `overflow-y: auto` without `overflow-x: hidden`, while `.kanban-task-card` renders unbroken snake_case epic identifiers (`[translation_studio_sync_and_standalone](...).en.md...` and `🗂 translation_studio_sync_and_standalone`) without `min-width: 0`, `overflow-wrap: anywhere`, or `text-overflow: ellipsis`. Per CSS Overflow Level 3, pairing `overflow-y: auto` with `overflow-x: visible` computes `overflow-x: auto` on each individual column, spawning per-column horizontal scrollbars rather than scrolling all five status columns (`Backlog`, `To Do`, `In Progress`, `Review`, `Done`) together inside a single horizontal scroll track.
