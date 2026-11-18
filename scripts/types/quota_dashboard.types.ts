@@ -81,10 +81,33 @@ export interface DynamicQuotaBucket {
   unavailable: boolean;
 }
 
+export interface AccountMeta {
+  provider: 'antigravity' | 'claude' | 'codex' | 'kiro' | string;
+  vendorLabel: string;
+  planType: string;
+  planLabel: string;
+  organizationName?: string;
+  organizationType?: string;
+  billingType?: string;
+  rateLimitTier?: string;
+  authSource?: string;
+  cliCommand?: string;
+  configPath?: string;
+  secondaryPath?: string;
+  extraUsageEnabled?: boolean;
+  extraUsageSummary?: string;
+  resetCredits?: number;
+  creditsSummary?: string;
+  overageStatus?: string;
+  overageRateSummary?: string;
+}
+
 export interface ProfileQuotaState {
   profile: string;
   email?: string;
-  tier: 'PRO' | 'FREE' | string;
+  tier: 'ULTRA' | 'PRO' | 'FREE' | string;
+  planLabel?: string;
+  vendorLabel?: string;
   priority?: number;        // Default: 50
   hasArgon?: boolean;       // Display ✣ Argon tag if argonMode !== 'none'
   status: AccountStatus;
@@ -99,6 +122,7 @@ export interface ProfileQuotaState {
   modelCatalog?: ModelCatalogEntry[];
   groupModels?: { gemini: string[]; claude: string[]; argon: string[] };
   capabilities?: ProfileCapabilities;
+  accountMeta?: AccountMeta;
   modelsFetchedAt?: string;
   groupDescSig?: string;
 }

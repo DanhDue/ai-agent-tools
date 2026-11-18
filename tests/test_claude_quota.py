@@ -95,6 +95,8 @@ class TestClaudeQuotaProvider(unittest.TestCase):
 
     def test_fetch_claude_quota_live_api_success(self):
         """When token is available, query live API and parse five_hour & seven_day utilization."""
+        import tempfile
+
         live_api_response = {
             "five_hour": {"utilization": 25, "resets_at": "2026-11-08T05:00:00Z"},
             "seven_day": {"utilization": 60, "resets_at": "2026-11-14T23:59:59Z"},
@@ -105,16 +107,20 @@ class TestClaudeQuotaProvider(unittest.TestCase):
         mock_resp.__enter__.return_value = mock_resp
 
         with (
+            tempfile.TemporaryDirectory() as tmpdir,
+            patch.object(agy_quota, "REAL_HOME", tmpdir),
             patch(
                 "agy_quota.get_claude_oauth_token",
                 return_value=("sk-ant-live-token", "user@anthropic.com", True),
             ),
             patch("urllib.request.urlopen", return_value=mock_resp),
             patch("agy_quota.update_claude_json_cache") as mock_cache_update,
+            patch("agy_quota.save_session_record"),
         ):
             data = agy_quota.fetch_claude_quota()
             self.assertEqual(data["profile"], "claude")
-            self.assertEqual(data["tier"], "ANTHROPIC")
+            self.assertEqual(data["vendorLabel"], "ANTHROPIC")
+            self.assertTrue(data["tier"].startswith("CLAUDE "))
             self.assertEqual(data["status"], "ACTIVE")
             self.assertTrue(data["gemini5h"]["isLive"])
             # Remaining 5h: 100% - 25% = 75%

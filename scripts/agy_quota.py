@@ -27,14 +27,19 @@ import socketserver
 import urllib.parse
 import urllib.request
 import sqlite3
+import base64
 import hashlib
 import importlib.util
 import random
 import shlex
 import shutil
 import tempfile
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+
+SERVER_STARTUP_MTIME: int = int(Path(__file__).stat().st_mtime)
+_RELOAD_PENDING: bool = False
 
 GEMINI_MODEL_CANDIDATES = (
     "gemini-3.8-flash-low",
@@ -228,6 +233,17 @@ def parse_agy_models_catalog(stdout: str) -> list[dict]:
     return catalog
 
 
+_GROUP_MODELS_PREFIX_RE = re.compile(r"^models\s+within\s+this\s+group\s*:\s*", re.IGNORECASE)
+_PROSE_DESC_MARKERS = (
+    "for paid ",
+    "quota is ",
+    "available on ",
+    "within each group",
+    "limits will last",
+    "you have used",
+)
+
+
 def parse_usage_group_models(groups: list) -> dict:
     """Extract normalized model names and deterministic SHA-256 signature from `/usage` groups."""
     group_descriptions: dict[str, str] = {"gemini": "", "claude": "", "argon": ""}
@@ -262,8 +278,16 @@ def parse_usage_group_models(groups: list) -> dict:
             if norm_desc and not group_descriptions[family]:
                 group_descriptions[family] = norm_desc
 
+            has_models_prefix = bool(_GROUP_MODELS_PREFIX_RE.match(norm_desc))
+            if (
+                any(marker in norm_desc.lower() for marker in _PROSE_DESC_MARKERS)
+                and not has_models_prefix
+            ):
+                continue
+
+            stripped_desc = _GROUP_MODELS_PREFIX_RE.sub("", norm_desc).strip()
             seen_lower = {m.lower() for m in group_models[family]}
-            for token in norm_desc.split(","):
+            for token in stripped_desc.split(","):
                 clean = re.sub(r"\s+", " ", token).strip()
                 if not clean:
                     continue
@@ -607,9 +631,18 @@ RESET       = "\033[0m"
 BOLD        = "\033[1m"
 
 # Model & Status Badges
+def format_priority_tag(priority: object = 50) -> str:
+    """Format ANSI badge for dynamic account priority."""
+    try:
+        prio_val = int(priority)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        prio_val = 50
+    return f"\033[48;2;24;27;38m\033[38;2;160;174;192m Priority: {prio_val} \033[0m"
+
+
 TAG_ULTRA        = "\033[48;2;124;58;237m\033[1;37m ✦ ULTRA \033[0m"
 TAG_PRO          = "\033[48;2;59;102;245m\033[1;37m ◆ PRO \033[0m"
-TAG_PRIORITY     = "\033[48;2;24;27;38m\033[38;2;160;174;192m Priority: 50 \033[0m"
+TAG_PRIORITY     = format_priority_tag(50)
 TAG_CARBON       = "\033[48;2;14;116;144m\033[38;2;165;243;252m ◈ Carbon \033[0m"
 TAG_ARGON        = "\033[48;2;38;25;56m\033[38;2;192;132;252m ✣ Argon \033[0m"
 TAG_ORCHESTRATOR = "\033[48;2;20;83;45m\033[38;2;134;239;172m ⚙ Orchestrator \033[0m"
@@ -629,6 +662,107 @@ KC_PASS = "H@No!a@12345"
 AGY_BIN = "/opt/homebrew/bin/agy"
 SESSION_STORE_DB = Path(REAL_HOME) / ".devtool" / "state" / ".session_store.db"
 SALT = "d3nexus-session-salt-2026"
+
+
+def _decode_jwt_claims_unverified(token: object) -> dict:
+    """Decode non-secret JWT payload claims locally without signature verification or network calls."""
+    if not isinstance(token, str) or token.count(".") != 2:
+        return {}
+    try:
+        seg = token.split(".")[1]
+        seg += "=" * (-len(seg) % 4)
+        raw = base64.urlsafe_b64decode(seg.encode("ascii")).decode("utf-8")
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        return {}
+
+
+def read_antigravity_vscdb_email(profile: str) -> str | None:
+    """Read authenticated Google email from profile state.vscdb in read-only SQLite URI mode."""
+    db_path = (
+        Path(REAL_HOME)
+        / "antigravity_homes"
+        / profile
+        / "Library"
+        / "Application Support"
+        / "Antigravity"
+        / "User"
+        / "globalStorage"
+        / "state.vscdb"
+    )
+    if not db_path.is_file():
+        return None
+    con = None
+    try:
+        uri = f"{db_path.resolve().as_uri()}?mode=ro"
+        con = sqlite3.connect(uri, uri=True, timeout=1.0)
+        cur = con.cursor()
+        cur.execute(
+            "SELECT value FROM ItemTable WHERE key = 'antigravityAuthStatus' LIMIT 1;"
+        )
+        row = cur.fetchone()
+        if not row or not row[0]:
+            return None
+        parsed = json.loads(row[0])
+        if isinstance(parsed, dict):
+            raw_email = parsed.get("email")
+            if isinstance(raw_email, str) and raw_email.strip():
+                return raw_email.strip()
+    except Exception:
+        return None
+    finally:
+        if con is not None:
+            try:
+                con.close()
+            except Exception:
+                pass
+    return None
+
+
+def normalize_antigravity_account(
+    profile: str,
+    capabilities: dict | None,
+    argon_mode: str = "none",
+    email: str | None = None,
+) -> dict:
+    """Normalize Antigravity tier, priority (80/60/50/20), and non-secret AccountMeta."""
+    caps = capabilities if isinstance(capabilities, dict) else {}
+    cap_tier = str(caps.get("tier") or "PRO").strip().upper()
+    eff_argon = str(argon_mode or caps.get("argonMode") or "none").strip()
+
+    if cap_tier == "ULTRA":
+        tier, plan_label, plan_type, priority = "ULTRA", "ULTRA", "ultra", 80
+    elif cap_tier == "FREE":
+        tier, plan_label, plan_type, priority = "FREE", "FREE", "free", 20
+    elif eff_argon == "separate":
+        tier, plan_label, plan_type, priority = "PRO", "PRO", "pro_argon", 60
+    else:
+        tier, plan_label, plan_type, priority = "PRO", "PRO", "pro", 50
+
+    resolved_email = (
+        (str(email).strip() if isinstance(email, str) and email.strip() else "")
+        or read_antigravity_vscdb_email(profile)
+        or f"{profile}@gmail.com"
+    )
+    account_meta = {
+        "provider": "antigravity",
+        "vendorLabel": "GOOGLE",
+        "planType": plan_type,
+        "planLabel": plan_label,
+        "authSource": "antigravity-oauth",
+        "cliCommand": f"{profile}-cli",
+        "configPath": f"~/antigravity_homes/{profile}",
+        "secondaryPath": f"~/antigravity_homes/{profile}/Library/Keychains/{profile}.keychain-db",
+    }
+    return {
+        "email": resolved_email,
+        "tier": tier,
+        "planLabel": plan_label,
+        "vendorLabel": "GOOGLE",
+        "priority": priority,
+        "accountMeta": account_meta,
+    }
 
 NATURAL_PROMPTS = [
     "Explain HTTP status 200 in 5 words.",
@@ -1404,13 +1538,17 @@ def fetch_quota_for_profile(
             model_catalog=model_catalog,
             available_models=available_models,
         )
+        norm_acct = normalize_antigravity_account(profile, capabilities, argon_mode)
 
         return {
             "profile": profile,
             "success": True,
             "duration": duration,
             "groups": groups,
-            "tier": tier,
+            "tier": capabilities["tier"],
+            "planLabel": norm_acct["planLabel"],
+            "vendorLabel": norm_acct["vendorLabel"],
+            "priority": norm_acct["priority"],
             "plan_name": plan_raw,
             "groupModels": group_models,
             "groupDescSig": group_desc_sig,
@@ -1419,6 +1557,7 @@ def fetch_quota_for_profile(
             "modelsFetchedAt": models_fetched_at,
             "argonMode": argon_mode,
             "capabilities": capabilities,
+            "accountMeta": norm_acct["accountMeta"],
         }
     except subprocess.TimeoutExpired:
         return {"profile": profile, "success": False, "duration": 45.0, "error": "Request timed out (45s)"}
@@ -1559,15 +1698,17 @@ def print_dashboard_cards(result: dict):
 
     has_5h = items["gem_5h"].get("available", False) or items["cld_5h"].get("available", False)
     cap_tier = capabilities.get("tier") or ("PRO" if has_5h else "FREE")
+    norm_acct = normalize_antigravity_account(profile, {"tier": cap_tier, **capabilities}, argon_mode)
+    dyn_priority = result.get("priority") if isinstance(result.get("priority"), int) else norm_acct["priority"]
     if cap_tier == "ULTRA":
         tier_tag = TAG_ULTRA
-        priority_tag = TAG_PRIORITY
+        priority_tag = format_priority_tag(dyn_priority)
     elif has_5h:
         tier_tag = TAG_PRO
-        priority_tag = TAG_PRIORITY
+        priority_tag = format_priority_tag(dyn_priority)
     else:
         tier_tag = "\033[48;2;217;119;6m\033[1;37m FREE \033[0m"
-        priority_tag = "\033[48;2;24;27;38m\033[38;2;160;174;192m Priority: 20 \033[0m"
+        priority_tag = format_priority_tag(20)
 
     extra_badges: list[str] = []
     if capabilities.get("hasCarbon"):
@@ -1617,7 +1758,11 @@ def print_dashboard_cards(result: dict):
         arg_w_avail = bool(items["gem_weekly"]["available"])
         arg_w_frac = items["gem_weekly"]["fraction"]
         arg_w_time = format_countdown(items["gem_weekly"]["reset_time"])
-        arg_w_title = "Gemini 4 Argon Weekly (Shared Gemini)"
+        arg_w_title = (
+            "Gemini 4 Carbon & Argon Weekly (Shared Gemini)"
+            if capabilities.get("hasCarbon")
+            else "Gemini 4 Argon Weekly (Shared Gemini)"
+        )
     else:
         arg_w_avail = bool(items["argon_weekly"]["available"]) and argon_mode == "separate"
         arg_w_frac = items["argon_weekly"]["fraction"]
@@ -1738,6 +1883,7 @@ def get_dashboard_html_path() -> Path:
 
 
 CACHED_PROFILES_DATA: dict = {}
+CACHED_HTML_MTIME: float = 0.0
 
 
 def get_claude_oauth_token() -> tuple[str | None, str | None, bool]:
@@ -1836,6 +1982,224 @@ def get_claude_oauth_token() -> tuple[str | None, str | None, bool]:
             pass
 
     return None, None, False
+
+
+_ORIG_GET_CLAUDE_OAUTH_TOKEN = get_claude_oauth_token
+
+
+def _extract_non_secret_claude_oauth_fields(oauth: object, auth_source: str) -> dict:
+    """Extract strictly non-secret subscription metadata from claudeAiOauth dict."""
+    if not isinstance(oauth, dict):
+        return {}
+    hints: dict[str, str] = {}
+    sub_type = oauth.get("subscriptionType")
+    if isinstance(sub_type, str) and sub_type.strip():
+        hints["subscriptionType"] = sub_type.strip()
+    rate_tier = oauth.get("rateLimitTier")
+    if isinstance(rate_tier, str) and rate_tier.strip():
+        hints["rateLimitTier"] = rate_tier.strip()
+    if auth_source:
+        hints["authSource"] = auth_source
+    return hints
+
+
+def _read_claude_oauth_hints() -> dict:
+    """Read non-secret subscriptionType and rateLimitTier from Keychain or .credentials.json."""
+    hints: dict[str, str] = {}
+    env_token = os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")
+    if env_token and env_token.strip():
+        hints["authSource"] = "env"
+
+    should_probe_keychain = (
+        get_claude_oauth_token is _ORIG_GET_CLAUDE_OAUTH_TOKEN
+        or getattr(subprocess.run, "__module__", "") != "subprocess"
+    )
+    if should_probe_keychain:
+        try:
+            user = os.environ.get("USER", "danhdueexoictif")
+            proc = subprocess.run(
+                ["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+            )
+            if proc.returncode != 0:
+                proc = subprocess.run(
+                    [
+                        "security",
+                        "find-generic-password",
+                        "-s",
+                        "Claude Code-credentials",
+                        "-a",
+                        user,
+                        "-w",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=2.0,
+                )
+            if proc.returncode == 0 and proc.stdout:
+                stdout_clean = proc.stdout.strip()
+                if stdout_clean.startswith("{") and stdout_clean.endswith("}"):
+                    parsed = json.loads(stdout_clean)
+                    if isinstance(parsed, dict):
+                        kc_hints = _extract_non_secret_claude_oauth_fields(
+                            parsed.get("claudeAiOauth"), "keychain"
+                        )
+                        if kc_hints.get("subscriptionType") or kc_hints.get("rateLimitTier"):
+                            return kc_hints
+        except Exception:
+            pass
+
+    cred_file = Path(REAL_HOME) / ".claude" / ".credentials.json"
+    if cred_file.is_file():
+        try:
+            with open(cred_file, "r", encoding="utf-8") as f:
+                c_json = json.load(f)
+            if isinstance(c_json, dict):
+                file_hints = _extract_non_secret_claude_oauth_fields(
+                    c_json.get("claudeAiOauth"), "credentials_file"
+                )
+                if file_hints.get("subscriptionType") or file_hints.get("rateLimitTier"):
+                    return file_hints
+                if not hints.get("authSource") and isinstance(c_json.get("claudeAiOauth"), dict):
+                    hints["authSource"] = "credentials_file"
+        except Exception:
+            pass
+
+    return hints
+
+
+def normalize_claude_account(
+    oauth_hints: dict | None,
+    oauth_acc: dict | None,
+    api_data: dict | None,
+    is_live: bool = False,
+) -> dict:
+    """Normalize Claude tier, priority (110/105/102/100/98/40), models, and non-secret AccountMeta."""
+    hints = oauth_hints if isinstance(oauth_hints, dict) else {}
+    acc = oauth_acc if isinstance(oauth_acc, dict) else {}
+    api = api_data if isinstance(api_data, dict) else {}
+
+    sub_type = str(
+        hints.get("subscriptionType")
+        or acc.get("subscriptionType")
+        or api.get("subscription_type")
+        or api.get("subscriptionType")
+        or ""
+    ).strip().lower()
+    rate_tier = str(
+        hints.get("rateLimitTier")
+        or acc.get("rateLimitTier")
+        or acc.get("organizationRateLimitTier")
+        or acc.get("userRateLimitTier")
+        or api.get("rate_limit_tier")
+        or api.get("rateLimitTier")
+        or ""
+    ).strip()
+    rate_low = rate_tier.lower()
+    org_type = str(
+        acc.get("organizationType")
+        or api.get("organization_type")
+        or api.get("organizationType")
+        or ""
+    ).strip().lower()
+    billing_type = str(acc.get("billingType") or api.get("billing_type") or "").strip()
+    billing_low = billing_type.lower()
+    auth_source = str(
+        hints.get("authSource")
+        or ("live_api" if is_live else ("claude_json_cache" if acc else "unauthenticated"))
+    ).strip()
+    has_max = bool(acc.get("has_claude_max") or acc.get("hasClaudeMax") or api.get("has_claude_max"))
+
+    if "20x" in rate_low or sub_type in ("max_20x", "claude_max_20x"):
+        plan_label, plan_type, priority = "CLAUDE MAX 20X", "max_20x", 110
+    elif "5x" in rate_low or sub_type in ("max_5x", "claude_max_5x"):
+        plan_label, plan_type, priority = "CLAUDE MAX 5X", "max_5x", 105
+    elif "enterprise" in sub_type or "enterprise" in org_type or "enterprise" in rate_low:
+        plan_label, plan_type, priority = "CLAUDE ENTERPRISE", "enterprise", 105
+    elif "max" in sub_type or "claude_max" in org_type or "claude_max" in rate_low or has_max:
+        plan_label, plan_type, priority = "CLAUDE MAX", "max", 105
+    elif "team" in sub_type or "team" in org_type or "claude_team" in rate_low:
+        plan_label, plan_type, priority = "CLAUDE TEAM", "team", 102
+    elif (
+        sub_type in ("api", "apikey", "api_key", "console")
+        or org_type in ("api", "console")
+        or billing_low in ("api", "prepaid_api", "console")
+        or auth_source == "api_key"
+    ):
+        plan_label, plan_type, priority = "CLAUDE API", "api", 98
+    elif sub_type in ("free", "claude_free") or org_type in ("free", "claude_free") or "claude_free" in rate_low:
+        plan_label, plan_type, priority = "CLAUDE FREE", "free", 40
+    else:
+        plan_label, plan_type, priority = "CLAUDE PRO", "pro", 100
+
+    available_models = (
+        ["Claude Sonnet 4.6", "Claude Haiku 4.5"]
+        if plan_type == "free"
+        else ["Claude Opus 4.6", "Claude Sonnet 4.6", "Claude Haiku 4.5"]
+    )
+    limits_raw = api.get("limits")
+    if isinstance(limits_raw, list):
+        seen_low = {m.lower() for m in available_models}
+        for lim in limits_raw:
+            if not isinstance(lim, dict):
+                continue
+            scope = lim.get("scope")
+            model_obj = scope.get("model") if isinstance(scope, dict) else None
+            if isinstance(model_obj, dict):
+                disp = str(model_obj.get("display_name") or model_obj.get("id") or "").strip()
+                if disp and disp.lower() not in seen_low:
+                    available_models.append(disp)
+                    seen_low.add(disp.lower())
+
+    extra_usage = api.get("extra_usage") if isinstance(api.get("extra_usage"), dict) else {}
+    extra_enabled = bool(
+        extra_usage.get("is_enabled")
+        if "is_enabled" in extra_usage
+        else acc.get("hasExtraUsageEnabled", False)
+    )
+    extra_summary = ""
+    if extra_enabled:
+        used_cr = extra_usage.get("used_credits")
+        lim_cr = extra_usage.get("monthly_limit")
+        if used_cr is not None and lim_cr is not None:
+            extra_summary = f"Extra usage: {used_cr} / {lim_cr}"
+        else:
+            extra_summary = "Extra usage enabled"
+
+    org_name = str(acc.get("organizationName") or acc.get("organization_name") or "").strip()
+    account_meta: dict[str, object] = {
+        "provider": "claude",
+        "vendorLabel": "ANTHROPIC",
+        "planType": plan_type,
+        "planLabel": plan_label,
+        "cliCommand": "claude",
+        "configPath": "~/.claude.json",
+        "secondaryPath": "~/.claude/.credentials.json",
+        "extraUsageEnabled": extra_enabled,
+    }
+    if org_name:
+        account_meta["organizationName"] = org_name
+    if org_type:
+        account_meta["organizationType"] = org_type
+    if billing_type:
+        account_meta["billingType"] = billing_type
+    if rate_tier:
+        account_meta["rateLimitTier"] = rate_tier
+    if auth_source:
+        account_meta["authSource"] = auth_source
+    if extra_summary:
+        account_meta["extraUsageSummary"] = extra_summary
+
+    return {
+        "tier": plan_label,
+        "planLabel": plan_label,
+        "vendorLabel": "ANTHROPIC",
+        "priority": priority,
+        "availableModels": available_models,
+        "accountMeta": account_meta,
+    }
 
 
 def _merge_claude_utilization(existing_cache: dict | None, new_util: dict, account_uuid: str = "") -> dict:
@@ -2299,6 +2663,10 @@ def fetch_claude_quota() -> dict:
     # Save to hashed SQLite session store
     save_session_record("claude", resets_at_5h_ts, resets_at_7d_ts, fraction_5h, is_active_5h)
 
+    oauth_acc = c_data.get("oauthAccount", {}) if isinstance(c_data, dict) else {}
+    oauth_hints = _read_claude_oauth_hints()
+    norm_claude = normalize_claude_account(oauth_hints, oauth_acc, api_data, is_live=is_live)
+
     public_buckets = [
         {k: v for k, v in b.items() if k != "resetTimeTs"}
         for b in quota_buckets
@@ -2309,8 +2677,10 @@ def fetch_claude_quota() -> dict:
         "displayName": "Claude Code",
         "isProvider": True,
         "providerType": "claude",
-        "tier": "ANTHROPIC",
-        "priority": 100,
+        "tier": norm_claude["tier"],
+        "planLabel": norm_claude["planLabel"],
+        "vendorLabel": norm_claude["vendorLabel"],
+        "priority": norm_claude["priority"],
         "email": email_display,
         "status": status,
         "isSessionActive": is_active_5h,
@@ -2318,6 +2688,8 @@ def fetch_claude_quota() -> dict:
         "resetTimeLocal": local_reset_5h,
         "remainingCountdown": countdown_5h_card,
         "hasArgon": True,
+        "availableModels": norm_claude["availableModels"],
+        "accountMeta": norm_claude["accountMeta"],
         "quotaBuckets": public_buckets,
         "gemini5h": {
             "name": session_bucket["name"],
@@ -2364,14 +2736,158 @@ def fetch_claude_quota() -> dict:
     }
 
 
+def normalize_codex_account(api_data: dict | None, auth_data: dict | None) -> dict:
+    """Normalize OpenAI Codex tier, priority (98/96/95/92/35), JWT claims, models, and AccountMeta."""
+    api = api_data if isinstance(api_data, dict) else {}
+    auth = auth_data if isinstance(auth_data, dict) else {}
+    tokens = auth.get("tokens") if isinstance(auth.get("tokens"), dict) else {}
+
+    id_claims = _decode_jwt_claims_unverified(tokens.get("id_token"))
+    acc_claims = _decode_jwt_claims_unverified(tokens.get("access_token"))
+
+    id_auth_ns = (
+        id_claims.get("https://api.openai.com/auth")
+        if isinstance(id_claims.get("https://api.openai.com/auth"), dict)
+        else {}
+    )
+    acc_auth_ns = (
+        acc_claims.get("https://api.openai.com/auth")
+        if isinstance(acc_claims.get("https://api.openai.com/auth"), dict)
+        else {}
+    )
+    id_prof_ns = (
+        id_claims.get("https://api.openai.com/profile")
+        if isinstance(id_claims.get("https://api.openai.com/profile"), dict)
+        else {}
+    )
+    acc_prof_ns = (
+        acc_claims.get("https://api.openai.com/profile")
+        if isinstance(acc_claims.get("https://api.openai.com/profile"), dict)
+        else {}
+    )
+
+    auth_mode = str(auth.get("auth_mode") or "").strip().lower()
+    has_api_key = bool(auth.get("OPENAI_API_KEY")) and not tokens.get("access_token") and not tokens.get("id_token")
+
+    raw_plan = str(
+        api.get("plan_type")
+        or id_auth_ns.get("chatgpt_plan_type")
+        or acc_auth_ns.get("chatgpt_plan_type")
+        or ""
+    ).strip().lower()
+    if not raw_plan and (auth_mode in ("apikey", "api_key", "api") or has_api_key):
+        raw_plan = "apikey"
+
+    if raw_plan == "pro":
+        plan_label, plan_type, priority = "CHATGPT PRO", "pro", 98
+    elif raw_plan == "enterprise":
+        plan_label, plan_type, priority = "CHATGPT ENTERPRISE", "enterprise", 98
+    elif raw_plan in ("team", "business"):
+        plan_label, plan_type, priority = "CHATGPT TEAM", "team", 96
+    elif raw_plan == "edu":
+        plan_label, plan_type, priority = "CHATGPT EDU", "edu", 96
+    elif raw_plan in ("apikey", "api_key", "api"):
+        plan_label, plan_type, priority = "OPENAI API", "apikey", 92
+    elif raw_plan == "free":
+        plan_label, plan_type, priority = "CHATGPT FREE", "free", 35
+    else:
+        plan_label, plan_type, priority = "CHATGPT PLUS", "plus", 95
+
+    resolved_email = ""
+    for candidate in (
+        api.get("email"),
+        id_claims.get("email"),
+        id_prof_ns.get("email"),
+        acc_claims.get("email"),
+        acc_prof_ns.get("email"),
+    ):
+        if isinstance(candidate, str) and candidate.strip():
+            resolved_email = candidate.strip()
+            break
+    if not resolved_email:
+        resolved_email = f"OpenAI Codex ({plan_label})"
+
+    model_usage = api.get("model_usage")
+    available_models: list[str] = []
+    if isinstance(model_usage, dict):
+        available_models = [
+            str(m)
+            for m, info in model_usage.items()
+            if isinstance(info, dict) and info.get("available")
+        ]
+
+    credits_obj = api.get("rate_limit_reset_credits")
+    credits_count = (
+        int(credits_obj.get("available_count", 0) or 0)
+        if isinstance(credits_obj, dict)
+        else 0
+    )
+    credits_summary = (
+        f"{credits_count} reset credits available" if credits_count > 0 else ""
+    )
+
+    org_name = ""
+    for ns in (id_auth_ns, acc_auth_ns):
+        orgs = ns.get("organizations")
+        if isinstance(orgs, list) and orgs and isinstance(orgs[0], dict):
+            title = str(orgs[0].get("title") or "").strip()
+            if title:
+                org_name = title
+                break
+
+    auth_source = (
+        "apikey"
+        if plan_type == "apikey"
+        else (
+            "wham_live"
+            if api
+            else ("codex_jwt" if (id_claims or acc_claims) else "codex_local")
+        )
+    )
+    account_meta: dict[str, object] = {
+        "provider": "codex",
+        "vendorLabel": "OPENAI",
+        "planType": plan_type,
+        "planLabel": plan_label,
+        "authSource": auth_source,
+        "cliCommand": "codex",
+        "configPath": "~/.codex/auth.json",
+        "secondaryPath": "~/.codex/logs_2.sqlite",
+        "resetCredits": credits_count,
+    }
+    if org_name:
+        account_meta["organizationName"] = org_name
+    if credits_summary:
+        account_meta["creditsSummary"] = credits_summary
+
+    return {
+        "email": resolved_email,
+        "tier": plan_label,
+        "planLabel": plan_label,
+        "vendorLabel": "OPENAI",
+        "priority": priority,
+        "availableModels": available_models,
+        "resetCredits": credits_count,
+        "accountMeta": account_meta,
+    }
+
+
 def fetch_codex_quota() -> dict:
     # 1. Primary: Query real-time Plan limits from OpenAI backend API
     auth_json_path = Path(REAL_HOME) / ".codex" / "auth.json"
+    auth_data: dict = {}
     if auth_json_path.is_file():
         try:
             with open(auth_json_path, "r", encoding="utf-8") as f:
-                auth = json.load(f)
-            tokens = auth.get("tokens", {})
+                loaded_auth = json.load(f)
+            if isinstance(loaded_auth, dict):
+                auth_data = loaded_auth
+        except Exception as e:
+            sys.stderr.write(f"Warning: Failed to read ~/.codex/auth.json: {e}\n")
+
+    if auth_data:
+        try:
+            tokens = auth_data.get("tokens", {}) if isinstance(auth_data.get("tokens"), dict) else {}
             token = tokens.get("access_token")
             account_id = tokens.get("account_id")
 
@@ -2400,7 +2916,8 @@ def fetch_codex_quota() -> dict:
                 s_rem_sec = sw.get("reset_after_seconds", 0)
                 s_reset_ts = sw.get("reset_at", 0)
 
-                credits_count = api_data.get("rate_limit_reset_credits", {}).get("available_count", 0)
+                norm_codex = normalize_codex_account(api_data, auth_data)
+                credits_count = norm_codex["resetCredits"]
 
                 fraction_5h = max(0.0, min(1.0, (100.0 - float(p_used)) / 100.0))
                 fraction_7d = max(0.0, min(1.0, (100.0 - float(s_used)) / 100.0))
@@ -2422,14 +2939,21 @@ def fetch_codex_quota() -> dict:
                 # Save to hashed SQLite session store
                 save_session_record("codex", p_reset_ts, s_reset_ts, fraction_5h, is_active)
 
+                roster_label = (
+                    f"OpenAI Model Roster ({', '.join(norm_codex['availableModels'][:3])})"
+                    if norm_codex["availableModels"]
+                    else "OpenAI Model Roster (gpt-4.5 / o3-mini)"
+                )
                 return {
                     "profile": "codex",
                     "displayName": "OpenAI Codex",
                     "isProvider": True,
                     "providerType": "codex",
-                    "tier": "OPENAI",
-                    "priority": 95,
-                    "email": api_data.get("email") or "OpenAI Codex (ChatGPT Plus)",
+                    "tier": norm_codex["tier"],
+                    "planLabel": norm_codex["planLabel"],
+                    "vendorLabel": norm_codex["vendorLabel"],
+                    "priority": norm_codex["priority"],
+                    "email": norm_codex["email"],
                     "status": status,
                     "isSessionActive": is_active,
                     "resetTime": iso_reset_5h,
@@ -2437,6 +2961,8 @@ def fetch_codex_quota() -> dict:
                     "remainingCountdown": countdown_5h,
                     "hasArgon": True,
                     "resetCredits": credits_count,
+                    "availableModels": norm_codex["availableModels"],
+                    "accountMeta": norm_codex["accountMeta"],
                     "gemini5h": {
                         "name": "Codex 5-Hour Limit",
                         "fraction": fraction_5h,
@@ -2470,7 +2996,7 @@ def fetch_codex_quota() -> dict:
                         "unavailable": False,
                     },
                     "argonWeekly": {
-                        "name": "OpenAI Model Roster (gpt-4.5 / o3-mini)",
+                        "name": roster_label,
                         "fraction": 1.0,
                         "countdown": "Sẵn sàng",
                         "resetTime": "",
@@ -2523,20 +3049,26 @@ def fetch_codex_quota() -> dict:
     # Save to hashed SQLite session store
     save_session_record("codex", reset_ts, 0, fraction_5h, is_active)
 
+    norm_offline = normalize_codex_account(None, auth_data)
+
     return {
         "profile": "codex",
         "displayName": "OpenAI Codex",
         "isProvider": True,
         "providerType": "codex",
-        "tier": "OPENAI",
-        "priority": 95,
-        "email": "OpenAI Codex CLI (ChatGPT Plus/Team)",
+        "tier": norm_offline["tier"],
+        "planLabel": norm_offline["planLabel"],
+        "vendorLabel": norm_offline["vendorLabel"],
+        "priority": norm_offline["priority"],
+        "email": norm_offline["email"],
         "status": status,
         "isSessionActive": is_active,
         "resetTime": reset_iso,
         "resetTimeLocal": local_reset_5h,
         "remainingCountdown": countdown_5h,
         "hasArgon": True,
+        "availableModels": norm_offline["availableModels"],
+        "accountMeta": norm_offline["accountMeta"],
         "gemini5h": {
             "name": "Codex 5H Rolling Session",
             "fraction": fraction_5h,
@@ -2600,19 +3132,219 @@ def parse_kiro_whoami_email(output: str) -> str | None:
     return None
 
 
-def parse_kiro_usage_limits(api_data: dict, email: str = "") -> dict:
-    sub_info = api_data.get("subscriptionInfo", {})
-    tier = sub_info.get("subscriptionTitle", "KIRO STUDENT")
-    overage_cfg = api_data.get("overageConfiguration", {})
-    overage_status = overage_cfg.get("overageStatus", "DISABLED")
+def normalize_kiro_account(
+    api_data: dict | None,
+    email: str = "",
+    cached_entry: dict | None = None,
+    whoami_auth: str = "",
+) -> dict:
+    """Normalize Kiro tier, priority (94/92/90/30), credits summary, and offline cache fallback."""
+    cached = cached_entry if isinstance(cached_entry, dict) else {}
+    api = api_data if isinstance(api_data, dict) else {}
 
-    used = 0.0
-    limit = 1000.0
-    breakdowns = api_data.get("usageBreakdownList", [])
-    if breakdowns:
-        b0 = breakdowns[0]
-        used = float(b0.get("currentUsageWithPrecision", b0.get("currentUsage", 0.0)))
-        limit = float(b0.get("usageLimitWithPrecision", b0.get("usageLimit", 1000.0)))
+    if api:
+        sub_info = (
+            api.get("subscriptionInfo")
+            if isinstance(api.get("subscriptionInfo"), dict)
+            else {}
+        )
+        raw_title = str(sub_info.get("subscriptionTitle") or "").strip()
+        sub_type = str(sub_info.get("type") or "").strip()
+        overage_cfg = (
+            api.get("overageConfiguration")
+            if isinstance(api.get("overageConfiguration"), dict)
+            else {}
+        )
+        overage_status = str(overage_cfg.get("overageStatus") or "DISABLED").strip()
+
+        used = 0.0
+        limit = 1000.0
+        has_explicit_limit = False
+        overage_rate_summary = ""
+        bonuses_count = 0
+        bonus_credits = 0.0
+        breakdowns = api.get("usageBreakdownList")
+        if isinstance(breakdowns, list) and breakdowns:
+            b0 = breakdowns[0] if isinstance(breakdowns[0], dict) else {}
+            used = float(
+                b0.get("currentUsageWithPrecision", b0.get("currentUsage", 0.0)) or 0.0
+            )
+            if "usageLimitWithPrecision" in b0 or "usageLimit" in b0:
+                limit = float(
+                    b0.get("usageLimitWithPrecision", b0.get("usageLimit", 1000.0))
+                    or 0.0
+                )
+                has_explicit_limit = True
+            ov_cap = b0.get("overageCap")
+            ov_rate = b0.get("overageRate") or overage_cfg.get("overageRate")
+            currency = str(b0.get("currency") or "USD")
+            if ov_rate is not None:
+                overage_rate_summary = f"{ov_rate} {currency}/credit" + (
+                    f" (cap {ov_cap})" if ov_cap else ""
+                )
+            bonuses = b0.get("bonuses")
+            if isinstance(bonuses, list):
+                bonuses_count = len(bonuses)
+                for bon in bonuses:
+                    if isinstance(bon, dict):
+                        bonus_credits += float(bon.get("usageLimit", 0.0) or 0.0)
+
+        title_up = raw_title.upper()
+        type_up = sub_type.upper()
+        if (
+            "POWER" in title_up
+            or "POWER" in type_up
+            or (has_explicit_limit and limit >= 10000)
+        ):
+            plan_label = title_up or "KIRO POWER"
+            plan_type, priority = "power", 94
+        elif (
+            "PRO+" in title_up
+            or "PRO_PLUS" in title_up
+            or "PRO_PLUS" in type_up
+            or "PROPLUS" in type_up
+            or (has_explicit_limit and limit >= 2000)
+        ):
+            plan_label = "KIRO PRO+" if title_up in ("", "KIRO PRO_PLUS") else title_up
+            plan_type, priority = "pro_plus", 92
+        elif (
+            "FREE" in title_up
+            or "FREE" in type_up
+            or (has_explicit_limit and 0 < limit <= 100)
+        ):
+            plan_label = title_up or "KIRO FREE"
+            plan_type, priority = "free", 30
+        elif "STUDENT" in title_up or "STUDENT" in type_up:
+            plan_label = title_up or "KIRO STUDENT"
+            plan_type, priority = "student", 90
+        else:
+            plan_label = title_up or ("KIRO PRO" if has_explicit_limit else "KIRO STUDENT")
+            plan_type = "pro" if "PRO" in plan_label else "student"
+            priority = 90
+
+        credits_summary = f"Used: {used:,.2f} / {limit:,.1f} credits"
+        if bonus_credits > 0:
+            credits_summary += f" (+{bonus_credits:,.0f} bonus)"
+        elif bonuses_count > 0:
+            credits_summary += f" ({bonuses_count} bonus)"
+
+        resolved_email = (email or "").strip() or "Kiro CLI User"
+        auth_source = whoami_auth.strip() or ("builder_id" if email else "kiro_cli")
+        account_meta: dict[str, object] = {
+            "provider": "kiro",
+            "vendorLabel": "KIRO",
+            "planType": plan_type,
+            "planLabel": plan_label,
+            "authSource": auth_source,
+            "cliCommand": "kiro-cli",
+            "configPath": "~/.local/share/kiro-cli",
+            "creditsSummary": credits_summary,
+            "overageStatus": overage_status,
+        }
+        if sub_type:
+            account_meta["rateLimitTier"] = sub_type
+        if overage_rate_summary:
+            account_meta["overageRateSummary"] = overage_rate_summary
+
+        return {
+            "email": resolved_email,
+            "tier": plan_label,
+            "planLabel": plan_label,
+            "vendorLabel": "KIRO",
+            "priority": priority,
+            "used": used,
+            "limit": limit,
+            "overageStatus": overage_status,
+            "availableModels": ["auto (1.0x)", "claude-sonnet-4.5", "claude-haiku-4.5"],
+            "accountMeta": account_meta,
+        }
+
+    # Offline / transient fallback: preserve cached metadata when available
+    cached_tier = str(cached.get("tier") or "").strip()
+    plan_label = str(cached.get("planLabel") or cached_tier or "KIRO").strip()
+    tier = cached_tier or plan_label
+    lbl_up = plan_label.upper()
+    if isinstance(cached.get("priority"), (int, float)):
+        priority = int(cached["priority"])
+    elif "POWER" in lbl_up:
+        priority = 94
+    elif "PRO+" in lbl_up or "PRO_PLUS" in lbl_up:
+        priority = 92
+    elif "FREE" in lbl_up:
+        priority = 30
+    else:
+        priority = 90
+
+    cached_email = str(cached.get("email") or "").strip()
+    if cached_email and (
+        "Chưa đăng nhập" in cached_email or "Not Installed" in cached_email
+    ):
+        cached_email = ""
+    resolved_email = (email or "").strip() or cached_email or "Kiro CLI User"
+
+    cached_cp = (
+        dict(cached["creditsPool"])
+        if isinstance(cached.get("creditsPool"), dict)
+        else None
+    )
+    cached_meta = (
+        dict(cached["accountMeta"])
+        if isinstance(cached.get("accountMeta"), dict)
+        else {}
+    )
+    overage_status = str(
+        cached.get("overageStatus") or cached_meta.get("overageStatus") or "DISABLED"
+    )
+    if not cached_meta:
+        plan_type = (
+            "power"
+            if priority == 94
+            else (
+                "pro_plus"
+                if priority == 92
+                else ("free" if priority == 30 else ("student" if "STUDENT" in lbl_up else "pro"))
+            )
+        )
+        cached_meta = {
+            "provider": "kiro",
+            "vendorLabel": "KIRO",
+            "planType": plan_type,
+            "planLabel": plan_label,
+            "authSource": whoami_auth.strip() or "cached",
+            "cliCommand": "kiro-cli",
+            "configPath": "~/.local/share/kiro-cli",
+            "overageStatus": overage_status,
+        }
+        if cached_cp:
+            cached_meta["creditsSummary"] = (
+                f"Used: {float(cached_cp.get('used', 0.0)):,.2f} / "
+                f"{float(cached_cp.get('limit', 1000.0)):,.1f} credits"
+            )
+
+    return {
+        "email": resolved_email,
+        "tier": tier,
+        "planLabel": plan_label,
+        "vendorLabel": "KIRO",
+        "priority": priority,
+        "creditsPool": cached_cp,
+        "overageStatus": overage_status,
+        "availableModels": list(
+            cached.get("availableModels")
+            or ["auto (1.0x)", "claude-sonnet-4.5", "claude-haiku-4.5"]
+        ),
+        "accountMeta": cached_meta,
+    }
+
+
+def parse_kiro_usage_limits(
+    api_data: dict, email: str = "", whoami_auth: str = ""
+) -> dict:
+    norm_kiro = normalize_kiro_account(api_data, email=email, whoami_auth=whoami_auth)
+    tier = norm_kiro["tier"]
+    overage_status = norm_kiro["overageStatus"]
+    used = float(norm_kiro["used"])
+    limit = float(norm_kiro["limit"])
 
     remaining = max(0.0, limit - used)
     fraction = max(0.0, min(1.0, remaining / limit)) if limit > 0 else 0.0
@@ -2645,8 +3377,10 @@ def parse_kiro_usage_limits(api_data: dict, email: str = "") -> dict:
         "isProvider": True,
         "providerType": "kiro",
         "tier": tier,
-        "priority": 90,
-        "email": email or "Kiro CLI User",
+        "planLabel": norm_kiro["planLabel"],
+        "vendorLabel": norm_kiro["vendorLabel"],
+        "priority": norm_kiro["priority"],
+        "email": norm_kiro["email"],
         "status": status,
         "success": True,
         "isSessionActive": True,
@@ -2655,6 +3389,8 @@ def parse_kiro_usage_limits(api_data: dict, email: str = "") -> dict:
         "remainingCountdown": countdown,
         "hasArgon": False,
         "isCreditOnly": True,
+        "availableModels": norm_kiro["availableModels"],
+        "accountMeta": norm_kiro["accountMeta"],
         "creditsPool": {
             "name": "Monthly Credits Pool",
             "used": round(used, 2),
@@ -2716,9 +3452,15 @@ def fetch_kiro_quota() -> dict:
 
     # 1. Check whoami
     email = ""
+    whoami_auth = ""
     try:
         whoami_proc = subprocess.run([kiro_bin, "whoami"], env=env, capture_output=True, text=True, timeout=3.0)
-        email = parse_kiro_whoami_email(whoami_proc.stdout) or ""
+        whoami_out = whoami_proc.stdout or ""
+        email = parse_kiro_whoami_email(whoami_out) or ""
+        if "builder id" in whoami_out.lower():
+            whoami_auth = "builder_id"
+        elif "iam" in whoami_out.lower() or "sso" in whoami_out.lower():
+            whoami_auth = "iam_sso"
         if whoami_proc.returncode != 0 or not email:
             return {
                 "profile": "kiro",
@@ -2726,6 +3468,7 @@ def fetch_kiro_quota() -> dict:
                 "isProvider": True,
                 "providerType": "kiro",
                 "tier": "KIRO",
+                "vendorLabel": "KIRO",
                 "priority": 90,
                 "email": "Chưa đăng nhập (Run 'kiro-cli login')",
                 "status": "NOT LOGGED IN",
@@ -2770,29 +3513,55 @@ def fetch_kiro_quota() -> dict:
                 )
                 with urllib.request.urlopen(req, timeout=4.0) as resp:
                     api_data = json.loads(resp.read().decode("utf-8"))
-                    return parse_kiro_usage_limits(api_data, email=email)
+                    return parse_kiro_usage_limits(api_data, email=email, whoami_auth=whoami_auth)
     except Exception as e:
         sys.stderr.write(f"Warning: Failed to fetch online Kiro quota: {e}\n")
 
-    # 3. Fallback: session store cached snapshot
+    # 3. Fallback: session store + HTML cached snapshot
+    cached_profile = _peek_cached_profile("kiro")
+    norm_kiro = normalize_kiro_account(
+        None, email=email, cached_entry=cached_profile, whoami_auth=whoami_auth
+    )
     cached = get_session_record("kiro")
-    if cached:
-        fraction = cached.get("fraction_5h", 1.0)
-        reset_ts = cached.get("reset_5h", 0)
+    cached_cp = norm_kiro.get("creditsPool")
+    if cached or isinstance(cached_cp, dict):
+        fraction = (
+            float(cached_cp["fraction"])
+            if isinstance(cached_cp, dict) and "fraction" in cached_cp
+            else float((cached or {}).get("fraction_5h", 1.0))
+        )
+        reset_ts = int((cached or {}).get("reset_5h", 0))
         now_ts = time.time()
         rem_sec = max(0, int(reset_ts - now_ts))
         days = rem_sec // 86400
         hours = (rem_sec % 86400) // 3600
-        local_date = datetime.datetime.fromtimestamp(reset_ts).strftime("%d/%m") if reset_ts > 0 else ""
-        countdown = f"⏱ {days}d {hours:02d}h ({local_date})" if reset_ts > 0 else "⏱ Cached"
+        local_date = (
+            datetime.datetime.fromtimestamp(reset_ts).strftime("%d/%m")
+            if reset_ts > 0
+            else str((cached_cp or {}).get("resetDate") or "")
+        )
+        countdown = (
+            f"⏱ {days}d {hours:02d}h ({local_date})"
+            if reset_ts > 0
+            else str((cached_cp or {}).get("countdown") or "⏱ Cached")
+        )
+        cp_limit = float((cached_cp or {}).get("limit", 1000.0) or 1000.0)
+        cp_used = float(
+            (cached_cp or {}).get("used", round(max(0.0, cp_limit * (1.0 - fraction)), 2))
+        )
+        cp_rem = float(
+            (cached_cp or {}).get("remaining", round(max(0.0, cp_limit - cp_used), 2))
+        )
         return {
             "profile": "kiro",
             "displayName": "Kiro CLI",
             "isProvider": True,
             "providerType": "kiro",
-            "tier": "KIRO",
-            "priority": 90,
-            "email": email or "Kiro CLI User",
+            "tier": norm_kiro["tier"],
+            "planLabel": norm_kiro["planLabel"],
+            "vendorLabel": norm_kiro["vendorLabel"],
+            "priority": norm_kiro["priority"],
+            "email": norm_kiro["email"],
             "status": "ACTIVE (Cached)",
             "success": True,
             "isSessionActive": True,
@@ -2801,11 +3570,14 @@ def fetch_kiro_quota() -> dict:
             "remainingCountdown": countdown,
             "hasArgon": False,
             "isCreditOnly": True,
+            "overageStatus": norm_kiro["overageStatus"],
+            "availableModels": norm_kiro["availableModels"],
+            "accountMeta": norm_kiro["accountMeta"],
             "creditsPool": {
                 "name": "Monthly Credits Pool",
-                "used": 0.0,
-                "limit": 1000.0,
-                "remaining": round(fraction * 1000.0, 2),
+                "used": round(cp_used, 2),
+                "limit": round(cp_limit, 2),
+                "remaining": round(cp_rem, 2),
                 "fraction": fraction,
                 "countdown": countdown,
                 "resetDate": local_date,
@@ -2826,9 +3598,11 @@ def fetch_kiro_quota() -> dict:
         "displayName": "Kiro CLI",
         "isProvider": True,
         "providerType": "kiro",
-        "tier": "KIRO",
-        "priority": 90,
-        "email": email or "Kiro CLI User",
+        "tier": norm_kiro["tier"],
+        "planLabel": norm_kiro["planLabel"],
+        "vendorLabel": norm_kiro["vendorLabel"],
+        "priority": norm_kiro["priority"],
+        "email": norm_kiro["email"],
         "status": "IDLE",
         "success": False,
         "isSessionActive": False,
@@ -2837,6 +3611,8 @@ def fetch_kiro_quota() -> dict:
         "remainingCountdown": "Unknown",
         "hasArgon": False,
         "isCreditOnly": True,
+        "availableModels": norm_kiro["availableModels"],
+        "accountMeta": norm_kiro["accountMeta"],
         "gemini5h": {
             "name": "Monthly Credits Pool",
             "fraction": 0.0,
@@ -2896,7 +3672,7 @@ def print_claude_card(data: dict):
         status_tag = f"\033[38;2;239;68;68m🔴 {status}\033[0m"
 
     tier_tag = f"\033[48;2;194;65;12m\033[1;38;2;254;215;170m ✺ {tier} \033[0m"
-    tag_priority = "\033[48;2;24;27;38m\033[38;2;160;174;192m Priority: 100 \033[0m"
+    tag_priority = format_priority_tag(data.get("priority", 100))
     api_source_tag = "\033[38;2;56;189;248m[Live API]\033[0m" if is_live else "\033[38;2;156;163;175m[Local Cache]\033[0m"
 
     print(f"\n{BOLD}{WHITE}✦ Provider: \033[38;2;251;146;60m✺ Claude Code{RESET}  {tier_tag}  {tag_priority}  {api_source_tag}  {status_tag}")
@@ -2945,7 +3721,7 @@ def print_codex_card(data: dict):
         status_tag = f"\033[38;2;239;68;68m🔴 {status}\033[0m"
 
     tier_tag = f"\033[48;2;16;185;129m\033[1;38;2;209;250;229m 🟢 {tier} \033[0m"
-    tag_priority = "\033[48;2;24;27;38m\033[38;2;160;174;192m Priority: 95 \033[0m"
+    tag_priority = format_priority_tag(data.get("priority", 95))
 
     print(f"\n{BOLD}{WHITE}✦ Provider: \033[38;2;52;211;153m🟢 OpenAI Codex{RESET}  {tier_tag}  {tag_priority}  {status_tag}")
     if email:
@@ -2981,7 +3757,7 @@ def print_kiro_card(data: dict):
         status_tag = f"\033[38;2;239;68;68m🔴 {status}\033[0m"
 
     tier_tag = f"\033[48;2;88;28;135m\033[1;38;2;216;180;254m 👻 {tier} \033[0m"
-    tag_priority = "\033[48;2;24;27;38m\033[38;2;160;174;192m Priority: 90 \033[0m"
+    tag_priority = format_priority_tag(data.get("priority", 90))
 
     print(f"\n{BOLD}{WHITE}✦ Provider: \033[38;2;192;132;252m👻 Kiro CLI{RESET}  {tier_tag}  {tag_priority}  {status_tag}")
     if email:
@@ -3009,8 +3785,12 @@ def print_kiro_card(data: dict):
 
 
 def load_cached_profiles() -> dict:
-    global CACHED_PROFILES_DATA
-    if CACHED_PROFILES_DATA:
+    global CACHED_PROFILES_DATA, CACHED_HTML_MTIME
+    p = get_dashboard_html_path()
+    disk_mtime = p.stat().st_mtime if p.is_file() else 0.0
+    if CACHED_PROFILES_DATA and (
+        CACHED_HTML_MTIME == 0.0 or disk_mtime <= 0.0 or disk_mtime == CACHED_HTML_MTIME
+    ):
         if "claude" not in CACHED_PROFILES_DATA:
             CACHED_PROFILES_DATA["claude"] = fetch_claude_quota()
         if "codex" not in CACHED_PROFILES_DATA:
@@ -3018,7 +3798,6 @@ def load_cached_profiles() -> dict:
         if "kiro" not in CACHED_PROFILES_DATA:
             CACHED_PROFILES_DATA["kiro"] = fetch_kiro_quota()
         return CACHED_PROFILES_DATA
-    p = get_dashboard_html_path()
     if p.is_file():
         try:
             content = p.read_text(encoding="utf-8")
@@ -3032,6 +3811,7 @@ def load_cached_profiles() -> dict:
                     if raw_json.endswith(";"):
                         raw_json = raw_json[:-1].strip()
                     CACHED_PROFILES_DATA = json.loads(raw_json)
+                    CACHED_HTML_MTIME = p.stat().st_mtime
                     allowed_providers = {"claude", "codex", "kiro"}
                     purged_keys = [k for k in list(CACHED_PROFILES_DATA.keys()) if k not in allowed_providers and not is_valid_antigravity_profile(k)]
                     if purged_keys:
@@ -3041,6 +3821,7 @@ def load_cached_profiles() -> dict:
                             formatted_json = json.dumps(CACHED_PROFILES_DATA, indent=2, ensure_ascii=False)
                             new_content = content[:idx1 + len(marker)] + " " + formatted_json + ";" + content[idx2 + len(end_marker):]
                             p.write_text(new_content, encoding="utf-8")
+                            CACHED_HTML_MTIME = p.stat().st_mtime
                             sync_copies = [
                                 Path.home() / ".gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html",
                                 Path(REAL_HOME) / ".gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html",
@@ -3080,10 +3861,15 @@ def _peek_cached_profile(profile: str) -> dict:
     if load_cached_profiles is not _ORIG_LOAD_CACHED_PROFILES:
         data = load_cached_profiles()
         return dict(data.get(profile, {})) if isinstance(data, dict) else {}
-    if CACHED_PROFILES_DATA and profile in CACHED_PROFILES_DATA:
+    p = get_dashboard_html_path()
+    disk_mtime = p.stat().st_mtime if p.is_file() else 0.0
+    if (
+        CACHED_PROFILES_DATA
+        and profile in CACHED_PROFILES_DATA
+        and (CACHED_HTML_MTIME == 0.0 or disk_mtime <= 0.0 or disk_mtime == CACHED_HTML_MTIME)
+    ):
         entry = CACHED_PROFILES_DATA.get(profile)
         return dict(entry) if isinstance(entry, dict) else {}
-    p = get_dashboard_html_path()
     if p.is_file():
         try:
             content = p.read_text(encoding="utf-8")
@@ -3105,8 +3891,13 @@ def _peek_cached_profile(profile: str) -> dict:
 
 
 def _preserve_cached_model_meta(target: dict, cached_entry: dict) -> dict:
-    """Copy existing model discovery metadata onto `DISABLED` / `AUTH NEEDED` payloads."""
+    """Copy existing model discovery and account metadata onto `DISABLED` / `AUTH NEEDED` payloads."""
     for key in (
+        "tier",
+        "priority",
+        "planLabel",
+        "vendorLabel",
+        "accountMeta",
         "availableModels",
         "modelCatalog",
         "groupModels",
@@ -3120,7 +3911,7 @@ def _preserve_cached_model_meta(target: dict, cached_entry: dict) -> dict:
 
 
 def update_cached_profile(profile: str, data: dict):
-    global CACHED_PROFILES_DATA
+    global CACHED_PROFILES_DATA, CACHED_HTML_MTIME
     if not CACHED_PROFILES_DATA:
         load_cached_profiles()
     CACHED_PROFILES_DATA[profile] = data
@@ -3137,6 +3928,7 @@ def update_cached_profile(profile: str, data: dict):
                     formatted_json = json.dumps(CACHED_PROFILES_DATA, indent=2, ensure_ascii=False)
                     new_content = content[:idx1 + len(marker)] + " " + formatted_json + ";" + content[idx2 + len(end_marker):]
                     p.write_text(new_content, encoding="utf-8")
+                    CACHED_HTML_MTIME = p.stat().st_mtime
                     sync_copies = [
                         Path.home() / ".gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html",
                         Path(REAL_HOME) / ".gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html",
@@ -3162,16 +3954,28 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
         return fetch_kiro_quota()
 
     current = _peek_cached_profile(profile)
-    email = current.get("email") or f"{profile}@gmail.com"
+    vscdb_email = read_antigravity_vscdb_email(profile)
+    explicit_email = str(result.get("email") or "").strip()
+    cached_email = str(current.get("email") or "").strip()
+    email = vscdb_email or explicit_email or cached_email or f"{profile}@gmail.com"
     tier = current.get("tier", "PRO")
     priority = current.get("priority", 50)
+    fallback_norm = normalize_antigravity_account(
+        profile,
+        current.get("capabilities") if isinstance(current.get("capabilities"), dict) else {"tier": tier},
+        str((current.get("capabilities") or {}).get("argonMode") or "none"),
+        email=email,
+    )
 
     if result.get("is_appeal") or result.get("status") == "DISABLED":
         appeal_err_id = result.get("error_id") or check_profile_appeal_status(profile) or "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
         return _preserve_cached_model_meta({
             "email": email,
             "tier": tier,
+            "planLabel": current.get("planLabel") or str(tier),
+            "vendorLabel": current.get("vendorLabel") or "GOOGLE",
             "priority": priority,
+            "accountMeta": fallback_norm["accountMeta"],
             "status": "DISABLED",
             "isAppeal": True,
             "appealReason": "This service has been disabled in this account for violation of Terms of Service. Please submit an appeal to continue using this product.",
@@ -3190,7 +3994,10 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
             return _preserve_cached_model_meta({
                 "email": email,
                 "tier": tier,
+                "planLabel": current.get("planLabel") or str(tier),
+                "vendorLabel": current.get("vendorLabel") or "GOOGLE",
                 "priority": priority,
+                "accountMeta": fallback_norm["accountMeta"],
                 "status": "DISABLED",
                 "isAppeal": True,
                 "appealReason": "This service has been disabled in this account for violation of Terms of Service. Please submit an appeal to continue using this product.",
@@ -3205,7 +4012,10 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
         return _preserve_cached_model_meta({
             "email": email,
             "tier": tier,
+            "planLabel": current.get("planLabel") or str(tier),
+            "vendorLabel": current.get("vendorLabel") or "GOOGLE",
             "priority": priority,
+            "accountMeta": fallback_norm["accountMeta"],
             "status": "AUTH NEEDED",
             "isAppeal": False,
             "hasArgon": current.get("hasArgon", False),
@@ -3259,11 +4069,10 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
 
     has_5h = items["gem_5h"]["available"] or items["cld_5h"]["available"]
     plan_raw = str(result.get("plan_name") or "").upper()
-    tier = "FREE" if ("FREE" in plan_raw or (groups and not has_5h)) else ("PRO" if has_5h else "FREE")
-    priority = 50 if tier == "PRO" else 20
+    base_tier = "FREE" if ("FREE" in plan_raw or (groups and not has_5h)) else ("PRO" if has_5h else "FREE")
 
     capabilities = _derive_profile_capabilities(
-        tier=tier,
+        tier=base_tier,
         plan_name=plan_raw,
         has_dedicated_argon=bool(usage_parsed["hasDedicatedArgonGroup"]),
         argon_mode=argon_mode,
@@ -3271,6 +4080,9 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
         model_catalog=model_catalog,
         available_models=available_models,
     )
+    norm_acct = normalize_antigravity_account(profile, capabilities, argon_mode, email=email)
+    tier = norm_acct["tier"]
+    priority = norm_acct["priority"]
     has_argon = argon_mode != "none"
 
     is_exhausted = (
@@ -3340,8 +4152,13 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
     }
 
     if argon_mode == "shared_gemini":
+        shared_argon_title = (
+            "Gemini 4 Carbon & Argon Weekly"
+            if capabilities.get("hasCarbon")
+            else "Gemini 4 Argon Weekly"
+        )
         argon_weekly_bucket = {
-            "name": "Gemini 4 Argon Weekly",
+            "name": shared_argon_title,
             "fraction": gemini_weekly_bucket["fraction"],
             "countdown": gemini_weekly_bucket["countdown"],
             "resetTime": gemini_weekly_bucket["resetTime"],
@@ -3380,9 +4197,12 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
         }
 
     return {
-        "email": email,
+        "email": norm_acct["email"],
         "tier": tier,
+        "planLabel": norm_acct["planLabel"],
+        "vendorLabel": norm_acct["vendorLabel"],
         "priority": priority,
+        "accountMeta": norm_acct["accountMeta"],
         "status": status,
         "isAppeal": False,
         "isSessionActive": is_5h_active,
@@ -3613,10 +4433,10 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
         effective_argon_mode = live_argon_mode
     else:
         gem_bucket = _bucket_from_cached_entry(
-            cached_p.get("gemini5h"), default_available=(tier == "PRO" or not tier)
+            cached_p.get("gemini5h"), default_available=(tier != "FREE")
         )
         cld_bucket = _bucket_from_cached_entry(
-            cached_p.get("claude5h"), default_available=(tier == "PRO" or not tier)
+            cached_p.get("claude5h"), default_available=(tier != "FREE")
         )
         cached_separate_argon = _is_separate_argon_cached(cached_p)
         arg_bucket = _bucket_from_cached_entry(
@@ -3953,6 +4773,20 @@ def scan_all_profiles_parallel(profiles: list) -> list:
     return results
 
 
+def _check_and_schedule_hot_reload(server: object) -> None:
+    """Schedule graceful daemon shutdown + execv reload if agy_quota.py mtime changed on disk."""
+    global _RELOAD_PENDING
+    if _RELOAD_PENDING or not isinstance(server, socketserver.BaseServer):
+        return
+    try:
+        cur_mtime = int(Path(__file__).stat().st_mtime)
+    except OSError:
+        return
+    if cur_mtime != SERVER_STARTUP_MTIME:
+        _RELOAD_PENDING = True
+        threading.Thread(target=server.shutdown, daemon=True).start()
+
+
 class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         if "/favicon.ico" in self.path:
@@ -3965,6 +4799,9 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
         except Exception:
             pass
 
+    def _maybe_trigger_hot_reload(self) -> None:
+        _check_and_schedule_hot_reload(getattr(self, "server", None))
+
     def send_json(self, data, status=200):
         try:
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
@@ -3974,8 +4811,10 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(body)
+            self.wfile.flush()
         except Exception:
             pass
+        self._maybe_trigger_hot_reload()
 
     def do_HEAD(self):
         self.send_response(200)
@@ -4174,8 +5013,10 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
                 self.send_header("Content-Length", str(len(content)))
                 self.end_headers()
                 self.wfile.write(content)
+                self.wfile.flush()
             else:
                 self.send_error(404, "Dashboard HTML not found")
+            self._maybe_trigger_hot_reload()
             return
 
         if path == "/api/status":
@@ -4189,6 +5030,7 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
             sched = self._safe_schedule_status()
             self.send_json({
                 "success": True,
+                "server_code_mtime": SERVER_STARTUP_MTIME,
                 "profiles": load_cached_profiles(),
                 "last_refresh_all": last_rf,
                 "elapsed_seconds": elapsed,
@@ -4593,16 +5435,33 @@ def status_server(port: int = 8765):
         print(f"  🚀 Chạy {CYAN}check-quota --ui{RESET} để khởi động ngầm.\n")
 
 
+def _get_running_server_code_mtime(port: int = 8765) -> int | None:
+    """Query running daemon /api/status for its server_code_mtime."""
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=1.5) as resp:
+            if getattr(resp, "status", 200) != 200:
+                return None
+            payload = json.loads(resp.read().decode("utf-8"))
+            val = payload.get("server_code_mtime") if isinstance(payload, dict) else None
+            return int(val) if isinstance(val, (int, float)) else None
+    except Exception:
+        return None
+
+
 def start_server_daemon(port: int = 8765, auto_open: bool = True):
     if is_server_alive(port):
-        pid = get_server_pid(port)
-        pid_str = f" (PID {pid})" if pid else ""
-        print(f"\n{BOLD}{GREEN}⚡ Quota Web Server đã đang hoạt động{pid_str} tại:{RESET} {WHITE}http://127.0.0.1:{port}{RESET}")
-        if auto_open:
-            print(f"  {CYAN}🌐 Đang mở Quota Dashboard trong trình duyệt...{RESET}\n")
-            subprocess.run(["open", f"http://127.0.0.1:{port}"])
-        print(f"  {GRAY}💡 Dừng server bất cứ lúc nào bằng lệnh: {WHITE}check-quota --stop{RESET}\n")
-        return
+        current_mtime = int(Path(__file__).stat().st_mtime)
+        running_mtime = _get_running_server_code_mtime(port)
+        if running_mtime == current_mtime:
+            pid = get_server_pid(port)
+            pid_str = f" (PID {pid})" if pid else ""
+            print(f"\n{BOLD}{GREEN}⚡ Quota Web Server đã đang hoạt động{pid_str} tại:{RESET} {WHITE}http://127.0.0.1:{port}{RESET}")
+            if auto_open:
+                print(f"  {CYAN}🌐 Đang mở Quota Dashboard trong trình duyệt...{RESET}\n")
+                subprocess.run(["open", f"http://127.0.0.1:{port}"])
+            print(f"  {GRAY}💡 Dừng server bất cứ lúc nào bằng lệnh: {WHITE}check-quota --stop{RESET}\n")
+            return
+        stop_server(port)
 
     # Cleanup any stuck PID/port
     if PID_FILE.is_file() or get_server_pid(port):
@@ -4690,7 +5549,10 @@ def run_internal_serve(port: int = 8765):
         httpd.serve_forever()
     finally:
         httpd.server_close()
-        PID_FILE.unlink(missing_ok=True)
+        if not _RELOAD_PENDING:
+            PID_FILE.unlink(missing_ok=True)
+    if _RELOAD_PENDING:
+        os.execv(sys.executable, [sys.executable, *sys.argv])
 
 
 def run_quota_web_server(port: int = 8765, auto_open: bool = True):
