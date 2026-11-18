@@ -32,7 +32,12 @@ import pytest  # type: ignore[import-not-found]
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DASHBOARD_HTML_PATH = (
-    REPO_ROOT / "skills" / "check-quota" / "resources" / "dashboard" / "quota_dashboard.html"
+    REPO_ROOT
+    / "skills"
+    / "check-quota"
+    / "resources"
+    / "dashboard"
+    / "quota_dashboard.html"
 )
 SCRIPTS_DIR = REPO_ROOT / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
@@ -159,7 +164,9 @@ class _CdpWebSocket:
             if opcode == 0x9:
                 pong = bytearray([0x8A, 0x80 | len(payload)])
                 pong_mask = os.urandom(4)
-                pong_body = bytes(b ^ pong_mask[idx % 4] for idx, b in enumerate(payload))
+                pong_body = bytes(
+                    b ^ pong_mask[idx % 4] for idx, b in enumerate(payload)
+                )
                 self._sock.sendall(bytes(pong) + pong_mask + pong_body)
                 continue
             if opcode in (0x0, 0x1):
@@ -188,7 +195,9 @@ class CdpHarness:
     def call(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         self._msg_id += 1
         target_id = self._msg_id
-        self.ws.send_text(json.dumps({"id": target_id, "method": method, "params": params or {}}))
+        self.ws.send_text(
+            json.dumps({"id": target_id, "method": method, "params": params or {}})
+        )
         while True:
             raw = self.ws.recv_text()
             msg: dict[str, Any] = json.loads(raw)
@@ -204,7 +213,9 @@ class CdpHarness:
         params = msg.get("params", {})
         if method == "Runtime.consoleAPICalled" and params.get("type") == "error":
             args = params.get("args", [])
-            rendered = " ".join(str(a.get("value") or a.get("description") or a) for a in args)
+            rendered = " ".join(
+                str(a.get("value") or a.get("description") or a) for a in args
+            )
             self.console_errors.append(rendered)
         elif method == "Runtime.exceptionThrown":
             details = params.get("exceptionDetails", {})
@@ -229,8 +240,12 @@ class CdpHarness:
         return inner.get("value")
 
     def assert_zero_console_errors(self) -> None:
-        assert self.console_errors == [], f"Unexpected console.error logs: {self.console_errors}"
-        assert self.page_exceptions == [], f"Unexpected page exceptions: {self.page_exceptions}"
+        assert self.console_errors == [], (
+            f"Unexpected console.error logs: {self.console_errors}"
+        )
+        assert self.page_exceptions == [], (
+            f"Unexpected page exceptions: {self.page_exceptions}"
+        )
 
 
 def _build_fixture_profiles() -> dict[str, dict[str, Any]]:
@@ -563,7 +578,9 @@ def quota_cdp_harness(tmp_path_factory: pytest.TempPathFactory) -> Iterator[CdpH
     repo_sha_before = hashlib.sha256(raw_html.encode("utf-8")).hexdigest()
 
     profiles = _build_fixture_profiles()
-    safe_profiles_js = json.dumps(profiles, ensure_ascii=False, indent=2).replace("</", "<\\/")
+    safe_profiles_js = json.dumps(profiles, ensure_ascii=False, indent=2).replace(
+        "</", "<\\/"
+    )
     injected_html, count = re.subn(
         r"const PROFILES_DATA = \{.*?\n\};",
         f"const PROFILES_DATA = {safe_profiles_js}\n;",
@@ -571,7 +588,9 @@ def quota_cdp_harness(tmp_path_factory: pytest.TempPathFactory) -> Iterator[CdpH
         count=1,
         flags=re.DOTALL,
     )
-    assert count == 1, "Failed to inject PROFILES_DATA into isolated quota_dashboard.html copy"
+    assert count == 1, (
+        "Failed to inject PROFILES_DATA into isolated quota_dashboard.html copy"
+    )
     isolated_html_path = tmp_dir / "quota_dashboard.html"
     isolated_html_path.write_text(injected_html, encoding="utf-8")
 
@@ -647,7 +666,9 @@ def quota_cdp_harness(tmp_path_factory: pytest.TempPathFactory) -> Iterator[CdpH
                 ).read()
                 targets = json.loads(raw_targets.decode("utf-8"))
                 page_targets = [
-                    t for t in targets if t.get("type") == "page" and t.get("webSocketDebuggerUrl")
+                    t
+                    for t in targets
+                    if t.get("type") == "page" and t.get("webSocketDebuggerUrl")
                 ]
                 if page_targets:
                     ws_url = str(page_targets[0]["webSocketDebuggerUrl"])
@@ -657,7 +678,9 @@ def quota_cdp_harness(tmp_path_factory: pytest.TempPathFactory) -> Iterator[CdpH
         assert ws_url, "Failed to obtain Chrome CDP page webSocketDebuggerUrl"
 
         ws = _CdpWebSocket(ws_url)
-        base_url = f"http://127.0.0.1:{http_port}/quota_dashboard.html?no-auto-refresh=1"
+        base_url = (
+            f"http://127.0.0.1:{http_port}/quota_dashboard.html?no-auto-refresh=1"
+        )
         harness = CdpHarness(ws=ws, base_url=base_url, repo_html_sha256=repo_sha_before)
         harness.call("Network.enable")
         harness.call("Network.setBlockedURLs", {"urls": ["https://www.gstatic.com/*"]})
@@ -809,7 +832,9 @@ def test_cqra_hp_03_quota_dashboard_cdp_dynamic_badges_and_shared_pool(
 
     modal_text = dom_snapshot["modalText"]
     for heading in ("Gemini Models", "Claude & GPT", "Argon / Orchestrator"):
-        assert heading in modal_text, f"Missing modal section {heading!r} in {modal_text!r}"
+        assert heading in modal_text, (
+            f"Missing modal section {heading!r} in {modal_text!r}"
+        )
     for expected_token in (
         "Gemini 4 Carbon",
         "Gemini 4 Argon",
@@ -834,7 +859,9 @@ class Test_Integration:
 
     def test_cqra_hp_03_integration(self, quota_cdp_harness: CdpHarness) -> None:
         """[CQRA-HP-03] Execute headless Chrome CDP integration verification."""
-        test_cqra_hp_03_quota_dashboard_cdp_dynamic_badges_and_shared_pool(quota_cdp_harness)
+        test_cqra_hp_03_quota_dashboard_cdp_dynamic_badges_and_shared_pool(
+            quota_cdp_harness
+        )
 
 
 @pytest.mark.parametrize(
@@ -842,7 +869,12 @@ class Test_Integration:
     [
         (
             "legacy_cached",
-            ("Gemini 3.8 / Pro 5H", "Claude 5.5 / GPT 5H", "Gemini Weekly", "Claude Weekly"),
+            (
+                "Gemini 3.8 / Pro 5H",
+                "Claude 5.5 / GPT 5H",
+                "Gemini Weekly",
+                "Claude Weekly",
+            ),
             ("Shared w/ Gemini Pool", "undefined", "NaN"),
             60.0,
         ),
@@ -906,7 +938,9 @@ def test_cqra_ec_02_legacy_payload_and_none_argon_safe_dom(
     assert result["injectedElements"] == 0
 
     for token in expected_present:
-        assert token in result["cardText"], f"Expected {token!r} in {profile_key} card text"
+        assert token in result["cardText"], (
+            f"Expected {token!r} in {profile_key} card text"
+        )
     for forbidden in expected_absent:
         assert forbidden not in result["cardText"], (
             f"Unexpected {forbidden!r} in {profile_key} card text"
@@ -918,7 +952,14 @@ def test_cqra_ec_02_legacy_payload_and_none_argon_safe_dom(
 
 
 @pytest.mark.parametrize(
-    ("argon_fraction", "shared_pool", "argon_mode", "has_argon", "unavailable", "expect_argon"),
+    (
+        "argon_fraction",
+        "shared_pool",
+        "argon_mode",
+        "has_argon",
+        "unavailable",
+        "expect_argon",
+    ),
     [
         (0.80, True, "shared_gemini", True, False, True),
         (0.20, False, "separate", True, False, True),

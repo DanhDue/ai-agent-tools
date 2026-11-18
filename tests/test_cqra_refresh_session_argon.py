@@ -294,7 +294,13 @@ def _cleanup_tmp_profiles(profiles: list[str]) -> None:
 
 
 @pytest.mark.parametrize(
-    ("snapshot_key", "extra_models", "expected_mode", "expected_dedicated", "expected_gem_active"),
+    (
+        "snapshot_key",
+        "extra_models",
+        "expected_mode",
+        "expected_dedicated",
+        "expected_gem_active",
+    ),
     [
         ("ultra_shared_active", [], "shared_gemini", False, True),
         ("ultra_shared_inactive_gem", [], "shared_gemini", False, False),
@@ -322,7 +328,12 @@ def test_cqra_st_02_extract_usage_buckets_argon_mode(
 
 
 @pytest.mark.parametrize(
-    ("ultra_snapshot_key", "pro_snapshot_key", "expected_ultra_pinged", "expected_pro_argon_pings"),
+    (
+        "ultra_snapshot_key",
+        "pro_snapshot_key",
+        "expected_ultra_pinged",
+        "expected_pro_argon_pings",
+    ),
     [
         ("ultra_shared_active", "pro_sep_inactive_argon", [], 1),
         ("ultra_shared_inactive_gem", "pro_sep_active_argon", ["Gemini 5H"], 0),
@@ -360,7 +371,9 @@ def test_cqra_st_02_suppresses_argon_ping_for_shared_gemini(
         ]
     )
 
-    def fake_subprocess_run(cmd: list[str], *args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+    def fake_subprocess_run(
+        cmd: list[str], *args: Any, **kwargs: Any
+    ) -> subprocess.CompletedProcess[str]:
         env = kwargs.get("env") or {}
         prof = env.get("AGY_PROFILE", "")
         if "/usage" in cmd:
@@ -393,7 +406,9 @@ def test_cqra_st_02_suppresses_argon_ping_for_shared_gemini(
         return True, False, ""
 
     monkeypatch.setattr(refresh_session.subprocess, "run", fake_subprocess_run)
-    monkeypatch.setattr(refresh_session, "_run_isolated_agy_model_ping", fake_isolated_ping)
+    monkeypatch.setattr(
+        refresh_session, "_run_isolated_agy_model_ping", fake_isolated_ping
+    )
 
     ultra_res = refresh_session.ping_profile("ultra_shared")
     pro_res = refresh_session.ping_profile("pro_sep")
@@ -447,7 +462,12 @@ def test_cqra_fr_02_check_profile_has_argon_cache_modes(
 @pytest.mark.parametrize(
     ("profile_name", "mock_probe_return", "corrupt_html", "expected_argon_pings"),
     [
-        ("shared_cached", ({}, ["gemini-4-argon-low", "gemini-3.8-flash-low"], False), False, 0),
+        (
+            "shared_cached",
+            ({}, ["gemini-4-argon-low", "gemini-3.8-flash-low"], False),
+            False,
+            0,
+        ),
         ("shared_cached", ({}, None, False), False, 0),
         ("corrupt_probe", ({}, None, False), False, 0),
         ("corrupt_probe", (None, [], False), False, 0),
@@ -472,7 +492,9 @@ def test_cqra_fr_02_corrupted_probe_and_shared_cache_fallback_zero_argon_pings(
         dashboard_data=dashboard_cache_payload,
     )
     if corrupt_html:
-        html_path.write_text("<html><script>const PROFILES_DATA = {broken;</script>", encoding="utf-8")
+        html_path.write_text(
+            "<html><script>const PROFILES_DATA = {broken;</script>", encoding="utf-8"
+        )
 
     assert refresh_session.check_profile_has_argon("shared_cached") is False
     assert refresh_session.check_profile_has_argon("corrupt_probe") is False
@@ -496,7 +518,9 @@ def test_cqra_fr_02_corrupted_probe_and_shared_cache_fallback_zero_argon_pings(
         "_probe_profile_usage_and_models",
         lambda *_args, **_kwargs: mock_probe_return,
     )
-    monkeypatch.setattr(refresh_session, "_run_isolated_agy_model_ping", fake_isolated_ping)
+    monkeypatch.setattr(
+        refresh_session, "_run_isolated_agy_model_ping", fake_isolated_ping
+    )
 
     res = refresh_session.ping_profile(profile_name)
     _cleanup_tmp_profiles(["shared_cached", "corrupt_probe", "separate_cached"])
@@ -527,7 +551,9 @@ def test_cqra_fr_02_probe_profile_usage_and_models_malformed_cli_output(
 ) -> None:
     """[CQRA-FR-02] Degrade softly when live `/usage` or `agy models` emits empty or malformed JSON."""
 
-    def fake_run(cmd: list[str], *_args: Any, **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+    def fake_run(
+        cmd: list[str], *_args: Any, **_kwargs: Any
+    ) -> subprocess.CompletedProcess[str]:
         out = usage_stdout if "/usage" in cmd else models_stdout
         return subprocess.CompletedProcess(cmd, 0, stdout=out, stderr="")
 

@@ -175,9 +175,7 @@ class _CdpSession:
                 ).strip()
                 self.console_errors.append(rendered or "console.error")
 
-    def call(
-        self, method: str, params: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    def call(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         self._next_id += 1
         req_id = self._next_id
         body = json.dumps(
@@ -230,7 +228,9 @@ def _write_epic_hld(epic_dir: Path, slug: str) -> None:
 
 
 @pytest.fixture(scope="module")
-def tasks_e2e_workspace(tmp_path_factory: pytest.TempPathFactory) -> Iterator[dict[str, Any]]:
+def tasks_e2e_workspace(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Iterator[dict[str, Any]]:
     """Module-scoped temporary workspace + live TasksServer bound to an isolated port & pid file."""
     ws_root = tmp_path_factory.mktemp("cqra_tasks_ws")
     demo_repo = ws_root / "demo"
@@ -284,12 +284,7 @@ def tasks_e2e_workspace(tmp_path_factory: pytest.TempPathFactory) -> Iterator[di
             "### Finding #1\n"
             "- **Proposed Action (Adjusted"
         ),
-        "broken_pipes": (
-            "|||||\n"
-            "| not_an_id | ??? |\n"
-            "### Fix 1 [#1]\n"
-            "- **Action**:\n"
-        ),
+        "broken_pipes": ("|||||\n| not_an_id | ??? |\n### Fix 1 [#1]\n- **Action**:\n"),
     }
     for slug, bad_fp_text in broken_variants.items():
         ep_dir = demo_repo / ".devtool" / "epic" / slug
@@ -314,7 +309,9 @@ def tasks_e2e_workspace(tmp_path_factory: pytest.TempPathFactory) -> Iterator[di
         workspace_root=ws_root,
         pid_file=pid_file,
     )
-    thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.1}, daemon=True)
+    thread = threading.Thread(
+        target=server.serve_forever, kwargs={"poll_interval": 0.1}, daemon=True
+    )
     thread.start()
 
     base_url = f"http://127.0.0.1:{server.server_port}"
@@ -343,7 +340,9 @@ def tasks_e2e_workspace(tmp_path_factory: pytest.TempPathFactory) -> Iterator[di
 
 
 @pytest.fixture(scope="module")
-def chrome_cdp_session(tmp_path_factory: pytest.TempPathFactory) -> Iterator[_CdpSession]:
+def chrome_cdp_session(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Iterator[_CdpSession]:
     """Module-scoped headless Chrome CDP session isolated to a temporary user-data-dir."""
     chrome_bin = _find_chrome_binary()
     user_data_dir = tmp_path_factory.mktemp("cqra_chrome_profile")
@@ -388,7 +387,9 @@ def chrome_cdp_session(tmp_path_factory: pytest.TempPathFactory) -> Iterator[_Cd
     if not ws_url:
         proc.terminate()
         proc.wait(timeout=5)
-        raise RuntimeError("Timed out waiting for headless Chrome /json/list page target")
+        raise RuntimeError(
+            "Timed out waiting for headless Chrome /json/list page target"
+        )
 
     session = _CdpSession(ws_url)
     session.call("Page.enable")
@@ -423,7 +424,9 @@ def _wait_for_js_condition(
         if last_val:
             return last_val
         time.sleep(0.05)
-    raise AssertionError(f"Timed out waiting for JS predicate ({js_predicate!r}); last={last_val!r}")
+    raise AssertionError(
+        f"Timed out waiting for JS predicate ({js_predicate!r}); last={last_val!r}"
+    )
 
 
 def test_cqra_hp_05_cross_model_proposed_action_cdp_e2e(
@@ -628,7 +631,13 @@ def test_cqra_ec_03_four_row_matrix_and_multiline_fix_block(tmp_path: Path) -> N
 
 
 @pytest.mark.parametrize(
-    ("problem_cell", "fix_plan_name", "fix_plan_body", "expected_problem", "expected_action"),
+    (
+        "problem_cell",
+        "fix_plan_name",
+        "fix_plan_body",
+        "expected_problem",
+        "expected_action",
+    ),
     [
         (
             "Prompt omits `. Proposed: <edit>` and Unproposed: label. Fix: append suffix",
@@ -783,7 +792,9 @@ def test_cqra_fr_03_malformed_fix_plan_resilience(
     """[CQRA-FR-03] Malformed fix_plan_roundN.md alongside valid review_results.md degrades per-file without breaking TasksServer endpoints."""
     base_url = tasks_e2e_workspace["base_url"]
 
-    st_rev, rev_json = _http_get_json(f"{base_url}/api/review?repo=demo&epic={epic_slug}")
+    st_rev, rev_json = _http_get_json(
+        f"{base_url}/api/review?repo=demo&epic={epic_slug}"
+    )
     assert st_rev == 200
     assert rev_json["present"] is True
     assert "CHANGES REQUIRED" in rev_json["verdict"]

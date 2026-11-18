@@ -82,9 +82,7 @@ def _section_row_lines(markdown_text: str, heading: str) -> list[str]:
     for line in lines[start:]:
         if line.startswith("## "):
             break
-        if line.startswith("|") and not line.startswith(
-            ("| # |", "| Rank |", "|---")
-        ):
+        if line.startswith("|") and not line.startswith(("| # |", "| Rank |", "|---")):
             rows.append(line)
     return rows
 

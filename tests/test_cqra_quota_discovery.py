@@ -91,7 +91,9 @@ def _setup_isolated_env(
         tok_file = p_home / ".gemini" / "antigravity-cli" / "antigravity-oauth-token"
         tok_file.parent.mkdir(parents=True, exist_ok=True)
         tok_file.write_text(
-            json.dumps({"token": {"access_token": "ya29.test", "refresh_token": "1//ref"}}),
+            json.dumps(
+                {"token": {"access_token": "ya29.test", "refresh_token": "1//ref"}}
+            ),
             encoding="utf-8",
         )
 
@@ -411,7 +413,12 @@ def test_cqra_ec_01_auth_needed_and_disabled_never_invoke_agy_models(
     tos_dir = tmp_path / "antigravity_homes" / "banned_acct" / ".gemini" / "antigravity"
     tos_dir.mkdir(parents=True, exist_ok=True)
     (tos_dir / "tos_disabled.json").write_text(
-        json.dumps({"profile": "banned_acct", "error_id": "11111111-2222-3333-4444-555555555555"}),
+        json.dumps(
+            {
+                "profile": "banned_acct",
+                "error_id": "11111111-2222-3333-4444-555555555555",
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -423,7 +430,9 @@ def test_cqra_ec_01_auth_needed_and_disabled_never_invoke_agy_models(
         return MagicMock(returncode=44, stdout="", stderr="")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
-    monkeypatch.setattr(agy_quota, "get_all_profiles", lambda: ["broken_auth", "banned_acct"])
+    monkeypatch.setattr(
+        agy_quota, "get_all_profiles", lambda: ["broken_auth", "banned_acct"]
+    )
 
     res_auth = agy_quota.fetch_quota_for_profile("broken_auth")
     res_dis = agy_quota.fetch_quota_for_profile("banned_acct")
@@ -520,7 +529,9 @@ def test_cqra_st_01_hybrid_cache_transitions_and_single_profile_refresh(
             models_call_count += 1
             return MagicMock(returncode=0, stdout=ultra_models_stdout, stderr="")
         if "/usage" in cmd:
-            return MagicMock(returncode=0, stdout=_make_usage_json(current_groups), stderr="")
+            return MagicMock(
+                returncode=0, stdout=_make_usage_json(current_groups), stderr=""
+            )
         raise AssertionError(f"Unexpected subprocess command: {cmd}")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -587,12 +598,12 @@ def test_cqra_st_01_hybrid_cache_transitions_and_single_profile_refresh(
     assert models_call_count == 3
 
     persisted_after_refresh = _read_cached_html(dash_html)
-    assert persisted_after_refresh["nguyenhieu000690"]["geminiWeekly"]["fraction"] == pytest.approx(
-        0.72
-    )
-    assert persisted_after_refresh["nguyenhieu000690"]["argonWeekly"]["fraction"] == pytest.approx(
-        0.72
-    )
+    assert persisted_after_refresh["nguyenhieu000690"]["geminiWeekly"][
+        "fraction"
+    ] == pytest.approx(0.72)
+    assert persisted_after_refresh["nguyenhieu000690"]["argonWeekly"][
+        "fraction"
+    ] == pytest.approx(0.72)
 
 
 def test_cqra_ar_01_strict_per_profile_isolation_ping_suppression_and_cli_views(
@@ -686,15 +697,20 @@ def test_cqra_ar_01_strict_per_profile_isolation_ping_suppression_and_cli_views(
         assert forbidden_pool_keys.isdisjoint(f_data.keys())
         agy_quota.update_cached_profile(p, f_data)
 
-    assert formatted_map["hoangcongtam690"]["argonWeekly"]["fraction"] == pytest.approx(0.85)
-    assert formatted_map["nguyenhieu000690"]["argonWeekly"]["fraction"] == pytest.approx(0.62)
+    assert formatted_map["hoangcongtam690"]["argonWeekly"]["fraction"] == pytest.approx(
+        0.85
+    )
+    assert formatted_map["nguyenhieu000690"]["argonWeekly"][
+        "fraction"
+    ] == pytest.approx(0.62)
 
     # Ping suppression on both live (force=True) and cached-fallback paths + probe_blocked_profile
     for p in profiles:
         ping_res = agy_quota.execute_ping_profile(p, force=True)
         assert ping_res["pinged_argon"] is False
     assert not any(
-        "--model" in c and any("argon" in part.lower() for part in c) for c in invoked_cmds
+        "--model" in c and any("argon" in part.lower() for part in c)
+        for c in invoked_cmds
     )
 
     # Cached-fallback branch in execute_ping_profile & probe_blocked_profile
@@ -710,7 +726,8 @@ def test_cqra_ar_01_strict_per_profile_isolation_ping_suppression_and_cli_views(
     probe_res = agy_quota.probe_blocked_profile("hoangcongtam690")
     assert probe_res["success"] is True
     assert not any(
-        "--model" in c and any("argon" in part.lower() for part in c) for c in invoked_cmds
+        "--model" in c and any("argon" in part.lower() for part in c)
+        for c in invoked_cmds
     )
 
     # CLI cards and --table summary output
