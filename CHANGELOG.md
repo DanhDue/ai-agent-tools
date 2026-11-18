@@ -8,6 +8,35 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.33.0 — 2026-11-18
+
+Delivers **Task Review Cap, Blocker-Only Triage & Two-Tier Risk Short-Circuit (`review_cap_and_risk_triage`)** across `dev-lifecycle` and `dev-implementation`, **Antigravity Orchestrator Aliases & Effortless Models (`agy_orchestrator_and_effortless_models`)** in `dev-config`, **Check-Quota Dynamic Models & Multi-Strategy Review Action (`check_quota_dynamic_models_and_review_action`)**, **Dynamic 4-Provider Account Tiers** in `/check-quota`, and **Kanban Scroll, Width & Stage Telemetry Fixes** in `/check-tasks`.
+
+### Added
+
+- **Task Review Cap, Blocker-Only Triage & Two-Tier Risk Short-Circuit (`scripts/persona_config.py`, `scripts/personas.default.json`, `scripts/dev_config.py`, `scripts/resume_context.py`, `skills/dev-implementation/resources/scripts/manage_worker_pool.py`, `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`, `tests/test_trc_*.py`)**:
+  - Adds configurable `task_review_limits` (`max_task_review_passes = 2`, `max_fix_passes = 1`) resolved by `resolve_task_review_limits` with strict `type(v) is int` validation and surfaced in `dev_config.py status`.
+  - Captures non-destructive `pass1_tree_sha` worktree snapshots via a temporary `GIT_INDEX_FILE` (`capture_slot_tree_sha`), leaving working trees and shared git indexes untouched.
+  - Adds `--review-pass {1,2}`, `--pass1-tree-sha`, and `--blockers-file` to `resume_context.py` so Pass 1 establishes a strict `APPROVED|CHANGES_REQUESTED` (`blockers` / `observations`) contract and Pass 2 runs in Delta-Only mode.
+  - Adds Coercion Guard (`normalize_task_review_payload`) and Two-Tier Risk Triage (`triage-fix` Tier 1 deterministic heuristic and `tier2-short-circuit` bounded Role 2.2 check) plus `finalize-slot` mechanical gates in `manage_worker_pool.py`.
+  - Records append-only audit trail entries (`pass2_residual_logged_on_cap`, `tier1_triage_short_circuit`, `tier2_triage_short_circuit`) in `review_audit_notes.jsonl` and brings `LifecycleRunner` into full parity.
+  - Registers 4 verification suites (`tests/test_trc_persona_limits.py`, `tests/test_trc_reviewer_briefs_and_governance.py`, `tests/test_trc_worker_pool_triage.py`, `tests/test_trc_runner_and_acceptance.py`) in `scripts/verify.sh`.
+- **Antigravity Orchestrator Aliases & Effortless Models (`scripts/dev_config.py`, `scripts/persona_config.py`, `scripts/personas.default.json`, `skills/dev-config/SKILL.md`, `tests/test_agy_effortless_models.py`)**:
+  - Adds Antigravity `orchestrator` model aliases and effortless model support across `dev-config set` and `dev-config models add` defaults, verified by `tests/test_agy_effortless_models.py`.
+- **Dynamic Quota Models, Shared Argon Guard & Review Action (`scripts/agy_quota.py`, `scripts/types/quota_dashboard.types.ts`, `skills/refresh-session/resources/scripts/refresh_session.py`, `skills/dev-implementation/resources/scripts/run_external_review.py`, `skills/check-tasks/resources/scripts/tasks_server.py`, `tests/test_cqra_*.py`)**:
+  - Discovers Antigravity models dynamically via `FetchAvailableModels` with static fallback and exposes `argonMode` (`PRO_ARGON`, `ULTRA_ARGON`, `PRO_HYDROGEN`, `ULTRA_CARBON`) in quota payloads and UI badges.
+  - Suppresses redundant shared-pool Argon pings in `/refresh-session` and renders dynamic badges, model rosters, and shared pool rows in `quota_dashboard.html`.
+  - Standardizes `Proposed:` action lines across external and local review prompts and extracts multi-strategy proposed actions plus prefill triage in `run_external_review.py`, `tasks_server.py`, and `tasks_dashboard.html`.
+- **Dynamic 4-Provider Account Tiers (`scripts/agy_quota.py`, `scripts/types/quota_dashboard.types.ts`, `skills/check-quota/resources/dashboard/quota_dashboard.html`, `tests/test_check_quota_dynamic_provider_tiers.py`)**:
+  - Normalizes dynamic account tiers, priority ordering, and `accountMeta` across Antigravity (`GOOGLE`), Claude (`ANTHROPIC`), Codex (`OPENAI`), and Kiro (`AWS`), adding dynamic provider badges, an account info modal, the Ultra Carbon-Argon row, and priority sorting in `quota_dashboard.html`.
+- **Kanban & Stage Telemetry Fixes (`skills/check-tasks/resources/dashboard/tasks_dashboard.html`, `skills/check-tasks/resources/scripts/check_tasks.py`, `tests/test_check_tasks_kanban_and_telemetry_fixes.py`)**:
+  - Pins Kanban Overview, unifies 5-column horizontal wheel scrolling (`Shift+Wheel`) at `210px` column width, fixes 16-card collapse and priority badge / epic chip right-edge clipping, scopes pipeline telemetry per epic, drops orphan stage prefixes, and adds Chrome CDP E2E assertions.
+
+### Changed
+
+- **Four-Persona Review & Governance Contracts (`rules/CRITICAL_RULES.md`, `skills/dev-lifecycle/`, `skills/dev-implementation/`, `skills/subagent-driven-development/`)**:
+  - Clarifies Role 2.1 vs. bounded Role 2.2 `tier2-short-circuit` responsibilities, blocker-only reviewer output schemas, and Pass 2 residual logging without violating Rule 8 separation of duties.
+
 ## 1.32.0 — 2026-11-18
 
 Delivers **Four-Persona Governance & Model Configuration (`dev-config`)** across `dev-lifecycle`, introducing the 4-role model (`Human Architect 1.0`, `AI Architect & Reviewer 2.1`, `Orchestrator 2.2`, `Programmer 2.3`), 4-layer persona model resolution (`persona_config.py`, `dev_config.py`), the global **Antigravity (`agy`) Profile Pool & Exclusive Lease Engine** (`agy_profile_pool.py`, `agy_dispatch.py`), proactive turn-budget and quota-gate checkpoints, **English-Only SSOT & Vietnamese Mirror Isolation** (Rule 11), and `/check-tasks` dashboard persona & quota alert synchronization.

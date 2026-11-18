@@ -1,45 +1,40 @@
-# Release Notes: d3nexus v1.32.0
+# Release Notes: d3nexus v1.33.0
 
 **Release Date:** November 18, 2026  
-**Version:** `1.32.0`  
-**Git Tag:** `v1.32.0`, `d3nexus--v1.32.0`
+**Version:** `1.33.0`  
+**Git Tag:** `v1.33.0`, `d3nexus--v1.33.0`
 
 ---
 
 ## Executive Summary
 
-`v1.32.0` delivers **Four-Persona Governance & Model Configuration (`dev-config`)** across `dev-lifecycle`, replacing the legacy Tri-Role split with four explicit personas (`Human Architect 1.0`, `AI Architect & Reviewer 2.1`, `Orchestrator 2.2`, `Programmer 2.3`), a 4-layer model binding and preset engine (`dev_config.py`, `persona_config.py`), a priority-ordered **Antigravity (`agy`) Profile Pool & Exclusive Lease Dispatcher** (`agy_profile_pool.py`, `agy_dispatch.py`), proactive turn-budget and quota-gate checkpoints, **English-Only SSOT & Vietnamese Mirror Isolation** (Rule 11), and `/check-tasks` persona and quota-stop telemetry.
+`v1.33.0` introduces **Task Review Cap, Blocker-Only Triage & Two-Tier Risk Short-Circuit (`review_cap_and_risk_triage`)** across `dev-lifecycle` and `dev-implementation`, adds **Antigravity (`agy`) Orchestrator Aliases & Effortless Models (`agy_orchestrator_and_effortless_models`)** in `dev-config`, brings **Dynamic Model Discovery, Shared Argon Guards & Multi-Strategy Review Actions** to `/check-quota`, `/refresh-session`, and `/check-tasks`, normalizes **Dynamic 4-Provider Account Tiers** in `/check-quota`, and hardens **Kanban Scrolling, Card Sizing & Per-Epic Stage Telemetry** in `/check-tasks`.
 
 ---
 
 ## Key Highlights
 
-### 1. Four-Persona Governance & `/d3nexus:dev-config` (`skills/dev-config/`, `scripts/dev_config.py`, `scripts/persona_config.py`)
-- **Four-Persona Split**:
-  - **Role 1.0 (`Human Architect`)**: Owns vision, Gates 1, 2, 5, escalations, and Stage 4 Finish.
-  - **Role 2.1 (`ai_architect_reviewer`)**: Owns Stage 1–2 specs/HLD/tasks/packaging and Stage 3 `task-reviewer` & `fix-planner`.
-  - **Role 2.2 (`orchestrator`)**: Owns Gate 3, worker pool orchestration, subagent dispatch, and task status transitions without reading/editing `src/` or `tests/`.
-  - **Role 2.3 (`programmer`)**: Executes `task-implementer`, `review-fixer`, and `gate4-verifier` strictly within `Allowed files`.
-- **4-Layer Config & Presets**: Resolves persona bindings across `Kit defaults -> Global ($REAL_HOME/.d3nexus/personas.json) -> Project (.agents/config/personas.json) -> Invocation CLI flags` with 7 built-in presets (`default`, `gemini-saver`, `claude-hybrid`, `all-hydrogen`, `codex-kiro`, `all-claude`, `all-codex`), runtime catalogue management (`models add|remove`), `--provider agy|claude|codex` quick-setup, and flag-based `set PERSONA [--provider ...] --model M --effort E [--profile NAME|auto]`.
+### 1. Task Review Cap, Blocker-Only Triage & Two-Tier Risk Short-Circuit (`review_cap_and_risk_triage`)
+- **Configurable Review & Fix Caps (`scripts/persona_config.py`, `scripts/personas.default.json`, `scripts/dev_config.py`)**: Resolves `task_review_limits` (`max_task_review_passes = 2`, `max_fix_passes = 1`) with strict `type(v) is int` validation and displays resolved limits in `dev_config.py status`.
+- **Non-Destructive Pass 1 Snapshots & Delta-Only Pass 2 (`scripts/resume_context.py`, `skills/dev-implementation/resources/scripts/manage_worker_pool.py`)**: Captures `pass1_tree_sha` using a temporary `GIT_INDEX_FILE` (`capture_slot_tree_sha`) without mutating working trees or shared git indexes, enforces the `APPROVED|CHANGES_REQUESTED` (`blockers` / `observations`) contract in `--review-pass 1`, and generates Pass 2 Delta-Only prompts via `--review-pass 2 --pass1-tree-sha ... --blockers-file ...`.
+- **Blocker-Only Coercion Guard & Two-Tier Risk Triage (`manage_worker_pool.py`, `lifecycle_runner.py`)**: Coerces inconsistent `APPROVED` payloads with non-empty `blockers` via `normalize_task_review_payload`, applies Tier 1 deterministic heuristics (`triage-fix`) and bounded Role 2.2 Tier 2 short-circuit checks (`tier2-short-circuit`), enforces `finalize-slot` mechanical gates, and writes append-only records (`pass2_residual_logged_on_cap`, `tier1_triage_short_circuit`, `tier2_triage_short_circuit`) to `review_audit_notes.jsonl` with full `LifecycleRunner` parity.
 
-### 2. Global `agy` Profile Pool & Pooled Dispatch (`scripts/agy_profile_pool.py`, `scripts/agy_dispatch.py`)
-- **Profile Pool & Exclusive Leases**: Manages priority-ordered Antigravity profiles (`profiles list|add|remove|release|clear|probe|discover`) backed by file-locked leases (`agy_profile_leases.json`) and heartbeat/PID expiration.
-- **Safe Multi-Profile Execution & Rotation**: Dispatches non-host profiles via `zsh -ic 'ag_run "$0" cli "$@"'` after preflight checks for `_ag_link_ok`, `_ag_rel_link`, and `ag_run`. Automatically rotates to the next pool profile on pre-work quota exhaustion (`HEAD` and working tree unchanged) and stops cleanly on `quota_midrun` or `no_profile` without silent model fallbacks.
+### 2. Antigravity Orchestrator Aliases & Effortless Models (`agy_orchestrator_and_effortless_models`)
+- **Effortless Dispatch & Defaults (`scripts/dev_config.py`, `scripts/persona_config.py`, `scripts/personas.default.json`, `skills/dev-config/SKILL.md`)**: Supports Antigravity `orchestrator` model aliases and effortless models across `dev-config set` and `dev-config models add`, backed by `tests/test_agy_effortless_models.py`.
 
-### 3. Checkpoints, Risk-Tiered Remediation & Quota Gates (`scripts/resume_context.py`, `lifecycle_runner.py`)
-- **Proactive Checkpoints & Turn Budgets**: Records structured checkpoints (`gate2_tasks_locked`, `subagent_returned`, `wave_merged`, `model_unavailable`, `turn_budget`, `low_quota_stop`, `quota_low`), enforces `max_orchestrator_turns_before_checkpoint` (default `8`, halved in `low-quota` mode), and runs `dev_config.py quota-check` before Stage 3, each wave, and each review fix round.
-- **Risk-Tiered Stage 3 Fixes**: Routes low-risk review findings to Role 2.3 `review-fixer` (`fast-track`) and high-risk findings (`Critical`, escalation markers, repeated check failures) through Role 2.1 `fix-planner` (`apply-plan` / `ESCALATE`).
+### 3. Check-Quota Dynamic Models, Shared Argon Guard & Review Proposed Actions (`check_quota_dynamic_models_and_review_action`)
+- **Dynamic Quota Discovery & `argonMode` (`scripts/agy_quota.py`, `skills/refresh-session/resources/scripts/refresh_session.py`, `skills/check-quota/resources/dashboard/quota_dashboard.html`)**: Combines `FetchAvailableModels` discovery with static fallbacks and `argonMode` (`PRO_ARGON`, `ULTRA_ARGON`, `PRO_HYDROGEN`, `ULTRA_CARBON`), renders dynamic rosters and shared pools in `quota_dashboard.html`, and suppresses redundant shared-pool Argon pings in `/refresh-session`.
+- **Multi-Strategy Review Action Extraction (`skills/dev-implementation/resources/scripts/run_external_review.py`, `skills/check-tasks/resources/scripts/tasks_server.py`, `tasks_dashboard.html`)**: Aligns `Proposed:` prompts across local and external review templates with prefill triage and multi-strategy action extraction in `/check-tasks`.
 
-### 4. English-Only SSOT, Mirror Isolation & Ownership Expansion (`rules/CRITICAL_RULES.md`, `skills/dev-implementation/`)
-- **Rule 11 (`*.vi.md` Isolation)**: Prevents agents from loading, grepping, or bundling `*.vi.md` files unless explicitly requested by Role 1.0, backed by deterministic English document resolution (`_epic_docs.py`).
-- **Ownership Glob/Directory Expansion**: Expands directory and glob claims during task contract and epic readiness checks to prevent overlapping file ownership across parallel wave tasks.
+### 4. Dynamic 4-Provider Account Tiers (`check_quota_dynamic_provider_account_tiers`)
+- **Unified Provider Tiers (`scripts/agy_quota.py`, `scripts/types/quota_dashboard.types.ts`, `skills/check-quota/resources/dashboard/quota_dashboard.html`)**: Normalizes `planLabel`, `vendorLabel`, priority sorting, and `accountMeta` across Antigravity (`GOOGLE`), Claude (`ANTHROPIC`), Codex (`OPENAI`), and Kiro (`AWS`), adding dynamic provider badges, an account info modal, and the Ultra Carbon-Argon row.
 
-### 5. `/check-tasks` Persona & Quota Telemetry (`skills/check-tasks/`)
-- Displays resolved persona bindings, checkpoint status, wave-0 labels, and quota-stop alerts in `/check-tasks`, and clears stale halt alerts on finished epics.
+### 5. `/check-tasks` Kanban Scroll, Width & Stage Telemetry Fixes (`check_tasks_kanban_and_stage_title_fixes`)
+- **Kanban UX & Telemetry (`skills/check-tasks/resources/dashboard/tasks_dashboard.html`, `skills/check-tasks/resources/scripts/check_tasks.py`)**: Pins Kanban Overview, unifies 5-column horizontal `Shift+Wheel` scrolling at `210px` column width, fixes 16-card height collapse and badge/chip right-edge clipping, scopes pipeline telemetry per epic, and removes orphan stage prefixes, verified via Chrome CDP E2E tests.
 
 ---
 
 ## Verifications & Quality Gates Passed
 
-- `bash scripts/verify.sh` (all 20 sections & 73 Python/pytest suites)
-- `uv run pytest tests/test_fpg_*.py`
+- `bash scripts/verify.sh` (all 22 verification sections & 89 Python test suites)
+- `uv run pytest tests/test_trc_*.py tests/test_agy_effortless_models.py tests/test_cqra_*.py tests/test_check_tasks_kanban_and_telemetry_fixes.py tests/test_check_quota_dynamic_provider_tiers.py`
