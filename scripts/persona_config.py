@@ -222,6 +222,17 @@ def _validate_model_entry(alias: str, entry: Any) -> None:
         or any(not isinstance(e, str) or not e.strip() for e in efforts)
     ):
         raise PersonaConfigError(f"Invalid efforts '{efforts}' for model '{alias}'")
+    if "none" in efforts:
+        if len(efforts) > 1:
+            raise PersonaConfigError(
+                f"Invalid efforts '{efforts}' for model '{alias}': "
+                "'none' cannot be combined with other efforts"
+            )
+        if "{effort}" in model_id:
+            raise PersonaConfigError(
+                f"Invalid model id '{model_id}' for model '{alias}': "
+                "'{effort}' placeholder is not allowed when efforts is ['none']"
+            )
     derive_quota_pool(entry, alias)
 
 
@@ -591,18 +602,19 @@ def build_dispatch_argv(binding: PersonaBinding, mode: str) -> list[str]:
     cli = binding.cli
     model_id = binding.model_id
     effort = binding.effort
+    effort_args = [] if effort == "none" else ["--effort", effort]
 
     if cli == "agy":
         if mode == "read-only":
-            return ["agy", "--sandbox", "--mode", "plan", "--model", model_id, "--effort", effort]
-        return ["agy", "--model", model_id, "--effort", effort, "--mode", "auto"]
+            return ["agy", "--sandbox", "--mode", "plan", "--model", model_id, *effort_args]
+        return ["agy", "--model", model_id, *effort_args, "--mode", "auto"]
     if cli == "claude":
         perm_flags = (
             ["--permission-mode", "plan"]
             if mode == "read-only"
             else ["--dangerously-skip-permissions"]
         )
-        return ["claude", "-p", "--model", model_id, "--effort", effort, *perm_flags]
+        return ["claude", "-p", "--model", model_id, *effort_args, *perm_flags]
     if cli == "codex":
         sandbox = "read-only" if mode == "read-only" else "workspace-write"
         mapped_effort = _CODEX_EFFORT_MAP.get(effort.lower(), effort)
@@ -632,8 +644,7 @@ def build_dispatch_argv(binding: PersonaBinding, mode: str) -> list[str]:
             "never",
             "--model",
             model_id,
-            "--effort",
-            effort,
+            *effort_args,
         ]
     raise PersonaConfigError(f"Unsupported cli '{cli}'")
 
