@@ -1106,7 +1106,9 @@ def parse_review_results(
                     }
                 )
 
-    if any(not f["proposed_action"] for f in findings):
+    if str(result.get("kind") or "").strip().lower() != "principal" and any(
+        not f["proposed_action"] for f in findings
+    ):
         fallback_maps = [
             _parse_fix_plan_actions(
                 review_file.parent / f"fix_plan_round{round_to_extract}.md"

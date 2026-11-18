@@ -1271,6 +1271,7 @@ def fetch_quota_for_profile(
     profile: str,
     force_probe: bool = False,
     batch_mode: bool = False,
+    cached_override: dict | None = None,
 ) -> dict:
     """Execute agy --output-format json -p '/usage' (plus Hybrid + Cache `agy models`) for a profile."""
     ag_home = f"{REAL_HOME}/antigravity_homes/{profile}"
@@ -1355,7 +1356,9 @@ def fetch_quota_for_profile(
 
             usage_parsed = parse_usage_group_models(groups)
             group_desc_sig = usage_parsed["groupDescSig"]
-            cached_entry = _peek_cached_profile(profile)
+            cached_entry = dict(_peek_cached_profile(profile))
+            if isinstance(cached_override, dict):
+                cached_entry.update(cached_override)
 
             should_fetch_models = (not batch_mode) or (
                 not _is_models_cache_warm(cached_entry, group_desc_sig)
@@ -3760,11 +3763,58 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
     total_dur = int((time.time() - t0) * 1000)
     jitter_applied = round(jitter_applied, 2)
 
+    seed_model_meta: dict = {}
+    live_fetched_at = str(live_q.get("modelsFetchedAt") or "").strip()
+    if isinstance(live_q.get("availableModels"), list) and (
+        live_q["availableModels"] or live_fetched_at
+    ):
+        seed_model_meta["availableModels"] = list(live_q["availableModels"])
+    elif available_models:
+        seed_model_meta["availableModels"] = list(available_models)
+
+    if isinstance(live_q.get("modelCatalog"), list) and (
+        live_q["modelCatalog"] or live_fetched_at
+    ):
+        seed_model_meta["modelCatalog"] = list(live_q["modelCatalog"])
+    elif seed_model_meta.get("availableModels"):
+        seed_model_meta["modelCatalog"] = parse_agy_models_catalog(
+            "\n".join(seed_model_meta["availableModels"])
+        )
+
+    if live_fetched_at:
+        seed_model_meta["modelsFetchedAt"] = live_fetched_at
+    elif seed_model_meta.get("availableModels"):
+        seed_model_meta["modelsFetchedAt"] = datetime.datetime.now(
+            datetime.timezone.utc
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    live_sig = str(live_q.get("groupDescSig") or "").strip()
+    if not live_sig and isinstance(live_q.get("groups"), list) and live_q["groups"]:
+        live_sig = str(parse_usage_group_models(live_q["groups"])["groupDescSig"] or "")
+    if live_sig:
+        seed_model_meta["groupDescSig"] = live_sig
+
+    if isinstance(live_q.get("groupModels"), dict):
+        seed_model_meta["groupModels"] = live_q["groupModels"]
+    if isinstance(live_q.get("capabilities"), dict):
+        seed_model_meta["capabilities"] = live_q["capabilities"]
+
     # Post-ping quota refresh to update dashboard immediately
-    post_q = fetch_quota_for_profile(profile, batch_mode=True)
+    post_q = fetch_quota_for_profile(
+        profile, batch_mode=True, cached_override=seed_model_meta or None
+    )
     post_quota_formatted = None
     if post_q.get("success"):
-        post_quota_formatted = format_profile_for_dashboard(profile, post_q)
+        post_q_merged = dict(post_q)
+        for meta_key in (
+            "availableModels",
+            "modelCatalog",
+            "modelsFetchedAt",
+            "groupDescSig",
+        ):
+            if meta_key in seed_model_meta and not post_q_merged.get(meta_key):
+                post_q_merged[meta_key] = seed_model_meta[meta_key]
+        post_quota_formatted = format_profile_for_dashboard(profile, post_q_merged)
         update_cached_profile(profile, post_quota_formatted)
 
     jitter_str = f", Jitter {jitter_applied}s" if jitter_applied > 0 else ""

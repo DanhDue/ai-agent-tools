@@ -99,9 +99,10 @@ def _setup_isolated_env(
 
     dash_html = tmp_path / "quota_dashboard.html"
     cache_payload = dict(initial_cache or {})
+    serialized_cache = json.dumps(cache_payload, indent=2) if cache_payload else "{\n}"
     dash_html.write_text(
         "<html><script>\nconst PROFILES_DATA = "
-        + json.dumps(cache_payload, indent=2)
+        + serialized_cache
         + ";\n</script></html>\n",
         encoding="utf-8",
     )
@@ -856,3 +857,138 @@ def test_typescript_schema_exports_dynamic_models_and_argon_mode(
     """Verify quota_dashboard.types.ts exports ArgonMode, ModelCatalogEntry, ProfileCapabilities, and aligned QuotaBucket/ProfileQuotaState fields."""
     ts_content = TYPES_FILE.read_text(encoding="utf-8")
     assert expected_snippet in ts_content
+
+
+def test_execute_ping_profile_cold_and_stale_cache_runs_agy_models_once(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    ultra_models_stdout: str,
+) -> None:
+    """With cold ({}) or >24h-stale cache, execute_ping_profile invokes agy models once and persists fresh model metadata."""
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    fresh_5h = (now_utc + datetime.timedelta(hours=5)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    shared_weekly = (now_utc + datetime.timedelta(days=6)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+    stale_ts = (now_utc - datetime.timedelta(hours=26)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    groups = [
+        {
+            "name": "Gemini Models",
+            "description": (
+                "Gemini 4 Carbon, Gemini 4 Argon, Gemini 4 Hydrogen, "
+                "Orchestrator (Carbon), Orchestrator (Argon), Gemini 3.8 Flash"
+            ),
+            "buckets": [
+                {
+                    "window": "5h",
+                    "remaining_fraction": 1.0,
+                    "reset_time": fresh_5h,
+                },
+                {
+                    "window": "weekly",
+                    "remaining_fraction": 0.85,
+                    "reset_time": shared_weekly,
+                },
+            ],
+        },
+        {
+            "name": "Claude and GPT models",
+            "description": "Claude Sonnet 4.6, Claude Opus 4.6, GPT-OSS 120B",
+            "buckets": [
+                {
+                    "window": "5h",
+                    "remaining_fraction": 1.0,
+                    "reset_time": fresh_5h,
+                },
+                {
+                    "window": "weekly",
+                    "remaining_fraction": 0.90,
+                    "reset_time": shared_weekly,
+                },
+            ],
+        },
+    ]
+    expected_sig = agy_quota.parse_usage_group_models(groups)["groupDescSig"]
+    usage_stdout = _make_usage_json(groups)
+
+    models_call_count = 0
+
+    def fake_run(cmd: list[str], **_kwargs: Any) -> MagicMock:
+        nonlocal models_call_count
+        if cmd and cmd[0] == "security":
+            return MagicMock(returncode=44, stdout="", stderr="")
+        if len(cmd) >= 2 and cmd[1] == "models":
+            models_call_count += 1
+            return MagicMock(returncode=0, stdout=ultra_models_stdout, stderr="")
+        if "/usage" in cmd:
+            return MagicMock(returncode=0, stdout=usage_stdout, stderr="")
+        return MagicMock(returncode=0, stdout="OK", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    # 1. Cold cache ({}) -> at most 1 agy models invocation across pre-ping + post-ping refresh
+    cold_html = _setup_isolated_env(
+        tmp_path / "cold_case",
+        monkeypatch,
+        ["nguyenhieu000690"],
+        initial_cache={},
+    )
+    models_call_count = 0
+    cold_res = agy_quota.execute_ping_profile("nguyenhieu000690")
+    assert cold_res["success"] is True
+    assert cold_res["pinged_gemini"] is True
+    assert cold_res["pinged_claude"] is True
+    assert models_call_count == 1
+
+    cold_post = cold_res["post_quota"]
+    assert len(cold_post["modelCatalog"]) == 18
+    assert cold_post["modelsFetchedAt"] != ""
+    assert cold_post["groupDescSig"] == expected_sig
+
+    cold_persisted = _read_cached_html(cold_html)["nguyenhieu000690"]
+    assert len(cold_persisted["modelCatalog"]) == 18
+    assert cold_persisted["modelsFetchedAt"] == cold_post["modelsFetchedAt"]
+    assert cold_persisted["groupDescSig"] == expected_sig
+
+    # 2. Stale (>24h) cache -> at most 1 agy models invocation across pre-ping + post-ping refresh
+    stale_cache = {
+        "nguyenhieu000690": {
+            "email": "nguyenhieu000690@gmail.com",
+            "tier": "PRO",
+            "status": "ACTIVE",
+            "hasArgon": True,
+            "availableModels": ["gemini-3.8-flash-low"],
+            "modelCatalog": [
+                {
+                    "id": "gemini-3.8-flash-low",
+                    "label": "Gemini 3.8 Flash",
+                    "quotaFamily": "gemini",
+                    "tags": ["flash"],
+                }
+            ],
+            "modelsFetchedAt": stale_ts,
+            "groupDescSig": expected_sig,
+        }
+    }
+    stale_html = _setup_isolated_env(
+        tmp_path / "stale_case",
+        monkeypatch,
+        ["nguyenhieu000690"],
+        initial_cache=stale_cache,
+    )
+    models_call_count = 0
+    stale_res = agy_quota.execute_ping_profile("nguyenhieu000690")
+    assert stale_res["success"] is True
+    assert models_call_count == 1
+
+    stale_post = stale_res["post_quota"]
+    assert len(stale_post["modelCatalog"]) == 18
+    assert stale_post["modelsFetchedAt"] != stale_ts
+    assert stale_post["modelsFetchedAt"] != ""
+    assert stale_post["groupDescSig"] == expected_sig
+
+    stale_persisted = _read_cached_html(stale_html)["nguyenhieu000690"]
+    assert len(stale_persisted["modelCatalog"]) == 18
+    assert stale_persisted["modelsFetchedAt"] != stale_ts
+    assert stale_persisted["groupDescSig"] == expected_sig

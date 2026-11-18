@@ -812,3 +812,55 @@ def test_cqra_fr_03_malformed_fix_plan_resilience(
     assert cross["present"] is True
     assert cross["findings"][0]["proposed_action"] == "guard None input"
     assert cross["findings"][1]["proposed_action"] == ""
+
+
+def test_principal_review_ignores_cross_model_fix_plan_fallback(tmp_path: Path) -> None:
+    """Principal Review findings without inline proposals never inherit cross-model fix_plan_roundN actions."""
+    repo_dir = tmp_path / "principal_guard_repo"
+    epic_dir = repo_dir / ".devtool" / "epic" / "principal_guard_epic"
+    _write_epic_hld(epic_dir, "principal_guard_epic")
+
+    (epic_dir / "principal_review.md").write_text(
+        "# Principal Design Review\n\n"
+        "## Round 1\n"
+        "- **SHA**: `1234abc`\n"
+        "- **Verdict**: `PASS`\n\n"
+        "| # | Severity | Location | Problem | Decision |\n"
+        "| --- | --- | --- | --- | --- |\n"
+        "| 1 | Minor | epic.en.md:40 | Ambiguous boundary note |  |\n"
+        "| 2 | Minor | epic.en.md:88 | Missing sequence caption. Proposed: clarify HLD |  |\n",
+        encoding="utf-8",
+    )
+    (epic_dir / "review_results.md").write_text(
+        "# Cross-Model Review\n\n"
+        "## Round 1\n"
+        "- **SHA**: `5678def`\n"
+        "- **Verdict**: `AUTO_FIX_ELIGIBLE`\n\n"
+        "| # | Severity | Location | Problem | Decision |\n"
+        "| --- | --- | --- | --- | --- |\n"
+        "| 1 | Important | src/worker.py:15 | Unhandled timeout |  |\n",
+        encoding="utf-8",
+    )
+    (epic_dir / "fix_plan_round1.md").write_text(
+        "# Fix Plan — Round 1\n\n"
+        "### Finding #1\n"
+        "- **Proposed Action:** Apply cross-model fix\n",
+        encoding="utf-8",
+    )
+
+    principal_res = tasks_server.parse_review_results(
+        repo_dir, active_epic="principal_guard_epic", kind="principal"
+    )
+    assert principal_res["kind"] == "principal"
+    principal_by_id = {f["id"]: f for f in principal_res["findings"]}
+    assert principal_by_id["1"]["proposed_action"] == ""
+    assert principal_by_id["2"]["proposed_action"] == "clarify HLD"
+    assert principal_by_id["2"]["problem"] == "Missing sequence caption"
+
+    cross_res = tasks_server.parse_review_results(
+        repo_dir, active_epic="principal_guard_epic", kind="cross-model"
+    )
+    assert cross_res["kind"] == "cross-model"
+    assert len(cross_res["findings"]) == 1
+    assert cross_res["findings"][0]["id"] == "1"
+    assert cross_res["findings"][0]["proposed_action"] == "Apply cross-model fix"
