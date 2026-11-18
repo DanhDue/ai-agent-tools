@@ -32,3 +32,30 @@ Raw output:
 ```text
 Verdict: CHANGES REQUIRED
 ```
+
+## Round 2
+
+- **Date**: 2026-11-18T06:53:41Z
+- **SHA**: 1c9ee905017ad0a6a342bd01f97a1cca8161a74b
+- **Base**: main
+- **CLI**: claude
+- **Model**: Opus 5.5
+- **Thinking**: high
+- **Status**: completed
+- **Verdict**: CHANGES REQUIRED
+- **Kind**: principal
+- **Scope**: delta from round 1 (8b74e03)
+- **Raw log**: `build/reviews/review_cap_and_risk_triage_principal_round2_1c9ee90.raw.log`
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Important | task_03_worker_pool_cap_snapshot_and_triage.md:Requirement Analysis §5 + Decisions Already Made (`_reconcile_main_wt_devtool_mirrors`); review_cap_and_risk_triage.md:Module Contracts §2 (Audit-note & mirror isolation) | NEW_REGRESSION: the reconcile step now restores only tracked `.devtool/features` diffs. A status sync run outside a slot also rewrites the main worktree's tracked `.devtool/epic/<epic_dir>/<task_id>.md` (sync_task_status.py:302-309, 1482-1487). The slot commit edits the same file, so `merge_slot` aborts (manage_worker_pool.py:434-455). The stated reason is false: a probe shows `git checkout -- .devtool/epic` leaves untracked `review_audit_notes.jsonl` alone. Proposed: restore the tracked paths listed by `git diff --name-only -- .devtool/features .devtool/epic/<epic_dir>` with `git checkout --`, delete untracked files only under `.devtool/features`, and add a tracked `.devtool/epic/<epic_dir>/task_01.md` mirror edit to the TRC-AR-03 fixture. |  |
+| 2 | Important | task_03_worker_pool_cap_snapshot_and_triage.md:Requirement Analysis §1 (Idempotency & Preconditions on `sync_slot(..., status="review")`) | INCOMPLETE_FIX of round-1 #3: `sync --status review` is idempotent only in Pass 1. Once `review_passes_used >= 2`, any `sync --status review` raises `HARD_REVIEW_CAP_EXCEEDED`, so a resumed Pass 2 review after a `model_unavailable`/`quota_low` stop exits 2. This contradicts the HLD `sync` contract (idempotent for the same status and task_id) and TRC-ST-01, which rejects only a third transition after `working` or a new review-pass request. The bullet also contains draft text ("wait: to satisfy both…") and an undefined `--new-review-pass` flag. Proposed: make a repeated `sync --status review` idempotent for any pass when `prev_status == "review"` and the task is unchanged; raise `HARD_REVIEW_CAP_EXCEEDED` only when entering `review` from another status with `prev_review >= max_review_passes` (test it by seeding a heartbeat with `status: working`, `review_passes_used: 2`); delete the draft text and `--new-review-pass`; mirror the rule in Decisions Already Made. |  |
+| 3 | Important | task_03_worker_pool_cap_snapshot_and_triage.md:Requirement Analysis §5 + Decisions Already Made (`[SE-03]` audit notes); review_cap_and_risk_triage.md:[SE-03] | NEW_REGRESSION: `review_audit_notes.jsonl` is now written only in the main epic worktree and kept out of slot commits, and no step commits it there. It never reaches the epic branch, so `/cross-model-review --base <ref>` cannot surface it as Spec line 270 requires, and `integrate_branch.py:486-488` treats the worktree as dirty and preserves it at finish. Proposed: after the append under `.devtool/.memory.lock`, have `finalize_slot` (and `triage-fix --record-tier2`) commit the file in the main epic worktree (`git add .devtool/epic/<epic_dir>/review_audit_notes.jsonl && git commit -m "[<EPIC_SLUG_UPPER>] Record review audit note for <task_id>"`, no trailers), and state this in [SE-03] and TRC-AR-03's test. |  |
+| 4 | Minor | task_02_reviewer_briefs_and_governance_exception.md:Verification V2 | `-k "not test_tto_ec_06_verify_suite_registration"` does not deselect the wrapper `TestTTOTokenThrottlingAcceptance_Integration::test_tto_ec_06_integration`, which calls the same function, and both tests pass at baseline (2 passed). The deselect is unnecessary. Proposed: drop the `-k` filter. |  |
+
+Raw output:
+
+```text
+Verdict: CHANGES REQUIRED
+```
