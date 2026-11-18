@@ -377,7 +377,8 @@ def test_kanban_sticky_overview_single_scroll_and_long_slug_truncation() -> None
     assert "position: sticky; left: 0; z-index: 3" in html
     assert 'class="kanban-columns-scroll"' in html
     assert "overflow-x: auto; overflow-y: hidden" in html
-    assert "grid-template-columns: repeat(5, minmax(260px, 1fr))" in html
+    assert "grid-template-columns: repeat(5, minmax(210px, 1fr))" in html
+    assert "flex-shrink: 0" in html
     col_card_tags = res["colCardMatches"]
     assert len(col_card_tags) == 5
     for tag in col_card_tags:
@@ -399,6 +400,9 @@ def test_kanban_sticky_overview_single_scroll_and_long_slug_truncation() -> None
     assert ".kanban-board-shell," in dashboard_text
     assert ".kanban-epic-link-row," in dashboard_text
     assert ".kanban-epic-chip {" in dashboard_text
+    assert "ensureKanbanHorizontalWheelBridge" in dashboard_text
+    assert "overscroll-behavior-x: auto" in dashboard_text
+    assert dashboard_text.count("repeat(5, minmax(210px, 1fr))") >= 2
 
 
 def test_substeps_and_synthesized_telemetry_strip_stage_index_prefix_preserving_pills() -> (
@@ -817,37 +821,50 @@ def test_live_chrome_cdp_kanban_sticky_scroll_and_unnumbered_stage_titles(
         timeout=8.0,
     )
 
-    metrics = cdp.eval_js(
+    # 1. Narrow laptop/split viewport (1180x900) where 5 * 210px = 1050px > right-pane width (~866px)
+    cdp.call(
+        "Emulation.setDeviceMetricsOverride",
+        {"width": 1180, "height": 900, "deviceScaleFactor": 1, "mobile": False},
+    )
+    cdp.eval_js(
+        """(() => {
+            const w = document.getElementById('kanban-dashboard-wrapper-lyrics-sync');
+            w.scrollIntoView({ block: 'start' });
+            window.scrollBy(0, -100);
+            w.querySelector('.kanban-columns-scroll').scrollLeft = 0;
+            return true;
+        })()"""
+    )
+    time.sleep(0.1)
+
+    pre_wheel = cdp.eval_js(
         """
         (() => {
           const wrapper = document.getElementById('kanban-dashboard-wrapper-lyrics-sync');
           const overview = wrapper.querySelector('[data-kanban-overview="pinned"]');
           const scrollTrack = wrapper.querySelector('.kanban-columns-scroll');
+          const backlogCol = wrapper.querySelector('[data-scroll-id="kanban-col-lyrics-sync-backlog"]');
+          const todoCol = wrapper.querySelector('[data-scroll-id="kanban-col-lyrics-sync-todo"]');
+          const colEls = Array.from(wrapper.querySelectorAll('.kanban-col'));
           const colCards = Array.from(wrapper.querySelectorAll('.kanban-col-cards'));
 
           const overviewStyle = window.getComputedStyle(overview);
           const beforeRect = overview.getBoundingClientRect();
-          const beforeLeft = beforeRect.left;
-          const overviewWidth = beforeRect.width;
-
           const trackStyle = window.getComputedStyle(scrollTrack);
-          const trackScrollWidth = scrollTrack.scrollWidth;
-          const trackClientWidth = scrollTrack.clientWidth;
+          const backlogStyle = window.getComputedStyle(backlogCol);
 
-          scrollTrack.scrollLeft = 260;
-          const appliedScrollLeft = scrollTrack.scrollLeft;
-          const afterLeft260 = overview.getBoundingClientRect().left;
-          scrollTrack.scrollLeft = scrollTrack.scrollWidth;
-          const afterLeftMax = overview.getBoundingClientRect().left;
-
+          const colWidths = colEls.map(c => Math.round(c.getBoundingClientRect().width));
           const colStats = colCards.map(col => ({
             overflowX: window.getComputedStyle(col).overflowX,
+            overscrollX: window.getComputedStyle(col).overscrollBehaviorX,
+            overscrollY: window.getComputedStyle(col).overscrollBehaviorY,
             scrollWidth: col.scrollWidth,
             clientWidth: col.clientWidth,
           }));
 
           const cardBounds = Array.from(wrapper.querySelectorAll('.kanban-task-card')).map(card => {
             const cardRect = card.getBoundingClientRect();
+            const cardStyle = window.getComputedStyle(card);
             const titleEl = card.querySelector('div > strong');
             const priBadge = card.querySelector('div > strong + span');
             const linkRow = card.querySelector('.kanban-epic-link-row');
@@ -855,7 +872,18 @@ def test_live_chrome_cdp_kanban_sticky_scroll_and_unnumbered_stage_titles(
             const titleStyle = titleEl ? window.getComputedStyle(titleEl) : null;
             const priStyle = priBadge ? window.getComputedStyle(priBadge) : null;
             const chipStyle = chip ? window.getComputedStyle(chip) : null;
+            const childRows = Array.from(card.children).map(ch => {
+              const r = ch.getBoundingClientRect();
+              return {
+                height: r.height,
+                bottomDelta: r.bottom - cardRect.bottom,
+                flexShrink: window.getComputedStyle(ch).flexShrink,
+              };
+            });
             return {
+              cardHeight: cardRect.height,
+              cardFlexShrink: cardStyle.flexShrink,
+              childRows,
               cardRight: cardRect.right,
               priRight: priBadge ? priBadge.getBoundingClientRect().right : cardRect.right,
               linkRight: linkRow ? linkRow.getBoundingClientRect().right : cardRect.right,
@@ -866,6 +894,10 @@ def test_live_chrome_cdp_kanban_sticky_scroll_and_unnumbered_stage_titles(
               chipBoxSizing: chipStyle ? chipStyle.boxSizing : '',
             };
           });
+
+          const backlogCards = Array.from(backlogCol.querySelectorAll('.kanban-task-card'));
+          const secondCardRect = backlogCards[1].getBoundingClientRect();
+          const todoRect = todoCol.getBoundingClientRect();
 
           const subStepsTexts = Array.from(document.querySelectorAll('[data-telemetry="sub-steps"]')).map(el => el.textContent.trim());
           const kanbanStageTexts = Array.from(wrapper.querySelectorAll('[data-telemetry="kanban-epic-stage"]')).map(el => el.textContent.trim());
@@ -878,17 +910,31 @@ def test_live_chrome_cdp_kanban_sticky_scroll_and_unnumbered_stage_titles(
 
           return {
             overviewPosition: overviewStyle.position,
-            overviewWidth,
-            beforeLeft,
-            afterLeft: afterLeft260,
-            afterLeftMax,
+            overviewWidth: beforeRect.width,
+            beforeLeft: beforeRect.left,
             trackOverflowX: trackStyle.overflowX,
             trackOverflowY: trackStyle.overflowY,
-            trackScrollWidth,
-            trackClientWidth,
-            appliedScrollLeft,
+            trackOverscrollX: trackStyle.overscrollBehaviorX,
+            trackScrollWidth: scrollTrack.scrollWidth,
+            trackClientWidth: scrollTrack.clientWidth,
+            backlogClientHeight: backlogCol.clientHeight,
+            backlogScrollHeight: backlogCol.scrollHeight,
+            backlogOverscrollX: backlogStyle.overscrollBehaviorX,
+            colWidths,
             colStats,
             cardBounds,
+            secondCardCenter: {
+              x: Math.round(secondCardRect.left + secondCardRect.width / 2),
+              y: Math.round(secondCardRect.top + secondCardRect.height / 2),
+            },
+            backlogLeftPoint: {
+              x: Math.round(secondCardRect.left + 40),
+              y: Math.round(secondCardRect.top + 40),
+            },
+            todoCenter: {
+              x: Math.round(todoRect.left + todoRect.width / 2),
+              y: Math.round(todoRect.top + 120),
+            },
             subStepsTexts,
             kanbanStageTexts,
             execText,
@@ -898,38 +944,170 @@ def test_live_chrome_cdp_kanban_sticky_scroll_and_unnumbered_stage_titles(
         """
     )
 
-    assert metrics["overviewPosition"] == "sticky"
-    assert abs(float(metrics["overviewWidth"]) - 220.0) <= 1.0
-    assert metrics["trackOverflowX"] == "auto"
-    assert metrics["trackOverflowY"] == "hidden"
-    assert metrics["trackScrollWidth"] > metrics["trackClientWidth"]
-    assert metrics["appliedScrollLeft"] > 0
-    assert metrics["beforeLeft"] == metrics["afterLeft"]
-    assert metrics["beforeLeft"] == metrics["afterLeftMax"]
+    assert pre_wheel["overviewPosition"] == "sticky"
+    assert abs(float(pre_wheel["overviewWidth"]) - 220.0) <= 1.0
+    assert pre_wheel["trackOverflowX"] == "auto"
+    assert pre_wheel["trackOverflowY"] == "hidden"
+    assert pre_wheel["trackOverscrollX"] == "contain"
+    assert pre_wheel["trackScrollWidth"] > pre_wheel["trackClientWidth"]
+    assert pre_wheel["colWidths"] == [210, 210, 210, 210, 210]
+    assert pre_wheel["backlogScrollHeight"] > pre_wheel["backlogClientHeight"] + 500
+    assert pre_wheel["backlogOverscrollX"] == "auto"
 
-    assert len(metrics["colStats"]) == 5
-    for col_stat in metrics["colStats"]:
+    assert len(pre_wheel["colStats"]) == 5
+    for col_stat in pre_wheel["colStats"]:
         assert col_stat["overflowX"] == "hidden"
+        assert col_stat["overscrollX"] == "auto"
+        assert col_stat["overscrollY"] == "contain"
         assert col_stat["scrollWidth"] <= col_stat["clientWidth"] + 1
 
-    assert len(metrics["cardBounds"]) == 20
-    for cb in metrics["cardBounds"]:
-        assert cb["priRight"] <= cb["cardRight"] - 8, cb
-        assert cb["linkRight"] <= cb["cardRight"] - 8, cb
-        assert cb["chipRight"] <= cb["cardRight"] - 8, cb
+    assert len(pre_wheel["cardBounds"]) == 20
+    for cb in pre_wheel["cardBounds"]:
+        assert cb["cardHeight"] >= 100.0, cb
+        assert cb["cardFlexShrink"] == "0", cb
+        assert len(cb["childRows"]) == 4, cb
+        for row in cb["childRows"]:
+            assert row["height"] >= 12.0, row
+            assert row["bottomDelta"] <= 1.0, row
+            assert row["flexShrink"] == "0", row
+        assert cb["priRight"] <= cb["cardRight"] - 6, cb
+        assert cb["linkRight"] <= cb["cardRight"] - 6, cb
+        assert cb["chipRight"] <= cb["cardRight"] - 6, cb
         assert cb["titleFlexGrow"] == "1", cb
         assert cb["titleFlexBasis"] == "0%", cb
         assert cb["priWhiteSpace"] == "nowrap", cb
         assert cb["chipBoxSizing"] == "border-box", cb
 
-    assert len(metrics["subStepsTexts"]) >= 1
-    for txt in metrics["subStepsTexts"]:
+    # 2. Real diagonal trackpad horizontal wheel gesture over 16-card Backlog item
+    cdp.call(
+        "Input.dispatchMouseEvent",
+        {
+            "type": "mouseWheel",
+            "x": pre_wheel["secondCardCenter"]["x"],
+            "y": pre_wheel["secondCardCenter"]["y"],
+            "deltaX": 140,
+            "deltaY": 10,
+        },
+    )
+    _wait_for_js_condition(
+        cdp,
+        "document.querySelector('#kanban-dashboard-wrapper-lyrics-sync .kanban-columns-scroll').scrollLeft >= 130",
+        timeout=3.0,
+    )
+    after_diag_wheel = cdp.eval_js(
+        """(() => {
+          const w = document.getElementById('kanban-dashboard-wrapper-lyrics-sync');
+          return {
+            scrollLeft: w.querySelector('.kanban-columns-scroll').scrollLeft,
+            backlogTop: w.querySelector('[data-scroll-id="kanban-col-lyrics-sync-backlog"]').scrollTop,
+            overviewLeft: w.querySelector('[data-kanban-overview="pinned"]').getBoundingClientRect().left,
+          };
+        })()"""
+    )
+    assert after_diag_wheel["scrollLeft"] >= 130
+    assert after_diag_wheel["backlogTop"] == 0
+    assert after_diag_wheel["overviewLeft"] == pre_wheel["beforeLeft"]
+
+    # 3. Real Shift+Wheel (modifiers=8, deltaX=0, deltaY=120) horizontal gesture over empty To Do column
+    prev_scroll_left = int(after_diag_wheel["scrollLeft"])
+    cdp.call(
+        "Input.dispatchMouseEvent",
+        {
+            "type": "mouseWheel",
+            "x": pre_wheel["todoCenter"]["x"],
+            "y": pre_wheel["todoCenter"]["y"],
+            "modifiers": 8,
+            "deltaX": 0,
+            "deltaY": 120,
+        },
+    )
+    _wait_for_js_condition(
+        cdp,
+        f"document.querySelector('#kanban-dashboard-wrapper-lyrics-sync .kanban-columns-scroll').scrollLeft > {prev_scroll_left}",
+        timeout=3.0,
+    )
+    after_todo_wheel = cdp.eval_js(
+        """(() => {
+          const w = document.getElementById('kanban-dashboard-wrapper-lyrics-sync');
+          return {
+            scrollLeft: w.querySelector('.kanban-columns-scroll').scrollLeft,
+            overviewLeft: w.querySelector('[data-kanban-overview="pinned"]').getBoundingClientRect().left,
+          };
+        })()"""
+    )
+    assert after_todo_wheel["scrollLeft"] > after_diag_wheel["scrollLeft"]
+    assert after_todo_wheel["overviewLeft"] == pre_wheel["beforeLeft"]
+
+    shot_scrolled = cdp.call("Page.captureScreenshot", {"format": "png"})
+    png_scrolled = base64.b64decode(shot_scrolled["data"])
+
+    # 4. Reset scrollLeft=0 and verify vertical scrolling inside 16-card Backlog column still works
+    cdp.eval_js(
+        "document.querySelector('#kanban-dashboard-wrapper-lyrics-sync .kanban-columns-scroll').scrollLeft = 0; true;"
+    )
+    _wait_for_js_condition(
+        cdp,
+        "document.querySelector('#kanban-dashboard-wrapper-lyrics-sync .kanban-columns-scroll').scrollLeft === 0",
+        timeout=3.0,
+    )
+    cdp.call(
+        "Input.dispatchMouseEvent",
+        {
+            "type": "mouseWheel",
+            "x": pre_wheel["backlogLeftPoint"]["x"],
+            "y": pre_wheel["backlogLeftPoint"]["y"],
+            "deltaX": 6,
+            "deltaY": 220,
+        },
+    )
+    _wait_for_js_condition(
+        cdp,
+        "document.querySelector('[data-scroll-id=\"kanban-col-lyrics-sync-backlog\"]').scrollTop >= 180",
+        timeout=3.0,
+    )
+    after_vert_wheel = cdp.eval_js(
+        """(() => {
+          const w = document.getElementById('kanban-dashboard-wrapper-lyrics-sync');
+          const res = {
+            scrollLeft: w.querySelector('.kanban-columns-scroll').scrollLeft,
+            backlogTop: w.querySelector('[data-scroll-id="kanban-col-lyrics-sync-backlog"]').scrollTop,
+          };
+          w.querySelector('[data-scroll-id="kanban-col-lyrics-sync-backlog"]').scrollTop = 0;
+          return res;
+        })()"""
+    )
+    assert after_vert_wheel["backlogTop"] >= 180
+    assert after_vert_wheel["scrollLeft"] == 0
+
+    # 5. Standard laptop viewport (1366x900): all 5 compact 210px columns + 220px Overview fit side-by-side
+    cdp.call(
+        "Emulation.setDeviceMetricsOverride",
+        {"width": 1366, "height": 900, "deviceScaleFactor": 1, "mobile": False},
+    )
+    cdp.eval_js(
+        """(() => {
+            document.getElementById('kanban-dashboard-wrapper-lyrics-sync').scrollIntoView({ block: 'start' });
+            window.scrollBy(0, -100);
+            return true;
+        })()"""
+    )
+    time.sleep(0.1)
+    wide_fit = cdp.eval_js(
+        """(() => {
+          const sc = document.querySelector('#kanban-dashboard-wrapper-lyrics-sync .kanban-columns-scroll');
+          return { scrollW: sc.scrollWidth, clientW: sc.clientWidth };
+        })()"""
+    )
+    assert wide_fit["scrollW"] <= wide_fit["clientW"] + 2
+
+    assert len(pre_wheel["subStepsTexts"]) >= 1
+    for txt in pre_wheel["subStepsTexts"]:
         assert not txt.startswith(("1.", "2.", "3.", "4.", "5.", "6.")), txt
-    assert len(metrics["kanbanStageTexts"]) >= 1
-    for txt in metrics["kanbanStageTexts"]:
+    assert len(pre_wheel["kanbanStageTexts"]) >= 1
+    for txt in pre_wheel["kanbanStageTexts"]:
         assert not txt.startswith(("1.", "2.", "3.", "4.", "5.", "6.")), txt
 
-    joined_pills = "\n".join(metrics["stagePillLabels"])
+    joined_pills = "\n".join(pre_wheel["stagePillLabels"])
     for expected_pill in (
         "1. Spec",
         "2. HLD & Principal",
@@ -940,10 +1118,10 @@ def test_live_chrome_cdp_kanban_sticky_scroll_and_unnumbered_stage_titles(
     ):
         assert expected_pill in joined_pills
 
-    assert "4 / 4 Completed (100% ✓)" in metrics["execText"]
-    assert "4 / 20" not in metrics["execText"]
-    assert "4/20" not in metrics["execText"]
-    assert "20%" not in metrics["execText"]
+    assert "4 / 4 Completed (100% ✓)" in pre_wheel["execText"]
+    assert "4 / 20" not in pre_wheel["execText"]
+    assert "4/20" not in pre_wheel["execText"]
+    assert "20%" not in pre_wheel["execText"]
 
     assert cdp.console_errors == []
     assert cdp.uncaught_exceptions == []
@@ -958,4 +1136,7 @@ def test_live_chrome_cdp_kanban_sticky_scroll_and_unnumbered_stage_titles(
     out_dir.mkdir(parents=True, exist_ok=True)
     screenshot_path = out_dir / "verify_check_tasks_kanban.png"
     screenshot_path.write_bytes(png_bytes)
+    scrolled_path = out_dir / "verify_check_tasks_kanban_scrolled.png"
+    scrolled_path.write_bytes(png_scrolled)
     assert screenshot_path.is_file() and screenshot_path.stat().st_size > 1024
+    assert scrolled_path.is_file() and scrolled_path.stat().st_size > 1024

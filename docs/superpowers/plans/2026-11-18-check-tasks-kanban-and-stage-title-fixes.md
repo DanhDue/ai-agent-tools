@@ -17,6 +17,7 @@
 - [ Implementation Tasks](#implementation-tasks)
   - [Task 1: Epic-Scoped Telemetry Counts, Multi-Wave Task Parity, and Stripped Stage Summary Labels in check_tasks.py](#task-1-epic-scoped-telemetry-counts-multi-wave-task-parity-and-stripped-stage-summary-labels-in-check_taskspy)
   - [Task 2: Sticky Kanban Overview, Single 5-Column Horizontal Scroll, Unnumbered Sub-Step Headers, and Live Browser Verification in tasks_dashboard.html](#task-2-sticky-kanban-overview-single-5-column-horizontal-scroll-unnumbered-sub-step-headers-and-live-browser-verification-in-tasks_dashboardhtml)
+  - [Task 3: Non-Shrinking Kanban Cards, Horizontal Trackpad Wheel Bridge Over Column Items, and Compact 210px Column Width](#task-3-non-shrinking-kanban-cards-horizontal-trackpad-wheel-bridge-over-column-items-and-compact-210px-column-width)
 
 ## Global Constraints
 
@@ -363,4 +364,56 @@ git commit -m "[CHECK_TASKS] Pin Kanban Overview, unify 5-column scroll, and dro
   -m "- Lock Kanban outer grid to 220px minmax(0, 1fr) with sticky Overview and single horizontal scroll track" \
   -m "- Set overflow-x hidden on column card lists and truncate long unbroken epic identifiers" \
   -m "- Strip leading numeric index from vertical sub-step titles and reconcile multi-wave task counts"
+```
+
+---
+
+### Task 3: Non-Shrinking Kanban Cards, Horizontal Trackpad Wheel Bridge Over Column Items, and Compact 210px Column Width
+
+**Files:**
+- Modify: `skills/check-tasks/resources/dashboard/tasks_dashboard.html:550-605`
+- Modify: `skills/check-tasks/resources/dashboard/tasks_dashboard.html:3385-3515`
+- Modify: `skills/check-tasks/resources/dashboard/tasks_dashboard.html:5288-5325`
+- Modify: `tests/test_check_tasks_kanban_and_telemetry_fixes.py`
+
+**Interfaces:**
+- Consumes: `renderKanbanDashboard()`, `openKanbanModal()`, `.kanban-task-card`, `.kanban-col-cards`, `.kanban-columns-scroll`.
+- Produces:
+  - `flex-shrink: 0` on `.kanban-task-card`, `.kanban-task-card > div`, and `.kanban-col > div:first-child` so 16+ task cards in a single column preserve full 4-row height (`>= 105px`) and scroll vertically rather than collapsing to `32px`.
+  - Split `overscroll-behavior`: `.kanban-col-cards` uses `overscroll-behavior-y: contain; overscroll-behavior-x: auto;` while `.kanban-columns-scroll` uses `overscroll-behavior-x: contain;`.
+  - `ensureKanbanHorizontalWheelBridge()` delegated `{ passive: false }` `wheel` handler forwarding horizontal-dominant gestures (`Math.abs(deltaX) > Math.abs(deltaY)`) anywhere inside `.kanban-columns-scroll` (including over 16-card `.kanban-col-cards` bodies) directly to `scroller.scrollLeft`, while preserving native vertical column scroll when `Math.abs(deltaY) >= Math.abs(deltaX)`.
+  - Compact default column width `repeat(5, minmax(210px, 1fr))` in both `renderKanbanDashboard()` and `openKanbanModal()` (`#modal-kanban`).
+
+- [ ] **Step 1: Write failing Node VM and Headless Chrome CDP E2E tests**
+
+Update `tests/test_check_tasks_kanban_and_telemetry_fixes.py` to assert:
+1. `repeat(5, minmax(210px, 1fr))` in both `renderKanbanDashboard()` and `openKanbanModal()`, `flex-shrink: 0` on `.kanban-task-card` and its inner rows, and `overscroll-behavior-x: auto` on `.kanban-col-cards`.
+2. In `test_live_chrome_cdp_kanban_sticky_scroll_and_unnumbered_stage_titles`:
+   - At `1180x900` viewport, all 16 `Backlog` task cards render with `height >= 100px`, `flexShrink === "0"`, all 4 internal rows visible (`childHeight >= 12` and `childBottom <= cardBottom`), and `backlogCol.scrollHeight > backlogCol.clientHeight + 500`.
+   - Real CDP `Input.dispatchMouseEvent` (`type: "mouseWheel"`, `deltaX: 140, deltaY: 10`) dispatched over Card #2 in the 16-card `Backlog` column advances `.kanban-columns-scroll.scrollLeft >= 130` while keeping `backlogCol.scrollTop == 0` and `[data-kanban-overview="pinned"]` `left` invariant.
+   - Real CDP vertical `mouseWheel` (`deltaX: 6, deltaY: 220`) over the 16-card `Backlog` column advances `backlogCol.scrollTop >= 180` without altering `scrollLeft`.
+   - Each column measures `210px` wide at `1180x900` and all 5 columns fit cleanly without horizontal overflow at `1366x900`.
+
+- [ ] **Step 2: Run test to verify RED failure**
+
+Run: `python3 -m pytest tests/test_check_tasks_kanban_and_telemetry_fixes.py -v`
+Expected: FAIL (`cardHeight == 32`, `scrollLeft == 0` on `mouseWheel`, and `260px` column width).
+
+- [ ] **Step 3: Implement CSS, `ensureKanbanHorizontalWheelBridge()`, and `210px` column width in `tasks_dashboard.html`**
+
+Apply the surgical CSS and wheel-bridge updates in `skills/check-tasks/resources/dashboard/tasks_dashboard.html`.
+
+- [ ] **Step 4: Run automated tests, visually inspect screenshots, and execute `@quality_check`**
+
+Run: `python3 -m pytest tests/test_check_tasks_kanban_and_telemetry_fixes.py tests/test_ltsp_dashboard_ui.py tests/test_cehm_dashboard_modal_ui.py tests/test_rsdh_tasks_dashboard_ui.py -v`
+Inspect rendered PNG screenshots at `1366x900` and `1180x900` via `read_file`, then run `@quality_check` and `scripts/verify.sh`.
+
+- [ ] **Step 5: Commit Task 3**
+
+```bash
+git add skills/check-tasks/resources/dashboard/tasks_dashboard.html tests/test_check_tasks_kanban_and_telemetry_fixes.py
+git commit -m "[CHECK_TASKS] Fix Kanban 16-card collapse, 5-column horizontal wheel scroll, and 210px column width" \
+  -m "- Add flex-shrink 0 to Kanban task cards and inner rows so multi-card columns scroll vertically instead of collapsing" \
+  -m "- Split overscroll-behavior axes and add horizontal-dominant wheel bridge across all 5 status columns" \
+  -m "- Reduce default Kanban column min-width from 260px to 210px and verify via Chrome CDP mouseWheel E2E"
 ```
