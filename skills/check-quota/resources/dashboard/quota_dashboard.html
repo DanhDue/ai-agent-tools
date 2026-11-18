@@ -213,7 +213,8 @@
     #scheduleModal.hidden,
     #loginModal.hidden,
     #profileInfoModal.hidden,
-    #appealDetailModal.hidden {
+    #appealDetailModal.hidden,
+    #profileInfoModal .hidden {
       display: none !important;
     }
   </style>
@@ -704,7 +705,7 @@
         <div
           class="bg-[var(--background)] rounded-xl p-3 border border-[var(--border)] flex items-center justify-between">
           <div>
-            <div class="text-[11px] text-[var(--muted-foreground)] font-medium">Tài khoản Google (Email)</div>
+            <div id="infoModalEmailLabel" class="text-[11px] text-[var(--muted-foreground)] font-medium">Tài khoản Google (Email)</div>
             <div id="infoModalEmail" class="text-sm font-semibold font-mono text-emerald-400 mt-0.5 select-all">--</div>
           </div>
           <button onclick="copyInfoEmail()" id="btnCopyEmail"
@@ -732,7 +733,7 @@
             <span class="text-[11px] font-semibold text-purple-300">Capabilities &amp; Model Discovery</span>
             <div id="infoModalBadges" class="flex items-center gap-1 flex-wrap"></div>
           </div>
-          <div
+          <div id="infoModalArgonMetaRow"
             class="grid grid-cols-1 sm:grid-cols-3 gap-1.5 text-[10px] font-mono text-[var(--muted-foreground)] bg-black/30 rounded-lg p-2 border border-slate-800/80">
             <div class="truncate" title="Argon Quota Mode">Mode: <span id="infoModalArgonMode"
                 class="text-purple-300 font-semibold">--</span></div>
@@ -743,14 +744,14 @@
           </div>
           <div id="infoModalModelGroups" class="space-y-2 pt-0.5">
             <div>
-              <div class="text-[11px] font-semibold text-sky-400">Gemini Models</div>
+              <div id="infoModalGeminiGroupLabel" class="text-[11px] font-semibold text-sky-400">Gemini Models</div>
               <div id="infoModalGeminiModels" class="mt-1 flex flex-wrap gap-1 text-[11px] text-slate-200">--</div>
             </div>
-            <div>
+            <div id="infoModalClaudeModelsRow">
               <div class="text-[11px] font-semibold text-amber-400">Claude &amp; GPT</div>
               <div id="infoModalClaudeModels" class="mt-1 flex flex-wrap gap-1 text-[11px] text-slate-200">--</div>
             </div>
-            <div>
+            <div id="infoModalArgonModelsRow">
               <div class="text-[11px] font-semibold text-purple-400">Argon / Orchestrator</div>
               <div id="infoModalArgonModels" class="mt-1 flex flex-wrap gap-1 text-[11px] text-slate-200">--</div>
             </div>
@@ -777,10 +778,10 @@
         <div
           class="bg-[var(--background)] rounded-xl p-3 border border-[var(--border)] space-y-2 text-[11px] font-mono">
           <div>
-            <div class="text-[var(--muted-foreground)]">Thư mục Home độc lập:</div>
+            <div id="infoModalHomeLabel" class="text-[var(--muted-foreground)]">Thư mục Home độc lập:</div>
             <div id="infoModalHomePath" class="text-purple-300 truncate select-all">~/antigravity_homes/--</div>
           </div>
-          <div>
+          <div id="infoModalKeychainRow">
             <div class="text-[var(--muted-foreground)]">Keychain DB:</div>
             <div id="infoModalKeychainPath" class="text-slate-300 truncate select-all">
               ~/antigravity_homes/--/Library/Keychains/--.keychain-db</div>
@@ -2362,6 +2363,49 @@
       return out;
     }
 
+    function getCarbonArgonOrchestratorModels(data) {
+      if (!data) return [];
+      if (!(data?.capabilities?.hasCarbon && isSharedArgonPool(data))) {
+        return getArgonOrchestratorModels(data);
+      }
+      const out = [];
+      const pushUnique = (val) => {
+        const trimmed = String(val ?? "").trim();
+        if (trimmed && !out.includes(trimmed)) out.push(trimmed);
+      };
+      getGroupModelList(data, "gemini").forEach((m) => {
+        const lower = m.toLowerCase();
+        if (lower.includes("carbon") || lower.includes("argon") || lower.includes("orchestrator")) {
+          pushUnique(m);
+        }
+      });
+      getGroupModelList(data, "argon").forEach(pushUnique);
+      if (Array.isArray(data.modelCatalog)) {
+        data.modelCatalog.forEach((entry) => {
+          if (!entry || typeof entry !== "object") return;
+          const tags = Array.isArray(entry.tags) ? entry.tags.map((t) => String(t).toLowerCase()) : [];
+          const label = String(entry.label || entry.id || "").trim();
+          const lowerId = String(entry.id || "").toLowerCase();
+          const lowerLabel = label.toLowerCase();
+          if (
+            entry.quotaFamily === "argon" ||
+            tags.includes("carbon") ||
+            tags.includes("argon") ||
+            tags.includes("orchestrator") ||
+            lowerId.includes("carbon") ||
+            lowerId.includes("argon") ||
+            lowerId.includes("orchestrator") ||
+            lowerLabel.includes("carbon") ||
+            lowerLabel.includes("argon") ||
+            lowerLabel.includes("orchestrator")
+          ) {
+            pushUnique(label);
+          }
+        });
+      }
+      return out;
+    }
+
     function getTierBadgeHTML(tier = "PRO") {
       const raw = String(tier || "PRO").trim();
       const upper = raw.toUpperCase();
@@ -2466,6 +2510,91 @@
           </span>
         `;
       }).join("");
+    }
+
+    function resolveProviderPlanLabel(profile, data) {
+      const raw = String(data?.planLabel || data?.accountMeta?.planLabel || data?.tier || "").trim();
+      const upper = raw.toUpperCase();
+      if (!upper || upper === "ANTHROPIC") {
+        if (profile === "codex") return "CHATGPT PLUS";
+        if (profile === "kiro") return "KIRO STUDENT";
+        return "CLAUDE PRO";
+      }
+      if (upper === "OPENAI") return "CHATGPT PLUS";
+      if (upper === "KIRO") return "KIRO STUDENT";
+      return upper;
+    }
+
+    function getProviderPlanBadgeHTML(profile, data) {
+      const plan = resolveProviderPlanLabel(profile, data);
+      const safePlan = escapeHtml(plan);
+      if (plan.includes("FREE")) {
+        return `
+          <span class="pill-badge bg-slate-800 text-slate-300 border border-slate-600/80 font-mono font-semibold text-[10px] shadow-sm tracking-wide" data-tier-badge="${safePlan}">
+            <span class="text-[9px]">◇</span> ${safePlan}
+          </span>
+        `;
+      }
+      if (
+        plan.includes("MAX") ||
+        plan.includes("ENTERPRISE") ||
+        plan.includes("POWER") ||
+        plan === "CHATGPT PRO" ||
+        plan.includes("PRO+")
+      ) {
+        return `
+          <span class="pill-badge bg-gradient-to-r from-indigo-600/90 to-purple-600/90 text-white border border-purple-400/50 font-mono font-bold text-[10px] shadow-sm tracking-wide" data-tier-badge="${safePlan}">
+            <span class="text-[10px]">✦</span> ${safePlan}
+          </span>
+        `;
+      }
+      return `
+        <span class="pill-badge bg-[#1e293b] text-sky-200 border border-sky-500/40 font-mono font-bold text-[10px] shadow-sm tracking-wide" data-tier-badge="${safePlan}">
+          <span class="text-[9px]">◆</span> ${safePlan}
+        </span>
+      `;
+    }
+
+    function getProviderHeaderBadgesHTML(profile, data) {
+      const vendorRaw = String(
+        data?.vendorLabel ||
+        data?.accountMeta?.vendorLabel ||
+        (profile === "claude" ? "ANTHROPIC" : (profile === "codex" ? "OPENAI" : "KIRO"))
+      ).trim().toUpperCase();
+      const safeVendor = escapeHtml(vendorRaw);
+      let vendorPillHTML = "";
+      if (profile === "claude" || vendorRaw === "ANTHROPIC") {
+        vendorPillHTML = `
+          <span class="pill-badge bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold text-[10px]" data-vendor-badge="${safeVendor}">
+            <span class="text-amber-400">✺</span> ${safeVendor}
+          </span>
+        `;
+      } else if (profile === "kiro" || vendorRaw === "KIRO") {
+        vendorPillHTML = `
+          <span class="pill-badge bg-purple-500/25 text-purple-200 border border-purple-500/50 font-mono font-bold text-[10px] shadow-sm inline-flex items-center gap-1" data-vendor-badge="${safeVendor}">
+            <span class="text-purple-300 text-xs">👻</span> ${safeVendor}
+          </span>
+        `;
+      } else {
+        vendorPillHTML = `
+          <span class="pill-badge bg-white/10 text-white border border-white/30 font-mono font-bold text-[10px] shadow-sm" data-vendor-badge="${safeVendor}">
+            <span class="text-white">✱</span> ${safeVendor}
+          </span>
+        `;
+      }
+      const defaultPriority = profile === "claude" ? 100 : (profile === "codex" ? 95 : 90);
+      const resetCredits = data?.resetCredits ?? data?.accountMeta?.resetCredits ?? 0;
+      const resetCreditHTML = resetCredits ? `
+        <span class="pill-badge bg-purple-950/80 text-purple-200 border border-purple-700/80 font-mono text-[10px]" title="Có ${escapeHtml(resetCredits)} vé Full Reset khả dụng">
+          🎟️ ${escapeHtml(resetCredits)} RESET CREDIT
+        </span>
+      ` : "";
+      return `
+        ${vendorPillHTML}
+        ${getProviderPlanBadgeHTML(profile, data)}
+        ${getPriorityBadgeHTML(data?.priority ?? defaultPriority)}
+        ${resetCreditHTML}
+      `;
     }
 
     function getStatusBadgeHTML(status) {
@@ -2654,42 +2783,14 @@
                   class="text-sm sm:text-base font-bold font-mono ${data.isProvider ? (profile === 'claude' ? 'text-amber-400' : (profile === 'codex' ? 'text-white font-extrabold' : 'text-purple-300 font-extrabold drop-shadow-[0_0_10px_rgba(192,132,252,0.45)]')) : 'text-sky-400'} tracking-tight cursor-pointer hover:opacity-80 transition-colors select-none inline-flex items-center gap-1.5"
                   title="Nhấn đúp (Double-click) để sao chép '${profile}' vào clipboard"
                 >${profile === 'kiro' ? '<span class="text-base select-none inline-block hover:scale-125 transition-transform" title="Kiro Cute Ghost">👻</span>' : ''}${escapeHtml(data.displayName || profile)}</span>
-                ${!data.isProvider ? `
                 <button 
                   onclick="openProfileInfoModal('${profile}')" 
                   class="w-5 h-5 rounded-full bg-slate-800 hover:bg-sky-500/20 text-slate-400 hover:text-sky-300 border border-slate-700/80 flex items-center justify-center text-[11px] font-bold transition-all shadow-sm"
-                  title="Xem thông tin chi tiết tài khoản ${profile}"
+                  title="Xem thông tin chi tiết tài khoản ${escapeHtml(profile)}"
                 >
                   ℹ
                 </button>
-                ` : ''}
-                ${data.isProvider ? (profile === 'claude' ? `
-                  <span class="pill-badge bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold text-[10px]">
-                    <span class="text-amber-400">✺</span> ANTHROPIC
-                  </span>
-                  <span class="pill-badge bg-purple-950/60 text-purple-300 border border-purple-800/60 font-mono text-[10px]">
-                    AI PROVIDER
-                  </span>
-                ` : (profile === 'kiro' ? `
-                  <span class="pill-badge bg-purple-500/25 text-purple-200 border border-purple-500/50 font-mono font-bold text-[10px] shadow-sm inline-flex items-center gap-1">
-                    <span class="text-purple-300 text-xs">👻</span> ${data.tier || 'KIRO STUDENT'}
-                  </span>
-                  <span class="pill-badge bg-purple-950/90 text-purple-200 border border-purple-700/70 font-mono font-semibold text-[10px] shadow-sm">
-                    AI PROVIDER
-                  </span>
-                ` : `
-                  <span class="pill-badge bg-white/10 text-white border border-white/30 font-mono font-bold text-[10px] shadow-sm">
-                    <span class="text-white">✱</span> OPENAI
-                  </span>
-                  <span class="pill-badge bg-purple-950/60 text-purple-300 border border-purple-800/60 font-mono text-[10px]">
-                    AI PROVIDER
-                  </span>
-                  ${data.resetCredits ? `
-                  <span class="pill-badge bg-purple-950/80 text-purple-200 border border-purple-700/80 font-mono text-[10px]" title="Có ${data.resetCredits} vé Full Reset khả dụng (Hạn đến 02/12)">
-                    🎟️ ${data.resetCredits} RESET CREDIT
-                  </span>
-                  ` : ''}
-                `)) : `
+                ${data.isProvider ? getProviderHeaderBadgesHTML(profile, data) : `
                   ${getTierBadgeHTML(data.capabilities?.tier || data.tier || 'PRO')}
                   ${getPriorityBadgeHTML(data.priority ?? 50)}
                   ${getCapabilityBadgesHTML(data)}
@@ -2881,10 +2982,16 @@
                 const claudeBuckets = Array.isArray(data.quotaBuckets) && data.quotaBuckets.length > 0
                   ? data.quotaBuckets
                   : [data.gemini5h, data.geminiWeekly].filter(Boolean);
+                const extraUsageSubtitle = (
+                  data.accountMeta?.extraUsageEnabled !== false &&
+                  typeof data.accountMeta?.extraUsageSummary === "string"
+                )
+                  ? data.accountMeta.extraUsageSummary.trim()
+                  : "";
                 return `
               <!-- Claude Provider: Dynamic Quota Buckets -->
               <div class="space-y-2.5">
-                ${claudeBuckets.map((bucket) => {
+                ${claudeBuckets.map((bucket, idx) => {
                   const shareLabel = bucket && bucket.shareInfo && typeof bucket.shareInfo.label === 'string'
                     ? bucket.shareInfo.label
                     : '';
@@ -2896,27 +3003,45 @@
                     bucket?.fraction ?? 1.0,
                     false,
                     Boolean(bucket?.unavailable),
-                    shareLabel
+                    shareLabel,
+                    idx === 0 ? extraUsageSubtitle : ""
                   );
                 }).join('')}
               </div>
               `;
-              })() : (profile === 'codex' ? `
+              })() : (profile === 'codex' ? (() => {
+                const codex5h = data.gemini5h || {};
+                const codexWeekly = data.geminiWeekly || {};
+                const codexRoster = Array.isArray(data.availableModels) && data.availableModels.length > 0
+                  ? "Available models: " + data.availableModels.join(", ")
+                  : "";
+                return `
               <!-- Codex Provider: Quota thực tế từ OpenAI Plan limits (5H Limit & Weekly Limit) -->
               <div class="space-y-2.5">
-                ${renderDetailModelCard("✱", "text-white", data.gemini5h.name, data.gemini5h.countdown, data.gemini5h.fraction, false, data.gemini5h.unavailable)}
-                ${renderDetailModelCard("✱", "text-white", data.geminiWeekly.name, data.geminiWeekly.countdown, data.geminiWeekly.fraction, false, data.geminiWeekly.unavailable)}
+                ${renderDetailModelCard("✱", "text-white", codex5h.name || "Codex 5-Hour Limit", codex5h.countdown || "", codex5h.fraction ?? 1.0, false, Boolean(codex5h.unavailable), "", codexRoster)}
+                ${renderDetailModelCard("✱", "text-white", codexWeekly.name || "Codex Weekly Limit", codexWeekly.countdown || "", codexWeekly.fraction ?? 1.0, false, Boolean(codexWeekly.unavailable))}
               </div>
-              ` : (profile === 'kiro' || data.isCreditOnly ? `
+              `;
+              })() : (profile === 'kiro' || data.isCreditOnly ? (() => {
+                const kiro5h = data.gemini5h || {};
+                const kiroCreditsText = (
+                  typeof data.accountMeta?.creditsSummary === "string" &&
+                  data.accountMeta.creditsSummary.trim()
+                )
+                  ? data.accountMeta.creditsSummary.trim()
+                  : `Used: ${data.creditsPool?.used ?? 0} / ${data.creditsPool?.limit ?? 1000} credits`;
+                const kiroOverageText = `Overages: ${data.overageStatus ?? data.accountMeta?.overageStatus ?? 'DISABLED'}`;
+                return `
               <!-- Kiro Provider: Single-Bar Monthly Credits Pool -->
               <div class="space-y-2.5">
-                ${renderDetailModelCard("👻", "text-purple-300", data.gemini5h.name, data.gemini5h.countdown, data.gemini5h.fraction, false, data.gemini5h.unavailable)}
+                ${renderDetailModelCard("👻", "text-purple-300", kiro5h.name || "Monthly Credits Pool", kiro5h.countdown || "", kiro5h.fraction ?? 1.0, false, Boolean(kiro5h.unavailable))}
               </div>
               <div class="text-[11px] font-mono text-purple-300/80 pt-1 flex items-center justify-between">
-                <span>Used: ${data.creditsPool?.used ?? 7.48} / ${data.creditsPool?.limit ?? 1000} credits</span>
-                <span>Overages: ${data.overageStatus ?? 'DISABLED'}</span>
+                <span>${escapeHtml(kiroCreditsText)}</span>
+                <span>${escapeHtml(kiroOverageText)}</span>
               </div>
-              ` : (() => {
+              `;
+              })() : (() => {
                 const geminiModels = getGroupModelList(data, "gemini");
                 const claudeModels = getGroupModelList(data, "claude");
                 const argonModels = getArgonOrchestratorModels(data);
@@ -2953,10 +3078,20 @@
                   )
                     ? aWeekly.countdown
                     : (gWeekly.countdown || "⏱ --");
+                  const rawSharedTitle = aWeekly.name || "";
+                  const sharedTitle = (
+                    data.capabilities?.hasCarbon &&
+                    (!rawSharedTitle || rawSharedTitle === "Gemini 4 Argon Weekly")
+                  )
+                    ? "Gemini 4 Carbon & Argon Weekly"
+                    : (rawSharedTitle || "Gemini 4 Argon Weekly");
+                  const sharedRoster = data.capabilities?.hasCarbon
+                    ? getCarbonArgonOrchestratorModels(data).join(", ")
+                    : argonRoster;
                   argonRowHTML = `
               <!-- Row 3: Argon Weekly (Shared w/ Gemini Pool Mirror) -->
               <div>
-                ${renderDetailModelCard("✦", "text-purple-400", aWeekly.name || "Gemini 4 Argon Weekly", mirroredCountdown, mirroredFraction, Boolean(aWeekly.tags), mirroredUnavailable, "Shared w/ Gemini Pool", argonRoster)}
+                ${renderDetailModelCard("✦", "text-purple-400", sharedTitle, mirroredCountdown, mirroredFraction, Boolean(aWeekly.tags), mirroredUnavailable, "Shared w/ Gemini Pool", sharedRoster)}
               </div>`;
                 } else if (argonMode === "separate") {
                   argonRowHTML = `
@@ -2975,7 +3110,7 @@
 
               <!-- Row 2: Gemini Weekly (Col 1) & Claude Weekly (Col 2) -->
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                ${renderDetailModelCard("✦", "text-sky-400", gWeekly.name || "Gemini Weekly", gWeekly.countdown || "", gWeekly.fraction ?? 0, false, Boolean(gWeekly.unavailable))}
+                ${renderDetailModelCard("✦", "text-sky-400", gWeekly.name || "Gemini Weekly", gWeekly.countdown || "", gWeekly.fraction ?? 0, false, Boolean(gWeekly.unavailable), "", geminiRoster)}
                 ${renderDetailModelCard("✺", "text-orange-400", cWeekly.name || "Claude Weekly", cWeekly.countdown || "", cWeekly.fraction ?? 0, false, Boolean(cWeekly.unavailable))}
               </div>
               ${argonRowHTML}
@@ -3101,13 +3236,23 @@
         return [...providers, ...sortedSatellites];
       }
 
+      if (currentSortOrder === "NAME_ASC") {
+        const sortedSatellites = nonProviders.sort((a, b) => a.localeCompare(b));
+        return [...providers, ...sortedSatellites];
+      }
+
       if (currentSortOrder === "NAME_DESC") {
         const sortedSatellites = nonProviders.sort((a, b) => b.localeCompare(a));
         return [...providers, ...sortedSatellites];
       }
 
-      // DEFAULT: Pin providers (claude -> codex -> kiro) at top, then satellite profiles A-Z
-      const sortedSatellites = nonProviders.sort((a, b) => a.localeCompare(b));
+      // DEFAULT: Pin providers (claude -> codex -> kiro) at top, then satellite profiles by Priority DESC, A-Z
+      const sortedSatellites = nonProviders.sort((a, b) => {
+        const pa = Number(PROFILES_DATA[a]?.priority ?? 50);
+        const pb = Number(PROFILES_DATA[b]?.priority ?? 50);
+        if (pa !== pb) return pb - pa;
+        return a.localeCompare(b);
+      });
       return [...providers, ...sortedSatellites];
     }
 
@@ -3345,10 +3490,22 @@
         const rosterMatch = search && (
           getGroupModelList(data, "gemini").some((m) => m.toLowerCase().includes(search)) ||
           getGroupModelList(data, "claude").some((m) => m.toLowerCase().includes(search)) ||
-          getArgonOrchestratorModels(data).some((m) => m.toLowerCase().includes(search)) ||
+          getCarbonArgonOrchestratorModels(data).some((m) => m.toLowerCase().includes(search)) ||
           (Array.isArray(data.capabilities?.badges) && data.capabilities.badges.some((b) => String(b).toLowerCase().includes(search)))
         );
-        if (search && !profile.toLowerCase().includes(search) && !(data.displayName && data.displayName.toLowerCase().includes(search)) && !bucketMatch && !rosterMatch) return;
+        const meta = data.accountMeta || {};
+        const effectivePlan = data.isProvider
+          ? resolveProviderPlanLabel(profile, data)
+          : String(data.planLabel || data.capabilities?.tier || data.tier || "");
+        const tierOrMetaMatch = search && (
+          (data.tier && String(data.tier).toLowerCase().includes(search)) ||
+          (data.planLabel && String(data.planLabel).toLowerCase().includes(search)) ||
+          (effectivePlan && effectivePlan.toLowerCase().includes(search)) ||
+          (data.vendorLabel && String(data.vendorLabel).toLowerCase().includes(search)) ||
+          (meta.organizationName && String(meta.organizationName).toLowerCase().includes(search)) ||
+          (Array.isArray(data.availableModels) && data.availableModels.some((m) => String(m).toLowerCase().includes(search)))
+        );
+        if (search && !profile.toLowerCase().includes(search) && !(data.displayName && data.displayName.toLowerCase().includes(search)) && !bucketMatch && !rosterMatch && !tierOrMetaMatch) return;
         if (statusFilter && statusFilter !== "ALL") {
           if (statusFilter === "PROVIDERS") {
             if (!data.isProvider) return;
@@ -3413,7 +3570,10 @@
     }
 
     function isProfileFreeTier(data) {
-      return Boolean(data && String(data.tier || data.capabilities?.tier || '').toUpperCase() === 'FREE');
+      if (!data) return false;
+      const tierUpper = String(data.tier || data.capabilities?.tier || '').trim().toUpperCase();
+      const planTypeLower = String(data.accountMeta?.planType || '').trim().toLowerCase();
+      return tierUpper === 'FREE' || planTypeLower === 'free';
     }
 
     function isProfileSchedulable(profile, data) {
@@ -4522,71 +4682,180 @@
     function openProfileInfoModal(profile) {
       openInnerModal("profileInfoModal", () => {
         const data = PROFILES_DATA[profile] || {};
-        document.getElementById("infoModalProfile").textContent = profile;
-        document.getElementById("infoModalEmail").textContent = data.email || `${profile}@gmail.com`;
+        const meta = data.accountMeta || {};
+        const isProv = Boolean(data.isProvider);
+
+        const profEl = document.getElementById("infoModalProfile");
+        if (profEl) profEl.textContent = profile;
+
+        const emailLabelEl = document.getElementById("infoModalEmailLabel");
+        if (emailLabelEl) {
+          emailLabelEl.textContent = isProv
+            ? "Tài khoản Provider (Email)"
+            : "Tài khoản Google (Email)";
+        }
+        const emailEl = document.getElementById("infoModalEmail");
+        if (emailEl) {
+          emailEl.textContent = data.email || (isProv ? profile : `${profile}@gmail.com`);
+        }
 
         const statusEl = document.getElementById("infoModalStatus");
-        if (data.status === "DISABLED" || data.isAppeal) {
-          statusEl.innerHTML = `<span class="text-rose-400 font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span> 🚫 Bị khóa (Appeal Needed)</span>`;
-        } else if (data.status === "AUTH NEEDED") {
-          statusEl.innerHTML = `<span class="text-amber-400 font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span> 🔑 Chưa đăng nhập CLI</span>`;
-        } else {
-          statusEl.innerHTML = `<span class="text-emerald-400 font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> 🟢 Đang hoạt động (ACTIVE)</span>`;
+        if (statusEl) {
+          if (data.status === "DISABLED" || data.isAppeal) {
+            statusEl.innerHTML = `<span class="text-rose-400 font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span> 🚫 Bị khóa (Appeal Needed)</span>`;
+          } else if (data.status === "AUTH NEEDED" || data.status === "NEED_LOGIN" || data.status === "NOT LOGGED IN") {
+            statusEl.innerHTML = `<span class="text-amber-400 font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span> 🔑 Chưa đăng nhập CLI</span>`;
+          } else {
+            statusEl.innerHTML = `<span class="text-emerald-400 font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> 🟢 Đang hoạt động (ACTIVE)</span>`;
+          }
         }
 
-        const displayTier = String(data.capabilities?.tier || data.tier || "PRO").trim().toUpperCase();
+        for (const agyOnlyId of [
+          "infoModalArgonMetaRow",
+          "infoModalClaudeModelsRow",
+          "infoModalArgonModelsRow",
+          "infoModalKeychainRow",
+        ]) {
+          const rowEl = document.getElementById(agyOnlyId);
+          if (rowEl) {
+            rowEl.classList.toggle("hidden", isProv);
+            rowEl.style.display = isProv ? "none" : "";
+          }
+        }
+
+        const homeLabelEl = document.getElementById("infoModalHomeLabel");
+        if (homeLabelEl) {
+          homeLabelEl.textContent = isProv
+            ? "Tệp cấu hình / Xác thực:"
+            : "Thư mục Home độc lập:";
+        }
+        const geminiLabelEl = document.getElementById("infoModalGeminiGroupLabel");
+        if (geminiLabelEl) {
+          geminiLabelEl.textContent = isProv
+            ? "Available Models & Quota Scopes"
+            : "Gemini Models";
+        }
+
         const argonMode = resolveArgonMode(data);
         const sharedPool = isSharedArgonPool(data);
-        const argonSuffix = argonMode !== "none"
-          ? (sharedPool ? " • Argon (Shared w/ Gemini Pool)" : " • Argon Support")
-          : "";
-        document.getElementById("infoModalTier").textContent = `${displayTier} (Priority ${data.priority ?? 50})${argonSuffix}`;
-        document.getElementById("infoModalCliCmd").textContent = `${profile}-cli`;
-        document.getElementById("infoModalHomePath").textContent = `~/antigravity_homes/${profile}`;
-        document.getElementById("infoModalKeychainPath").textContent = `~/antigravity_homes/${profile}/Library/Keychains/${profile}.keychain-db`;
+        const tierEl = document.getElementById("infoModalTier");
 
-        const badgesEl = document.getElementById("infoModalBadges");
-        if (badgesEl) {
-          badgesEl.innerHTML = `${getTierBadgeHTML(displayTier)}${getCapabilityBadgesHTML(data)}`;
-        }
-        const modeEl = document.getElementById("infoModalArgonMode");
-        if (modeEl) {
-          modeEl.textContent = sharedPool ? `${argonMode} (Shared w/ Gemini Pool)` : argonMode;
-        }
-        const fetchedEl = document.getElementById("infoModalModelsFetchedAt");
-        if (fetchedEl) {
-          fetchedEl.textContent = data.modelsFetchedAt || "Legacy cache";
-        }
-        const sigEl = document.getElementById("infoModalGroupDescSig");
-        if (sigEl) {
-          sigEl.textContent = data.groupDescSig || "—";
-        }
+        if (isProv) {
+          const displayPlan = resolveProviderPlanLabel(profile, data);
+          const defaultPriority = profile === "claude" ? 100 : (profile === "codex" ? 95 : 90);
+          const prio = data.priority ?? defaultPriority;
+          const metaParts = [];
+          if (meta.organizationName) metaParts.push(meta.organizationName);
+          if (meta.billingType) metaParts.push(meta.billingType);
+          if (meta.rateLimitTier) metaParts.push(meta.rateLimitTier);
+          if (meta.extraUsageSummary) metaParts.push(meta.extraUsageSummary);
+          if (meta.creditsSummary) metaParts.push(meta.creditsSummary);
+          const extraTierSuffix = metaParts.length > 0 ? ` • ${metaParts.join(" • ")}` : "";
+          if (tierEl) {
+            tierEl.textContent = `${displayPlan} (Priority ${prio})${extraTierSuffix}`;
+          }
 
-        const geminiModels = getGroupModelList(data, "gemini");
-        const claudeModels = getGroupModelList(data, "claude");
-        const argonModels = getArgonOrchestratorModels(data);
+          const cliEl = document.getElementById("infoModalCliCmd");
+          if (cliEl) {
+            cliEl.textContent = meta.cliCommand || (profile === "kiro" ? "kiro-cli" : profile);
+          }
+          const homePathEl = document.getElementById("infoModalHomePath");
+          if (homePathEl) {
+            homePathEl.textContent = meta.configPath || (
+              profile === "claude"
+                ? "~/.claude.json"
+                : (profile === "codex" ? "~/.codex/auth.json" : "~/.local/share/kiro-cli")
+            );
+          }
 
-        const gemGroupEl = document.getElementById("infoModalGeminiModels");
-        if (gemGroupEl) {
-          gemGroupEl.innerHTML = renderModalModelPills(
-            geminiModels,
-            data.gemini5h?.name || "Gemini 3.8 / Pro"
-          );
-        }
-        const cldGroupEl = document.getElementById("infoModalClaudeModels");
-        if (cldGroupEl) {
-          cldGroupEl.innerHTML = renderModalModelPills(
-            claudeModels,
-            data.claude5h?.name || "Claude 5.5 / GPT"
-          );
-        }
-        const argGroupEl = document.getElementById("infoModalArgonModels");
-        if (argGroupEl) {
-          argGroupEl.innerHTML = renderModalModelPills(
-            argonModels,
-            argonMode === "none" ? "None / Unavailable" : (data.argonWeekly?.name || "Gemini 4 Argon"),
-            sharedPool ? "Shared w/ Gemini Pool" : ""
-          );
+          const badgesEl = document.getElementById("infoModalBadges");
+          if (badgesEl) {
+            badgesEl.innerHTML = getProviderHeaderBadgesHTML(profile, data);
+          }
+
+          const providerModels = [];
+          const pushProvModel = (val) => {
+            const trimmed = String(val ?? "").trim();
+            if (trimmed && !providerModels.includes(trimmed)) providerModels.push(trimmed);
+          };
+          if (Array.isArray(data.availableModels)) {
+            data.availableModels.forEach(pushProvModel);
+          }
+          if (Array.isArray(data.quotaBuckets)) {
+            data.quotaBuckets.forEach((b) => {
+              if (b?.scopeLabel) pushProvModel(b.scopeLabel);
+              else if (b?.name) pushProvModel(b.name);
+            });
+          }
+          const gemGroupEl = document.getElementById("infoModalGeminiModels");
+          if (gemGroupEl) {
+            gemGroupEl.innerHTML = renderModalModelPills(
+              providerModels,
+              data.gemini5h?.name || displayPlan
+            );
+          }
+        } else {
+          const displayTier = String(data.capabilities?.tier || data.tier || "PRO").trim().toUpperCase();
+          const argonSuffix = argonMode !== "none"
+            ? (sharedPool ? " • Argon (Shared w/ Gemini Pool)" : " • Argon Support")
+            : "";
+          if (tierEl) {
+            tierEl.textContent = `${displayTier} (Priority ${data.priority ?? 50})${argonSuffix}`;
+          }
+          const cliEl = document.getElementById("infoModalCliCmd");
+          if (cliEl) cliEl.textContent = meta.cliCommand || `${profile}-cli`;
+          const homePathEl = document.getElementById("infoModalHomePath");
+          if (homePathEl) homePathEl.textContent = meta.configPath || `~/antigravity_homes/${profile}`;
+          const keychainPathEl = document.getElementById("infoModalKeychainPath");
+          if (keychainPathEl) {
+            keychainPathEl.textContent = meta.secondaryPath || `~/antigravity_homes/${profile}/Library/Keychains/${profile}.keychain-db`;
+          }
+
+          const badgesEl = document.getElementById("infoModalBadges");
+          if (badgesEl) {
+            badgesEl.innerHTML = `${getTierBadgeHTML(displayTier)}${getCapabilityBadgesHTML(data)}`;
+          }
+          const modeEl = document.getElementById("infoModalArgonMode");
+          if (modeEl) {
+            modeEl.textContent = sharedPool ? `${argonMode} (Shared w/ Gemini Pool)` : argonMode;
+          }
+          const fetchedEl = document.getElementById("infoModalModelsFetchedAt");
+          if (fetchedEl) {
+            fetchedEl.textContent = data.modelsFetchedAt || "Legacy cache";
+          }
+          const sigEl = document.getElementById("infoModalGroupDescSig");
+          if (sigEl) {
+            sigEl.textContent = data.groupDescSig || "—";
+          }
+
+          const geminiModels = getGroupModelList(data, "gemini");
+          const claudeModels = getGroupModelList(data, "claude");
+          const argonModels = data.capabilities?.hasCarbon
+            ? getCarbonArgonOrchestratorModels(data)
+            : getArgonOrchestratorModels(data);
+
+          const gemGroupEl = document.getElementById("infoModalGeminiModels");
+          if (gemGroupEl) {
+            gemGroupEl.innerHTML = renderModalModelPills(
+              geminiModels,
+              data.gemini5h?.name || "Gemini 3.8 / Pro"
+            );
+          }
+          const cldGroupEl = document.getElementById("infoModalClaudeModels");
+          if (cldGroupEl) {
+            cldGroupEl.innerHTML = renderModalModelPills(
+              claudeModels,
+              data.claude5h?.name || "Claude 5.5 / GPT"
+            );
+          }
+          const argGroupEl = document.getElementById("infoModalArgonModels");
+          if (argGroupEl) {
+            argGroupEl.innerHTML = renderModalModelPills(
+              argonModels,
+              argonMode === "none" ? "None / Unavailable" : (data.argonWeekly?.name || "Gemini 4 Argon"),
+              sharedPool ? "Shared w/ Gemini Pool" : ""
+            );
+          }
         }
 
         const copyEmailBtn = document.getElementById("copyEmailText");
