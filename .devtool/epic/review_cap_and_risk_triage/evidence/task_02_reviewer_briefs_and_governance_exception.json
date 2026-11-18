@@ -1,0 +1,223 @@
+{
+  "schema": 1,
+  "task": "task_02_reviewer_briefs_and_governance_exception",
+  "runs": {
+    "red": {
+      "head": "146ae31608a8e5b5fe158494eb0d64544bd1786e",
+      "tree": "3f1de6b1190a8319d5f85c2862e0f2bb6399579f",
+      "patch_id": "ba42b8ae6c3ce1e2b4a349b7483788b88ef70c51",
+      "started": "2026-11-18T09:14:32Z",
+      "finished": "2026-11-18T09:14:33Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_trc_reviewer_briefs_and_governance.py::test_trc_hp_02_task_reviewer_pass1_and_pass2_briefs",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T09:14:32Z",
+          "finished": "2026-11-18T09:14:32Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "_____________ test_trc_hp_02_task_reviewer_pass1_and_pass2_briefs ______________",
+            "tests/test_trc_reviewer_briefs_and_governance.py:152: in test_trc_hp_02_task_reviewer_pass1_and_pass2_briefs",
+            "    assert '\"pass\": 1' in p1_out",
+            "E   assert '\"pass\": 1' in '[PERSONA: Role 2.1 AI Architect & Reviewer]\\nYou are acting as Role 2.1 AI Architect & Reviewer (`task-reviewer` | Mo...son\\n{\"task_id\": \"...\", \"verdict\": \"PASS|FAIL\", \"head_sha\": \"...\", \"done_gate\": \"PASS|FAIL\", \"findings\": [...]}\\n```\\n'",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_trc_reviewer_briefs_and_governance.py::test_trc_hp_02_task_reviewer_pass1_and_pass2_briefs",
+            "1 failed in 0.20s"
+          ],
+          "output_sha256": "c306fcfcfce68b05769f784c6be8ccde93486aa5dbf4ebf0bab5ccd88bbc6466"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "146ae31608a8e5b5fe158494eb0d64544bd1786e",
+      "tree": "a4af496181357ea6b509ebc25dbbbc6cd33485d0",
+      "patch_id": "1c515b9e5716d4ab96f12283c0f5dc62d542a60f",
+      "started": "2026-11-18T09:28:56Z",
+      "finished": "2026-11-18T09:31:27Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_trc_reviewer_briefs_and_governance.py tests/test_fpg_governance_text.py tests/test_fpg_checkpoint_and_briefs.py tests/test_tto_docs_and_slimming.py tests/test_rsdh_orchestration.py tests/test_runtime_sync_and_dashboard_hardening.py tests/test_fpg_english_only_text.py tests/test_workflow_anti_rationalization.py tests/test_token_throttling_acceptance.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T09:28:56Z",
+          "finished": "2026-11-18T09:30:21Z",
+          "output_tail": [
+            "........................................................................ [ 69%]",
+            "...............................                                          [100%]",
+            "103 passed in 84.13s (0:01:24)"
+          ],
+          "output_sha256": "dba633f1016136a28de8a423c5ddd6897a796e62d9be4ccf77157d78f9548025"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_resume_context.py scripts/test_verifiable_handoff_text.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T09:30:21Z",
+          "finished": "2026-11-18T09:30:31Z",
+          "output_tail": [
+            ".................................",
+            "----------------------------------------------------------------------",
+            "Ran 33 tests in 10.198s",
+            "OK"
+          ],
+          "output_sha256": "1fca130732e1e8918c1c89f3a830ce71bd4fe8ad8273064c6fcbfcd6e65af3f8"
+        },
+        {
+          "id": "V4",
+          "phase": "GREEN",
+          "command": "python3 scripts/test_lifecycle_document_contract.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T09:30:31Z",
+          "finished": "2026-11-18T09:30:31Z",
+          "output_tail": [
+            "......................",
+            "----------------------------------------------------------------------",
+            "Ran 22 tests in 0.004s",
+            "OK"
+          ],
+          "output_sha256": "ab96c78076f829e47ea0302c62578f1a69d7908f3c9f0dcf594af7663beb9367"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_trc_reviewer_briefs_and_governance.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T09:30:31Z",
+          "finished": "2026-11-18T09:30:31Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_trc_reviewer_briefs_and_governance.py --ignore-missing-imports --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T09:30:31Z",
+          "finished": "2026-11-18T09:30:31Z",
+          "output_tail": [
+            "Success: no issues found in 8 source files"
+          ],
+          "output_sha256": "157a09cfcdfdfb5977479c5a1c08345149263a3e990a2ec976ef28aaeec9cae6"
+        },
+        {
+          "id": "V7",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/trc_task_02.xml tests/test_trc_reviewer_briefs_and_governance.py tests/test_fpg_governance_text.py tests/test_fpg_checkpoint_and_briefs.py tests/test_tto_docs_and_slimming.py tests/test_rsdh_orchestration.py tests/test_runtime_sync_and_dashboard_hardening.py tests/test_fpg_english_only_text.py tests/test_workflow_anti_rationalization.py",
+          "expect": "exit 0; results build/test-results/trc_task_02.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T09:30:31Z",
+          "finished": "2026-11-18T09:31:27Z",
+          "output_tail": [
+            "........................................................................ [ 75%]",
+            ".......................                                                  [100%]",
+            "95 passed in 55.69s"
+          ],
+          "output_sha256": "201f57903afb34ce1cb37260f4d3a9434cdc678e7c7e64a6c9d3473956fed1ac",
+          "results": {
+            "path": "build/test-results/trc_task_02.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 7,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_trc_hp_02_task_reviewer_pass1_and_pass2_briefs",
+                  "classname": "tests.test_trc_reviewer_briefs_and_governance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_hp_02_python_api_and_se02_principal_review_identity",
+                  "classname": "tests.test_trc_reviewer_briefs_and_governance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_hp_02_brief_edge_cases[extra_args0-True]",
+                  "classname": "tests.test_trc_reviewer_briefs_and_governance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_hp_02_brief_edge_cases[extra_args1-True]",
+                  "classname": "tests.test_trc_reviewer_briefs_and_governance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_hp_02_brief_edge_cases[extra_args2-True]",
+                  "classname": "tests.test_trc_reviewer_briefs_and_governance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_hp_02_brief_edge_cases[extra_args3-False]",
+                  "classname": "tests.test_trc_reviewer_briefs_and_governance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ar_01_governance_exceptions_and_caps",
+                  "classname": "tests.test_trc_reviewer_briefs_and_governance",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "rules/CRITICAL_RULES.md",
+            "scripts/resume_context.py",
+            "skills/dev-implementation/SKILL.md",
+            "skills/dev-lifecycle/SKILL.md",
+            "skills/dev-lifecycle/references/governance-checklists.md",
+            "skills/dev-lifecycle/references/handoff-template.md",
+            "skills/dev-lifecycle/references/orchestration-roles.md",
+            "skills/subagent-driven-development/SKILL.md",
+            "skills/subagent-driven-development/re-review-prompt.md",
+            "skills/subagent-driven-development/task-reviewer-prompt.md",
+            "tests/test_trc_reviewer_briefs_and_governance.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

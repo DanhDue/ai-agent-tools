@@ -1,13 +1,13 @@
 ---
 id: "task_02_reviewer_briefs_and_governance_exception"
-status: "todo"
-completedAt: null
+status: "done"
+completedAt: "2026-11-18T09:34:04Z"
 priority: "high"
 assignee: null
 epic: "review_cap_and_risk_triage"
 dueDate: null
 created: "2026-11-18T06:25:00Z"
-modified: "2026-11-18T06:45:00Z"
+modified: "2026-11-18T09:34:04Z"
 labels: ["prompts", "governance", "architecture", "contract"]
 order: "a2"
 review_tier: "full"

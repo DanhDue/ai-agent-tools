@@ -2244,11 +2244,16 @@ _BRIEF_ROLE_CONTRACTS: dict[str, tuple[str, str]] = {
         '"labels": [...], "finalized": false}',
     ),
     "task-reviewer": (
-        "Audit slot diff, AST, Zero Fakery, `run_task_checks.py status` (`done gate: PASS`), "
+        "Run a comprehensive Pass 1 audit of the slot diff against BDD scenarios, HLD/API contracts, "
+        "`Allowed files`, AST, Zero Fakery, `run_task_checks.py status` (`done gate: PASS`), "
         "and `check_bdd_traceability.py` as read-only Role 2.1 AI Architect & Reviewer; "
-        "do NOT edit files, mark tasks done, or commit (Orchestrator finalizes on PASS).",
-        '{"task_id": "...", "verdict": "PASS|FAIL", "head_sha": "...", '
-        '"done_gate": "PASS|FAIL", "findings": [...]}',
+        "do NOT edit files, mark tasks done, or commit (Orchestrator finalizes via `finalize-slot`). "
+        "Report all BLOCKER defects upfront (`category` in `BDD_VIOLATION`, "
+        "`CONTRACT_SCHEMA_VIOLATION`, `RUNTIME_SAFETY`, `OWNERSHIP_ARCHITECTURE_VIOLATION`) to return "
+        "`CHANGES_REQUESTED`; log minor refinements/style nits as `NON_BLOCKING_OBSERVATION` under "
+        "`Observations (Non-Blocking)` / `\"observations\"` with `\"verdict\": \"APPROVED\"`.",
+        '{"task_id": "...", "pass": 1, "verdict": "APPROVED|CHANGES_REQUESTED", "head_sha": "...", '
+        '"done_gate": "PASS|FAIL", "blockers": [...], "observations": [...]}',
     ),
     "fix-planner": (
         "Perform read-only root-cause analysis and draft the fix plan for high-risk findings "
@@ -2366,6 +2371,27 @@ def _resolve_prompt_epic_docs(
     }
 
 
+def _load_pass1_blockers(
+    blockers_file: Path | str | None,
+    project_root: Path,
+) -> Any | None:
+    """Load and parse Pass 1 blockers JSON for Pass 2 task-reviewer delta briefs."""
+    if blockers_file is None:
+        return None
+    raw_path = Path(blockers_file)
+    candidate = raw_path
+    if not candidate.is_absolute() and not candidate.exists():
+        alt = project_root / raw_path
+        if alt.exists():
+            candidate = alt
+    if not candidate.is_file():
+        raise ValueError(f"Blockers file not found: {blockers_file}")
+    try:
+        return json.loads(candidate.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Invalid JSON in blockers file {candidate}: {exc}") from exc
+
+
 def emit_handoff_prompt(
     mode: str,
     epic_slug: str,
@@ -2374,7 +2400,13 @@ def emit_handoff_prompt(
     root: Path | None = None,
     brief_role: str | None = None,
     real_home: Path | None = None,
+    *,
+    review_pass: int = 1,
+    pass1_tree_sha: str | None = None,
+    blockers_file: Path | str | None = None,
 ) -> None:
+    if review_pass not in (1, 2):
+        raise ValueError(f"review_pass must be 1 or 2, got {review_pass!r}")
     target_dir = epic_dir or epic_slug
     project_root = Path(root) if root is not None else Path.cwd()
     prompt_note = f"\nNote: {custom_prompt}\n" if custom_prompt else ""
@@ -2413,7 +2445,7 @@ MANDATORY TASKS & RULES:
 1. Activate `/dev-implementation` (`d3nexus:dev-implementation`) for the `{epic_slug}` epic, following `skills/dev-lifecycle/references/orchestration-roles.md`.
 2. Read `{handoff_rel}` and English SSOT epic docs ({docs_summary}) first (author all internal orchestration, plans, code comments, and commits strictly in English).
 3. Orchestrator boundary: NEVER read/edit `src/` or `tests/`, and NEVER run test suites or `run_task_checks.py` in the main session.
-4. Compute waves via `python3 skills/dev-implementation/resources/scripts/compute_execution_order.py {epic_slug} --parallel`, monitor `python3 scripts/estimate_heartbeat.py`, and own every `manage_worker_pool.py` call (`init`, `sync --slot <1|2> --task <task_id> [--wave <k>] --status working|review`, `merge`, `cleanup`).
+4. Compute waves via `python3 skills/dev-implementation/resources/scripts/compute_execution_order.py {epic_slug} --parallel`, monitor `python3 scripts/estimate_heartbeat.py`, and own every `manage_worker_pool.py` call (`init`, `sync --slot <1|2> --task <task_id> [--wave <k>] --status working|review`, `triage-fix`, `finalize-slot`, `merge`, `cleanup`).
 5. Dispatch Role 2.3 Programmer subagents (`task-implementer`, `gate4-verifier`) via `python3 scripts/dev_config.py dispatch --persona programmer --mode write --prompt-file <file> --cwd <worktree> --log <log> --epic {epic_slug}` (resolved: {prog_binding.cli}, model: {prog_binding.model_id}, effort: {prog_binding.effort}) and Role 2.1 AI Architect & Reviewer (`task-reviewer`) via `python3 scripts/dev_config.py dispatch --persona ai_architect_reviewer --mode read-only --prompt-file <file> --cwd <worktree> --log <log> --epic {epic_slug}` (resolved: {arch_binding.cli}, model: {arch_binding.model_id}, effort: {arch_binding.effort}) using briefs from `python3 scripts/resume_context.py --emit-prompt brief --brief-role <role> --epic {epic_slug}`, verify gating/SHAs independently, then run Cross-Model Review.{prompt_note}""")
     elif mode == "cross-review":
         print(f"""{orch_banner}
@@ -2451,6 +2483,35 @@ MANDATORY TASKS & RULES:
             print(f"Unknown brief role: {role_key}")
             return
         objective, schema = _BRIEF_ROLE_CONTRACTS[role_key]
+        extra_block = ""
+        if role_key == "task-reviewer" and review_pass == 2:
+            sha_ref = (pass1_tree_sha or "").strip() or "<pass1_tree_sha>"
+            loaded_blockers = _load_pass1_blockers(blockers_file, project_root)
+            objective = (
+                f"Run Pass 2 Delta-Only Verification over the Fix Pass 1 diff (`git diff {sha_ref}`), "
+                "Pass 1 blockers, `run_task_checks.py status` (`done gate: PASS`), and "
+                "`check_bdd_traceability.py` as read-only Role 2.1 AI Architect & Reviewer; "
+                "do NOT edit files, mark tasks done, or commit."
+            )
+            schema = (
+                '{"task_id": "...", "pass": 2, "verdict": "APPROVED|CHANGES_REQUESTED", '
+                '"head_sha": "...", "done_gate": "PASS|FAIL", "blockers": [...], "observations": [...]}'
+            )
+            blockers_section = (
+                f"\nPass 1 blockers: {json.dumps(loaded_blockers, ensure_ascii=False)}"
+                if loaded_blockers is not None
+                else ""
+            )
+            extra_block = (
+                "\n\nPASS 2 DELTA-ONLY VERIFICATION RULES:\n"
+                f"- Inspect ONLY `git diff {sha_ref}` (`pass1_tree_sha`), Pass 1 blockers, "
+                "`run_task_checks.py status`, and `check_bdd_traceability.py`.\n"
+                "- Strictly forbidden: introducing new non-regression findings, new edge cases, "
+                "or state-transition nitpicks in Pass 2.\n"
+                "- Only direct syntax or runtime regressions introduced by Fix Pass 1 "
+                '(`category: "DIRECT_REGRESSION"`) or unresolved Pass 1 blockers may appear in `blockers`.'
+                f"{blockers_section}"
+            )
         persona_key, dispatch_mode = _BRIEF_ROLE_PERSONA[role_key]
         binding = pc.resolve_persona(persona_key, project_root, real_home=real_home)
         dispatch_argv = shlex.join(pc.build_dispatch_argv(binding, dispatch_mode))
@@ -2468,7 +2529,7 @@ SUBAGENT BRIEF & BOUNDARIES:
 4. End your response with exactly one fenced `json` block matching:
 ```json
 {schema}
-```{prompt_note}""")
+```{extra_block}{prompt_note}""")
     else:
         print(f"Unknown prompt mode: {mode}")
 
@@ -2899,6 +2960,25 @@ def build_parser() -> argparse.ArgumentParser:
         help="Subagent role for --emit-prompt brief",
     )
     parser.add_argument(
+        "--review-pass",
+        type=int,
+        choices=[1, 2],
+        default=1,
+        help="Task-reviewer pass number (1: comprehensive audit, 2: delta-only verification)",
+    )
+    parser.add_argument(
+        "--pass1-tree-sha",
+        type=str,
+        default=None,
+        help="Pre-fix Pass 1 tree SHA for Pass 2 task-reviewer delta-only brief",
+    )
+    parser.add_argument(
+        "--blockers-file",
+        type=str,
+        default=None,
+        help="JSON file of Pass 1 blockers for Pass 2 task-reviewer delta-only brief",
+    )
+    parser.add_argument(
         "--epic-dir", type=str, help="Epic directory name for --emit-prompt"
     )
 
@@ -3094,15 +3174,22 @@ def main() -> None:
     if args.emit_prompt:
         if args.emit_prompt == "brief" and not args.brief_role:
             parser.error("--brief-role is required when --emit-prompt brief is used")
-        emit_handoff_prompt(
-            args.emit_prompt,
-            active_epic,
-            args.epic_dir,
-            args.prompt,
-            root=repo_root,
-            brief_role=args.brief_role,
-            real_home=Path(args.real_home) if args.real_home else None,
-        )
+        try:
+            emit_handoff_prompt(
+                args.emit_prompt,
+                active_epic,
+                args.epic_dir,
+                args.prompt,
+                root=repo_root,
+                brief_role=args.brief_role,
+                real_home=Path(args.real_home) if args.real_home else None,
+                review_pass=args.review_pass,
+                pass1_tree_sha=args.pass1_tree_sha,
+                blockers_file=args.blockers_file,
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            sys.exit(2)
         return
 
     if args.sync_zshrc:

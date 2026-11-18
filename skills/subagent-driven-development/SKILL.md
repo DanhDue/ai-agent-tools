@@ -70,17 +70,14 @@ digraph process {
         "Implementer implements, tests, commits (or records verify, uncommitted), self-reviews" [shape=box];
         "Selective review required?" [shape=diamond];
         "Generate review package, dispatch task reviewer (./task-reviewer-prompt.md)" [shape=box];
-        "Spec ✅ and quality approved?" [shape=diamond];
+        "Spec APPROVED (0 BLOCKERs)?" [shape=diamond];
         "Finding conflicts with plan text?" [shape=diamond];
         "Rule on the conflict, ledger the ruling" [shape=box];
-        "Fix round R of 5: R≤3 resume implementer; R≥4 fresh implementer, more capable model" [shape=box];
-        "Dispatch scoped re-review (./re-review-prompt.md)" [shape=box];
-        "All findings addressed?" [shape=diamond];
-        "R = 5?" [shape=diamond];
-        "Adjudicate each open finding" [shape=box];
-        "Any load-bearing finding?" [shape=diamond];
-        "Rule and continue; stop only if every path forward is a guess" [shape=box];
-        "Park findings in ledger with rulings" [shape=box];
+        "Fix Pass 1 (max_fix_passes = 1): fix blockers only" [shape=box];
+        "Tier 1 triage-fix / Tier 2 RiskAssessment?" [shape=diamond];
+        "Dispatch Pass 2 Delta-Only re-review (./re-review-prompt.md)" [shape=box];
+        "Pass 2 complete + mechanical gates PASS (max_task_review_passes = 2)" [shape=box];
+        "Finalize via finalize-slot (done + commit + merge)" [shape=box];
         "Append completion to ledger, mark todo complete" [shape=box];
     }
 
@@ -99,22 +96,18 @@ digraph process {
     "Implementer implements, tests, commits (or records verify, uncommitted), self-reviews" -> "Selective review required?";
     "Selective review required?" -> "Generate review package, dispatch task reviewer (./task-reviewer-prompt.md)" [label="yes"];
     "Selective review required?" -> "Append completion to ledger, mark todo complete" [label="no (skip trivial single-file)"];
-    "Generate review package, dispatch task reviewer (./task-reviewer-prompt.md)" -> "Spec ✅ and quality approved?";
-    "Spec ✅ and quality approved?" -> "Append completion to ledger, mark todo complete" [label="yes"];
-    "Spec ✅ and quality approved?" -> "Finding conflicts with plan text?" [label="no"];
+    "Generate review package, dispatch task reviewer (./task-reviewer-prompt.md)" -> "Spec APPROVED (0 BLOCKERs)?";
+    "Spec APPROVED (0 BLOCKERs)?" -> "Finalize via finalize-slot (done + commit + merge)" [label="yes"];
+    "Spec APPROVED (0 BLOCKERs)?" -> "Finding conflicts with plan text?" [label="no (CHANGES_REQUESTED)"];
     "Finding conflicts with plan text?" -> "Rule on the conflict, ledger the ruling" [label="yes"];
-    "Rule on the conflict, ledger the ruling" -> "Fix round R of 5: R≤3 resume implementer; R≥4 fresh implementer, more capable model";
-    "Finding conflicts with plan text?" -> "Fix round R of 5: R≤3 resume implementer; R≥4 fresh implementer, more capable model" [label="no"];
-    "Fix round R of 5: R≤3 resume implementer; R≥4 fresh implementer, more capable model" -> "Dispatch scoped re-review (./re-review-prompt.md)";
-    "Dispatch scoped re-review (./re-review-prompt.md)" -> "All findings addressed?";
-    "All findings addressed?" -> "Append completion to ledger, mark todo complete" [label="yes"];
-    "All findings addressed?" -> "R = 5?" [label="no"];
-    "R = 5?" -> "Fix round R of 5: R≤3 resume implementer; R≥4 fresh implementer, more capable model" [label="no - next round"];
-    "R = 5?" -> "Adjudicate each open finding" [label="yes - breaker trips"];
-    "Adjudicate each open finding" -> "Any load-bearing finding?";
-    "Any load-bearing finding?" -> "Rule and continue; stop only if every path forward is a guess" [label="yes"];
-    "Any load-bearing finding?" -> "Park findings in ledger with rulings" [label="no"];
-    "Park findings in ledger with rulings" -> "Append completion to ledger, mark todo complete";
+    "Rule on the conflict, ledger the ruling" -> "Fix Pass 1 (max_fix_passes = 1): fix blockers only";
+    "Finding conflicts with plan text?" -> "Fix Pass 1 (max_fix_passes = 1): fix blockers only" [label="no"];
+    "Fix Pass 1 (max_fix_passes = 1): fix blockers only" -> "Tier 1 triage-fix / Tier 2 RiskAssessment?";
+    "Tier 1 triage-fix / Tier 2 RiskAssessment?" -> "Finalize via finalize-slot (done + commit + merge)" [label="ELIGIBLE + Tier 2 LOW"];
+    "Tier 1 triage-fix / Tier 2 RiskAssessment?" -> "Dispatch Pass 2 Delta-Only re-review (./re-review-prompt.md)" [label="HIGH_RISK or Tier 2 MEDIUM/HIGH"];
+    "Dispatch Pass 2 Delta-Only re-review (./re-review-prompt.md)" -> "Pass 2 complete + mechanical gates PASS (max_task_review_passes = 2)";
+    "Pass 2 complete + mechanical gates PASS (max_task_review_passes = 2)" -> "Finalize via finalize-slot (done + commit + merge)";
+    "Finalize via finalize-slot (done + commit + merge)" -> "Append completion to ledger, mark todo complete";
     "Append completion to ledger, mark todo complete" -> "More tasks remain?";
     "More tasks remain?" -> "Dispatch implementer subagent (./implementer-prompt.md)" [label="yes"];
     "More tasks remain?" -> "Dispatch final code reviewer (../requesting-code-review/code-reviewer.md)" [label="no"];
@@ -338,8 +331,8 @@ Per-task reviews are selective, task-scoped gates. The broad review happens once
   - *Single-worktree / non-pool mode*: `python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <id> review`
   If review enters Step 4 (fix loop), immediately return status to `in-progress` (`manage_worker_pool.py sync ... --status working --no-reset` in pool mode, or `sync_task_status.py task <id> in-progress` in single-worktree mode), then flip back to `review` (`--status review`) before re-review.
 
-- **Reviewer persona:** In an epic, `task-reviewer` is a Role 2.1 AI Architect & Reviewer subagent on the `ai_architect_reviewer` binding (`--mode read-only`). It reads the slot diff, `src/`/`tests/`, the task file and evidence, runs only `run_task_checks.py status` and `check_bdd_traceability.py`, and never edits, commits or runs test suites. On `PASS` the Orchestrator marks the task `done`.
-- **Selective `task-reviewer` gating:** Dispatch `task-reviewer` **ONLY** when `review_tier: "full"` in task frontmatter, OR task labels include any high-risk trigger (`security`, `architecture`, `concurrency`, `contract`), OR the task modifies `> 2` non-test modules. For trivial single-file or routine tasks without high-risk triggers (where `review_tier` is unset or `skip`), skip `task-reviewer` and rely on implementer self-review, `run_task_checks.py verify`, and the final whole-branch review. Whenever a `task-reviewer` IS dispatched, never accept a report missing either verdict — spec compliance AND task quality are both required.
+- **Reviewer persona & Blocker-Only rubric:** In an epic, `task-reviewer` is a Role 2.1 AI Architect & Reviewer subagent on the `ai_architect_reviewer` binding (`--mode read-only`). It reads the slot diff, `src/`/`tests/`, the task file and evidence, runs only `run_task_checks.py status` and `check_bdd_traceability.py`, and never edits, commits or runs test suites. Pass 1 (`--review-pass 1`) audits comprehensively (`max_task_review_passes = 2`, `max_fix_passes = 1`): `CHANGES_REQUESTED` requires at least one `BLOCKER` (`BDD_VIOLATION`, `CONTRACT_SCHEMA_VIOLATION`, `RUNTIME_SAFETY`, `OWNERSHIP_ARCHITECTURE_VIOLATION`); minor refinements are logged as `NON_BLOCKING_OBSERVATION` under `Observations (Non-Blocking)` / `"observations"` with verdict `APPROVED`. On `APPROVED`, the Orchestrator finalizes (`finalize-slot --mode pass1-approved`).
+- **Selective `task-reviewer` gating:** Dispatch `task-reviewer` **ONLY** when `review_tier: "full"` in task frontmatter, OR task labels include any high-risk trigger (`security`, `architecture`, `concurrency`, `contract`), OR the task modifies `> 2` non-test modules. For trivial single-file or routine tasks without high-risk triggers (where `review_tier` is unset or `skip`), skip `task-reviewer` and rely on implementer self-review, `run_task_checks.py verify`, and the final whole-branch review. Whenever a `task-reviewer` IS dispatched, never accept a report missing spec compliance, task quality, or the structured JSON contract.
 - **Rule 3 & Rule 5 discipline:** Require bounded reads (`StartLine`/`EndLine` or `sed -n 'X,Yp'` with symbol search on files `> 200` lines) and enforce the Zero-Fluff Output Cap for subagent narration while preserving Verdicts, Findings tables, gate results, and status contracts.
 - Hand the reviewer its diff as a file: run this skill's
   `scripts/review-package PLAN_FILE BASE HEAD` and pass the reviewer the file path
@@ -385,107 +378,27 @@ Template: [task-reviewer-prompt.md](task-reviewer-prompt.md)
 
 ### 4. The fix loop
 
-The loop triggers when the review reports spec ❌, any Critical or Important
-finding, or a ⚠️ item you confirmed as a real gap.
+The loop triggers only when Pass 1 reports `CHANGES_REQUESTED` with `>= 1` `BLOCKER` (or an unconfirmed ⚠️ item in standalone mode). Hard cap: `max_task_review_passes = 2` and `max_fix_passes = 1` (zero Fix Pass 2).
 
 Before the loop starts, two routes leave it immediately:
 
-- Record Minor findings in the progress ledger as you go
-  (`Task <N>: minor (deferred): <one-liner>`), and point the final
-  whole-branch review at that list so it can triage which must be fixed
-  before merge. A roll-up nobody reads is a silent discard. Minor findings
-  never enter the loop.
-- A finding labeled plan-mandated — or any finding that conflicts with
-  what the plan's text requires — is yours to rule on: weigh the finding
-  against the plan text, decide with the spec as the binding authority, and
-  ledger the ruling before you act on it. Do not dismiss the finding because
-  the plan mandates it, and do not dispatch a fix that contradicts the plan
-  without a recorded ruling.
-Everything else enters the loop. A fix round is one fix dispatch plus one
-scoped re-review. Five rounds maximum per task.
+- Log `NON_BLOCKING_OBSERVATION` / Minor findings under `Observations (Non-Blocking)` / `"observations"` (and record deferred minors in the ledger in standalone mode). Non-blocking observations never trigger `CHANGES_REQUESTED` or a fix pass.
+- A finding labeled plan-mandated — or any finding that conflicts with what the plan's text requires — is yours to rule on in standalone mode: weigh the finding against the plan text, decide with the spec as the binding authority, and ledger the ruling before you act on it.
 
-**Epic lifecycle routing.** When the loop runs for review findings or a failed Gate 4 inside an epic, the Orchestrator routes by risk and never rules on plans. Low risk (every open finding `Valid`, no escalation marker, or the first failure of a check): a Role 2.3 `review-fixer` runs in `fast-track` mode. High risk (any `Critical`, any escalation marker, or the same check failing twice in a row): dispatch a Role 2.1 `fix-planner` (`--mode read-only`, edits no files) that returns `plan_markdown` and `PLANNED` (Orchestrator writes `fix_plan_round<N>.md`; a `review-fixer` applies it in `apply-plan` mode) or `ESCALATE` (a halt criterion is touched: record `--pending-decision` and stop for Role 1.0). Write `--checkpoint subagent_returned` after each return.
+**Epic lifecycle routing (Two-Tier Risk Assessment Gate + `max_task_review_passes = 2`, `max_fix_passes = 1`).** In an epic:
+- On Pass 1 `CHANGES_REQUESTED` (`>= 1` `BLOCKER`), run `manage_worker_pool.py sync ... --status working --no-reset --review-file <p1.json>` (`fix = 1`) and dispatch Role 2.3 `task-implementer` with `pass1_blockers` only (`run_task_checks.py verify`, uncommitted).
+- Run Tier 1 `manage_worker_pool.py triage-fix <epic> --slot <N> --task <id>` against `pass1_tree_sha`. When `ELIGIBLE_FOR_SHORT_CIRCUIT` (`<= 30` non-test lines), Role 2.2 evaluates `bounded_diff` vs. `pass1_blockers` (Tier 2 `RiskAssessment`): `LOW` calls `finalize-slot --mode tier2-short-circuit --risk-level LOW` (skipping Pass 2); `MEDIUM`/`HIGH` runs `triage-fix --record-tier2` and enters Pass 2.
+- On Tier 1 `HIGH_RISK` or Tier 2 `MEDIUM`/`HIGH`, run `sync ... --status review` (`review = 2`) and dispatch fresh Role 2.1 `task-reviewer` (`--review-pass 2 --pass1-tree-sha <sha> --blockers-file <p1_blockers.json>`; Delta-Only scope, `DIRECT_REGRESSION` only). Once Pass 2 finishes with green mechanical gates, call `finalize-slot --mode pass2-complete --review-file <p2.json>` (logs residual remarks to `review_audit_notes.jsonl`, zero Fix Pass 2).
+- For Cross-Model Review or Gate 4 failures, route by risk: low risk (all `Valid`, no escalation marker, first check failure) -> `review-fixer` `fast-track`; high risk (any `Critical`, escalation marker, twice-failing check) -> Role 2.1 `fix-planner` (`--mode read-only`) returning `plan_markdown` and `PLANNED` (Orchestrator writes `fix_plan_round<N>.md`; `review-fixer` runs `apply-plan`) or `ESCALATE` (`--pending-decision`, stop for Role 1.0). Write `--checkpoint subagent_returned` after each return.
 
-The rounds below are the standalone loop:
+**Standalone fix round (`max_fix_passes = 1`, `max_task_review_passes = 2`):**
+Send the open `BLOCKER` findings verbatim to the implementer (or fresh implementer), re-run the covering tests / `run_task_checks.py verify`, append the fix report, confirm the covering tests/command/output, package `scripts/review-package PLAN_FILE FIX_BASE HEAD` (or `WORKTREE`), and dispatch [re-review-prompt.md](re-review-prompt.md) in **Delta-Only** mode (`DIRECT_REGRESSION` only). After Pass 2, finalize with green gates (or park any residual findings with explicit rulings at the cap — never run a second fix pass). Append to the ledger: `Task <N>: fix round 1/1 (<X> addressed, <Y> open — <finding one-liners>; commits <a7>..<b7>)`.
 
-**Rounds 1-3 — resume the original implementer.** Send it the open findings
-verbatim. Its context is intact: it knows the task, the code, and its own
-choices. If your harness cannot send another message to a live subagent,
-dispatch a fresh implementer carrying the brief path, the report-file path,
-and the findings — the report file is the persistent memory either way.
-
-**Rounds 4-5 — dispatch a fresh implementer on a more capable model** (per
-Model Selection), with the brief path, the report-file path, the open
-findings, and this framing: "A prior implementer attempted this task
-[N] times; you own it now. Read the report file for what was tried." A loop
-that survives three resumes usually means the implementer cannot see its
-own problem — fresh eyes and a capability bump in one move.
-
-**Every round, either way:** the implementer fixes, re-runs the tests
-covering the amended code (for a task with a Verification table, re-runs
-`run_task_checks.py verify` and leaves the change uncommitted), appends its
-fix report to the same report file, and returns the short contract. Before
-re-dispatching the reviewer, confirm
-the fix report contains the covering tests, the command run, and the
-output; dispatch the re-review once all three are present. Name the
-covering test files in the fix message — a one-line fix does not need the
-whole suite.
-
-**The re-review is scoped.** Run `scripts/review-package PLAN_FILE FIX_BASE HEAD`
-where FIX_BASE is the head the previous review saw — for an uncommitted task,
-`scripts/review-package PLAN_FILE FIX_BASE WORKTREE` with FIX_BASE the tree id
-the previous package printed — and dispatch
-[re-review-prompt.md](re-review-prompt.md) with the findings list, the
-brief, the report file, and the printed diff path. The re-reviewer verdicts
-each finding ADDRESSED or NOT ADDRESSED and flags new breakage in the fix
-diff only. New Critical/Important breakage in the fix diff joins the open
-findings list. Out-of-scope observations go to the ledger as deferred
-minors — they never extend the loop.
-
-**After each round,** append to the ledger:
-`Task <N>: fix round <R>/5 (<X> addressed, <Y> open — <finding one-liners>; commits <a7>..<b7>)`
-— for an uncommitted task, name the packaged tree ids in place of the commits.
-
-Never fix findings yourself in the controller session — your context stays
-clean for coordination, and controller fixes skip review.
-
-**The breaker.** When round 5's re-review still leaves findings open, stop
-dispatching. Adjudicate each open finding yourself — you hold the plan and
-the cross-task context the reviewer lacks:
-
-- **The reviewer is wrong, or the point is contestable:** park it —
-  `Task <N>: parked — <finding> — Ruling: <why the code stands>`. The final
-  review sees both sides.
-- **Real, but nothing downstream builds on it:** park it the same way, with
-  a ruling that says it's real and deferred.
-- **Real and load-bearing** — a later task builds on it, or it reveals a
-  plan defect: rule on the smallest change that unblocks the dependent work,
-  ledger it as `Task <N>: Ruling: <finding> — <what you decided and why>`,
-  and carry it into the next task's dispatch. Parking a structural failure
-  silently lets every dependent task build on it. Stop only when the defect
-  leaves every path forward a guess.
-
-Adjudicate only at the cap. Adjudicating earlier to end a loop is
-pre-judging with a different name. Every adjudication is a ledger entry —
-a silent discard is forbidden.
+Never fix findings yourself in the controller session — your context stays clean for coordination, and controller fixes skip review.
 
 ### 5. Complete the task
 
-When the review comes back clean — or every open finding is parked with a
-ruling at the cap — first, for a task with a Verification table, run
-`sync_task_status.py task <id> done` and, once it passes, make the task's
-single commit yourself in the active worktree/slot, then in 2-slot pool mode run
-`manage_worker_pool.py merge --slot <1|2> --task <id>` to land it cleanly and
-return the slot heartbeat to `idle` (dev-implementation Phase 2 steps 4–5). Then append the
-completion line to the ledger in the same message as your other bookkeeping:
-
-- `Task <N>: complete (commits <base7>..<head7>, review clean)`
-- `Task <N>: complete (commits <base7>..<head7>, <K> parked)` after a
-  tripped breaker
-
-Then mark the todo complete and move on. Never move to the next task while
-the review has open Critical/Important issues that are neither fixed nor
-parked-with-ruling at the cap.
+When the review returns `APPROVED` — or after Pass 2 / Tier 2 `LOW` short-circuit finalizes at the cap — in 2-slot pool mode `manage_worker_pool.py finalize-slot` commits, syncs `done`, reconciles `.devtool/` mirrors, merges into `epic/<epic_slug>`, and returns the slot to `idle` (or in standalone mode run `sync_task_status.py task <id> done`, commit, and `manage_worker_pool.py merge --slot <1|2> --task <id>`). Append to the ledger (`Task <N>: complete (...)`) and mark the todo complete.
 
 ## Final Review
 
@@ -540,7 +453,7 @@ Use d3nexus:finishing-a-development-branch.
 | "One more round will converge" | Past the cap, rounds don't converge — the failure is structural. Adjudicate and route. |
 | "The reviewer will just find something new anyway" | Scoped re-reviews verify fixes; they cannot wander. New findings on untouched code go to the ledger, not the loop. |
 | "This finding is obviously wrong, I'll drop it" | You adjudicate only at the cap, and every ruling is a ledger entry. Silent discards are forbidden. |
-| "The fix was small, skip the re-review" | Unreviewed fixes are how regressions land. Every round ends with a scoped re-review. |
+| "The fix was small, skip the re-review" | Use Tier 1 `triage-fix` + Tier 2 `RiskAssessment` (`<= 30` non-test lines, `LOW` risk) to short-circuit cleanly via `finalize-slot`, or run Pass 2 Delta-Only. |
 | "Reviews slow the loop down" | The loop without reviews is just unverified churn. Reviews are the loop's brakes and steering. |
 | "Ledger bookkeeping is overhead" | The ledger is what survives compaction. Controllers without one have re-dispatched entire completed task sequences. |
 | "The implementer spawned its own reviewer — free extra assurance" | It's a duplicate seat reviewing the same diff; the task review is the gate. A worker-spawned reviewer is a defect to flag, not rigor. |
@@ -598,7 +511,7 @@ Re-reviewer: Missing progress reporting — ADDRESSED (src/recovery.js:41).
   Magic number — ADDRESSED (src/recovery.js:7). New breakage: none.
   Verdict: all findings addressed.
 
-[Ledger: Task 2: fix round 1/5 (2 addressed, 0 open; commits d4e5f6a..b7c8d9e)]
+[Ledger: Task 2: fix round 1/1 (2 addressed, 0 open; commits d4e5f6a..b7c8d9e)]
 [Ledger: Task 2: complete (commits d4e5f6a..b7c8d9e, review clean)]
 
 ...
