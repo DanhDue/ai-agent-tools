@@ -862,56 +862,279 @@
   "brother": {
     "email": "brother@gmail.com",
     "tier": "PRO",
-    "priority": 50,
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
+    "priority": 60,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro_argon",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "brother-cli",
+      "configPath": "~/antigravity_homes/brother",
+      "secondaryPath": "~/antigravity_homes/brother/Library/Keychains/brother.keychain-db"
+    },
     "status": "ACTIVE",
     "isAppeal": false,
-    "isSessionActive": true,
-    "resetTime": "2026-11-17T01:43:15Z",
-    "resetTimeLocal": "08:43:15",
+    "isSessionActive": false,
+    "resetTime": "2026-11-18T13:21:22Z",
+    "resetTimeLocal": "20:21:22",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:15)",
-      "resetTime": "2026-11-17T01:43:15Z",
-      "resetTimeLocal": "08:43:15",
+      "countdown": "⏱ 4h 59m (20:21:22)",
+      "resetTime": "2026-11-18T13:21:22Z",
+      "resetTimeLocal": "20:21:22",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
-      "fraction": 0.3911623954772949,
-      "countdown": "⏱ 46m (04:30:24)",
-      "resetTime": "2026-11-16T21:30:24Z",
+      "fraction": 1,
+      "countdown": "⏱ 4h 59m (20:21:22)",
+      "resetTime": "2026-11-18T13:21:22Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.16936874389648438,
-      "countdown": "⏱ 5d 15h (22/11 19:19)",
-      "resetTime": "2026-11-22T12:19:44Z",
-      "resetTimeLocal": "22/11 19:19",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h (25/11 15:21)",
+      "resetTime": "2026-11-25T08:21:22Z",
+      "resetTimeLocal": "25/11 15:21",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
-      "fraction": 0.5971075892448425,
-      "countdown": "⏱ 1d 1h",
-      "resetTime": "2026-11-17T22:30:44Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-25T08:21:22Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 0.04071839898824692,
-      "countdown": "⏱ 5d 15h",
-      "resetTime": "2026-11-22T12:20:10Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-25T08:21:22Z",
       "unavailable": false,
-      "tags": true
-    }
+      "tags": true,
+      "sharedPool": false,
+      "mode": "separate"
+    },
+    "availableModels": [
+      "gemini-4-argon-medium",
+      "gemini-4-argon-high",
+      "gemini-4-argon-low",
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
+      "gemini-pro-orchestrator-g1-pro",
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-opus-5-5-low",
+      "claude-opus-5-5-medium",
+      "claude-opus-5-5-high",
+      "claude-sonnet-5-5-low",
+      "claude-sonnet-5-5-medium",
+      "claude-sonnet-5-5-high",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-4-argon-medium",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-argon-high",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-argon-low",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-pro-orchestrator-g1-pro",
+        "label": "Orchestrator (Argon)",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon",
+          "orchestrator",
+          "g1-pro"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-low",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-medium",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-high",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-low",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-medium",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-high",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 4 Hydrogen",
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Opus 5.5",
+        "Claude Sonnet 5.5",
+        "GPT-OSS 120B"
+      ],
+      "argon": [
+        "Gemini 4 Argon",
+        "Orchestrator (Argon)"
+      ]
+    },
+    "capabilities": {
+      "tier": "PRO",
+      "hasCarbon": false,
+      "hasArgon": true,
+      "argonMode": "separate",
+      "hasOrchestrator": true,
+      "badges": [
+        "PRO",
+        "Argon",
+        "Orchestrator"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T05:32:59Z",
+    "groupDescSig": "e713ff4e3d0c080d"
   },
   "buivantrong8901": {
     "email": "buivantrong8901@gmail.com",
     "tier": "FREE",
+    "planLabel": "FREE",
+    "vendorLabel": "GOOGLE",
     "priority": 20,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "free",
+      "planLabel": "FREE",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "buivantrong8901-cli",
+      "configPath": "~/antigravity_homes/buivantrong8901",
+      "secondaryPath": "~/antigravity_homes/buivantrong8901/Library/Keychains/buivantrong8901.keychain-db"
+    },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
@@ -936,16 +1159,16 @@
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (24/11 03:43)",
-      "resetTime": "2026-11-23T20:43:16Z",
-      "resetTimeLocal": "24/11 03:43",
+      "countdown": "⏱ 6d 23h (25/11 15:21)",
+      "resetTime": "2026-11-25T08:21:22Z",
+      "resetTimeLocal": "25/11 15:21",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
       "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-23T20:43:16Z",
+      "resetTime": "2026-11-25T08:21:22Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -954,47 +1177,142 @@
       "countdown": "Unavailable N/A",
       "resetTime": "",
       "unavailable": true,
-      "tags": true
-    }
+      "tags": true,
+      "sharedPool": false,
+      "mode": "none"
+    },
+    "availableModels": [
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-sonnet-4-6",
+      "claude-opus-4-6-thinking",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-sonnet-4-6",
+        "label": "Claude Sonnet 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-4-6-thinking",
+        "label": "Claude Opus 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Sonnet 4.6",
+        "Claude Opus 4.6",
+        "GPT-OSS 120B"
+      ],
+      "argon": []
+    },
+    "capabilities": {
+      "tier": "FREE",
+      "hasCarbon": false,
+      "hasArgon": false,
+      "argonMode": "none",
+      "hasOrchestrator": false,
+      "badges": [
+        "FREE"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T05:33:00Z",
+    "groupDescSig": "9dd3ec2fa26eb11d"
   },
   "d3molt": {
     "email": "d3moltbot@gmail.com",
     "tier": "PRO",
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
     "priority": 50,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "d3molt-cli",
+      "configPath": "~/antigravity_homes/d3molt",
+      "secondaryPath": "~/antigravity_homes/d3molt/Library/Keychains/d3molt.keychain-db"
+    },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-17T01:43:16Z",
-    "resetTimeLocal": "08:43:16",
+    "resetTime": "2026-11-18T13:21:23Z",
+    "resetTimeLocal": "20:21:23",
     "hasArgon": false,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:16)",
-      "resetTime": "2026-11-17T01:43:16Z",
-      "resetTimeLocal": "08:43:16",
+      "countdown": "⏱ 4h 59m (20:21:23)",
+      "resetTime": "2026-11-18T13:21:23Z",
+      "resetTimeLocal": "20:21:23",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:16)",
-      "resetTime": "2026-11-17T01:43:16Z",
+      "countdown": "⏱ 4h 59m (20:21:23)",
+      "resetTime": "2026-11-18T13:21:23Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (24/11 03:43)",
-      "resetTime": "2026-11-23T20:43:16Z",
-      "resetTimeLocal": "24/11 03:43",
+      "countdown": "⏱ 6d 23h (25/11 15:21)",
+      "resetTime": "2026-11-25T08:21:23Z",
+      "resetTimeLocal": "25/11 15:21",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
       "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-23T20:43:16Z",
+      "resetTime": "2026-11-25T08:21:23Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -1003,13 +1321,108 @@
       "countdown": "Unavailable N/A",
       "resetTime": "",
       "unavailable": true,
-      "tags": true
-    }
+      "tags": true,
+      "sharedPool": false,
+      "mode": "none"
+    },
+    "availableModels": [
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-sonnet-4-6",
+      "claude-opus-4-6-thinking",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-sonnet-4-6",
+        "label": "Claude Sonnet 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-4-6-thinking",
+        "label": "Claude Opus 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Sonnet 4.6",
+        "Claude Opus 4.6",
+        "GPT-OSS 120B"
+      ],
+      "argon": []
+    },
+    "capabilities": {
+      "tier": "PRO",
+      "hasCarbon": false,
+      "hasArgon": false,
+      "argonMode": "none",
+      "hasOrchestrator": false,
+      "badges": [
+        "PRO"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T05:32:59Z",
+    "groupDescSig": "9dd3ec2fa26eb11d"
   },
   "daddy": {
     "email": "huem286@gmail.com",
     "tier": "PRO",
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
     "priority": 50,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "daddy-cli",
+      "configPath": "~/antigravity_homes/daddy",
+      "secondaryPath": "~/antigravity_homes/daddy/Library/Keychains/daddy.keychain-db"
+    },
     "status": "DISABLED",
     "isAppeal": true,
     "appealReason": "This service has been disabled in this account for violation of Terms of Service. Please submit an appeal to continue using this product.",
@@ -1050,203 +1463,1059 @@
   "danhdue": {
     "email": "danhdue@gmail.com",
     "tier": "PRO",
-    "priority": 50,
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
+    "priority": 60,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro_argon",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "danhdue-cli",
+      "configPath": "~/antigravity_homes/danhdue",
+      "secondaryPath": "~/antigravity_homes/danhdue/Library/Keychains/danhdue.keychain-db"
+    },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-17T01:43:20Z",
-    "resetTimeLocal": "08:43:20",
+    "resetTime": "2026-11-18T13:21:29Z",
+    "resetTimeLocal": "20:21:29",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:20)",
-      "resetTime": "2026-11-17T01:43:20Z",
-      "resetTimeLocal": "08:43:20",
+      "countdown": "⏱ 4h 59m (20:21:29)",
+      "resetTime": "2026-11-18T13:21:29Z",
+      "resetTimeLocal": "20:21:29",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:20)",
-      "resetTime": "2026-11-17T01:43:20Z",
+      "countdown": "⏱ 4h 59m (20:21:29)",
+      "resetTime": "2026-11-18T13:21:29Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.20930272340774536,
-      "countdown": "⏱ 4d 23h (22/11 03:36)",
-      "resetTime": "2026-11-21T20:36:57Z",
-      "resetTimeLocal": "22/11 03:36",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h (25/11 15:21)",
+      "resetTime": "2026-11-25T08:21:29Z",
+      "resetTimeLocal": "25/11 15:21",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
-      "fraction": 0.9103484153747559,
-      "countdown": "⏱ 4d 18h",
-      "resetTime": "2026-11-21T15:00:54Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-25T08:21:29Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 0.05960199981927872,
-      "countdown": "⏱ 4d 18h",
-      "resetTime": "2026-11-21T15:24:56Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-25T08:21:29Z",
       "unavailable": false,
-      "tags": true
-    }
+      "tags": true,
+      "sharedPool": false,
+      "mode": "separate"
+    },
+    "availableModels": [
+      "gemini-4-argon-medium",
+      "gemini-4-argon-high",
+      "gemini-4-argon-low",
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
+      "gemini-pro-orchestrator-g1-pro",
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-opus-5-5-low",
+      "claude-opus-5-5-medium",
+      "claude-opus-5-5-high",
+      "claude-sonnet-5-5-low",
+      "claude-sonnet-5-5-medium",
+      "claude-sonnet-5-5-high",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-4-argon-medium",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-argon-high",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-argon-low",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-pro-orchestrator-g1-pro",
+        "label": "Orchestrator (Argon)",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon",
+          "orchestrator",
+          "g1-pro"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-low",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-medium",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-high",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-low",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-medium",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-high",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 4 Hydrogen",
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Opus 5.5",
+        "Claude Sonnet 5.5",
+        "GPT-OSS 120B"
+      ],
+      "argon": [
+        "Gemini 4 Argon",
+        "Orchestrator (Argon)"
+      ]
+    },
+    "capabilities": {
+      "tier": "PRO",
+      "hasCarbon": false,
+      "hasArgon": true,
+      "argonMode": "separate",
+      "hasOrchestrator": true,
+      "badges": [
+        "PRO",
+        "Argon",
+        "Orchestrator"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T05:33:06Z",
+    "groupDescSig": "e713ff4e3d0c080d"
   },
   "duedd": {
     "email": "dueddsphinx@gmail.com",
     "tier": "PRO",
-    "priority": 50,
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
+    "priority": 60,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro_argon",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "duedd-cli",
+      "configPath": "~/antigravity_homes/duedd",
+      "secondaryPath": "~/antigravity_homes/duedd/Library/Keychains/duedd.keychain-db"
+    },
     "status": "ACTIVE",
     "isAppeal": false,
-    "isSessionActive": true,
-    "resetTime": "2026-11-17T03:35:00Z",
-    "resetTimeLocal": "10:35:00",
+    "isSessionActive": false,
+    "resetTime": "2026-11-18T13:21:29Z",
+    "resetTimeLocal": "20:21:29",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.9899333119392395,
-      "countdown": "⏱ 4h 59m (10:35:00)",
-      "resetTime": "2026-11-17T03:35:00Z",
-      "resetTimeLocal": "10:35:00",
+      "fraction": 1,
+      "countdown": "⏱ 4h 59m (20:21:29)",
+      "resetTime": "2026-11-18T13:21:29Z",
+      "resetTimeLocal": "20:21:29",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
-      "fraction": 0.9673904180526733,
-      "countdown": "⏱ 4h 59m (10:35:16)",
-      "resetTime": "2026-11-17T03:35:16Z",
+      "fraction": 1,
+      "countdown": "⏱ 4h 59m (20:21:29)",
+      "resetTime": "2026-11-18T13:21:29Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.48669907450675964,
-      "countdown": "⏱ 4d 18h (22/11 00:00)",
-      "resetTime": "2026-11-21T17:00:24Z",
-      "resetTimeLocal": "22/11 00:00",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h (25/11 15:21)",
+      "resetTime": "2026-11-25T08:21:29Z",
+      "resetTimeLocal": "25/11 15:21",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
-      "fraction": 0.9836952090263367,
+      "fraction": 1,
       "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-23T22:35:16Z",
+      "resetTime": "2026-11-25T08:21:29Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 0,
-      "countdown": "⏱ 4d 18h",
-      "resetTime": "2026-11-21T17:01:00Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-25T08:21:29Z",
       "unavailable": false,
-      "tags": true
-    }
+      "tags": true,
+      "sharedPool": false,
+      "mode": "separate"
+    },
+    "availableModels": [
+      "gemini-4-argon-medium",
+      "gemini-4-argon-high",
+      "gemini-4-argon-low",
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
+      "gemini-pro-orchestrator-g1-pro",
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-opus-5-5-low",
+      "claude-opus-5-5-medium",
+      "claude-opus-5-5-high",
+      "claude-sonnet-5-5-low",
+      "claude-sonnet-5-5-medium",
+      "claude-sonnet-5-5-high",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-4-argon-medium",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-argon-high",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-argon-low",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-pro-orchestrator-g1-pro",
+        "label": "Orchestrator (Argon)",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon",
+          "orchestrator",
+          "g1-pro"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-low",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-medium",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-high",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-low",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-medium",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-high",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 4 Hydrogen",
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Opus 5.5",
+        "Claude Sonnet 5.5",
+        "GPT-OSS 120B"
+      ],
+      "argon": [
+        "Gemini 4 Argon",
+        "Orchestrator (Argon)"
+      ]
+    },
+    "capabilities": {
+      "tier": "PRO",
+      "hasCarbon": false,
+      "hasArgon": true,
+      "argonMode": "separate",
+      "hasOrchestrator": true,
+      "badges": [
+        "PRO",
+        "Argon",
+        "Orchestrator"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T05:33:07Z",
+    "groupDescSig": "e713ff4e3d0c080d"
   },
   "duvthinh403": {
     "email": "duvthinh403@gmail.com",
     "tier": "PRO",
-    "priority": 50,
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
+    "priority": 60,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro_argon",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "duvthinh403-cli",
+      "configPath": "~/antigravity_homes/duvthinh403",
+      "secondaryPath": "~/antigravity_homes/duvthinh403/Library/Keychains/duvthinh403.keychain-db"
+    },
     "status": "ACTIVE",
     "isAppeal": false,
-    "isSessionActive": true,
-    "resetTime": "2026-11-17T01:20:27Z",
-    "resetTimeLocal": "08:20:27",
+    "isSessionActive": false,
+    "resetTime": "2026-11-18T13:21:30Z",
+    "resetTimeLocal": "20:21:30",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.7211950421333313,
-      "countdown": "⏱ 4h 36m (08:20:27)",
-      "resetTime": "2026-11-17T01:20:27Z",
-      "resetTimeLocal": "08:20:27",
+      "fraction": 1,
+      "countdown": "⏱ 4h 59m (20:21:30)",
+      "resetTime": "2026-11-18T13:21:30Z",
+      "resetTimeLocal": "20:21:30",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
-      "fraction": 0.9701287746429443,
-      "countdown": "⏱ 4h 58m (08:42:08)",
-      "resetTime": "2026-11-17T01:42:08Z",
+      "fraction": 1,
+      "countdown": "⏱ 4h 59m (20:21:30)",
+      "resetTime": "2026-11-18T13:21:30Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.3582765758037567,
-      "countdown": "⏱ 5d 15h (22/11 19:34)",
-      "resetTime": "2026-11-22T12:34:59Z",
-      "resetTimeLocal": "22/11 19:34",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h (25/11 15:21)",
+      "resetTime": "2026-11-25T08:21:30Z",
+      "resetTimeLocal": "25/11 15:21",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
-      "fraction": 0.5802503824234009,
-      "countdown": "⏱ 6d 8h",
-      "resetTime": "2026-11-23T05:01:59Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-25T08:21:30Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 0.16388480365276337,
-      "countdown": "⏱ 5d 15h",
-      "resetTime": "2026-11-22T12:20:35Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-25T08:21:30Z",
       "unavailable": false,
-      "tags": true
-    }
+      "tags": true,
+      "sharedPool": false,
+      "mode": "separate"
+    },
+    "availableModels": [
+      "gemini-4-argon-medium",
+      "gemini-4-argon-high",
+      "gemini-4-argon-low",
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
+      "gemini-pro-orchestrator-g1-pro",
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-opus-5-5-low",
+      "claude-opus-5-5-medium",
+      "claude-opus-5-5-high",
+      "claude-sonnet-5-5-low",
+      "claude-sonnet-5-5-medium",
+      "claude-sonnet-5-5-high",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-4-argon-medium",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-argon-high",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-argon-low",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-pro-orchestrator-g1-pro",
+        "label": "Orchestrator (Argon)",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon",
+          "orchestrator",
+          "g1-pro"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-low",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-medium",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-high",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-low",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-medium",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-high",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 4 Hydrogen",
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Opus 5.5",
+        "Claude Sonnet 5.5",
+        "GPT-OSS 120B"
+      ],
+      "argon": [
+        "Gemini 4 Argon",
+        "Orchestrator (Argon)"
+      ]
+    },
+    "capabilities": {
+      "tier": "PRO",
+      "hasCarbon": false,
+      "hasArgon": true,
+      "argonMode": "separate",
+      "hasOrchestrator": true,
+      "badges": [
+        "PRO",
+        "Argon",
+        "Orchestrator"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T05:33:07Z",
+    "groupDescSig": "e713ff4e3d0c080d"
   },
   "hau": {
     "email": "ghau11290@gmail.com",
     "tier": "PRO",
-    "priority": 50,
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
+    "priority": 60,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro_argon",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "hau-cli",
+      "configPath": "~/antigravity_homes/hau",
+      "secondaryPath": "~/antigravity_homes/hau/Library/Keychains/hau.keychain-db"
+    },
     "status": "ACTIVE",
     "isAppeal": false,
-    "isSessionActive": true,
-    "resetTime": "2026-11-17T03:35:45Z",
-    "resetTimeLocal": "10:35:45",
+    "isSessionActive": false,
+    "resetTime": "2026-11-18T13:21:39Z",
+    "resetTimeLocal": "20:21:39",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.9994534254074097,
-      "countdown": "⏱ 2h 57m (10:35:45)",
-      "resetTime": "2026-11-17T03:35:45Z",
-      "resetTimeLocal": "10:35:45",
+      "fraction": 1,
+      "countdown": "⏱ 4h 59m (20:21:39)",
+      "resetTime": "2026-11-18T13:21:39Z",
+      "resetTimeLocal": "20:21:39",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
-      "fraction": 0.9660751819610596,
-      "countdown": "⏱ 2h 57m (10:36:04)",
-      "resetTime": "2026-11-17T03:36:04Z",
+      "fraction": 1,
+      "countdown": "⏱ 4h 59m (20:21:39)",
+      "resetTime": "2026-11-18T13:21:39Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.47187238931655884,
-      "countdown": "⏱ 4d 0h (21/11 07:49)",
-      "resetTime": "2026-11-21T00:49:05Z",
-      "resetTimeLocal": "21/11 07:49",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h (25/11 15:21)",
+      "resetTime": "2026-11-25T08:21:39Z",
+      "resetTimeLocal": "25/11 15:21",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
-      "fraction": 0.4321056008338928,
-      "countdown": "⏱ 11h 0m",
-      "resetTime": "2026-11-17T11:38:51Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-25T08:21:39Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 0.0025109334383159876,
-      "countdown": "⏱ 4d 6h",
-      "resetTime": "2026-11-21T07:04:53Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-25T08:21:39Z",
       "unavailable": false,
-      "tags": true
-    }
+      "tags": true,
+      "sharedPool": false,
+      "mode": "separate"
+    },
+    "availableModels": [
+      "gemini-4-argon-medium",
+      "gemini-4-argon-high",
+      "gemini-4-argon-low",
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
+      "gemini-pro-orchestrator-g1-pro",
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-opus-5-5-low",
+      "claude-opus-5-5-medium",
+      "claude-opus-5-5-high",
+      "claude-sonnet-5-5-low",
+      "claude-sonnet-5-5-medium",
+      "claude-sonnet-5-5-high",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-4-argon-medium",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-argon-high",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-argon-low",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-pro-orchestrator-g1-pro",
+        "label": "Orchestrator (Argon)",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon",
+          "orchestrator",
+          "g1-pro"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-low",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-medium",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-high",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-low",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-medium",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-high",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 4 Hydrogen",
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Opus 5.5",
+        "Claude Sonnet 5.5",
+        "GPT-OSS 120B"
+      ],
+      "argon": [
+        "Gemini 4 Argon",
+        "Orchestrator (Argon)"
+      ]
+    },
+    "capabilities": {
+      "tier": "PRO",
+      "hasCarbon": false,
+      "hasArgon": true,
+      "argonMode": "separate",
+      "hasOrchestrator": true,
+      "badges": [
+        "PRO",
+        "Argon",
+        "Orchestrator"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T05:33:16Z",
+    "groupDescSig": "e713ff4e3d0c080d"
   },
   "hoangcongtam690": {
     "email": "hoangcongtam690@gmail.com",
     "tier": "FREE",
+    "planLabel": "FREE",
+    "vendorLabel": "GOOGLE",
     "priority": 20,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "free",
+      "planLabel": "FREE",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "hoangcongtam690-cli",
+      "configPath": "~/antigravity_homes/hoangcongtam690",
+      "secondaryPath": "~/antigravity_homes/hoangcongtam690/Library/Keychains/hoangcongtam690.keychain-db"
+    },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
@@ -1271,16 +2540,16 @@
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (24/11 07:36)",
-      "resetTime": "2026-11-24T00:36:46Z",
-      "resetTimeLocal": "24/11 07:36",
+      "countdown": "⏱ 6d 23h (25/11 15:55)",
+      "resetTime": "2026-11-25T08:55:05Z",
+      "resetTimeLocal": "25/11 15:55",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
       "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-24T00:36:46Z",
+      "resetTime": "2026-11-25T08:55:05Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -1289,96 +2558,402 @@
       "countdown": "Unavailable N/A",
       "resetTime": "",
       "unavailable": true,
-      "tags": true
-    }
+      "tags": true,
+      "sharedPool": false,
+      "mode": "none"
+    },
+    "availableModels": [
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-sonnet-4-6",
+      "claude-opus-4-6-thinking",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-sonnet-4-6",
+        "label": "Claude Sonnet 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-4-6-thinking",
+        "label": "Claude Opus 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Sonnet 4.6",
+        "Claude Opus 4.6",
+        "GPT-OSS 120B"
+      ],
+      "argon": []
+    },
+    "capabilities": {
+      "tier": "FREE",
+      "hasCarbon": false,
+      "hasArgon": false,
+      "argonMode": "none",
+      "hasOrchestrator": false,
+      "badges": [
+        "FREE"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T08:55:08Z",
+    "groupDescSig": "9dd3ec2fa26eb11d"
   },
   "huynhminhtien0510": {
     "email": "huynhminhtien0510@gmail.com",
     "tier": "PRO",
-    "priority": 50,
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
+    "priority": 60,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro_argon",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "huynhminhtien0510-cli",
+      "configPath": "~/antigravity_homes/huynhminhtien0510",
+      "secondaryPath": "~/antigravity_homes/huynhminhtien0510/Library/Keychains/huynhminhtien0510.keychain-db"
+    },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-17T01:43:25Z",
-    "resetTimeLocal": "08:43:25",
+    "resetTime": "2026-11-18T13:21:46Z",
+    "resetTimeLocal": "20:21:46",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:25)",
-      "resetTime": "2026-11-17T01:43:25Z",
-      "resetTimeLocal": "08:43:25",
+      "countdown": "⏱ 4h 59m (20:21:46)",
+      "resetTime": "2026-11-18T13:21:46Z",
+      "resetTimeLocal": "20:21:46",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:25)",
-      "resetTime": "2026-11-17T01:43:25Z",
+      "countdown": "⏱ 4h 59m (20:21:46)",
+      "resetTime": "2026-11-18T13:21:46Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.16263628005981445,
-      "countdown": "⏱ 5d 16h (22/11 20:11)",
-      "resetTime": "2026-11-22T13:11:00Z",
-      "resetTimeLocal": "22/11 20:11",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h (25/11 15:21)",
+      "resetTime": "2026-11-25T08:21:46Z",
+      "resetTimeLocal": "25/11 15:21",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
-      "fraction": 0.4608967900276184,
-      "countdown": "⏱ 5d 16h",
-      "resetTime": "2026-11-22T13:11:39Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-25T08:21:46Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 0.008961999788880348,
-      "countdown": "⏱ 5d 16h",
-      "resetTime": "2026-11-22T13:11:54Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-25T08:21:46Z",
       "unavailable": false,
-      "tags": true
-    }
+      "tags": true,
+      "sharedPool": false,
+      "mode": "separate"
+    },
+    "availableModels": [
+      "gemini-4-argon-medium",
+      "gemini-4-argon-high",
+      "gemini-4-argon-low",
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
+      "gemini-pro-orchestrator-g1-pro",
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-opus-5-5-low",
+      "claude-opus-5-5-medium",
+      "claude-opus-5-5-high",
+      "claude-sonnet-5-5-low",
+      "claude-sonnet-5-5-medium",
+      "claude-sonnet-5-5-high",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-4-argon-medium",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-argon-high",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-argon-low",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-pro-orchestrator-g1-pro",
+        "label": "Orchestrator (Argon)",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon",
+          "orchestrator",
+          "g1-pro"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-low",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-medium",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-high",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-low",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-medium",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-high",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 4 Hydrogen",
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Opus 5.5",
+        "Claude Sonnet 5.5",
+        "GPT-OSS 120B"
+      ],
+      "argon": [
+        "Gemini 4 Argon",
+        "Orchestrator (Argon)"
+      ]
+    },
+    "capabilities": {
+      "tier": "PRO",
+      "hasCarbon": false,
+      "hasArgon": true,
+      "argonMode": "separate",
+      "hasOrchestrator": true,
+      "badges": [
+        "PRO",
+        "Argon",
+        "Orchestrator"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T05:33:23Z",
+    "groupDescSig": "e713ff4e3d0c080d"
   },
   "khe": {
     "email": "nguyenkhe000690@gmail.com",
     "tier": "PRO",
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
     "priority": 50,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "khe-cli",
+      "configPath": "~/antigravity_homes/khe",
+      "secondaryPath": "~/antigravity_homes/khe/Library/Keychains/khe.keychain-db"
+    },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-17T01:43:28Z",
-    "resetTimeLocal": "08:43:28",
+    "resetTime": "2026-11-18T13:21:46Z",
+    "resetTimeLocal": "20:21:46",
     "hasArgon": false,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:28)",
-      "resetTime": "2026-11-17T01:43:28Z",
-      "resetTimeLocal": "08:43:28",
+      "countdown": "⏱ 4h 59m (20:21:46)",
+      "resetTime": "2026-11-18T13:21:46Z",
+      "resetTimeLocal": "20:21:46",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:28)",
-      "resetTime": "2026-11-17T01:43:28Z",
+      "countdown": "⏱ 4h 59m (20:21:46)",
+      "resetTime": "2026-11-18T13:21:46Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (24/11 03:43)",
-      "resetTime": "2026-11-23T20:43:28Z",
-      "resetTimeLocal": "24/11 03:43",
+      "countdown": "⏱ 6d 23h (25/11 15:21)",
+      "resetTime": "2026-11-25T08:21:46Z",
+      "resetTimeLocal": "25/11 15:21",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
       "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-23T20:43:28Z",
+      "resetTime": "2026-11-25T08:21:46Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -1387,47 +2962,142 @@
       "countdown": "Unavailable N/A",
       "resetTime": "",
       "unavailable": true,
-      "tags": true
-    }
+      "tags": true,
+      "sharedPool": false,
+      "mode": "none"
+    },
+    "availableModels": [
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-sonnet-4-6",
+      "claude-opus-4-6-thinking",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-sonnet-4-6",
+        "label": "Claude Sonnet 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-4-6-thinking",
+        "label": "Claude Opus 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Sonnet 4.6",
+        "Claude Opus 4.6",
+        "GPT-OSS 120B"
+      ],
+      "argon": []
+    },
+    "capabilities": {
+      "tier": "PRO",
+      "hasCarbon": false,
+      "hasArgon": false,
+      "argonMode": "none",
+      "hasOrchestrator": false,
+      "badges": [
+        "PRO"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T05:33:23Z",
+    "groupDescSig": "9dd3ec2fa26eb11d"
   },
   "mau": {
     "email": "mau492974@gmail.com",
     "tier": "PRO",
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
     "priority": 50,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "mau-cli",
+      "configPath": "~/antigravity_homes/mau",
+      "secondaryPath": "~/antigravity_homes/mau/Library/Keychains/mau.keychain-db"
+    },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-17T01:43:29Z",
-    "resetTimeLocal": "08:43:29",
+    "resetTime": "2026-11-18T13:21:57Z",
+    "resetTimeLocal": "20:21:57",
     "hasArgon": false,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:29)",
-      "resetTime": "2026-11-17T01:43:29Z",
-      "resetTimeLocal": "08:43:29",
+      "countdown": "⏱ 4h 59m (20:21:57)",
+      "resetTime": "2026-11-18T13:21:57Z",
+      "resetTimeLocal": "20:21:57",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:29)",
-      "resetTime": "2026-11-17T01:43:29Z",
+      "countdown": "⏱ 4h 59m (20:21:57)",
+      "resetTime": "2026-11-18T13:21:57Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (24/11 03:43)",
-      "resetTime": "2026-11-23T20:43:29Z",
-      "resetTimeLocal": "24/11 03:43",
+      "countdown": "⏱ 6d 23h (25/11 15:21)",
+      "resetTime": "2026-11-25T08:21:57Z",
+      "resetTimeLocal": "25/11 15:21",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
       "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-23T20:43:29Z",
+      "resetTime": "2026-11-25T08:21:57Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -1436,47 +3106,142 @@
       "countdown": "Unavailable N/A",
       "resetTime": "",
       "unavailable": true,
-      "tags": true
-    }
+      "tags": true,
+      "sharedPool": false,
+      "mode": "none"
+    },
+    "availableModels": [
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-sonnet-4-6",
+      "claude-opus-4-6-thinking",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-sonnet-4-6",
+        "label": "Claude Sonnet 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-4-6-thinking",
+        "label": "Claude Opus 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Sonnet 4.6",
+        "Claude Opus 4.6",
+        "GPT-OSS 120B"
+      ],
+      "argon": []
+    },
+    "capabilities": {
+      "tier": "PRO",
+      "hasCarbon": false,
+      "hasArgon": false,
+      "argonMode": "none",
+      "hasOrchestrator": false,
+      "badges": [
+        "PRO"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T05:33:30Z",
+    "groupDescSig": "9dd3ec2fa26eb11d"
   },
   "molt": {
     "email": "molt021525@gmail.com",
     "tier": "PRO",
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
     "priority": 50,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "molt-cli",
+      "configPath": "~/antigravity_homes/molt",
+      "secondaryPath": "~/antigravity_homes/molt/Library/Keychains/molt.keychain-db"
+    },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-17T01:43:33Z",
-    "resetTimeLocal": "08:43:33",
+    "resetTime": "2026-11-18T13:21:57Z",
+    "resetTimeLocal": "20:21:57",
     "hasArgon": false,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:33)",
-      "resetTime": "2026-11-17T01:43:33Z",
-      "resetTimeLocal": "08:43:33",
+      "countdown": "⏱ 4h 59m (20:21:57)",
+      "resetTime": "2026-11-18T13:21:57Z",
+      "resetTimeLocal": "20:21:57",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:33)",
-      "resetTime": "2026-11-17T01:43:33Z",
+      "countdown": "⏱ 4h 59m (20:21:57)",
+      "resetTime": "2026-11-18T13:21:57Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (24/11 03:43)",
-      "resetTime": "2026-11-23T20:43:33Z",
-      "resetTimeLocal": "24/11 03:43",
+      "countdown": "⏱ 6d 23h (25/11 15:21)",
+      "resetTime": "2026-11-25T08:21:57Z",
+      "resetTimeLocal": "25/11 15:21",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
       "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-23T20:43:33Z",
+      "resetTime": "2026-11-25T08:21:57Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -1485,47 +3250,142 @@
       "countdown": "Unavailable N/A",
       "resetTime": "",
       "unavailable": true,
-      "tags": true
-    }
+      "tags": true,
+      "sharedPool": false,
+      "mode": "none"
+    },
+    "availableModels": [
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-sonnet-4-6",
+      "claude-opus-4-6-thinking",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-sonnet-4-6",
+        "label": "Claude Sonnet 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-4-6-thinking",
+        "label": "Claude Opus 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Sonnet 4.6",
+        "Claude Opus 4.6",
+        "GPT-OSS 120B"
+      ],
+      "argon": []
+    },
+    "capabilities": {
+      "tier": "PRO",
+      "hasCarbon": false,
+      "hasArgon": false,
+      "argonMode": "none",
+      "hasOrchestrator": false,
+      "badges": [
+        "PRO"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T05:33:30Z",
+    "groupDescSig": "9dd3ec2fa26eb11d"
   },
   "mommy": {
     "email": "daominhhue91@gmail.com",
     "tier": "PRO",
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
     "priority": 50,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "mommy-cli",
+      "configPath": "~/antigravity_homes/mommy",
+      "secondaryPath": "~/antigravity_homes/mommy/Library/Keychains/mommy.keychain-db"
+    },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-17T01:43:33Z",
-    "resetTimeLocal": "08:43:33",
+    "resetTime": "2026-11-18T13:21:54Z",
+    "resetTimeLocal": "20:21:54",
     "hasArgon": false,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:33)",
-      "resetTime": "2026-11-17T01:43:33Z",
-      "resetTimeLocal": "08:43:33",
+      "countdown": "⏱ 4h 59m (20:21:54)",
+      "resetTime": "2026-11-18T13:21:54Z",
+      "resetTimeLocal": "20:21:54",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:33)",
-      "resetTime": "2026-11-17T01:43:33Z",
+      "countdown": "⏱ 4h 59m (20:21:54)",
+      "resetTime": "2026-11-18T13:21:54Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (24/11 03:43)",
-      "resetTime": "2026-11-23T20:43:33Z",
-      "resetTimeLocal": "24/11 03:43",
+      "countdown": "⏱ 6d 23h (25/11 15:21)",
+      "resetTime": "2026-11-25T08:21:54Z",
+      "resetTimeLocal": "25/11 15:21",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
       "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-23T20:43:33Z",
+      "resetTime": "2026-11-25T08:21:54Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -1534,13 +3394,108 @@
       "countdown": "Unavailable N/A",
       "resetTime": "",
       "unavailable": true,
-      "tags": true
-    }
+      "tags": true,
+      "sharedPool": false,
+      "mode": "none"
+    },
+    "availableModels": [
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-sonnet-4-6",
+      "claude-opus-4-6-thinking",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-sonnet-4-6",
+        "label": "Claude Sonnet 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-4-6-thinking",
+        "label": "Claude Opus 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Sonnet 4.6",
+        "Claude Opus 4.6",
+        "GPT-OSS 120B"
+      ],
+      "argon": []
+    },
+    "capabilities": {
+      "tier": "PRO",
+      "hasCarbon": false,
+      "hasArgon": false,
+      "argonMode": "none",
+      "hasOrchestrator": false,
+      "badges": [
+        "PRO"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T05:33:30Z",
+    "groupDescSig": "9dd3ec2fa26eb11d"
   },
   "ngocanh000690": {
     "email": "ngocanh000690@gmail.com",
     "tier": "PRO",
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
     "priority": 50,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "ngocanh000690-cli",
+      "configPath": "~/antigravity_homes/ngocanh000690",
+      "secondaryPath": "~/antigravity_homes/ngocanh000690/Library/Keychains/ngocanh000690.keychain-db"
+    },
     "status": "AUTH NEEDED",
     "isAppeal": false,
     "hasArgon": true,
@@ -1579,7 +3534,19 @@
   "nguyenhieu000690": {
     "email": "nguyenhieu000690@gmail.com",
     "tier": "FREE",
+    "planLabel": "FREE",
+    "vendorLabel": "GOOGLE",
     "priority": 20,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "free",
+      "planLabel": "FREE",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "nguyenhieu000690-cli",
+      "configPath": "~/antigravity_homes/nguyenhieu000690",
+      "secondaryPath": "~/antigravity_homes/nguyenhieu000690/Library/Keychains/nguyenhieu000690.keychain-db"
+    },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
@@ -1604,16 +3571,16 @@
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (24/11 03:43)",
-      "resetTime": "2026-11-23T20:43:34Z",
-      "resetTimeLocal": "24/11 03:43",
+      "countdown": "⏱ 6d 23h (25/11 15:40)",
+      "resetTime": "2026-11-25T08:40:50Z",
+      "resetTimeLocal": "25/11 15:40",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
       "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-23T20:43:34Z",
+      "resetTime": "2026-11-25T08:40:50Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -1622,13 +3589,108 @@
       "countdown": "Unavailable N/A",
       "resetTime": "",
       "unavailable": true,
-      "tags": true
-    }
+      "tags": true,
+      "sharedPool": false,
+      "mode": "none"
+    },
+    "availableModels": [
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-sonnet-4-6",
+      "claude-opus-4-6-thinking",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-sonnet-4-6",
+        "label": "Claude Sonnet 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-4-6-thinking",
+        "label": "Claude Opus 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Sonnet 4.6",
+        "Claude Opus 4.6",
+        "GPT-OSS 120B"
+      ],
+      "argon": []
+    },
+    "capabilities": {
+      "tier": "FREE",
+      "hasCarbon": false,
+      "hasArgon": false,
+      "argonMode": "none",
+      "hasOrchestrator": false,
+      "badges": [
+        "FREE"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T08:40:54Z",
+    "groupDescSig": "9dd3ec2fa26eb11d"
   },
   "nguyenthilan89012": {
     "email": "nguyenthilan89012@gmail.com",
     "tier": "PRO",
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
     "priority": 50,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "nguyenthilan89012-cli",
+      "configPath": "~/antigravity_homes/nguyenthilan89012",
+      "secondaryPath": "~/antigravity_homes/nguyenthilan89012/Library/Keychains/nguyenthilan89012.keychain-db"
+    },
     "status": "AUTH NEEDED",
     "isAppeal": false,
     "hasArgon": true,
@@ -1667,41 +3729,53 @@
   "peter": {
     "email": "pieter021505@gmail.com",
     "tier": "PRO",
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
     "priority": 50,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "peter-cli",
+      "configPath": "~/antigravity_homes/peter",
+      "secondaryPath": "~/antigravity_homes/peter/Library/Keychains/peter.keychain-db"
+    },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-17T01:43:39Z",
-    "resetTimeLocal": "08:43:39",
+    "resetTime": "2026-11-18T13:22:06Z",
+    "resetTimeLocal": "20:22:06",
     "hasArgon": false,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:39)",
-      "resetTime": "2026-11-17T01:43:39Z",
-      "resetTimeLocal": "08:43:39",
+      "countdown": "⏱ 4h 59m (20:22:06)",
+      "resetTime": "2026-11-18T13:22:06Z",
+      "resetTimeLocal": "20:22:06",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:39)",
-      "resetTime": "2026-11-17T01:43:39Z",
+      "countdown": "⏱ 4h 59m (20:22:06)",
+      "resetTime": "2026-11-18T13:22:06Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (24/11 03:43)",
-      "resetTime": "2026-11-23T20:43:39Z",
-      "resetTimeLocal": "24/11 03:43",
+      "countdown": "⏱ 6d 23h (25/11 15:22)",
+      "resetTime": "2026-11-25T08:22:06Z",
+      "resetTimeLocal": "25/11 15:22",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
       "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-23T20:43:39Z",
+      "resetTime": "2026-11-25T08:22:06Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -1710,96 +3784,402 @@
       "countdown": "Unavailable N/A",
       "resetTime": "",
       "unavailable": true,
-      "tags": true
-    }
+      "tags": true,
+      "sharedPool": false,
+      "mode": "none"
+    },
+    "availableModels": [
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-sonnet-4-6",
+      "claude-opus-4-6-thinking",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-sonnet-4-6",
+        "label": "Claude Sonnet 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-4-6-thinking",
+        "label": "Claude Opus 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Sonnet 4.6",
+        "Claude Opus 4.6",
+        "GPT-OSS 120B"
+      ],
+      "argon": []
+    },
+    "capabilities": {
+      "tier": "PRO",
+      "hasCarbon": false,
+      "hasArgon": false,
+      "argonMode": "none",
+      "hasOrchestrator": false,
+      "badges": [
+        "PRO"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T05:33:38Z",
+    "groupDescSig": "9dd3ec2fa26eb11d"
   },
   "phungthuy8901": {
     "email": "phungthuy8901@gmail.com",
     "tier": "PRO",
-    "priority": 50,
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
+    "priority": 60,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro_argon",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "phungthuy8901-cli",
+      "configPath": "~/antigravity_homes/phungthuy8901",
+      "secondaryPath": "~/antigravity_homes/phungthuy8901/Library/Keychains/phungthuy8901.keychain-db"
+    },
     "status": "ACTIVE",
     "isAppeal": false,
-    "isSessionActive": true,
-    "resetTime": "2026-11-17T05:39:12Z",
-    "resetTimeLocal": "12:39:12",
+    "isSessionActive": false,
+    "resetTime": "2026-11-18T13:22:05Z",
+    "resetTimeLocal": "20:22:05",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.9899333119392395,
-      "countdown": "⏱ 4h 59m (12:39:12)",
-      "resetTime": "2026-11-17T05:39:12Z",
-      "resetTimeLocal": "12:39:12",
+      "fraction": 1,
+      "countdown": "⏱ 4h 59m (20:22:05)",
+      "resetTime": "2026-11-18T13:22:05Z",
+      "resetTimeLocal": "20:22:05",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
-      "fraction": 0.9650871753692627,
-      "countdown": "⏱ 4h 59m (12:39:23)",
-      "resetTime": "2026-11-17T05:39:23Z",
+      "fraction": 1,
+      "countdown": "⏱ 4h 59m (20:22:05)",
+      "resetTime": "2026-11-18T13:22:05Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.40136250853538513,
-      "countdown": "⏱ 4d 0h (21/11 07:54)",
-      "resetTime": "2026-11-21T00:54:19Z",
-      "resetTimeLocal": "21/11 07:54",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h (25/11 15:22)",
+      "resetTime": "2026-11-25T08:22:05Z",
+      "resetTimeLocal": "25/11 15:22",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
-      "fraction": 0.047387201339006424,
-      "countdown": "⏱ 3d 15h",
-      "resetTime": "2026-11-20T16:03:16Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-25T08:22:05Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 0.022414132952690125,
-      "countdown": "⏱ 4d 1h",
-      "resetTime": "2026-11-21T01:40:30Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-25T08:22:05Z",
       "unavailable": false,
-      "tags": true
-    }
+      "tags": true,
+      "sharedPool": false,
+      "mode": "separate"
+    },
+    "availableModels": [
+      "gemini-4-argon-medium",
+      "gemini-4-argon-high",
+      "gemini-4-argon-low",
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
+      "gemini-pro-orchestrator-g1-pro",
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-opus-5-5-low",
+      "claude-opus-5-5-medium",
+      "claude-opus-5-5-high",
+      "claude-sonnet-5-5-low",
+      "claude-sonnet-5-5-medium",
+      "claude-sonnet-5-5-high",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-4-argon-medium",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-argon-high",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-argon-low",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-pro-orchestrator-g1-pro",
+        "label": "Orchestrator (Argon)",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon",
+          "orchestrator",
+          "g1-pro"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-low",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-medium",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-high",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-low",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-medium",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-high",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 4 Hydrogen",
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Opus 5.5",
+        "Claude Sonnet 5.5",
+        "GPT-OSS 120B"
+      ],
+      "argon": [
+        "Gemini 4 Argon",
+        "Orchestrator (Argon)"
+      ]
+    },
+    "capabilities": {
+      "tier": "PRO",
+      "hasCarbon": false,
+      "hasArgon": true,
+      "argonMode": "separate",
+      "hasOrchestrator": true,
+      "badges": [
+        "PRO",
+        "Argon",
+        "Orchestrator"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T05:33:38Z",
+    "groupDescSig": "e713ff4e3d0c080d"
   },
   "tess": {
     "email": "ldejong322@gmail.com",
     "tier": "PRO",
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
     "priority": 50,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "tess-cli",
+      "configPath": "~/antigravity_homes/tess",
+      "secondaryPath": "~/antigravity_homes/tess/Library/Keychains/tess.keychain-db"
+    },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-17T01:43:40Z",
-    "resetTimeLocal": "08:43:40",
+    "resetTime": "2026-11-18T13:22:12Z",
+    "resetTimeLocal": "20:22:12",
     "hasArgon": false,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:40)",
-      "resetTime": "2026-11-17T01:43:40Z",
-      "resetTimeLocal": "08:43:40",
+      "countdown": "⏱ 4h 59m (20:22:12)",
+      "resetTime": "2026-11-18T13:22:12Z",
+      "resetTimeLocal": "20:22:12",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:40)",
-      "resetTime": "2026-11-17T01:43:40Z",
+      "countdown": "⏱ 4h 59m (20:22:12)",
+      "resetTime": "2026-11-18T13:22:12Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (24/11 03:43)",
-      "resetTime": "2026-11-23T20:43:40Z",
-      "resetTimeLocal": "24/11 03:43",
+      "countdown": "⏱ 6d 23h (25/11 15:22)",
+      "resetTime": "2026-11-25T08:22:12Z",
+      "resetTimeLocal": "25/11 15:22",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
       "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-23T20:43:40Z",
+      "resetTime": "2026-11-25T08:22:12Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -1808,47 +4188,142 @@
       "countdown": "Unavailable N/A",
       "resetTime": "",
       "unavailable": true,
-      "tags": true
-    }
+      "tags": true,
+      "sharedPool": false,
+      "mode": "none"
+    },
+    "availableModels": [
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-sonnet-4-6",
+      "claude-opus-4-6-thinking",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-sonnet-4-6",
+        "label": "Claude Sonnet 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-4-6-thinking",
+        "label": "Claude Opus 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Sonnet 4.6",
+        "Claude Opus 4.6",
+        "GPT-OSS 120B"
+      ],
+      "argon": []
+    },
+    "capabilities": {
+      "tier": "PRO",
+      "hasCarbon": false,
+      "hasArgon": false,
+      "argonMode": "none",
+      "hasOrchestrator": false,
+      "badges": [
+        "PRO"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T05:33:45Z",
+    "groupDescSig": "9dd3ec2fa26eb11d"
   },
   "trananh": {
     "email": "anh000690@gmail.com",
     "tier": "PRO",
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
     "priority": 50,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "trananh-cli",
+      "configPath": "~/antigravity_homes/trananh",
+      "secondaryPath": "~/antigravity_homes/trananh/Library/Keychains/trananh.keychain-db"
+    },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-17T01:43:43Z",
-    "resetTimeLocal": "08:43:43",
+    "resetTime": "2026-11-18T13:22:17Z",
+    "resetTimeLocal": "20:22:17",
     "hasArgon": false,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:43)",
-      "resetTime": "2026-11-17T01:43:43Z",
-      "resetTimeLocal": "08:43:43",
+      "countdown": "⏱ 4h 59m (20:22:17)",
+      "resetTime": "2026-11-18T13:22:17Z",
+      "resetTimeLocal": "20:22:17",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:43)",
-      "resetTime": "2026-11-17T01:43:43Z",
+      "countdown": "⏱ 4h 59m (20:22:17)",
+      "resetTime": "2026-11-18T13:22:17Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (24/11 03:43)",
-      "resetTime": "2026-11-23T20:43:43Z",
-      "resetTimeLocal": "24/11 03:43",
+      "countdown": "⏱ 6d 23h (25/11 15:22)",
+      "resetTime": "2026-11-25T08:22:17Z",
+      "resetTimeLocal": "25/11 15:22",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
       "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-23T20:43:43Z",
+      "resetTime": "2026-11-25T08:22:17Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -1857,13 +4332,108 @@
       "countdown": "Unavailable N/A",
       "resetTime": "",
       "unavailable": true,
-      "tags": true
-    }
+      "tags": true,
+      "sharedPool": false,
+      "mode": "none"
+    },
+    "availableModels": [
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-sonnet-4-6",
+      "claude-opus-4-6-thinking",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-sonnet-4-6",
+        "label": "Claude Sonnet 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-4-6-thinking",
+        "label": "Claude Opus 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Sonnet 4.6",
+        "Claude Opus 4.6",
+        "GPT-OSS 120B"
+      ],
+      "argon": []
+    },
+    "capabilities": {
+      "tier": "PRO",
+      "hasCarbon": false,
+      "hasArgon": false,
+      "argonMode": "none",
+      "hasOrchestrator": false,
+      "badges": [
+        "PRO"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T05:33:46Z",
+    "groupDescSig": "9dd3ec2fa26eb11d"
   },
   "waeropiahh": {
     "email": "waeropiahh@gmail.com",
     "tier": "PRO",
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
     "priority": 50,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "waeropiahh-cli",
+      "configPath": "~/antigravity_homes/waeropiahh",
+      "secondaryPath": "~/antigravity_homes/waeropiahh/Library/Keychains/waeropiahh.keychain-db"
+    },
     "status": "AUTH NEEDED",
     "isAppeal": false,
     "hasArgon": true,
@@ -1904,15 +4474,37 @@
     "displayName": "Claude Code",
     "isProvider": true,
     "providerType": "claude",
-    "tier": "ANTHROPIC",
+    "tier": "CLAUDE PRO",
+    "planLabel": "CLAUDE PRO",
+    "vendorLabel": "ANTHROPIC",
     "priority": 100,
     "email": "danhdue@gmail.com",
     "status": "ACTIVE",
     "isSessionActive": true,
-    "resetTime": "2026-11-17T02:39:59.775141+00:00",
-    "resetTimeLocal": "09:39:59",
-    "remainingCountdown": "⏱ 4h 6m (09:39:59)",
+    "resetTime": "2026-11-18T15:49:59.546176+00:00",
+    "resetTimeLocal": "22:49:59",
+    "remainingCountdown": "⏱ 2h 6m (22:49:59)",
     "hasArgon": true,
+    "availableModels": [
+      "Claude Opus 4.6",
+      "Claude Sonnet 4.6",
+      "Claude Haiku 4.5"
+    ],
+    "accountMeta": {
+      "provider": "claude",
+      "vendorLabel": "ANTHROPIC",
+      "planType": "pro",
+      "planLabel": "CLAUDE PRO",
+      "cliCommand": "claude",
+      "configPath": "~/.claude.json",
+      "secondaryPath": "~/.claude/.credentials.json",
+      "extraUsageEnabled": false,
+      "organizationName": "danhdue@gmail.com's Organization",
+      "organizationType": "claude_pro",
+      "billingType": "stripe_subscription",
+      "rateLimitTier": "default_claude_ai",
+      "authSource": "keychain"
+    },
     "quotaBuckets": [
       {
         "id": "session",
@@ -1920,13 +4512,13 @@
         "group": "session",
         "kind": "session",
         "scopeLabel": "",
-        "fraction": 1.0,
-        "utilization": 0.0,
-        "countdown": "⏱ 4h 6m (09:39:59)",
-        "resetTime": "2026-11-17T02:39:59.775141+00:00",
-        "resetTimeLocal": "09:39:59",
+        "fraction": 0.86,
+        "utilization": 14.0,
+        "countdown": "⏱ 2h 6m (22:49:59)",
+        "resetTime": "2026-11-18T15:49:59.546176+00:00",
+        "resetTimeLocal": "22:49:59",
         "severity": "normal",
-        "isActive": false,
+        "isActive": true,
         "isLive": true,
         "shareInfo": null,
         "unavailable": false
@@ -1937,46 +4529,24 @@
         "group": "weekly",
         "kind": "weekly_all",
         "scopeLabel": "",
-        "fraction": 0.9,
-        "utilization": 10.0,
-        "countdown": "⏱ 1d 1h (18/11 06:59)",
-        "resetTime": "2026-11-17T23:59:59.775165+00:00",
-        "resetTimeLocal": "18/11 06:59",
+        "fraction": 0.93,
+        "utilization": 7.0,
+        "countdown": "⏱ 6d 10h (25/11 06:59)",
+        "resetTime": "2026-11-24T23:59:59.546202+00:00",
+        "resetTimeLocal": "25/11 06:59",
         "severity": "normal",
         "isActive": false,
         "isLive": true,
         "shareInfo": null,
         "unavailable": false
-      },
-      {
-        "id": "weekly_scoped_fable",
-        "name": "Claude 7D — Fable",
-        "group": "weekly",
-        "kind": "weekly_scoped",
-        "scopeLabel": "Fable",
-        "fraction": 0.87,
-        "utilization": 13.0,
-        "countdown": "⏱ 1d 1h (18/11 06:59)",
-        "resetTime": "2026-11-17T23:59:59.775487+00:00",
-        "resetTimeLocal": "18/11 06:59",
-        "severity": "normal",
-        "isActive": true,
-        "isLive": true,
-        "shareInfo": {
-          "limitIndex": 2,
-          "usedPercentOfWeekly": 7,
-          "allowancePercentOfWeekly": 50,
-          "label": "Allowance: 50% of weekly (used 7%)"
-        },
-        "unavailable": false
       }
     ],
     "gemini5h": {
       "name": "Claude 5H Session Window",
-      "fraction": 1.0,
-      "countdown": "⏱ 4h 6m (09:39:59)",
-      "resetTime": "2026-11-17T02:39:59.775141+00:00",
-      "resetTimeLocal": "09:39:59",
+      "fraction": 0.86,
+      "countdown": "⏱ 2h 6m (22:49:59)",
+      "resetTime": "2026-11-18T15:49:59.546176+00:00",
+      "resetTimeLocal": "22:49:59",
       "unavailable": false,
       "isLive": true
     },
@@ -1990,10 +4560,10 @@
     },
     "geminiWeekly": {
       "name": "Claude 7D Weekly Remaining",
-      "fraction": 0.9,
-      "countdown": "⏱ 1d 1h (18/11 06:59)",
-      "resetTime": "2026-11-17T23:59:59.775165+00:00",
-      "resetTimeLocal": "18/11 06:59",
+      "fraction": 0.93,
+      "countdown": "⏱ 6d 10h (25/11 06:59)",
+      "resetTime": "2026-11-24T23:59:59.546202+00:00",
+      "resetTimeLocal": "25/11 06:59",
       "unavailable": false
     },
     "claudeWeekly": {
@@ -2019,22 +4589,40 @@
     "displayName": "OpenAI Codex",
     "isProvider": true,
     "providerType": "codex",
-    "tier": "OPENAI",
+    "tier": "CHATGPT PLUS",
+    "planLabel": "CHATGPT PLUS",
+    "vendorLabel": "OPENAI",
     "priority": 95,
     "email": "danhdue@gmail.com",
     "status": "ACTIVE",
     "isSessionActive": true,
-    "resetTime": "2026-11-17T03:34:12+00:00",
-    "resetTimeLocal": "10:34:12",
-    "remainingCountdown": "⏱ 2h 59m (10:34:12)",
+    "resetTime": "2026-11-18T15:58:59+00:00",
+    "resetTimeLocal": "22:58:59",
+    "remainingCountdown": "⏱ 2h 15m (22:58:59)",
     "hasArgon": true,
     "resetCredits": 1,
+    "availableModels": [
+      "gpt-6-astra"
+    ],
+    "accountMeta": {
+      "provider": "codex",
+      "vendorLabel": "OPENAI",
+      "planType": "plus",
+      "planLabel": "CHATGPT PLUS",
+      "authSource": "wham_live",
+      "cliCommand": "codex",
+      "configPath": "~/.codex/auth.json",
+      "secondaryPath": "~/.codex/logs_2.sqlite",
+      "resetCredits": 1,
+      "organizationName": "Personal",
+      "creditsSummary": "1 reset credits available"
+    },
     "gemini5h": {
       "name": "Codex 5-Hour Limit",
-      "fraction": 0.96,
-      "countdown": "⏱ 2h 59m (10:34:12)",
-      "resetTime": "2026-11-17T03:34:12+00:00",
-      "resetTimeLocal": "10:34:12",
+      "fraction": 0.99,
+      "countdown": "⏱ 2h 15m (22:58:59)",
+      "resetTime": "2026-11-18T15:58:59+00:00",
+      "resetTimeLocal": "22:58:59",
       "unavailable": false
     },
     "claude5h": {
@@ -2047,8 +4635,8 @@
     },
     "geminiWeekly": {
       "name": "Codex Weekly Limit",
-      "fraction": 0.71,
-      "countdown": "⏱ 5d 11h (22/11 18:35)",
+      "fraction": 0.32,
+      "countdown": "⏱ 3d 21h (22/11 18:35)",
       "resetTime": "2026-11-22T11:35:44+00:00",
       "resetTimeLocal": "22/11 18:35",
       "unavailable": false
@@ -2062,7 +4650,7 @@
       "unavailable": false
     },
     "argonWeekly": {
-      "name": "OpenAI Model Roster (gpt-4.5 / o3-mini)",
+      "name": "OpenAI Model Roster (gpt-6-astra)",
       "fraction": 1.0,
       "countdown": "Sẵn sàng",
       "resetTime": "",
@@ -2077,6 +4665,8 @@
     "isProvider": true,
     "providerType": "kiro",
     "tier": "KIRO STUDENT",
+    "planLabel": "KIRO STUDENT",
+    "vendorLabel": "KIRO",
     "priority": 90,
     "email": "Elenor.Zulaufell001@mymdc.net",
     "status": "ACTIVE",
@@ -2084,23 +4674,41 @@
     "isSessionActive": true,
     "resetTime": "2026-12-01T00:00:00+00:00",
     "resetTimeLocal": "01/12",
-    "remainingCountdown": "⏱ 14d 03h (01/12)",
+    "remainingCountdown": "⏱ 12d 15h (01/12)",
     "hasArgon": false,
     "isCreditOnly": true,
+    "availableModels": [
+      "auto (1.0x)",
+      "claude-sonnet-4.5",
+      "claude-haiku-4.5"
+    ],
+    "accountMeta": {
+      "provider": "kiro",
+      "vendorLabel": "KIRO",
+      "planType": "student",
+      "planLabel": "KIRO STUDENT",
+      "authSource": "builder_id",
+      "cliCommand": "kiro-cli",
+      "configPath": "~/.local/share/kiro-cli",
+      "creditsSummary": "Used: 988.32 / 1,000.0 credits",
+      "overageStatus": "DISABLED",
+      "rateLimitTier": "Q_DEVELOPER_STANDALONE_STUDENT",
+      "overageRateSummary": "0.04 USD/credit (cap 10000)"
+    },
     "creditsPool": {
       "name": "Monthly Credits Pool",
-      "used": 513.27,
+      "used": 988.32,
       "limit": 1000.0,
-      "remaining": 486.73,
-      "fraction": 0.48673,
-      "countdown": "⏱ 14d 03h (01/12)",
+      "remaining": 11.68,
+      "fraction": 0.01167999999999995,
+      "countdown": "⏱ 12d 15h (01/12)",
       "resetDate": "01/12",
       "unavailable": false
     },
     "gemini5h": {
       "name": "Monthly Credits Pool",
-      "fraction": 0.48673,
-      "countdown": "⏱ 14d 03h (01/12)",
+      "fraction": 0.01167999999999995,
+      "countdown": "⏱ 12d 15h (01/12)",
       "resetTime": "2026-12-01T00:00:00+00:00",
       "resetTimeLocal": "01/12",
       "unavailable": false
@@ -2113,7 +4721,19 @@
   "khangatuaon248": {
     "email": "khangatuaon248@gmail.com",
     "tier": "FREE",
+    "planLabel": "FREE",
+    "vendorLabel": "GOOGLE",
     "priority": 20,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "free",
+      "planLabel": "FREE",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "khangatuaon248-cli",
+      "configPath": "~/antigravity_homes/khangatuaon248",
+      "secondaryPath": "~/antigravity_homes/khangatuaon248/Library/Keychains/khangatuaon248.keychain-db"
+    },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
@@ -2138,16 +4758,16 @@
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (24/11 03:43)",
-      "resetTime": "2026-11-23T20:43:28Z",
-      "resetTimeLocal": "24/11 03:43",
+      "countdown": "⏱ 6d 23h (25/11 15:21)",
+      "resetTime": "2026-11-25T08:21:46Z",
+      "resetTimeLocal": "25/11 15:21",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
       "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-23T20:43:28Z",
+      "resetTime": "2026-11-25T08:21:46Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -2156,62 +4776,563 @@
       "countdown": "Unavailable N/A",
       "resetTime": "",
       "unavailable": true,
-      "tags": true
-    }
+      "tags": true,
+      "sharedPool": false,
+      "mode": "none"
+    },
+    "availableModels": [
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-sonnet-4-6",
+      "claude-opus-4-6-thinking",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-sonnet-4-6",
+        "label": "Claude Sonnet 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-4-6-thinking",
+        "label": "Claude Opus 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Sonnet 4.6",
+        "Claude Opus 4.6",
+        "GPT-OSS 120B"
+      ],
+      "argon": []
+    },
+    "capabilities": {
+      "tier": "FREE",
+      "hasCarbon": false,
+      "hasArgon": false,
+      "argonMode": "none",
+      "hasOrchestrator": false,
+      "badges": [
+        "FREE"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T05:33:23Z",
+    "groupDescSig": "9dd3ec2fa26eb11d"
   },
   "thau03880": {
     "email": "thau03880@gmail.com",
     "tier": "PRO",
-    "priority": 50,
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
+    "priority": 60,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro_argon",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "thau03880-cli",
+      "configPath": "~/antigravity_homes/thau03880",
+      "secondaryPath": "~/antigravity_homes/thau03880/Library/Keychains/thau03880.keychain-db"
+    },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-17T01:43:43Z",
-    "resetTimeLocal": "08:43:43",
+    "resetTime": "2026-11-18T13:22:14Z",
+    "resetTimeLocal": "20:22:14",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:43)",
-      "resetTime": "2026-11-17T01:43:43Z",
-      "resetTimeLocal": "08:43:43",
+      "countdown": "⏱ 4h 59m (20:22:14)",
+      "resetTime": "2026-11-18T13:22:14Z",
+      "resetTimeLocal": "20:22:14",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:43:43)",
-      "resetTime": "2026-11-17T01:43:43Z",
+      "countdown": "⏱ 4h 59m (20:22:14)",
+      "resetTime": "2026-11-18T13:22:14Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.20930272340774536,
-      "countdown": "⏱ 4d 23h (22/11 03:36)",
-      "resetTime": "2026-11-21T20:36:57Z",
-      "resetTimeLocal": "22/11 03:36",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h (25/11 15:22)",
+      "resetTime": "2026-11-25T08:22:14Z",
+      "resetTimeLocal": "25/11 15:22",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
-      "fraction": 0.9103484153747559,
-      "countdown": "⏱ 4d 18h",
-      "resetTime": "2026-11-21T15:00:54Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-25T08:22:14Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 0.05960199981927872,
-      "countdown": "⏱ 4d 18h",
-      "resetTime": "2026-11-21T15:24:56Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-25T08:22:14Z",
       "unavailable": false,
+      "tags": true,
+      "sharedPool": false,
+      "mode": "separate"
+    },
+    "availableModels": [
+      "gemini-4-argon-medium",
+      "gemini-4-argon-high",
+      "gemini-4-argon-low",
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
+      "gemini-pro-orchestrator-g1-pro",
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-opus-5-5-low",
+      "claude-opus-5-5-medium",
+      "claude-opus-5-5-high",
+      "claude-sonnet-5-5-low",
+      "claude-sonnet-5-5-medium",
+      "claude-sonnet-5-5-high",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-4-argon-medium",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-argon-high",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-argon-low",
+        "label": "Gemini 4 Argon",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-pro-orchestrator-g1-pro",
+        "label": "Orchestrator (Argon)",
+        "quotaFamily": "argon",
+        "tags": [
+          "argon",
+          "orchestrator",
+          "g1-pro"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-low",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-medium",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-5-5-high",
+        "label": "Claude Opus 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-low",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-medium",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5-high",
+        "label": "Claude Sonnet 5.5",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 4 Hydrogen",
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Opus 5.5",
+        "Claude Sonnet 5.5",
+        "GPT-OSS 120B"
+      ],
+      "argon": [
+        "Gemini 4 Argon",
+        "Orchestrator (Argon)"
+      ]
+    },
+    "capabilities": {
+      "tier": "PRO",
+      "hasCarbon": false,
+      "hasArgon": true,
+      "argonMode": "separate",
+      "hasOrchestrator": true,
+      "badges": [
+        "PRO",
+        "Argon",
+        "Orchestrator"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T05:33:45Z",
+    "groupDescSig": "e713ff4e3d0c080d"
+  },
+  "Onthiquynh8901": {
+    "email": "Onthiquynh8901@gmail.com",
+    "tier": "PRO",
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
+    "priority": 50,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "Onthiquynh8901-cli",
+      "configPath": "~/antigravity_homes/Onthiquynh8901",
+      "secondaryPath": "~/antigravity_homes/Onthiquynh8901/Library/Keychains/Onthiquynh8901.keychain-db"
+    },
+    "status": "AUTH NEEDED",
+    "isAppeal": false,
+    "hasArgon": false,
+    "gemini5h": {
+      "name": "Gemini 3.8 / Pro 5H",
+      "fraction": 1.0,
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
+    },
+    "claude5h": {
+      "name": "Claude 5.5 / GPT 5H",
+      "fraction": 1.0,
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
+    },
+    "geminiWeekly": {
+      "name": "Gemini Weekly",
+      "fraction": 1.0,
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
+    },
+    "claudeWeekly": {
+      "name": "Claude Weekly",
+      "fraction": 1.0,
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
+    },
+    "argonWeekly": {
+      "name": "Gemini 4 Argon Weekly",
+      "fraction": 0.0,
+      "countdown": "⏱ Auth needed",
+      "unavailable": true,
       "tags": true
     }
   },
-  "test_prof": {
-    "email": "test_prof@gmail.com",
+  "gdusuhcb123": {
+    "email": "gdusuhcb123@gmail.com",
+    "tier": "FREE",
+    "planLabel": "FREE",
+    "vendorLabel": "GOOGLE",
+    "priority": 20,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "free",
+      "planLabel": "FREE",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "gdusuhcb123-cli",
+      "configPath": "~/antigravity_homes/gdusuhcb123",
+      "secondaryPath": "~/antigravity_homes/gdusuhcb123/Library/Keychains/gdusuhcb123.keychain-db"
+    },
+    "status": "ACTIVE",
+    "isAppeal": false,
+    "isSessionActive": false,
+    "resetTime": "",
+    "resetTimeLocal": "",
+    "hasArgon": false,
+    "gemini5h": {
+      "name": "Gemini 3.8 / Pro 5H",
+      "fraction": 1.0,
+      "countdown": "⏱ 4h 59m",
+      "resetTime": "",
+      "resetTimeLocal": "",
+      "unavailable": true
+    },
+    "claude5h": {
+      "name": "Claude 5.5 / GPT 5H",
+      "fraction": 1.0,
+      "countdown": "⏱ 4h 59m",
+      "resetTime": "",
+      "unavailable": true
+    },
+    "geminiWeekly": {
+      "name": "Gemini Weekly",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h (25/11 20:43)",
+      "resetTime": "2026-11-25T13:43:43Z",
+      "resetTimeLocal": "25/11 20:43",
+      "unavailable": false
+    },
+    "claudeWeekly": {
+      "name": "Claude Weekly",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-25T13:43:43Z",
+      "unavailable": false
+    },
+    "argonWeekly": {
+      "name": "Gemini 4 Argon Weekly",
+      "fraction": 0.0,
+      "countdown": "Unavailable N/A",
+      "resetTime": "",
+      "unavailable": true,
+      "tags": true,
+      "sharedPool": false,
+      "mode": "none"
+    },
+    "availableModels": [
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-sonnet-4-6",
+      "claude-opus-4-6-thinking",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-sonnet-4-6",
+        "label": "Claude Sonnet 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-4-6-thinking",
+        "label": "Claude Opus 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Sonnet 4.6",
+        "Claude Opus 4.6",
+        "GPT-OSS 120B"
+      ],
+      "argon": []
+    },
+    "capabilities": {
+      "tier": "FREE",
+      "hasCarbon": false,
+      "hasArgon": false,
+      "argonMode": "none",
+      "hasOrchestrator": false,
+      "badges": [
+        "FREE"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-18T13:43:47Z",
+    "groupDescSig": "9dd3ec2fa26eb11d"
+  },
+  "khainq2000": {
+    "email": "khainq2000@gmail.com",
     "tier": "PRO",
+    "planLabel": "PRO",
+    "vendorLabel": "GOOGLE",
     "priority": 50,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "pro",
+      "planLabel": "PRO",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "khainq2000-cli",
+      "configPath": "~/antigravity_homes/khainq2000",
+      "secondaryPath": "~/antigravity_homes/khainq2000/Library/Keychains/khainq2000.keychain-db"
+    },
     "status": "AUTH NEEDED",
     "isAppeal": false,
     "hasArgon": false,
