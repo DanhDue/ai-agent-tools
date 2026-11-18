@@ -41,7 +41,7 @@ Scenario: [TRC-HP-04] [Tier C - Integration] End-to-end runner parity and verify
 Given an isolated git repository with an English-only epic of two review-gated tasks and stub persona CLIs
 When Task 1's Pass 1 reviewer returns {"task_id": "task_01", "pass": 1, "verdict": "APPROVED", "head_sha": "<sha1>", "done_gate": "PASS", "blockers": [], "observations": [{"id": "OBS-1", "file": "src/a.py", "summary": "Style nit"}]}
 And Task 2's Pass 1 reviewer returns {"task_id": "task_02", "pass": 1, "verdict": "CHANGES_REQUESTED", "head_sha": "<sha2>", "done_gate": "PASS", "blockers": [{"id": "BLK-1", "category": "BDD_VIOLATION", "file": "src/b.py", "summary": "Fix return code", "remediation": "Return 0"}], "observations": []} followed by Fix Pass 1 producing "<sha2_fix>" and Pass 2 Delta-Only {"task_id": "task_02", "pass": 2, "verdict": "APPROVED", "head_sha": "<sha2_fix>", "done_gate": "PASS", "blockers": [], "observations": []}
-Then Task 1 finalizes after exactly 1 review pass and 0 fix passes with "OBS-1" recorded in "review_audit_notes.jsonl"
+Then Task 1 finalizes after exactly 1 review pass and 0 fix passes with "OBS-1" recorded and committed on the epic branch in "review_audit_notes.jsonl"
 And Task 2 finalizes after exactly 2 review passes and 1 fix pass with Pass 2 prompt containing Delta-Only instructions
 And "scripts/verify.sh" lists all four "tests/test_trc_*.py" suites in "SUITES"
 ```
