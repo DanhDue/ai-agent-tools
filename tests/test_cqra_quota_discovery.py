@@ -246,7 +246,8 @@ def test_cqra_hp_01_ultra_shared_pool_discovery_and_mirror(
     for expected_badge in ("ULTRA", "Carbon", "Argon", "Orchestrator"):
         assert expected_badge in caps["badges"]
 
-    assert formatted["tier"] == "PRO"
+    assert formatted["tier"] == "ULTRA"
+    assert formatted["priority"] == 80
     assert formatted["hasArgon"] is True
 
     argon_w = formatted["argonWeekly"]
@@ -349,7 +350,7 @@ def test_cqra_hp_02_pro_separate_argon_merges_catalog_and_preserves_labels(
     assert caps["argonMode"] == "separate"
     assert caps["tier"] == expected_cap_tier
     assert caps["hasOrchestrator"] is True
-    assert formatted["tier"] == "PRO"
+    assert formatted["tier"] == expected_cap_tier
     assert formatted["groupModels"]["claude"] == [
         "Claude Opus 5.5",
         "Claude Sonnet 5.5",
