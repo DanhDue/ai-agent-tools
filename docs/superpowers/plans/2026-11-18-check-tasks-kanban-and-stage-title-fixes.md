@@ -29,8 +29,8 @@
 
 ## File Structure
 
-- Modify: `skills/check-tasks/resources/scripts/check_tasks.py` — `_strip_stage_index_prefix()`, `(normalized_epic, task_id)` deduplication in `scan_task_progress()`, `max(total_tasks, dir_task_count)` in `build_epic_pipeline_telemetry()`, and epic-filtered `done_tasks` / `total_tasks` when building `repo.pipeline_telemetry` and `epics_summary`.
-- Modify: `skills/check-tasks/resources/dashboard/tasks_dashboard.html` — `stripStageIndexPrefix()`, `buildSubStepsHtml()`, `synthesizePipelineTelemetry()`, `computeEpicProgressState()`, `renderExecutionEpics()`, `renderKanbanDashboard()`, Tier 1 container `min-width: 0`, and `openKanbanModal()`.
+- Modify: `skills/check-tasks/resources/scripts/check_tasks.py` — `_strip_stage_index_prefix()`, `(normalized_epic, task_id)` deduplication and features-frontmatter `candidate_epics` discovery in `extract_task_progress()`, worktree-aware `task_count` in `harvest_epics_overview()`, `done_tasks`/`total_tasks` emission + `max(total_tasks, dir_task_count)` in `build_epic_pipeline_telemetry()`, and epic-filtered `done_tasks` / `total_tasks` in `scan_repo()` and `derive_lifecycle_state()`.
+- Modify: `skills/check-tasks/resources/dashboard/tasks_dashboard.html` — `stripStageIndexPrefix()`, `buildSubStepsHtml()`, `synthesizePipelineTelemetry()`, `computeEpicProgressState()`, `renderExecutionEpics()`, `renderKanbanDashboard()`, `buildKanbanSig()`, Tier 1 container `min-width: 0`, and `openKanbanModal()`.
 - Create: `tests/test_check_tasks_kanban_and_telemetry_fixes.py` — Python unit/integration tests for `check_tasks.py` and Node.js `vm` DOM/CSS/JS verification tests for `tasks_dashboard.html`.
 
 ## Implementation Tasks
@@ -38,19 +38,22 @@
 ### Task 1: Epic-Scoped Telemetry Counts, Multi-Wave Task Parity, and Stripped Stage Summary Labels in check_tasks.py
 
 **Files:**
-- Modify: `skills/check-tasks/resources/scripts/check_tasks.py:1600-1785`
+- Modify: `skills/check-tasks/resources/scripts/check_tasks.py:1330-1380`
+- Modify: `skills/check-tasks/resources/scripts/check_tasks.py:1533-1785`
+- Modify: `skills/check-tasks/resources/scripts/check_tasks.py:2274-2303`
 - Modify: `skills/check-tasks/resources/scripts/check_tasks.py:2835-2850`
-- Modify: `skills/check-tasks/resources/scripts/check_tasks.py:3340-3355`
+- Modify: `skills/check-tasks/resources/scripts/check_tasks.py:3280-3355`
 - Modify: `skills/check-tasks/resources/scripts/check_tasks.py:4645-4665`
 - Modify: `skills/check-tasks/resources/scripts/check_tasks.py:4775-4792`
 - Create: `tests/test_check_tasks_kanban_and_telemetry_fixes.py`
 
 **Interfaces:**
-- Consumes: `scan_task_progress(repo_path, active_epic)`, `build_epic_pipeline_telemetry(...)`, `inspect_single_repo(repo_path)` in `skills/check-tasks/resources/scripts/check_tasks.py`.
+- Consumes: `harvest_epics_overview(repo_path, active_epic)`, `extract_task_progress(repo_path, active_epic)`, `derive_lifecycle_state(...)`, `build_epic_pipeline_telemetry(...)`, `scan_repo(repo_path)` in `skills/check-tasks/resources/scripts/check_tasks.py`.
 - Produces:
   - `_strip_stage_index_prefix(label: str) -> str` in `check_tasks.py`
   - `active_sub_step_summary` formatted without leading `"1. "`..`"6. "` (for example `"Tasks · 4/4 (100%)"`)
-  - Epic-scoped `done_tasks` and `total_tasks` in `repo.pipeline_telemetry` and `epics_summary[].pipeline_telemetry`, with `seen_tasks` keyed by `(_normalize_slug(epic), task_id)` and `total_tasks = max(total_tasks, dir_task_count)`.
+  - Top-level `"done_tasks"` and `"total_tasks"` on `pipeline_telemetry` and `"total_tasks"` / `"done_tasks"` on `stages[2]` (`id == "tasks"`)
+  - Epic-scoped `done_tasks` and `total_tasks` in `repo.pipeline_telemetry` and `epics_summary[].pipeline_telemetry`, with `seen_tasks` keyed by `(_normalize_slug(epic), task_id)`, worktree-aware `task_count` in `harvest_epics_overview()`, and `total_tasks = max(total_tasks, dir_task_count)`.
 
 - [ ] **Step 1: Write the failing backend unit and integration tests**
 
@@ -88,23 +91,30 @@ def _write_task(path: Path, epic: str, status: str, title: str) -> None:
 
 
 def test_multi_epic_repo_isolates_active_epic_telemetry_and_colliding_stems(
-    tmp_path: Path, check_tasks_mod
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, check_tasks_mod
 ) -> None:
-    """Active epic with 4/4 done tasks must not inherit 16 backlog tasks from another epic, even with matching task_01 stems."""
+    """Active epic with 5/5 done tasks must not inherit 16 backlog tasks from another epic, even with matching task_01 stems."""
     repo = tmp_path / "lyrics-sync"
     (repo / ".git").mkdir(parents=True)
     wt = repo / ".worktrees" / "translation_studio_sync_and_standalone"
     wt.mkdir(parents=True)
 
-    # Active epic: 4 done tasks (task_01..task_04) in worktree
-    for idx in range(1, 5):
+    # Second backlog epic directory in root .devtool/epic/
+    backlog_epic_dir = repo / ".devtool" / "epic" / "mac_mini_to_cloud_roadmap"
+    backlog_epic_dir.mkdir(parents=True)
+    (backlog_epic_dir / "mac_mini_to_cloud_roadmap.md").write_text(
+        "# Doc Epic: Mac Mini to Cloud\n\n- **Status**: Draft\n",
+        encoding="utf-8",
+    )
+
+    # Active epic: 4 done tasks (task_02..task_05) + 1 colliding task_01_shared.md = 5 done tasks in worktree
+    for idx in range(2, 6):
         _write_task(
             wt / ".devtool" / "features" / "done" / f"task_0{idx}_active.md",
             epic="translation_studio_sync_and_standalone",
             status="done",
             title=f"Task {idx}: Active Wave Item",
         )
-    # Also test colliding stem task_01_shared.md across two different epics
     _write_task(
         wt / ".devtool" / "features" / "done" / "task_01_shared.md",
         epic="translation_studio_sync_and_standalone",
@@ -146,22 +156,43 @@ def test_multi_epic_repo_isolates_active_epic_telemetry_and_colliding_stems(
         encoding="utf-8",
     )
 
-    progress = check_tasks_mod.scan_task_progress(
-        repo,
-        "translation_studio_sync_and_standalone",
-        extra_epics=["mac_mini_to_cloud_roadmap"],
-        known_worktrees={"translation_studio_sync_and_standalone": [wt]},
+    monkeypatch.setattr(
+        check_tasks_mod,
+        "_collect_matching_worktrees",
+        lambda rp, slug: [wt] if "translation_studio" in str(slug) else [],
     )
-    # 5 active epic tasks + 16 roadmap backlog tasks = 21 total across repo (colliding stem preserved)
+    monkeypatch.setattr(
+        check_tasks_mod,
+        "extract_worktrees",
+        lambda rp: [
+            check_tasks_mod.WorktreeInfo(
+                path=str(rp), branch="main", head="abc1234", is_dirty=False, dirty_file_count=0
+            ),
+            check_tasks_mod.WorktreeInfo(
+                path=str(wt),
+                branch="epic/translation_studio_sync_and_standalone",
+                head="def5678",
+                is_dirty=False,
+                dirty_file_count=0,
+            ),
+        ],
+    )
+
+    progress = check_tasks_mod.extract_task_progress(
+        repo, "translation_studio_sync_and_standalone"
+    )
     assert progress.total_tasks == 21
 
-    repo_status = check_tasks_mod.inspect_single_repo(repo)
-    pt = repo_status.pipeline_telemetry
+    repo_meta = check_tasks_mod.scan_repo(repo)
+    pt = repo_meta.pipeline_telemetry
     assert pt is not None
     assert pt["task_completion_pct"] == 100.0
+    assert pt["done_tasks"] == 5
+    assert pt["total_tasks"] == 5
     tasks_stage = next(s for s in pt["stages"] if s["id"] == "tasks")
     assert tasks_stage["label"] == "3. Tasks"
     assert tasks_stage["summary"] == "5/5 (100%)"
+    assert tasks_stage["total_tasks"] == 5
     assert not pt["active_sub_step_summary"].startswith(("1.", "2.", "3.", "4.", "5.", "6."))
 
 
@@ -198,8 +229,10 @@ def test_multi_wave_packaged_epic_uses_epic_dir_total_count(
         total_tasks=4,
     )
     assert pt["task_completion_pct"] == 20.0
+    assert pt["total_tasks"] == 20
     tasks_stage = next(s for s in pt["stages"] if s["id"] == "tasks")
     assert tasks_stage["summary"] == "4/20 (20%)"
+    assert tasks_stage["total_tasks"] == 20
     assert pt["active_sub_step_summary"] == "Tasks · 4/20 (20%)"
 ```
 
@@ -210,55 +243,21 @@ Expected: FAIL (`progress.total_tasks == 20` instead of `21`, `pt["task_completi
 
 - [ ] **Step 3: Implement minimal backend fixes in `skills/check-tasks/resources/scripts/check_tasks.py`**
 
-1. In `scan_task_progress()` (`check_tasks.py` around lines `1595-1760`):
+1. In `harvest_epics_overview()` (`check_tasks.py` around line `1343`):
+   - When computing `task_count` for epic directory `d`, also inspect any matching worktree epic directories `_find_epic_dirs_for_checkout(wt_path, slug)` and take `max(...)` of `len(list(ed.glob("task_*.md")))` so epics packaged inside a linked worktree report accurate `task_count`.
+2. In `extract_task_progress()` (`check_tasks.py` around lines `1540-1760`):
    - Change `seen_tasks: set[str] = set()` to `seen_tasks: set[tuple[str, str]] = set()`.
-   - In the worktree loop (`Rule 3`), compute `dedup_key = (_normalize_slug(ep), task_id)` after validating `task_epic`, check `if dedup_key in seen_tasks: continue`, and `seen_tasks.add(dedup_key)`.
-   - In the root loop (`Rule 2`), compute `task_epic = fm.get("epic") or "backlog"` first, check `dedup_key = (_normalize_slug(str(task_epic)), task_id)`, `if dedup_key in seen_tasks: continue`, and `seen_tasks.add(dedup_key)`.
-2. In `build_epic_pipeline_telemetry()` (`check_tasks.py` around line `2842`):
-   - Replace:
-     ```python
-     if total_tasks == 0 and dir_task_count > 0:
-         total_tasks = dir_task_count
-     ```
-     with:
-     ```python
-     if dir_task_count > total_tasks:
-         total_tasks = dir_task_count
-     ```
-   - Add helper `_strip_stage_index_prefix(label: str) -> str`:
-     ```python
-     def _strip_stage_index_prefix(label: str) -> str:
-         """Strip leading horizontal stepper index (e.g. '3. Tasks' -> 'Tasks')."""
-         return re.sub(r"^\d+\.\s*", "", str(label or "").strip())
-     ```
-   - Around line `3344`, update `active_sub_summary`:
-     ```python
-     clean_stage_label = _strip_stage_index_prefix(str(cur_stage_obj["label"]))
-     active_sub_summary = f"{clean_stage_label} · {cur_stage_obj['summary']}"
-     ```
-3. In `inspect_single_repo()` (`check_tasks.py` around lines `4647-4663` and `4775-4790`):
-   - Before calling `build_epic_pipeline_telemetry()` for `active_epic`, filter `task_progress.tasks` to `active_epic`:
-     ```python
-     norm_active_slug = _normalize_slug(active_epic) if active_epic else ""
-     active_epic_tasks = [
-         t
-         for t in task_progress.tasks
-         if _normalize_slug(str(t.get("epic") or "")) == norm_active_slug
-     ] if norm_active_slug else []
-     active_ep_done = (
-         sum(1 for t in active_epic_tasks if t.get("status") == "done")
-         if active_epic_tasks
-         else (task_progress.done_tasks if len({t.get("epic") for t in task_progress.tasks}) <= 1 else 0)
-     )
-     active_ep_total = (
-         len(active_epic_tasks)
-         if active_epic_tasks
-         else (task_progress.total_tasks if len({t.get("epic") for t in task_progress.tasks}) <= 1 else 0)
-     )
-     ```
-     Pass `done_tasks=active_ep_done, total_tasks=active_ep_total` into `build_epic_pipeline_telemetry(...)`.
-   - Also around line `4783`, compute `ep_tot = max(len(ep_tasks), int(ep.get("task_count") or 0))` instead of `len(ep_tasks) or int(ep.get("task_count") or 0)` AND run that block whenever `ep.get("status") == "in_progress" or _normalize_slug(slug) == norm_active_slug`.
-   - Also check `derive_lifecycle_state()` around line `2282`: compute `epic_dir_total = max((len(list(ed.glob("task_*.md"))) for ed in _find_epic_dirs_for_checkout(repo_path, active_epic)), default=0)` (and matching worktree epic dirs) so `active_total = max(len(active_tasks), epic_dir_total)` prevents premature transition to `Stage 3 Phase 4 (Review)` when only Wave 1 (`4/20`) tasks were promoted!
+   - Also allow root `.devtool/features/task_*.md` whose `epic` frontmatter is not in `completed_slugs` or `abandoned_slugs` to register into `candidate_epics` (or pass through when non-completed/non-abandoned) even if no `.devtool/epic/<slug>/` folder exists yet.
+   - Key `seen_tasks` by `(_normalize_slug(ep), task_id)` in Rule 3 (worktree loop) and `(_normalize_slug(str(task_epic)), task_id)` in Rule 2 (root loop).
+3. In `derive_lifecycle_state()` (`check_tasks.py` around lines `2277-2285`):
+   - Reconcile `active_total` with packaged `task_*.md` count across root + worktree epic directories (`active_total = max(len(active_tasks), packaged_dir_task_count)`) so Wave 1 (`4/20`) does not prematurely report `"Tasks Done (Running Gate 4 Verification)"`.
+4. In `build_epic_pipeline_telemetry()` (`check_tasks.py` around lines `2842` and `3281-3354`):
+   - Replace `if total_tasks == 0 and dir_task_count > 0: total_tasks = dir_task_count` with `if dir_task_count > total_tasks: total_tasks = dir_task_count`.
+   - Add `"done_tasks": done_tasks` and `"total_tasks": total_tasks` both onto `stages[2]` (`id == "tasks"`) and onto the returned `pipeline_telemetry` dictionary.
+   - Add `_strip_stage_index_prefix(label: str) -> str` (`re.sub(r"^\d+\.\s*", "", str(label or "").strip())`) and format `active_sub_summary = f"{_strip_stage_index_prefix(str(cur_stage_obj['label']))} · {cur_stage_obj['summary']}"`.
+5. In `scan_repo()` (`check_tasks.py` around lines `4647-4663` and `4775-4790`):
+   - Filter `task_progress.tasks` to `_normalize_slug(active_epic)` when computing `done_tasks` and `total_tasks` for `repo.pipeline_telemetry` (falling back to `task_progress.done_tasks`/`total_tasks` only when all tasks in `task_progress.tasks` belong to at most 1 epic).
+   - Around line `4775`, populate `ep["pipeline_telemetry"]` whenever `ep.get("status") == "in_progress" or _normalize_slug(slug) == _normalize_slug(active_epic or "")`, using `ep_tot = max(len(ep_tasks), int(ep.get("task_count") or 0))` and propagating `ep["task_count"] = max(int(ep.get("task_count") or 0), int(ep["pipeline_telemetry"].get("total_tasks") or 0))`.
 
 - [ ] **Step 4: Run tests to verify GREEN and zero regressions**
 
@@ -320,20 +319,22 @@ Expected: FAIL on sticky Overview attribute/grid rule, missing `overflow-x: hidd
    - In `buildSubStepsHtml()` (`L2806`): render `<strong style="color: #cbd5e1;">${escapeHtml(stripStageIndexPrefix(activeStageObj.label))}:</strong> ${escapeHtml(String(activeStageObj.summary || ''))}`.
    - In `renderKanbanDashboard()` (`L3246`): strip any leading stage index via `stripStageIndexPrefix(kanbanStageSummary)`.
 2. Fix epic-scoped task count reconciliation:
-   - In `computeEpicProgressState()` (`L2427`): only fall back to `repo.task_progress?.task_completion_pct` when `(repo.epics_summary?.epics || []).length <= 1` and all `repo.task_progress?.tasks` belong to the same epic.
+   - In `computeEpicProgressState()` (`L2427`): only fall back to `repo.task_progress?.task_completion_pct` when `(repo.epics_summary?.epics || []).length <= 1` and all `repo.task_progress?.tasks` belong to at most one epic.
    - In `renderExecutionEpics()` (`L2964-2988`):
      ```javascript
+     const epicPt = epicMeta?.pipeline_telemetry || (slugsMatch(repo.active_epic, slug) ? repo.pipeline_telemetry : null) || null;
+     const ptTotalCount = Number(epicPt?.total_tasks || epicPt?.stages?.[2]?.total_tasks || 0);
      const rawEpicTasksCount = epicTasks.length > 0
        ? epicTasks.length
        : (slugsMatch(repo.active_epic, slug) && (repo.epics_summary?.epics || []).length <= 1 ? (repo.task_progress?.total_tasks || 0) : 0);
      const metaTaskCount = Number(epicMeta?.task_count || 0);
-     const totalCount = Math.max(rawEpicTasksCount, metaTaskCount);
+     const totalCount = Math.max(rawEpicTasksCount, metaTaskCount, ptTotalCount);
      const doneCount = epicTasks.length > 0
        ? epicTasks.filter(t => t.status === 'done').length
        : (slugsMatch(repo.active_epic, slug) && (repo.epics_summary?.epics || []).length <= 1 ? (repo.task_progress?.done_tasks || 0) : 0);
      ```
-     And for `activeTaskName` (`L2984`): when `!inProgTask && !nextTodoTask`, if `totalCount > 0 && doneCount >= totalCount` -> `'All tasks completed ✓'`, else if `doneCount > 0 && doneCount < totalCount` -> `'Promoting next wave tasks...'`, else `'Setting up tasks...'`.
-   - In `renderKanbanDashboard()` (`L3174-3180`): when `epicsProgressMap.has(summaryEp.slug)` and `Number(summaryEp.task_count || 0) > item.total`, set `item.total = Number(summaryEp.task_count)`.
+     Guard `if (isPrimaryActive && repo.task_progress?.active_task_name && epicTasks.length === 0 && (repo.epics_summary?.epics || []).length <= 1)` so another epic's `in-progress` task never overrides `activeTaskName`. When `!inProgTask && !nextTodoTask`, if `totalCount > 0 && doneCount >= totalCount` -> `'All tasks completed ✓'`, else if `doneCount > 0 && doneCount < totalCount` -> `'Promoting next wave tasks...'`, else `'Setting up tasks...'`.
+   - In `renderKanbanDashboard()` (`L3174-3191`): match `epicsProgressMap` entries via `slugsMatch()` (not strict key equality alone), and compute `item.total = Math.max(item.total, Number(summaryEp.task_count || 0), Number(summaryEp.pipeline_telemetry?.total_tasks || summaryEp.pipeline_telemetry?.stages?.[2]?.total_tasks || 0))`. Also include `Number(e.task_count || 0)` in `buildKanbanSig()` (`L3468-3476`).
 3. Fix Kanban CSS & DOM containment (`renderKanbanDashboard`, Tier 1 wrapper, and `openKanbanModal`):
    - On `#repo-detail-content-${escapeHtml(repo.name)}` (`L3916`), Tier 1 card (`L3921`), and `#kanban-dashboard-wrapper-${escapeHtml(repo.name)}` (`L3974`), add `min-width: 0; max-width: 100%;`.
    - In `renderKanbanDashboard()`:

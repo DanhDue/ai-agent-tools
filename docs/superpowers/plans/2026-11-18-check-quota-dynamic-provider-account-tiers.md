@@ -34,8 +34,9 @@
 ## File Structure
 
 - Modify: `scripts/types/quota_dashboard.types.ts` — Add `AccountMeta` interface and optional `planLabel`, `vendorLabel`, `accountMeta` fields on `ProfileQuotaState`.
-- Modify: `scripts/agy_quota.py` — Fix `parse_usage_group_models()` prefix/prose handling; add `_decode_jwt_claims_unverified()`, `read_antigravity_vscdb_email()`, `normalize_antigravity_account()`, `normalize_claude_account()`, `normalize_codex_account()`, `normalize_kiro_account()`; wire into `fetch_claude_quota()`, `fetch_codex_quota()`, `parse_kiro_usage_limits()`, `fetch_kiro_quota()`, `format_profile_for_dashboard()`, `_preserve_cached_model_meta()`, `execute_ping_profile()`, CLI `print_*_card` functions, `load_cached_profiles()` HTML `mtime` tracking, and `SERVER_STARTUP_MTIME` daemon reload check.
-- Modify: `skills/check-quota/resources/dashboard/quota_dashboard.html` — Unified 4-provider header pills (`[Vendor]`, `[Dynamic Plan Badge]`, `[Priority: X]`), `ℹ` modal button for all 4 providers, `Gemini 4 Carbon & Argon Weekly` row on `ULTRA` (`hasCarbon && sharedPool`), roster subtitles on `Gemini Models 5H` + `Gemini Weekly` + `Codex` + `Claude`, provider-aware `openProfileInfoModal()`, `DEFAULT` sort (`claude -> codex -> kiro`, then Antigravity by `priority DESC, profile ASC`), and `searchInput` tier/model matching.
+- Modify: `scripts/agy_quota.py` — Fix `parse_usage_group_models()` prefix/prose handling; add `_decode_jwt_claims_unverified()`, `read_antigravity_vscdb_email()`, `normalize_antigravity_account()`, `normalize_claude_account()`, `normalize_codex_account()`, `normalize_kiro_account()`; wire into `fetch_quota_for_profile()`, `fetch_claude_quota()`, `fetch_codex_quota()`, `parse_kiro_usage_limits()`, `fetch_kiro_quota()`, `format_profile_for_dashboard()`, `_preserve_cached_model_meta()`, `execute_ping_profile()`, CLI `print_*_card` functions, `load_cached_profiles()` HTML `mtime` tracking, and main-thread `SERVER_STARTUP_MTIME` daemon hot-reload.
+- Modify: `skills/check-quota/resources/dashboard/quota_dashboard.html` — Add modal row wrapper IDs (`#profileInfoModal`), unified 4-provider header pills (`[Vendor]`, `[Dynamic Plan Badge]`, `[Priority: X]`), `ℹ` modal button for all 4 providers, `Gemini 4 Carbon & Argon Weekly` row on `ULTRA` (`hasCarbon && sharedPool`), roster subtitles on `Gemini Models 5H` + `Gemini Weekly` + `Codex` + `Claude`, provider-aware `openProfileInfoModal()` hiding Antigravity-only rows on providers, `isProfileFreeTier()` `planType === 'free'` support, `DEFAULT` sort (`claude -> codex -> kiro`, then Antigravity by `priority DESC, profile ASC`), and `searchInput` tier/model matching.
+- Modify: `tests/test_cqra_quota_discovery.py` and `tests/test_claude_quota.py` — Update legacy hardcoded `tier == "PRO"` (on Ultra) and `tier == "ANTHROPIC"` assertions to match dynamic `ULTRA` / `CLAUDE PRO` + `vendorLabel == "ANTHROPIC"`.
 - Create: `tests/test_check_quota_dynamic_provider_tiers.py` — Grounded TDD unit tests (using verbatim live CLI/API payload shapes) and Node.js `vm` UI tests.
 
 ## Implementation Tasks
@@ -46,13 +47,16 @@
 - Modify: `scripts/types/quota_dashboard.types.ts:80-105`
 - Modify: `scripts/agy_quota.py:230-285`
 - Modify: `scripts/agy_quota.py:609-625`
+- Modify: `scripts/agy_quota.py:1395-1425`
 - Modify: `scripts/agy_quota.py:1555-1585`
 - Modify: `scripts/agy_quota.py:1743-1840`
 - Modify: `scripts/agy_quota.py:2208-2850`
 - Modify: `scripts/agy_quota.py:2879-3425`
 - Modify: `scripts/agy_quota.py:3565-3625`
 - Modify: `scripts/agy_quota.py:4180-4202`
-- Modify: `scripts/agy_quota.py:4595-4610`
+- Modify: `scripts/agy_quota.py:4595-4700`
+- Modify: `tests/test_cqra_quota_discovery.py:245-255,348-355`
+- Modify: `tests/test_claude_quota.py:110-125`
 - Create: `tests/test_check_quota_dynamic_provider_tiers.py`
 
 **Interfaces:**
@@ -135,27 +139,32 @@ Expected: FAIL on missing normalizers, `"Models within this group:"` prefix rete
      - `normalize_antigravity_account(profile, capabilities, argon_mode, email)`: maps `ULTRA -> ("ULTRA", "ULTRA", 80)`, `PRO + separate -> ("PRO", "PRO", 60)`, `PRO -> ("PRO", "PRO", 50)`, `FREE -> ("FREE", "FREE", 20)`, building `accountMeta` (`provider="antigravity"`, `vendorLabel="GOOGLE"`, `cliCommand=f"{profile}-cli"`, `configPath=f"~/antigravity_homes/{profile}"`, `secondaryPath=f"~/antigravity_homes/{profile}/Library/Keychains/{profile}.keychain-db"`). Also on `ULTRA` (`argon_mode == "shared_gemini"` and `capabilities.get("hasCarbon")`), set `argonWeekly["name"] = "Gemini 4 Carbon & Argon Weekly"` (and mirror in CLI `print_dashboard_cards`).
      - `normalize_claude_account(oauth_hints, oauth_acc, api_data, is_live)`: inspects `subscriptionType`, `rateLimitTier`, `organizationType`, `organizationRateLimitTier`, `userRateLimitTier`, `has_claude_max`, `has_claude_pro`; maps to `CLAUDE MAX 20X (110)`, `CLAUDE MAX 5X / CLAUDE MAX / CLAUDE ENTERPRISE (105)`, `CLAUDE TEAM (102)`, `CLAUDE PRO (100)`, `CLAUDE API (98)`, `CLAUDE FREE (40)` (defaulting to `CLAUDE PRO (100)` when logged in without explicit free/max markers), builds `accountMeta` (`vendorLabel="ANTHROPIC"`, `organizationName`, `billingType`, `rateLimitTier`, `authSource`, `cliCommand="claude"`, `configPath="~/.claude.json"`, `extraUsageEnabled`, `extraUsageSummary`), and derives `availableModels` from scoped buckets or tier family (`Claude Opus 4.6, Claude Sonnet 4.6, Claude Haiku 4.5`). Extend `get_claude_oauth_token()` (with backward-compatible 3-tuple return, plus `_read_claude_oauth_hints()` helper) to read non-secret `subscriptionType` & `rateLimitTier` from Keychain / `.credentials.json`.
      - `normalize_codex_account(api_data, auth_data)`: resolves `plan_type` from `api_data.get("plan_type")` or JWT `https://api.openai.com/auth` -> `chatgpt_plan_type` (or `auth_mode == "apikey"`), resolves `email` from `api_data.get("email")` or JWT `email` / `https://api.openai.com/profile` -> `email`, maps to `CHATGPT PRO / CHATGPT ENTERPRISE (98)`, `CHATGPT TEAM / CHATGPT EDU (96)`, `CHATGPT PLUS (95)`, `OPENAI API (92)`, `CHATGPT FREE (35)`, extracts `availableModels` from `api_data.get("model_usage")` (`[m for m, info in model_usage.items() if isinstance(info, dict) and info.get("available")]`), and builds `accountMeta` (`vendorLabel="OPENAI"`, `cliCommand="codex"`, `configPath="~/.codex/auth.json"`, `resetCredits`, `creditsSummary`).
-     - `normalize_kiro_account(api_data, email, cached_entry, whoami_auth="")`: inspects `subscriptionInfo.subscriptionTitle`, `subscriptionInfo.type`, and `limit` (`POWER` or `limit >= 10000` -> `94`; `PRO_PLUS` / `PRO+` or `limit >= 2000` -> `92`; `FREE` or `0 < limit <= 100` -> `30`; `PRO` / `STUDENT` -> `90`), extracts `bonuses` and `overageRate`, and preserves cached `tier`, `planLabel`, `priority`, `email`, and `creditsPool` on offline fallback.
+     - `normalize_kiro_account(api_data, email, cached_entry, whoami_auth="")`: inspects `subscriptionInfo.subscriptionTitle`, `subscriptionInfo.type`, and `limit` (`POWER` or `limit >= 10000` -> `94`; `PRO_PLUS` / `PRO+` or `limit >= 2000` -> `92`; `FREE` or `0 < limit <= 100` -> `30`; `PRO` / `STUDENT` -> `90`), extracts `bonuses` and `overageRate`, and preserves cached `tier`, `planLabel`, `priority`, `email`, and `creditsPool` ONLY on the offline/transient API fallback (`L2778`, keeping `"tier": "KIRO"` on explicit `NOT LOGGED IN` at `L2728` and `UNAVAILABLE` at `L2691` so `tests/test_kiro_quota.py` stays green).
+   - **Update `fetch_quota_for_profile()`** (`L1413`): return `"tier": capabilities["tier"]` instead of pre-capabilities `"PRO"`/`"FREE"` so `fetch_quota_for_profile()`, `execute_ping_profile()`, and `format_profile_for_dashboard()` all report `"ULTRA"` consistently.
    - **Update `_preserve_cached_model_meta()`** (`L3107`): also preserve `"planLabel"`, `"vendorLabel"`, `"accountMeta"` and keep cached `"tier"` / `"priority"`.
    - **Update `execute_ping_profile()`** (`L3616, L3619`): change `default_available=(tier == "PRO" or not tier)` to `default_available=(tier != "FREE")`.
-   - **Daemon & Cache Mtime Sync**:
-     - Record `SERVER_STARTUP_MTIME = int(Path(__file__).stat().st_mtime)` at module import; include `"server_code_mtime": SERVER_STARTUP_MTIME` in `/api/status`.
+   - **Daemon & Cache Mtime Hot-Reload (Both Active `_serve` Requests & `start_server_daemon`)**:
+     - Record `SERVER_STARTUP_MTIME = int(Path(__file__).stat().st_mtime)` and `_RELOAD_PENDING = False` at module import; include `"server_code_mtime": SERVER_STARTUP_MTIME` in `/api/status`.
      - Track `CACHED_HTML_MTIME: float = 0.0` in `load_cached_profiles()` / `update_cached_profile()` so external disk updates to `quota_dashboard.html` reload `CACHED_PROFILES_DATA` automatically.
-     - In `start_server_daemon(port)`: when `is_server_alive(port)` is True, check `/api/status` `server_code_mtime`; if missing or `!= int(Path(__file__).stat().st_mtime)`, call `stop_server(port)` and spawn a fresh daemon automatically.
+     - Inside `QuotaDashboardHandler.log_request()` or at the end of `send_json()` / `do_GET()` (after flushing response bytes): if `int(Path(__file__).stat().st_mtime) != SERVER_STARTUP_MTIME` and not `_RELOAD_PENDING`, set `_RELOAD_PENDING = True` and spawn `threading.Thread(target=self.server.shutdown, daemon=True).start()`. In `run_internal_serve()`, after `httpd.serve_forever()` returns and `httpd.server_close()` closes the listening socket on the main thread, if `_RELOAD_PENDING` is True, call `os.execv(sys.executable, [sys.executable, *sys.argv])` so open browser tabs get seamless hot-reloaded daemon logic on the very next poll!
+     - Also in `start_server_daemon(port)`: when `is_server_alive(port)` is True, check `/api/status` `server_code_mtime`; if missing or `!= int(Path(__file__).stat().st_mtime)`, call `stop_server(port)` and spawn a fresh daemon automatically.
+   - **Update Legacy Test Assertions**:
+     - `tests/test_cqra_quota_discovery.py:249`: update `assert formatted["tier"] == "PRO"` to `assert formatted["tier"] == "ULTRA"` and `assert formatted["priority"] == 80`; `:352`: update `assert formatted["tier"] == "PRO"` to `assert formatted["tier"] == expected_cap_tier`.
+     - `tests/test_claude_quota.py:117`: isolate `REAL_HOME` or mock `_read_claude_oauth_hints` cleanly and update `self.assertEqual(data["tier"], "ANTHROPIC")` to `self.assertEqual(data["vendorLabel"], "ANTHROPIC")` and `self.assertTrue(data["tier"].startswith("CLAUDE "))`.
 
 - [ ] **Step 4: Run tests to verify GREEN and zero regressions**
 
-Run: `python3 -m pytest tests/test_check_quota_dynamic_provider_tiers.py tests/test_cqra_quota_discovery.py tests/test_cqra_refresh_session_argon.py -q --tb=short`
+Run: `python3 -m pytest tests/test_check_quota_dynamic_provider_tiers.py tests/test_cqra_quota_discovery.py tests/test_cqra_refresh_session_argon.py tests/test_claude_quota.py tests/test_kiro_quota.py -q --tb=short`
 Expected: PASS (`0 failures`).
 
 - [ ] **Step 5: Commit Task 1**
 
 ```bash
-git add scripts/types/quota_dashboard.types.ts scripts/agy_quota.py tests/test_check_quota_dynamic_provider_tiers.py
+git add scripts/types/quota_dashboard.types.ts scripts/agy_quota.py tests/test_check_quota_dynamic_provider_tiers.py tests/test_cqra_quota_discovery.py tests/test_claude_quota.py
 git commit -m "[CHECK_QUOTA] Normalize dynamic account tiers, priorities, and metadata across 4 providers" \
   -m "- Add AccountMeta contract and normalizers for Antigravity, Claude, Codex, and Kiro" \
   -m "- Strip live usage group prefix and skip prose descriptions on Pro Argon groups" \
-  -m "- Support offline Codex JWT plan claims, Kiro cache preservation, Ultra 5H ping, and daemon mtime reload"
+  -m "- Support offline Codex JWT plan claims, Kiro cache preservation, Ultra 5H ping, and daemon hot-reload"
 ```
 
 ---
@@ -163,12 +172,13 @@ git commit -m "[CHECK_QUOTA] Normalize dynamic account tiers, priorities, and me
 ### Task 2: Unified 4-Provider Card Headers, Provider-Aware Info Modal, Ultra Carbon and Argon Row, Priority Sort, and Live Browser Verification in quota_dashboard.html
 
 **Files:**
-- Modify: `skills/check-quota/resources/dashboard/quota_dashboard.html:2410-2565`
-- Modify: `skills/check-quota/resources/dashboard/quota_dashboard.html:2745-2795`
-- Modify: `skills/check-quota/resources/dashboard/quota_dashboard.html:2975-3080`
-- Modify: `skills/check-quota/resources/dashboard/quota_dashboard.html:3120-3210`
-- Modify: `skills/check-quota/resources/dashboard/quota_dashboard.html:3430-3450`
-- Modify: `skills/check-quota/resources/dashboard/quota_dashboard.html:4615-4695`
+- Modify: `skills/check-quota/resources/dashboard/quota_dashboard.html:687-792`
+- Modify: `skills/check-quota/resources/dashboard/quota_dashboard.html:2315-2475`
+- Modify: `skills/check-quota/resources/dashboard/quota_dashboard.html:2645-2705`
+- Modify: `skills/check-quota/resources/dashboard/quota_dashboard.html:2880-2990`
+- Modify: `skills/check-quota/resources/dashboard/quota_dashboard.html:3025-3115`
+- Modify: `skills/check-quota/resources/dashboard/quota_dashboard.html:3335-3425`
+- Modify: `skills/check-quota/resources/dashboard/quota_dashboard.html:4520-4605`
 - Modify: `tests/test_check_quota_dynamic_provider_tiers.py`
 
 **Interfaces:**
@@ -204,14 +214,16 @@ Expected: FAIL on missing provider plan/priority badges, missing provider `ℹ` 
      - `${getProviderPlanBadgeHTML(profile, data)}`
      - `${getPriorityBadgeHTML(data.priority ?? (profile === 'claude' ? 100 : (profile === 'codex' ? 95 : 90)))}`
      - Dynamic `${data.resetCredits ? ...}` pill on `codex` with tooltip `"Có ${escapeHtml(data.resetCredits)} vé Full Reset khả dụng"` (removing hardcoded `"02/12"`).
-4. Update card body (`L2975-3078`):
+4. Update card body (`L2880-2985`):
    - On `claude`: pass `extraUsageSummary` (from `data.accountMeta?.extraUsageSummary`) as `subtitle` on the first session bucket when enabled.
    - On `codex`: compute `codexRoster = Array.isArray(data.availableModels) && data.availableModels.length > 0 ? 'Available models: ' + data.availableModels.join(', ') : ''` and pass as `subtitle` to `Codex 5-Hour Limit`.
    - On `kiro`: display `data.accountMeta?.creditsSummary` or `Used: ${data.creditsPool?.used ?? 0} / ${data.creditsPool?.limit ?? 1000} credits` and `Overages: ${data.overageStatus ?? 'DISABLED'}`.
    - On `Antigravity`:
-     - Pass `geminiRoster` as `subtitle` to `Gemini Weekly` (`L3073`) as well as `Gemini Models 5H`.
-     - When `argonMode === "shared_gemini" || sharedPool`: if `data.capabilities?.hasCarbon`, default Row 3 title to `"Gemini 4 Carbon & Argon Weekly"` (or `aWeekly.name` when already `"Gemini 4 Carbon & Argon Weekly"`) and pass `getCarbonArgonOrchestratorModels(data).join(", ")` as `subtitle`.
-5. Update `getOrderedProfiles()` (`L3204-3206`):
+     - Pass `geminiRoster` as `subtitle` to `Gemini Weekly` (`L2978`) as well as `Gemini Models 5H`.
+     - When `argonMode === "shared_gemini" || sharedPool`: if `data.capabilities?.hasCarbon`, override legacy `"Gemini 4 Argon Weekly"` or empty `aWeekly.name` to `"Gemini 4 Carbon & Argon Weekly"` and pass `getCarbonArgonOrchestratorModels(data).join(", ")` as `subtitle`.
+5. Update `getOrderedProfiles()` (`L3109-3112`) and `isProfileFreeTier()` (`L3415`):
+   - In `isProfileFreeTier(data)`: return `true` when `String(data.tier || data.capabilities?.tier || '').toUpperCase() === 'FREE'` OR `String(data.accountMeta?.planType || '').toLowerCase() === 'free'`.
+   - In `getOrderedProfiles()`:
    ```javascript
    // DEFAULT: Pin providers (claude -> codex -> kiro) at top, then satellite profiles by Priority DESC, A-Z
    const sortedSatellites = nonProviders.sort((a, b) => {
@@ -222,14 +234,16 @@ Expected: FAIL on missing provider plan/priority badges, missing provider `ℹ` 
    });
    return [...providers, ...sortedSatellites];
    ```
-6. Extend `searchInput` matching in `renderAllProfiles()` (`L3440-3446`) to match `data.tier`, `data.planLabel`, `data.vendorLabel`, `data.accountMeta?.organizationName`, and `data.availableModels`.
-7. Make `openProfileInfoModal(profile)` (`L4617-4692`) provider-aware:
-   - Read `meta = data.accountMeta || {}`.
-   - Set `#infoModalEmail` to `data.email || (data.isProvider ? profile : `${profile}@gmail.com`)`.
-   - Set `#infoModalTier` to `${displayPlan} (Priority ${data.priority ?? 50})${extraTierSuffix}` (including `meta.organizationName`, `meta.rateLimitTier`, or `meta.creditsSummary` when present).
-   - Set `#infoModalCliCmd` to `meta.cliCommand || (data.isProvider ? (profile === 'kiro' ? 'kiro-cli' : profile) : `${profile}-cli`)`.
-   - Set `#infoModalHomePath` to `meta.configPath || `~/antigravity_homes/${profile}`` and `#infoModalKeychainPath` to `meta.secondaryPath || (data.isProvider ? (meta.authSource || 'Local OAuth / CLI Credentials') : `~/antigravity_homes/${profile}/Library/Keychains/${profile}.keychain-db`)`.
-   - Populate `#infoModalBadges` and `#infoModalGeminiModels` with provider `availableModels` / `quotaBuckets` scopes when `data.isProvider` is true.
+6. Extend `searchInput` matching in `renderAllProfiles()` (`L3340-3352`) to match `data.tier`, `data.planLabel`, `data.vendorLabel`, `data.accountMeta?.organizationName`, and `data.availableModels`.
+7. Add modal wrapper IDs in `#profileInfoModal` HTML (`L703-789`: `id="infoModalEmailLabel"`, `id="infoModalArgonMetaRow"`, `id="infoModalGeminiGroupLabel"`, `id="infoModalClaudeModelsRow"`, `id="infoModalArgonModelsRow"`, `id="infoModalHomeLabel"`, `id="infoModalKeychainRow"`) and make `openProfileInfoModal(profile)` (`L4522-4600`) provider-aware:
+   - Read `meta = data.accountMeta || {}` and `isProv = Boolean(data.isProvider)`.
+   - Toggle `hidden` class on `#infoModalArgonMetaRow`, `#infoModalClaudeModelsRow`, `#infoModalArgonModelsRow`, and `#infoModalKeychainRow` when `isProv` is `true` (restoring visibility when `isProv` is `false`) so Antigravity-only `Argon Mode` and `profile.keychain-db` rows are genuinely hidden on Provider cards!
+   - Update `#infoModalEmailLabel` (`isProv ? 'Tài khoản Provider (Email)' : 'Tài khoản Google (Email)'`) and `#infoModalHomeLabel` (`isProv ? 'Tệp cấu hình / Xác thực:' : 'Thư mục Home độc lập:'`).
+   - Set `#infoModalEmail` to `data.email || (isProv ? profile : `${profile}@gmail.com`)`.
+   - Set `#infoModalTier` to `${displayPlan} (Priority ${data.priority ?? 50})${extraTierSuffix}` (appending `meta.organizationName`, `meta.rateLimitTier`, or `meta.creditsSummary` when present).
+   - Set `#infoModalCliCmd` to `meta.cliCommand || (isProv ? (profile === 'kiro' ? 'kiro-cli' : profile) : `${profile}-cli`)`.
+   - Set `#infoModalHomePath` to `meta.configPath || `~/antigravity_homes/${profile}`` (and `#infoModalKeychainPath` only when `!isProv`).
+   - Populate `#infoModalBadges` and `#infoModalGeminiModels` (with `#infoModalGeminiGroupLabel` set to `isProv ? 'Available Models & Quota Scopes' : 'Gemini Models'`) when `isProv` is `true`.
 
 - [ ] **Step 4: Run automated tests to verify GREEN**
 
