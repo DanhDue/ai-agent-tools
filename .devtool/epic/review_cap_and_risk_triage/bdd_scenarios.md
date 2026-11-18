@@ -82,12 +82,12 @@ Then exit code is 0, "task_03" is marked "done" and merged into "epic/trc-demo",
 ## 3. State Transition Scenarios (ST)
 
 ```gherkin
-Scenario: [TRC-ST-01] [Tier C - Integration] Worker pool enforces idempotent re-sync and max_task_review_passes = 2 while rejecting a third review pass with exit code 2
+Scenario: [TRC-ST-01] [Tier C - Integration] Worker pool enforces idempotent re-sync across both review passes and max_task_review_passes = 2 while rejecting a third review transition with exit code 2
 Given an initialized slot 1 for epic "trc_demo" with "max_task_review_passes" == 2 and "max_fix_passes" == 1
-When "sync --slot 1 --task task_01 --status review" runs twice in a row for Pass 1, followed by "sync --slot 1 --status working --no-reset" with 1 blocker, followed by "sync --slot 1 --status review" for Pass 2
-Then the duplicate Pass 1 review sync is idempotent keeping "review_passes_used" == 1, Fix Pass 1 sets "fix_passes_used" == 1, and Pass 2 sets "review_passes_used" == 2
-When a third transition into "review" is attempted after "working" or when "review_passes_used" == 2 with a new review pass request
-Then the third review transition exits with code 2, stderr contains "HARD_REVIEW_CAP_EXCEEDED", and "review_passes_used" remains 2
+When "sync --slot 1 --task task_01 --status review" runs twice in a row for Pass 1, followed by "sync --slot 1 --status working --no-reset" with 1 blocker, followed by "sync --slot 1 --status review" twice in a row for Pass 2
+Then the duplicate Pass 1 review sync keeps "review_passes_used" == 1, Fix Pass 1 sets "fix_passes_used" == 1, and both Pass 2 review syncs succeed keeping "review_passes_used" == 2
+When slot 1 has "status" == "working" with "review_passes_used" == 2 and "manage_worker_pool.py sync trc_demo --slot 1 --status review" attempts a third entry into "review"
+Then the command exits with code 2, stderr contains "HARD_REVIEW_CAP_EXCEEDED", and "review_passes_used" remains 2
 
 Scenario: [TRC-ST-02] [Tier C - Integration] Worker pool enforces max_fix_passes = 1 and rejects a second fix pass with exit code 2
 Given slot 1 of epic "trc_demo" has "review_passes_used" == 2 and "fix_passes_used" == 1 after Review Pass 2
@@ -124,11 +124,11 @@ Given an initialized 2-slot worker pool for epic "trc_conc" with "task_01" in sl
 When slot 1 transitions through Pass 1 review ("review_passes_used" == 1) and Fix Pass 1 ("fix_passes_used" == 1) while slot 2 transitions to Pass 1 review ("review_passes_used" == 1, "fix_passes_used" == 0)
 Then ".devtool/state/trc-conc.heartbeat.json" preserves distinct "pass1_tree_sha" values, "fix_passes_used" == 1 on "slot-1", "fix_passes_used" == 0 on "slot-2", and "active_tasks" == ["task_01", "task_02"]
 
-Scenario: [TRC-AR-03] [Tier C - Integration] Slot merge and finalize-slot reconcile tracked and untracked .devtool/features mirrors and preserve main_wt audit notes across parallel slots
-Given a main epic worktree ".worktrees/trc_mirror" whose ".devtool/features/task_01.md" has unstaged edits and whose ".devtool/features/done/task_01.md" exists untracked from cross-worktree status syncing
-And both slot 1 ("task_01") and slot 2 ("task_02") finalize with audit notes written to ".devtool/epic/trc_mirror/review_audit_notes.jsonl" in ".worktrees/trc_mirror"
+Scenario: [TRC-AR-03] [Tier C - Integration] Slot merge and finalize-slot reconcile tracked epic and features mirrors plus untracked done mirrors and commit main_wt audit notes across parallel slots
+Given a main epic worktree ".worktrees/trc_mirror" whose tracked ".devtool/features/task_01.md" and ".devtool/epic/trc_mirror/task_01.md" have unstaged edits and whose ".devtool/features/done/task_01.md" exists untracked from cross-worktree status syncing
+And both slot 1 ("task_01") and slot 2 ("task_02") finalize with audit notes recorded for "trc_mirror"
 When "manage_worker_pool.py finalize-slot" merges slot 1 and then slot 2 into ".worktrees/trc_mirror"
-Then tracked and untracked ".devtool/features/" mirrors in ".worktrees/trc_mirror" are reconciled before each merge, both merges exit 0 without add/add conflict, ".devtool/epic/trc_mirror/review_audit_notes.jsonl" retains both slots' audit lines, and any non-".devtool/" dirty file in ".worktrees/trc_mirror" is never discarded
+Then tracked ".devtool/features/" and ".devtool/epic/trc_mirror/" diffs and untracked ".devtool/features/" mirrors in ".worktrees/trc_mirror" are reconciled before each merge, both merges exit 0 without add/add conflict, ".devtool/epic/trc_mirror/review_audit_notes.jsonl" is committed cleanly on "epic/trc-mirror" retaining both slots' audit lines with zero dirty tracked files left in ".worktrees/trc_mirror", and any non-".devtool/" dirty file in ".worktrees/trc_mirror" is never discarded
 ```
 
 ---

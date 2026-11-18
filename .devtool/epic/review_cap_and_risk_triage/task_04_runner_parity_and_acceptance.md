@@ -28,9 +28,9 @@ Align autonomous `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` wi
      - Pass 2 emits **Delta-Only Verification** instructions referencing `git diff <pass1_tree_sha>` and `pass1_blockers`, forbidding new non-regression findings.
    - Normalize reviewer JSON output via `manage_worker_pool.normalize_task_review_payload` (imported from sibling `dev-implementation/resources/scripts/manage_worker_pool.py`):
      - Fail closed (`verdict=UNPARSEABLE`, no `APPROVED` coercion) when `_extract_last_fenced_json(rev_out)` returns `None` (`TRC-FR-03`), when `rev_code != 0`, when `rev_done_gate != "PASS"`, when `not task_id_ok`, or when `rev_sha != impl_head_sha`.
-     - When `normalized["verdict"] == "APPROVED"` (including zero-blocker `CHANGES_REQUESTED` coerced to `APPROVED`) with valid SHA and `done_gate == "PASS"`: append any `observations` to `.devtool/epic/<self.epic_dir>/review_audit_notes.jsonl` and call `self._finalize_task_done(...)`.
+     - When `normalized["verdict"] == "APPROVED"` (including zero-blocker `CHANGES_REQUESTED` coerced to `APPROVED`) with valid SHA and `done_gate == "PASS"`: call `self._finalize_task_done(...)` in `exec_root` and, if `observations` is non-empty, record them on the main epic checkout (`self.root`, never inside a pool slot) via `manage_worker_pool.append_review_audit_note` (`commit=True` when `worktree_dir is None`, or deferred until after slot merge when `worktree_dir is not None`).
      - When Pass 1 (`review_pass == 1`) returns `CHANGES_REQUESTED` with `>= 1` `blockers` and another attempt remains: capture `pass1_tree_sha = capture_slot_tree_sha(exec_root, self.epic_dir)` (when `self._is_git_repo(exec_root)`), format `retry_note` from `blockers`, and run Fix Pass 1.
-     - When Pass 2 (`review_pass == 2` / final allowed review pass) completes with `rev_code == 0`, valid JSON, `rev_done_gate == "PASS"`, `task_id_ok`, and `rev_sha == impl_head_sha`, even if `normalized["verdict"] == "CHANGES_REQUESTED"` (`A1` policy, `TRC-ST-04`): append `{"event": "pass2_residual_logged_on_cap", "task_id": task_slug, "head_sha": impl_head_sha, "blockers": normalized["blockers"]}` to `.devtool/epic/<self.epic_dir>/review_audit_notes.jsonl` and call `self._finalize_task_done(...)` (never spawning Fix Pass 2).
+     - When Pass 2 (`review_pass == 2` / final allowed review pass) completes with `rev_code == 0`, valid JSON, `rev_done_gate == "PASS"`, `task_id_ok`, and `rev_sha == impl_head_sha`, even if `normalized["verdict"] == "CHANGES_REQUESTED"` (`A1` policy, `TRC-ST-04`): call `self._finalize_task_done(...)` and record `{"event": "pass2_residual_logged_on_cap", "task_id": task_slug, "head_sha": impl_head_sha, "blockers": normalized["blockers"]}` on the main epic checkout via `append_review_audit_note` (never staging `review_audit_notes.jsonl` inside a pool slot and never spawning Fix Pass 2).
 2. **`scripts/verify.sh` Registration**:
    - Register `tests/test_trc_persona_limits.py` (`affects_doc_only=False`), `tests/test_trc_reviewer_briefs_and_governance.py` (`affects_doc_only=True`), `tests/test_trc_worker_pool_triage.py` (`affects_doc_only=False`), and `tests/test_trc_runner_and_acceptance.py` (`affects_doc_only=False`) in `SUITES` (Section `"11"`, mode `"pytest"`).
 3. **End-to-End Acceptance Suite (`tests/test_trc_runner_and_acceptance.py`)**:
@@ -47,7 +47,7 @@ Read-only context:
 - `.devtool/epic/review_cap_and_risk_triage/review_cap_and_risk_triage.md` — HLD Module Contracts §4 & Integration Test Plan
 - `scripts/persona_config.py` — `resolve_task_review_limits` (Task 1)
 - `scripts/resume_context.py` — `--review-pass 1|2` contract (Task 2)
-- `skills/dev-implementation/resources/scripts/manage_worker_pool.py` — `normalize_task_review_payload`, `capture_slot_tree_sha` (Task 3)
+- `skills/dev-implementation/resources/scripts/manage_worker_pool.py` — `normalize_task_review_payload`, `capture_slot_tree_sha`, `append_review_audit_note` (Task 3)
 - `tests/test_fpg_runner_personas.py` — existing `FPG-ST-05` task-reviewer SHA & `done_gate: FAIL` tests `(L720-L865, L1835-L1880)`
 
 ## Design Rationale
