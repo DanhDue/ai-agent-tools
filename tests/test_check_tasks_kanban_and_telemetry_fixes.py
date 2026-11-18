@@ -2,11 +2,28 @@
 
 from __future__ import annotations
 
+import base64
+from collections.abc import Iterator
+import contextlib
 import importlib.util
+import json
+import os
 from pathlib import Path
+import subprocess
+import threading
+import time
+from typing import Any
+import urllib.request
 
 import pytest
 
+from tests.test_cqra_review_action_e2e import (
+    _CdpSession,
+    _find_chrome_binary,
+    _pick_free_port,
+    _wait_for_js_condition,
+    tasks_server,
+)
 from tests.test_ltsp_dashboard_ui import _eval_dashboard_js
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -556,3 +573,353 @@ def test_frontend_reconciles_multi_wave_and_multi_epic_task_counts() -> None:
     assert "4 / 4 Completed (20%)" not in res["multiExecHtml"]
     assert "4/4 Tasks (100%)" in res["multiKanbanHtml"]
     assert "0/16 Tasks (0%)" in res["multiKanbanHtml"]
+
+
+@pytest.fixture(scope="module")
+def kanban_e2e_workspace(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Iterator[dict[str, Any]]:
+    """Spin up TasksServer on an ephemeral port against a multi-epic lyrics-sync git workspace."""
+    ws_root = tmp_path_factory.mktemp("kanban_cdp_ws")
+    repo = ws_root / "lyrics-sync"
+    repo.mkdir(parents=True)
+
+    git_env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "Test Bot",
+        "GIT_AUTHOR_EMAIL": "test@example.com",
+        "GIT_COMMITTER_NAME": "Test Bot",
+        "GIT_COMMITTER_EMAIL": "test@example.com",
+    }
+    subprocess.run(
+        ["git", "init", "-b", "main"],
+        cwd=repo,
+        env=git_env,
+        check=True,
+        capture_output=True,
+    )
+
+    backlog_epic_dir = repo / ".devtool" / "epic" / "mac_mini_to_cloud_roadmap"
+    backlog_epic_dir.mkdir(parents=True)
+    (backlog_epic_dir / "mac_mini_to_cloud_roadmap.md").write_text(
+        "# Doc Epic: Mac Mini to Cloud\n\n- **Status**: Draft\n",
+        encoding="utf-8",
+    )
+    for idx in range(1, 17):
+        _write_task(
+            repo / ".devtool" / "features" / f"task_{idx:02d}_doc.md",
+            epic="mac_mini_to_cloud_roadmap",
+            status="backlog",
+            title=f"Task {idx}: Unbroken_identifier_token_for_mac_mini_to_cloud_roadmap_stream_{idx:02d}",
+        )
+
+    subprocess.run(
+        ["git", "add", "."],
+        cwd=repo,
+        env=git_env,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "[INIT] Seed backlog epic"],
+        cwd=repo,
+        env=git_env,
+        check=True,
+        capture_output=True,
+    )
+
+    wt_rel = Path(".worktrees") / "translation_studio_sync_and_standalone"
+    subprocess.run(
+        [
+            "git",
+            "worktree",
+            "add",
+            "-b",
+            "epic/translation_studio_sync_and_standalone",
+            str(wt_rel),
+        ],
+        cwd=repo,
+        env=git_env,
+        check=True,
+        capture_output=True,
+    )
+    wt = repo / wt_rel
+    active_epic_dir = (
+        wt / ".devtool" / "epic" / "translation_studio_sync_and_standalone"
+    )
+    active_epic_dir.mkdir(parents=True)
+    (active_epic_dir / "translation_studio_sync_and_standalone.md").write_text(
+        "# Epic: Translation Studio\n\n- **Status**: In Progress\n- **PIC**: `nguyenhieu000690`\n",
+        encoding="utf-8",
+    )
+    for idx in range(1, 5):
+        _write_task(
+            wt / ".devtool" / "features" / "done" / f"task_{idx:02d}_active.md",
+            epic="translation_studio_sync_and_standalone",
+            status="done",
+            title=f"Task {idx}: Active_translation_studio_sync_and_standalone_wave_item_{idx:02d}",
+        )
+    subprocess.run(
+        ["git", "add", "."],
+        cwd=wt,
+        env=git_env,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "[EPIC] Complete 4 active tasks"],
+        cwd=wt,
+        env=git_env,
+        check=True,
+        capture_output=True,
+    )
+
+    state_dir = repo / ".devtool"
+    (state_dir / "assistant_state.md").write_text(
+        "# Assistant State\n\n"
+        "- **Active Epic**: `translation_studio_sync_and_standalone`\n"
+        "- **Stage**: `Stage 3 Phase 3 (Quality Check)`\n",
+        encoding="utf-8",
+    )
+    (state_dir / "GATE_LEDGER.md").write_text(
+        "| Timestamp | Epic | Gate | Commit | Approved | Deviations | By |\n"
+        "|---|---|---|---|---|---|---|\n"
+        "| 2026-11-18T00:00:00Z | translation_studio_sync_and_standalone | 1 | abc1234 | Spec | | dev |\n"
+        "| 2026-11-18T00:05:00Z | translation_studio_sync_and_standalone | 2 | abc1234 | HLD | | dev |\n"
+        "| 2026-11-18T00:10:00Z | translation_studio_sync_and_standalone | 3 | abc1234 | Auto | | dev |\n",
+        encoding="utf-8",
+    )
+
+    pid_file = ws_root / "kanban_e2e_tasks_server.pid"
+    port = _pick_free_port()
+    server = tasks_server.TasksServer(
+        host="127.0.0.1",
+        port=port,
+        workspace_root=ws_root,
+        pid_file=pid_file,
+    )
+    thread = threading.Thread(
+        target=server.serve_forever, kwargs={"poll_interval": 0.1}, daemon=True
+    )
+    thread.start()
+
+    base_url = f"http://127.0.0.1:{server.server_port}"
+    ready = False
+    for _ in range(50):
+        try:
+            with urllib.request.urlopen(f"{base_url}/api/status", timeout=0.5) as resp:
+                if resp.status == 200:
+                    ready = True
+                    break
+        except OSError:
+            time.sleep(0.05)
+    assert ready, "TasksServer failed to start on isolated localhost port"
+
+    try:
+        yield {"base_url": base_url, "port": server.server_port, "ws_root": ws_root}
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3.0)
+
+
+@pytest.fixture(scope="module")
+def kanban_chrome_cdp(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Iterator[_CdpSession]:
+    """Launch headless Google Chrome at 1280x900 on an isolated user-data-dir."""
+    chrome_bin = _find_chrome_binary()
+    user_data_dir = tmp_path_factory.mktemp("kanban_chrome_profile")
+    debug_port = _pick_free_port()
+
+    proc = subprocess.Popen(
+        [
+            chrome_bin,
+            "--headless=new",
+            "--disable-gpu",
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--disable-extensions",
+            "--window-size=1280,900",
+            f"--user-data-dir={user_data_dir}",
+            f"--remote-debugging-port={debug_port}",
+            "--remote-allow-origins=*",
+            "about:blank",
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+    ws_url = ""
+    for _ in range(80):
+        try:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{debug_port}/json/list", timeout=0.5
+            ) as resp:
+                targets = json.loads(resp.read().decode("utf-8"))
+                page_targets = [
+                    t
+                    for t in targets
+                    if t.get("type") == "page" and t.get("webSocketDebuggerUrl")
+                ]
+                if page_targets:
+                    ws_url = str(page_targets[0]["webSocketDebuggerUrl"])
+                    break
+        except Exception:
+            time.sleep(0.1)
+
+    if not ws_url:
+        proc.terminate()
+        proc.wait(timeout=5)
+        raise RuntimeError(
+            "Timed out waiting for headless Chrome /json/list page target"
+        )
+
+    session = _CdpSession(ws_url)
+    session.call("Page.enable")
+    session.call("Runtime.enable")
+    session.call(
+        "Emulation.setDeviceMetricsOverride",
+        {"width": 1280, "height": 900, "deviceScaleFactor": 1, "mobile": False},
+    )
+    try:
+        yield session
+    finally:
+        with contextlib.suppress(Exception):
+            session.call("Browser.close")
+        session.close()
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+
+
+def test_live_chrome_cdp_kanban_sticky_scroll_and_unnumbered_stage_titles(
+    kanban_e2e_workspace: dict[str, Any],
+    kanban_chrome_cdp: _CdpSession,
+    tmp_path: Path,
+) -> None:
+    """Real Headless Chrome CDP E2E: sticky 220px Overview, single 5-column scroll track, overflow-x hidden columns, unnumbered sub-step headers, and 4/4 active epic isolation."""
+    base_url = kanban_e2e_workspace["base_url"]
+    cdp = kanban_chrome_cdp
+    cdp.console_errors.clear()
+    cdp.uncaught_exceptions.clear()
+
+    cdp.call("Page.navigate", {"url": f"{base_url}/"})
+    _wait_for_js_condition(
+        cdp,
+        """Boolean(
+            document.getElementById('kanban-dashboard-wrapper-lyrics-sync')
+            && document.querySelector('#kanban-dashboard-wrapper-lyrics-sync [data-kanban-overview="pinned"]')
+            && document.querySelector('.epic-execution-item')
+        )""",
+        timeout=8.0,
+    )
+
+    metrics = cdp.eval_js(
+        """
+        (() => {
+          const wrapper = document.getElementById('kanban-dashboard-wrapper-lyrics-sync');
+          const overview = wrapper.querySelector('[data-kanban-overview="pinned"]');
+          const scrollTrack = wrapper.querySelector('.kanban-columns-scroll');
+          const colCards = Array.from(wrapper.querySelectorAll('.kanban-col-cards'));
+
+          const overviewStyle = window.getComputedStyle(overview);
+          const beforeRect = overview.getBoundingClientRect();
+          const beforeLeft = beforeRect.left;
+          const overviewWidth = beforeRect.width;
+
+          const trackStyle = window.getComputedStyle(scrollTrack);
+          const trackScrollWidth = scrollTrack.scrollWidth;
+          const trackClientWidth = scrollTrack.clientWidth;
+
+          scrollTrack.scrollLeft = 260;
+          const appliedScrollLeft = scrollTrack.scrollLeft;
+          const afterLeft = overview.getBoundingClientRect().left;
+
+          const colStats = colCards.map(col => ({
+            overflowX: window.getComputedStyle(col).overflowX,
+            scrollWidth: col.scrollWidth,
+            clientWidth: col.clientWidth,
+          }));
+
+          const subStepsTexts = Array.from(document.querySelectorAll('[data-telemetry="sub-steps"]')).map(el => el.textContent.trim());
+          const kanbanStageTexts = Array.from(wrapper.querySelectorAll('[data-telemetry="kanban-epic-stage"]')).map(el => el.textContent.trim());
+
+          const execItem = document.querySelector('.epic-execution-item');
+          const execText = execItem ? execItem.textContent : '';
+          const stagePillLabels = execItem
+            ? Array.from(execItem.querySelectorAll('[data-stage-id]')).map(el => el.textContent.trim())
+            : [];
+
+          return {
+            overviewPosition: overviewStyle.position,
+            overviewWidth,
+            beforeLeft,
+            afterLeft,
+            trackOverflowX: trackStyle.overflowX,
+            trackOverflowY: trackStyle.overflowY,
+            trackScrollWidth,
+            trackClientWidth,
+            appliedScrollLeft,
+            colStats,
+            subStepsTexts,
+            kanbanStageTexts,
+            execText,
+            stagePillLabels,
+          };
+        })()
+        """
+    )
+
+    assert metrics["overviewPosition"] == "sticky"
+    assert abs(float(metrics["overviewWidth"]) - 220.0) <= 1.0
+    assert metrics["trackOverflowX"] == "auto"
+    assert metrics["trackOverflowY"] == "hidden"
+    assert metrics["trackScrollWidth"] > metrics["trackClientWidth"]
+    assert metrics["appliedScrollLeft"] > 0
+    assert metrics["beforeLeft"] == metrics["afterLeft"]
+
+    assert len(metrics["colStats"]) == 5
+    for col_stat in metrics["colStats"]:
+        assert col_stat["overflowX"] == "hidden"
+        assert col_stat["scrollWidth"] <= col_stat["clientWidth"] + 1
+
+    assert len(metrics["subStepsTexts"]) >= 1
+    for txt in metrics["subStepsTexts"]:
+        assert not txt.startswith(("1.", "2.", "3.", "4.", "5.", "6.")), txt
+    assert len(metrics["kanbanStageTexts"]) >= 1
+    for txt in metrics["kanbanStageTexts"]:
+        assert not txt.startswith(("1.", "2.", "3.", "4.", "5.", "6.")), txt
+
+    joined_pills = "\n".join(metrics["stagePillLabels"])
+    for expected_pill in (
+        "1. Spec",
+        "2. HLD & Principal",
+        "3. Tasks",
+        "4. Gate 4 QA",
+        "5. Cross-Review",
+        "6. Finish",
+    ):
+        assert expected_pill in joined_pills
+
+    assert "4 / 4 Completed (100% ✓)" in metrics["execText"]
+    assert "4 / 20" not in metrics["execText"]
+    assert "4/20" not in metrics["execText"]
+    assert "20%" not in metrics["execText"]
+
+    assert cdp.console_errors == []
+    assert cdp.uncaught_exceptions == []
+
+    shot = cdp.call("Page.captureScreenshot", {"format": "png"})
+    png_bytes = base64.b64decode(shot["data"])
+    assert png_bytes.startswith(b"\x89PNG\r\n\x1a\n")
+    assert len(png_bytes) > 1024
+
+    save_dir_env = os.environ.get("SAVE_E2E_SCREENSHOT_DIR", "").strip()
+    out_dir = Path(save_dir_env) if save_dir_env else tmp_path
+    out_dir.mkdir(parents=True, exist_ok=True)
+    screenshot_path = out_dir / "verify_check_tasks_kanban.png"
+    screenshot_path.write_bytes(png_bytes)
+    assert screenshot_path.is_file() and screenshot_path.stat().st_size > 1024
