@@ -12,6 +12,21 @@
       "id": "gemini-4-hydrogen-{effort}",
       "efforts": ["low", "medium", "high", "xhigh"]
     },
+    "carbon": {
+      "cli": "agy",
+      "id": "gemini-4-carbon-{effort}",
+      "efforts": ["low", "medium", "high"]
+    },
+    "orchestrator-carbon": {
+      "cli": "agy",
+      "id": "gemini-pro-orchestrator",
+      "efforts": ["none"]
+    },
+    "orchestrator-argon": {
+      "cli": "agy",
+      "id": "gemini-pro-orchestrator-argon",
+      "efforts": ["none"]
+    },
     "claude-opus": {
       "cli": "claude",
       "id": "opus",
