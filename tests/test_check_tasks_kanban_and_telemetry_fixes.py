@@ -657,7 +657,7 @@ def kanban_e2e_workspace(
             wt / ".devtool" / "features" / "done" / f"task_{idx:02d}_active.md",
             epic="translation_studio_sync_and_standalone",
             status="done",
-            title=f"Task {idx}: Active_translation_studio_sync_and_standalone_wave_item_{idx:02d}",
+            title=f"Active_translation_studio_sync_and_standalone_unbroken_wave_item_{idx:02d}",
         )
     subprocess.run(
         ["git", "add", "."],
@@ -836,13 +836,36 @@ def test_live_chrome_cdp_kanban_sticky_scroll_and_unnumbered_stage_titles(
 
           scrollTrack.scrollLeft = 260;
           const appliedScrollLeft = scrollTrack.scrollLeft;
-          const afterLeft = overview.getBoundingClientRect().left;
+          const afterLeft260 = overview.getBoundingClientRect().left;
+          scrollTrack.scrollLeft = scrollTrack.scrollWidth;
+          const afterLeftMax = overview.getBoundingClientRect().left;
 
           const colStats = colCards.map(col => ({
             overflowX: window.getComputedStyle(col).overflowX,
             scrollWidth: col.scrollWidth,
             clientWidth: col.clientWidth,
           }));
+
+          const cardBounds = Array.from(wrapper.querySelectorAll('.kanban-task-card')).map(card => {
+            const cardRect = card.getBoundingClientRect();
+            const titleEl = card.querySelector('div > strong');
+            const priBadge = card.querySelector('div > strong + span');
+            const linkRow = card.querySelector('.kanban-epic-link-row');
+            const chip = card.querySelector('.kanban-epic-chip');
+            const titleStyle = titleEl ? window.getComputedStyle(titleEl) : null;
+            const priStyle = priBadge ? window.getComputedStyle(priBadge) : null;
+            const chipStyle = chip ? window.getComputedStyle(chip) : null;
+            return {
+              cardRight: cardRect.right,
+              priRight: priBadge ? priBadge.getBoundingClientRect().right : cardRect.right,
+              linkRight: linkRow ? linkRow.getBoundingClientRect().right : cardRect.right,
+              chipRight: chip ? chip.getBoundingClientRect().right : cardRect.right,
+              titleFlexGrow: titleStyle ? titleStyle.flexGrow : '',
+              titleFlexBasis: titleStyle ? titleStyle.flexBasis : '',
+              priWhiteSpace: priStyle ? priStyle.whiteSpace : '',
+              chipBoxSizing: chipStyle ? chipStyle.boxSizing : '',
+            };
+          });
 
           const subStepsTexts = Array.from(document.querySelectorAll('[data-telemetry="sub-steps"]')).map(el => el.textContent.trim());
           const kanbanStageTexts = Array.from(wrapper.querySelectorAll('[data-telemetry="kanban-epic-stage"]')).map(el => el.textContent.trim());
@@ -857,13 +880,15 @@ def test_live_chrome_cdp_kanban_sticky_scroll_and_unnumbered_stage_titles(
             overviewPosition: overviewStyle.position,
             overviewWidth,
             beforeLeft,
-            afterLeft,
+            afterLeft: afterLeft260,
+            afterLeftMax,
             trackOverflowX: trackStyle.overflowX,
             trackOverflowY: trackStyle.overflowY,
             trackScrollWidth,
             trackClientWidth,
             appliedScrollLeft,
             colStats,
+            cardBounds,
             subStepsTexts,
             kanbanStageTexts,
             execText,
@@ -880,11 +905,22 @@ def test_live_chrome_cdp_kanban_sticky_scroll_and_unnumbered_stage_titles(
     assert metrics["trackScrollWidth"] > metrics["trackClientWidth"]
     assert metrics["appliedScrollLeft"] > 0
     assert metrics["beforeLeft"] == metrics["afterLeft"]
+    assert metrics["beforeLeft"] == metrics["afterLeftMax"]
 
     assert len(metrics["colStats"]) == 5
     for col_stat in metrics["colStats"]:
         assert col_stat["overflowX"] == "hidden"
         assert col_stat["scrollWidth"] <= col_stat["clientWidth"] + 1
+
+    assert len(metrics["cardBounds"]) == 20
+    for cb in metrics["cardBounds"]:
+        assert cb["priRight"] <= cb["cardRight"] - 8, cb
+        assert cb["linkRight"] <= cb["cardRight"] - 8, cb
+        assert cb["chipRight"] <= cb["cardRight"] - 8, cb
+        assert cb["titleFlexGrow"] == "1", cb
+        assert cb["titleFlexBasis"] == "0%", cb
+        assert cb["priWhiteSpace"] == "nowrap", cb
+        assert cb["chipBoxSizing"] == "border-box", cb
 
     assert len(metrics["subStepsTexts"]) >= 1
     for txt in metrics["subStepsTexts"]:
