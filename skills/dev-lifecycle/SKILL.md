@@ -18,7 +18,7 @@ The orchestrator for epic-scale work. It owns **sequence and gates only** — ea
 
 ## The Sequence
 
-Human-facing lifecycle and resume diagrams live in [lifecycles.en.md](../../docs/lifecycles.en.md). Runtime sequence (Interactive & Autonomous Pipeline Mode):
+Lifecycle diagrams: [lifecycles.en.md](../../docs/lifecycles.en.md). Runtime sequence:
 
 1. **Stage 1 (Inception & Spec)**: `dev-brainstorming` -> Gate 1 approval -> Route to `dev-designer` (epic) or `writing-plans` (non-epic).
 2. **Stage 2 (Architecture & Tasks)**: `dev-designer` (Role 2.1) -> Gate 2 approval (`--checkpoint gate2_tasks_locked`) -> Provider priority prompt -> `/principal-review` (Max 3 rounds; Role 2.1 `principal-reviser` revises docs) -> Post-review Package (`package_epic.py`) & print implement prompt -> Choice (**Triển khai (tự động)** vs **Dừng lại**).
@@ -41,7 +41,7 @@ Authoring standards (Markdown quality, `Depends on epic` declaration) — read w
 
 ## The Five Gates
 
-Every gate is a **human approval** except Gate 4 (machine verdict). Never cross one on your own judgement. Record and query approvals in `.devtool/GATE_LEDGER.md` via `resume_context.py --gate <1..5>` and `--check-gate <1..5>`.
+Every gate except Gate 4 (machine verdict) requires **human approval**. Never cross one on your own judgement. Record and query approvals in `.devtool/GATE_LEDGER.md` via `resume_context.py --gate <1..5>` and `--check-gate <1..5>`.
 
 | Gate | Name | Approver | Enforced in | Handoff artefact |
 |------|------|----------|-------------|------------------|
@@ -109,7 +109,7 @@ Follow [references/principal-review.md](references/principal-review.md) across S
 
 - **Prerequisites & Concurrency Check**: If `Depends on epic:` is declared, verify prerequisites via `sync_task_status.py check-prereqs <epic_dir>`. If queued behind another epic, inspect conflicts via `sync_task_status.py check-conflicts <epic_dir>` and promote when confirmed via `sync_task_status.py promote <epic_dir> [--force]`.
 - **Gate 3 (Automated)**: The Orchestrator runs `compute_execution_order.py --parallel`, bootstraps worktree + 2-slot pool, and records `--gate 3` (halting ONLY on cyclic DAG or unresolvable prerequisites).
-- **Wave Execution (Orchestrator + Subagents)**: The Orchestrator owns every `manage_worker_pool.py` call (`sync working` before dispatch, `sync review`, `merge`, `cleanup`). Per slot it dispatches (1) a Role 2.3 `task-implementer` (`check_code_impact.py`, `RED -> GREEN`, `run_task_checks.py verify`; finalizes only when Selective Gating says no review) and (2) a fresh Role 2.1 `task-reviewer` when gating triggers, recomputing the gating signals from `git diff --name-only`. After `cleanup` it dispatches a fresh `gate4-verifier` for the full Gate 4 suite.
+- **Wave Execution (Orchestrator + Subagents)**: The Orchestrator owns `manage_worker_pool.py` calls (`sync working`, `sync review`, `triage-fix`, `finalize-slot`, `merge`, `cleanup`). Per slot it dispatches (1) Role 2.3 `task-implementer` (`check_code_impact.py`, `RED -> GREEN`, `run_task_checks.py verify`; finalizes when Selective Gating skips review) and (2) fresh Role 2.1 `task-reviewer` when gated (recomputing signals via `git diff --name-only`; 2-pass task review cap, 1 fix pass, Two-Tier Risk Assessment Gate). After `cleanup`, dispatch fresh `gate4-verifier` for full Gate 4.
 
 **Automated Review Pipeline (Gate 4 Local PASS → Automatic Cross-Model Review)**:
 When the Gate 4 subagent returns `PASS` (🟢 LGTM):
@@ -126,8 +126,8 @@ Gate 4 grants `🟢 LGTM` only when:
 3. `@quality_check` returns aggregated verdict of **PASS** with `profile: "epic"` against `<base_ref>` bound to candidate `repository_sha`.
 
 Gate 4 conditions:
-1. **Contract**: Explicit profile `epic`, target `base_ref`, and candidate `repository_sha`.
-2. **Aggregation**: Registered providers resolve under `FAIL > BLOCKED > PASS`.
+1. **Contract**: profile `epic`, `base_ref`, candidate `repository_sha`.
+2. **Aggregation**: `FAIL > BLOCKED > PASS`.
 3. **No Partial Approvals**: `BLOCKED` cannot approve.
 4. **Candidate Immutability**: A 🟢 verdict belongs strictly to the tested SHA. If commits change after Gate 4, a fresh traceability check and epic quality run are required before landing.
 

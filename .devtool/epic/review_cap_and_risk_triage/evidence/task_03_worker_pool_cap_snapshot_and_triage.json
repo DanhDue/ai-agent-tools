@@ -1,0 +1,231 @@
+{
+  "schema": 1,
+  "task": "task_03_worker_pool_cap_snapshot_and_triage",
+  "runs": {
+    "red": {
+      "head": "f0924618addfb3cded101e8c546d5952715d9f9c",
+      "tree": "917949897da8ec814215ff3882a37f14baca9fb7",
+      "patch_id": "67bb3e8cb9bb63021e366bb63fc7101be90bd597",
+      "started": "2026-11-18T09:41:14Z",
+      "finished": "2026-11-18T09:41:14Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_trc_worker_pool_triage.py::test_trc_st_01_and_st_02_hard_review_and_fix_caps",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T09:41:14Z",
+          "finished": "2026-11-18T09:41:14Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "______________ test_trc_st_01_and_st_02_hard_review_and_fix_caps _______________",
+            "tests/test_trc_worker_pool_triage.py:224: in test_trc_st_01_and_st_02_hard_review_and_fix_caps",
+            "    assert getattr(manage_worker_pool, \"HardCapExceededError\", None) is not None, (",
+            "E   AssertionError: manage_worker_pool.HardCapExceededError must be defined",
+            "E   assert None is not None",
+            "E    +  where None = getattr(manage_worker_pool, 'HardCapExceededError', None)",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_trc_worker_pool_triage.py::test_trc_st_01_and_st_02_hard_review_and_fix_caps",
+            "1 failed in 0.06s"
+          ],
+          "output_sha256": "d374fab968bf538e4f397d48f45bb6589744a553d4272cb00d1ec12ffeb046f2"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "f0924618addfb3cded101e8c546d5952715d9f9c",
+      "tree": "250fc2345a3afe82dfe834de4b34f87c7c26b3f1",
+      "patch_id": "4fb6b5246cf349945e180e01d9e1d26a1fed0ba7",
+      "started": "2026-11-18T09:50:43Z",
+      "finished": "2026-11-18T09:51:34Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_trc_worker_pool_triage.py skills/dev-implementation/resources/scripts/test_manage_worker_pool.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T09:50:43Z",
+          "finished": "2026-11-18T09:51:08Z",
+          "output_tail": [
+            ".........................                                                [100%]",
+            "25 passed in 24.89s"
+          ],
+          "output_sha256": "40eff30febe8d95231d76673992b91e13607e07e44b2b7db126d76b543228d7c"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/manage_worker_pool.py skills/dev-implementation/resources/scripts/test_manage_worker_pool.py tests/test_trc_worker_pool_triage.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T09:51:08Z",
+          "finished": "2026-11-18T09:51:08Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/manage_worker_pool.py tests/test_trc_worker_pool_triage.py --ignore-missing-imports --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T09:51:08Z",
+          "finished": "2026-11-18T09:51:08Z",
+          "output_tail": [
+            "Success: no issues found in 9 source files"
+          ],
+          "output_sha256": "46984ca20bf69f7b14ec1fd9bd82101d56a4e109e68f016fd2a04f22481b09b3"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/trc_task_03.xml tests/test_trc_worker_pool_triage.py skills/dev-implementation/resources/scripts/test_manage_worker_pool.py",
+          "expect": "exit 0; results build/test-results/trc_task_03.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T09:51:08Z",
+          "finished": "2026-11-18T09:51:34Z",
+          "output_tail": [
+            ".........................                                                [100%]",
+            "25 passed in 25.75s"
+          ],
+          "output_sha256": "121b6ecd048a049dad25e40764bd61ca8e29e2712b9a48cf2bb6154584e6be46",
+          "results": {
+            "path": "build/test-results/trc_task_03.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 18,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_trc_st_01_and_st_02_hard_review_and_fix_caps",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_02_coercion_guard_and_normalization",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_st_03_temporary_index_snapshot_isolates_fix_delta",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_03_boundary_30_lines_eligible_and_tier2_record",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_03_tier1_sensitive_triggers_classify_high_risk[a_over_30_lines-src_override0-None-NON_TEST_DIFF_OVER_30_LINES]",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_03_tier1_sensitive_triggers_classify_high_risk[b_public_signature-def compute_score(val: int, weight: int = 1) -> int:\\n    return val * weight\\n-None-PUBLIC_SIGNATURE_CHANGED]",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_03_tier1_sensitive_triggers_classify_high_risk[c_api_route_or_schema-class Payload(BaseModel):\\n    name: str\\n\\n@router.post('/items')\\ndef _h():\\n    pass\\n-None-API_ROUTE_OR_SCHEMA_CHANGED]",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_03_tier1_sensitive_triggers_classify_high_risk[d_db_or_persistence-import sqlite3\\ndef _helper(val: int) -> int:\\n    q = 'UPDATE items SET v = 1'\\n    return val\\n-None-DB_OR_PERSISTENCE_CHANGED]",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_03_tier1_sensitive_triggers_classify_high_risk[e_concurrency_or_locking-import threading\\n_LOCK = threading.Lock()\\ndef _helper(val: int) -> int:\\n    return val\\n-None-CONCURRENCY_OR_LOCKING_CHANGED]",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_03_tier1_sensitive_triggers_classify_high_risk[f_test_assertion_removed-None-def test_calc():\\n    pass\\n-TEST_ASSERTION_WEAKENED]",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_03_tier1_sensitive_triggers_classify_high_risk[f_test_skip_added-None-import pytest\\n@pytest.mark.skip(reason='flaky')\\ndef test_calc():\\n    assert 1 == 1\\n-TEST_ASSERTION_WEAKENED]",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_st_01_idempotent_resync_and_hard_review_cap",
+                  "classname": "tests.test_trc_worker_pool_triage.TestTrcWorkerPool_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_st_02_hard_fix_cap_rejects_second_fix_pass",
+                  "classname": "tests.test_trc_worker_pool_triage.TestTrcWorkerPool_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_hp_03_surgical_fix_and_tier2_short_circuit_finalize",
+                  "classname": "tests.test_trc_worker_pool_triage.TestTrcWorkerPool_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_04_pass2_residual_changes_requested_finalizes_to_done",
+                  "classname": "tests.test_trc_worker_pool_triage.TestTrcWorkerPool_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ar_02_concurrent_slots_preserve_independent_counters",
+                  "classname": "tests.test_trc_worker_pool_triage.TestTrcWorkerPool_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ar_03_mirror_reconciliation_and_parallel_audit_notes",
+                  "classname": "tests.test_trc_worker_pool_triage.TestTrcWorkerPool_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_fr_02_finalize_slot_aborts_on_mechanical_gate_failure",
+                  "classname": "tests.test_trc_worker_pool_triage.TestTrcWorkerPool_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/manage_worker_pool.py",
+            "tests/test_trc_worker_pool_triage.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

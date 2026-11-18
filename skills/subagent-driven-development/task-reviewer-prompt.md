@@ -1,16 +1,17 @@
 # Task Reviewer Prompt Template
 
-Use this template when dispatching a task reviewer subagent. The reviewer
-reads the task's diff once and returns two verdicts: spec compliance and
-code quality. In an epic the reviewer is a **Role 2.1 AI Architect & Reviewer**
-subagent dispatched `--mode read-only` on the `ai_architect_reviewer` binding:
-it never edits files, commits, or runs test suites, and the Orchestrator
-(Role 2.2) marks the task `done` on a `PASS`.
+Use this template when dispatching a Pass 1 task reviewer subagent. The reviewer
+reads the task's diff once and evaluates spec compliance and code quality under the
+Blocker-Only rubric (`max_task_review_passes = 2`, `max_fix_passes = 1`). In an epic
+the reviewer is a **Role 2.1 AI Architect & Reviewer** subagent dispatched
+`--mode read-only` on the `ai_architect_reviewer` binding: it never edits files,
+commits, or runs test suites, and the Orchestrator (Role 2.2) finalizes on
+`APPROVED` via `finalize-slot`.
 
 **Purpose:** Verify one task's implementation matches its requirements (nothing
 more, nothing less) and is well-built (clean, tested, maintainable)
 
-```
+````text
 Subagent (general-purpose):
   description: "Review Task N (spec + quality)"
   model: [MODEL — REQUIRED: in an epic, the `ai_architect_reviewer` binding from
@@ -161,19 +162,24 @@ Subagent (general-purpose):
     file:line, or a check you ran — no preamble, no process narration,
     no closing summary.
 
-    ## Calibration
+    ## Calibration (Blocker-Only Severity Rubric)
 
-    Categorize issues by actual severity. Not everything is Critical.
-    Important means this task cannot be trusted until it is fixed: incorrect
-    or fragile behavior, a missed requirement, or maintainability damage you
-    would block a merge over — verbatim duplication of a logic block,
-    swallowed errors, tests that assert nothing. "Coverage could be broader"
-    and polish suggestions are Minor.
+    Report all blocking defects upfront in Pass 1 (`max_task_review_passes = 2`,
+    `max_fix_passes = 1`). Classify every issue strictly as either:
+    - **`BLOCKER`** (required to trigger `CHANGES_REQUESTED`, or **Critical**
+      when evidence/done_gate fails): direct violation of an approved BDD
+      scenario, HLD contract, or API schema (`BDD_VIOLATION`,
+      `CONTRACT_SCHEMA_VIOLATION`), runtime crash/unhandled error/failing test
+      or `done_gate: FAIL` (`RUNTIME_SAFETY`), or `Allowed files`/layer
+      boundary breach (`OWNERSHIP_ARCHITECTURE_VIOLATION`).
+    - **`NON_BLOCKING_OBSERVATION`** (MUST return `APPROVED`): minor edge-case
+      refinements outside approved BDD scenarios, style nits, or
+      micro-optimizations. Log these under `Observations (Non-Blocking)` and
+      `"observations"` with `"verdict": "APPROVED"` so the task lands without
+      a fix pass.
     If the plan or brief explicitly mandates something this rubric calls a
     defect (a test that asserts nothing, verbatim duplication of a logic
-    block), that IS a finding — report it as Important, labeled
-    plan-mandated. The plan's authorship does not grade its own work; the
-    human decides.
+    block), that IS a `BLOCKER` finding labeled `plan-mandated`.
     Acknowledge what was done well before listing issues — accurate praise
     helps the implementer trust the rest of the feedback.
 
@@ -190,21 +196,28 @@ Subagent (general-purpose):
     ### Strengths
     [What's well done? Be specific.]
 
-    ### Issues
+    ### BLOCKER Findings (Triggers CHANGES_REQUESTED)
 
-    #### Critical (Must Fix)
-    #### Important (Should Fix)
-    #### Minor (Nice to Have)
+    Each entry needs `id` (`BLK-1`, ...), `category` (`BDD_VIOLATION` |
+    `CONTRACT_SCHEMA_VIOLATION` | `RUNTIME_SAFETY` |
+    `OWNERSHIP_ARCHITECTURE_VIOLATION`), `file`, `summary`, and `remediation`.
+    "None" if 0 blockers.
 
-    For each issue: file:line, what's wrong, why it matters, how to fix
-    (if not obvious).
+    ### Observations (Non-Blocking)
+
+    Minor/polish `NON_BLOCKING_OBSERVATION` items (`OBS-1`, ...). "None" if none.
 
     ### Assessment
 
-    **Task quality:** [Approved | Needs fixes]
+    **Verdict:** [APPROVED | CHANGES_REQUESTED]
 
     **Reasoning:** [1-2 sentence technical assessment]
-```
+
+    End with exactly one fenced `json` block matching:
+    ```json
+    {"task_id": "...", "pass": 1, "verdict": "APPROVED|CHANGES_REQUESTED", "head_sha": "...", "done_gate": "PASS|FAIL", "blockers": [...], "observations": [...]}
+    ```
+````
 
 **Placeholders:**
 - `[MODEL]` — REQUIRED: in an epic, the `ai_architect_reviewer` binding printed by `dev_config.py resolve`; outside an epic, the reviewer model per SKILL.md Model Selection
@@ -226,5 +239,4 @@ Subagent (general-purpose):
 - `[SCRIPTS]`, `[TASK_MIRROR]` — for a task with a Verification table:
   dev-implementation's `resources/scripts` directory and the task's mirror
 
-**Reviewer returns:** Spec Compliance verdict (✅/❌/⚠️), Strengths, Issues
-(Critical/Important/Minor), Task quality verdict
+**Reviewer returns:** Spec Compliance verdict (✅/❌/⚠️), Strengths, BLOCKER / Observations (Non-Blocking) triage, and fenced JSON contract (`APPROVED` / `CHANGES_REQUESTED`)

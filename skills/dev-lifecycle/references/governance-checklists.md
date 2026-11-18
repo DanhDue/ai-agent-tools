@@ -36,6 +36,15 @@
 - **Intermediate Rounds (Tier 1 Only)**: Run fast static checks (`ruff`, `mypy`, `lint-imports`, AST invariants) plus targeted pytest files covering modified modules (`uv run pytest <changed_test_files> -n auto --timeout=30 -q --tb=short`, or module-scoped runner for non-Python projects). Repo-wide `pytest`, `tests/e2e/` browser suites, and unfiltered `| tail` runs are forbidden until Final Convergence Gate (`Gate 4 in full`).
 - **Zero-Tolerance Anti-Evasion**: Never delete a required dependency from `pyproject.toml` instead of running `uv lock`; never delete stale reports without regenerating them; never synthesize fake test data in place of immutable disk fixtures; always run `uv run playwright install chromium` after adding/upgrading `playwright`.
 
+### 1.4 Per-Task Review Cap, Blocker-Only Rubric & Two-Tier Risk Assessment Gate
+- **Hard Cap**: `max_task_review_passes = 2`, `max_fix_passes = 1` (resolved via `persona_config.py`, enforced by `manage_worker_pool.py` exit `2` and `lifecycle_runner.py`).
+- **Blocker-Only Severity Rubric (`BLOCKER` vs. `NON_BLOCKING_OBSERVATION`)**:
+  - **`BLOCKER`** (triggers `CHANGES_REQUESTED`): direct BDD/HLD/API contract breach (`BDD_VIOLATION`, `CONTRACT_SCHEMA_VIOLATION`), crash/unhandled error/failed gate (`RUNTIME_SAFETY`), or `Allowed files`/layer boundary breach (`OWNERSHIP_ARCHITECTURE_VIOLATION`).
+  - **`NON_BLOCKING_OBSERVATION`** (MUST return `APPROVED`): minor non-BDD edge refinements, style nits, or micro-optimizations; recorded under `Observations (Non-Blocking)` / `"observations"` and persisted to `review_audit_notes.jsonl` without a fix pass. Empty `blockers` with `done_gate: "PASS"` is coerced to `APPROVED`.
+- **Two-Tier Risk Assessment Gate (after Fix Pass 1)**:
+  - **Tier 1 (`manage_worker_pool.py triage-fix`)**: Deterministic diff check over `pass1_tree_sha..curr_tree_sha`; returns `HIGH_RISK` (`bounded_diff: null`) on `> 30` non-test changed lines, sensitive surface edits, or weakened test assertions; otherwise `ELIGIBLE_FOR_SHORT_CIRCUIT` (`<= 30` non-test changed lines).
+  - **Tier 2 (`Role 2.2` `RiskAssessment`)**: Single bounded Role 2.2 semantic ruling comparing `ELIGIBLE_FOR_SHORT_CIRCUIT` `bounded_diff` against `pass1_blockers`: `LOW` routes to `finalize-slot --mode tier2-short-circuit --risk-level LOW`; `MEDIUM`/`HIGH` (or Tier 1 `HIGH_RISK`) routes to Review Pass 2 Delta-Only (`--review-pass 2`, `DIRECT_REGRESSION` only), then `finalize-slot --mode pass2-complete` (logs residual remarks to `review_audit_notes.jsonl`, zero Fix Pass 2).
+
 ---
 
 ## 2. Multi-Repo Governance, Memory Checkpointing & IDE Window Signatures

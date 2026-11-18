@@ -58,16 +58,16 @@ External reviews use `max_rounds = 3` and Auto-Triage; details: [governance-chec
 
 ## 8. Mandatory Two-Tier Project Memory & Four-Persona Discipline
 
-1. **Startup Context**: Run `python3 scripts/resume_context.py` once on entering dev lifecycle work and summarize in 5–10 bullets (exempt `/refresh-session`).
+1. **Startup Context**: Run `scripts/resume_context.py` once on entering lifecycle work; summarize in 5–10 bullets (exempt `/refresh-session`).
 2. **Four Personas** ([orchestration-roles.md](../skills/dev-lifecycle/references/orchestration-roles.md)):
    - **Role 1.0 Human Architect**: Vision, Gates 1, 2, 5, Stage 4 Finish, escalations.
    - **Role 2.1 AI Architect & Reviewer** (`ai_architect_reviewer`): Stage 1–2 design, packaging; Stage 3 `task-reviewer`, `fix-planner`. Never edits `src/`/`tests/`, runs tests, dispatches subagents, or manages the pool.
-   - **Role 2.2 Orchestrator** (`orchestrator`): Gate 3, worker pool, dispatches 2.1/2.3 subagents, verifies claims, marks tasks `done`. Never reads/edits `src/`/`tests/` or HLD/BDD/Verification tables/DoD/`Allowed files`, or runs tests, linters, `run_task_checks.py`.
+   - **Role 2.2 Orchestrator** (`orchestrator`): Gate 3, pool, dispatches 2.1/2.3 subagents, verifies claims, marks `done`. Never reads/edits `src/`/`tests/` or HLD/BDD/Verification/DoD/`Allowed files`, or runs tests, linters, `run_task_checks.py` (except `triage-fix`/`finalize-slot`).
    - **Role 2.3 Programmer** (`programmer`, default `gemini-4-hydrogen-xhigh`): `task-implementer`, `review-fixer`, `gate4-verifier` in `Allowed files`; no pool calls.
-3. **Session map & models**: Role 1.0 opens Stages 1–2 on the `ai_architect_reviewer` model, Stage 3 on the `orchestrator` model (`--emit-prompt implement`). Subagents use their persona's binding from `python3 scripts/dev_config.py resolve <persona> --format argv --mode <read-only|write>` (switch via `/d3nexus:dev-config`). Model unavailable (CLI, auth, quota): no fallback, no retry; checkpoint, `--pending-decision`, stop.
+3. **Session map & models**: Role 1.0 opens Stages 1–2 on `ai_architect_reviewer`, Stage 3 on `orchestrator` (`--emit-prompt implement`). Subagents use `python3 scripts/dev_config.py resolve <persona> --format argv --mode <read-only|write>` (`/d3nexus:dev-config`). Model unavailable (CLI, auth, quota): no fallback/retry; checkpoint, `--pending-decision`, stop.
 4. **Checkpoints** (`resume_context.py --checkpoint <event> --epic <slug>`): `gate2_tasks_locked` (2.1), `subagent_returned`, `wave_merged` (2.2), `model_unavailable`, `turn_budget`, `low_quota_stop`, `quota_low`.
-5. **Turn budget & quota gate**: `checkpoint_policy.max_orchestrator_turns_before_checkpoint` (default 8) caps tool calls between checkpoints; `/d3nexus:dev-config low-quota on` halves it and stops after the wave in flight. `dev_config.py quota-check` runs before Stage 3, each wave and each fix round; exit `2` checkpoints `quota_low`, records a `quota` pending decision, stops.
-6. **Choice A & English SSOT**: Record Choice A pauses (`--pending-decision`, cleared on `--gate`/non-paused `--state`/`--revise`) and creator PIC (`--detect-profile`); `--complete` at Stage 4; low-quota, `window.title`: [checklists](../skills/dev-lifecycle/references/governance-checklists.md). Persisted dev artefacts are English-only; chat with Role 1.0 may use Vietnamese; Vietnamese files only on explicit Role 1.0 request.
+5. **Turn budget & quota gate**: `checkpoint_policy.max_orchestrator_turns_before_checkpoint` (default 8) caps tool calls between checkpoints; `/d3nexus:dev-config low-quota on` halves it, stops after the active wave. `dev_config.py quota-check` runs before Stage 3, waves, fix rounds; exit `2` checkpoints `quota_low`, records a `quota` pending decision, stops.
+6. **Choice A & English SSOT**: Record Choice A pauses (`--pending-decision`, cleared on `--gate`/non-paused `--state`/`--revise`) and creator PIC (`--detect-profile`); `--complete` at Stage 4; low-quota, `window.title`: [checklists](../skills/dev-lifecycle/references/governance-checklists.md). Dev artefacts are English-only; chat with Role 1.0 may use Vietnamese; Vietnamese files only on explicit Role 1.0 request.
 
 ## 9. Shell Configuration (`.zshrc`) & Multi-Profile OS Boundary Safety
 

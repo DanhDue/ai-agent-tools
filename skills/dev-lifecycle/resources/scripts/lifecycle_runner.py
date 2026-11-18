@@ -107,6 +107,13 @@ def _epic_docs() -> Any:
     )
 
 
+def _manage_worker_pool() -> Any:
+    return _load_kit_module(
+        "manage_worker_pool",
+        "skills/dev-implementation/resources/scripts/manage_worker_pool.py",
+    )
+
+
 def normalize_agy_effort(raw: str) -> str:
     """Normalize reasoning effort aliases ('extra', 'extra-high', 'xhigh') for agy CLI."""
     cleaned = raw.strip().lower()
@@ -756,6 +763,8 @@ class LifecycleRunner:
         self.checkpoint_writer: Any = _state_envelope().update_epic_checkpoint
         self._turns_since_budget_checkpoint: int = 0
         self._checkpoint_lock = threading.Lock()
+        self._pending_audit_notes: dict[str, list[dict[str, Any]]] = {}
+        self._audit_notes_lock = threading.Lock()
         self._halted_by_stop: bool = False
         self._pending_quota_warning: str | None = None
         self.state = self.load_or_init_state()
@@ -1689,8 +1698,11 @@ class LifecycleRunner:
         task_file: Path | None,
         exec_root: Path,
         impl_head_sha: str,
+        review_pass: int = 1,
+        pass1_tree_sha: str | None = None,
+        pass1_blockers: Sequence[Mapping[str, Any]] | None = None,
     ) -> str:
-        """Build read-only Role 2.1 task-reviewer brief for selective gating."""
+        """Build read-only Role 2.1 task-reviewer brief for Pass 1 or Pass 2 Delta-Only audit."""
         task_rel = f".devtool/features/{task_slug}.md"
         if task_file is not None:
             try:
@@ -1699,14 +1711,160 @@ class LifecycleRunner:
                 task_rel = str(task_file)
         anchors = self._resolve_epic_anchor_rels(exec_root)
         anchor_text = ", ".join(anchors) if anchors else "(none)"
-        return (
+        common = (
             f"You are Role 2.1 AI Architect & Reviewer (`task-reviewer`, read-only).\n"
-            f"Review task `{task_slug}` in `{exec_root}` at candidate head_sha `{impl_head_sha}`.\n"
+            f"Review task `{task_slug}` in `{exec_root}` at candidate head_sha `{impl_head_sha}` "
+            f"(Pass {review_pass}).\n"
             f"- Task spec: `{task_rel}`\n"
             f"- English SSOT epic docs: {anchor_text}\n"
             f"- Boundaries: Read-only. Do NOT edit files, mark tasks done, or commit.\n"
-            f'- End with fenced json: `{{"task_id": "{task_slug}", "verdict": "PASS|FAIL", "head_sha": "{impl_head_sha}", "done_gate": "PASS|FAIL", "findings": []}}`\n'
         )
+        if review_pass >= 2:
+            sha_ref = (pass1_tree_sha or "").strip() or "<pass1_tree_sha>"
+            blockers_json = json.dumps(
+                [dict(item) for item in (pass1_blockers or ())],
+                ensure_ascii=False,
+            )
+            return (
+                f"{common}"
+                f"- Scope: Delta-Only Verification — inspect ONLY `git diff {sha_ref}`, "
+                f"Pass 1 blockers, `run_task_checks.py status`, and `check_bdd_traceability.py`.\n"
+                f"- Strict Rule: Do NOT introduce new non-regression findings, new edge cases, "
+                f"or style nitpicks in Pass 2. Only unresolved Pass 1 blockers or direct regressions "
+                f"introduced by Fix Pass 1 (`DIRECT_REGRESSION`) may appear in `blockers`.\n"
+                f"- Pass 1 blockers: {blockers_json}\n"
+                f'- End with fenced json: `{{"task_id": "{task_slug}", "pass": {review_pass}, '
+                f'"verdict": "APPROVED|CHANGES_REQUESTED", "head_sha": "{impl_head_sha}", '
+                f'"done_gate": "PASS|FAIL", "blockers": [], "observations": []}}`\n'
+            )
+        return (
+            f"{common}"
+            f"- Severity Rubric (Blocker-Only): Report `BLOCKER` defects (`BDD_VIOLATION`, "
+            f"`CONTRACT_SCHEMA_VIOLATION`, `RUNTIME_SAFETY`, `OWNERSHIP_ARCHITECTURE_VIOLATION`) "
+            f"in `blockers` to return `CHANGES_REQUESTED`. Log minor refinements/style nits as "
+            f"`NON_BLOCKING_OBSERVATION` in `observations` with `\"verdict\": \"APPROVED\"` "
+            f"(legacy `PASS`/`FAIL` remains accepted).\n"
+            f'- End with fenced json: `{{"task_id": "{task_slug}", "pass": 1, '
+            f'"verdict": "APPROVED|CHANGES_REQUESTED", "head_sha": "{impl_head_sha}", '
+            f'"done_gate": "PASS|FAIL", "blockers": [], "observations": []}}`\n'
+        )
+
+    def _resolve_task_review_bounds(self) -> tuple[int, int, int]:
+        """Return (max_review_passes, max_fix_passes, max_attempts) from persona_config."""
+        pc = _persona_config()
+        if self.config.real_home is not None:
+            max_review_passes, max_fix_passes = pc.resolve_task_review_limits(
+                self.root, real_home=self.config.real_home
+            )
+        else:
+            max_review_passes, max_fix_passes = pc.resolve_task_review_limits(self.root)
+        max_attempts = max(1, min(int(max_review_passes), int(max_fix_passes) + 1))
+        return int(max_review_passes), int(max_fix_passes), max_attempts
+
+    def _record_or_queue_review_audit_note(
+        self,
+        task_slug: str,
+        exec_root: Path,
+        worktree_dir: Path | None,
+        entry: dict[str, Any],
+    ) -> None:
+        """Write and commit an audit note on exec_root directly, or queue for post-merge flush."""
+        if worktree_dir is None:
+            _manage_worker_pool().append_review_audit_note(
+                self.root,
+                exec_root,
+                self.epic_slug,
+                self.epic_slug,
+                task_slug,
+                entry,
+                commit=self._is_git_repo(exec_root),
+            )
+            return
+        with self._audit_notes_lock:
+            self._pending_audit_notes.setdefault(task_slug, []).append(entry)
+
+    def _evaluate_task_reviewer_output(
+        self,
+        task_slug: str,
+        impl_head_sha: str,
+        rev_code: int,
+        rev_out: str,
+        rev_err: str,
+    ) -> dict[str, Any]:
+        """Normalize Role 2.1 task-reviewer stdout and enforce fail-closed mechanical checks."""
+        rev_summary = _extract_last_fenced_json(rev_out)
+        normalized = (
+            _manage_worker_pool().normalize_task_review_payload(rev_summary)
+            if rev_summary is not None
+            else None
+        )
+        rev_valid = bool(normalized is not None and normalized.get("valid"))
+        rev_verdict = (
+            str(normalized.get("verdict") or "").strip().upper()
+            if normalized is not None
+            else "UNPARSEABLE"
+        ) or "UNPARSEABLE"
+        rev_sha = str(
+            (normalized.get("head_sha") if normalized is not None else None)
+            or (rev_summary.get("head_sha") if rev_summary is not None else None)
+            or ""
+        ).strip()
+        rev_done_gate = (
+            str(normalized.get("done_gate") or "").strip().upper()
+            if normalized is not None
+            else ""
+        )
+        raw_task_id = rev_summary.get("task_id") if rev_summary is not None else None
+        rev_task_id_present = raw_task_id is not None
+        rev_task_id = str(raw_task_id or "").strip() if rev_task_id_present else ""
+        task_id_ok = (not rev_task_id_present) or (rev_task_id == task_slug)
+
+        mechanical_ok = (
+            rev_code == 0
+            and rev_summary is not None
+            and rev_valid
+            and rev_done_gate == "PASS"
+            and task_id_ok
+            and bool(impl_head_sha)
+            and rev_sha == impl_head_sha
+        )
+        blockers: list[dict[str, Any]] = (
+            list(normalized.get("blockers") or [])
+            if normalized is not None
+            else []
+        )
+        observations: list[Any] = (
+            list(normalized.get("observations") or [])
+            if normalized is not None
+            else []
+        )
+        coerced = bool(
+            normalized is not None and normalized.get("coerced_from_non_blocking")
+        )
+        findings_payload: Any = None
+        if blockers:
+            findings_payload = blockers
+        elif rev_summary is not None and rev_summary.get("findings") is not None:
+            findings_payload = rev_summary.get("findings")
+        findings_text = (
+            json.dumps(findings_payload, ensure_ascii=False)
+            if findings_payload is not None
+            else _tail_lines(rev_err or rev_out, 10)
+        )
+        retry_note = (
+            f"Architect task-reviewer did not PASS for head_sha '{impl_head_sha}' "
+            f"(verdict={rev_verdict or 'UNPARSEABLE'}, done_gate={rev_done_gate or 'missing'}, "
+            f"task_id={rev_task_id or 'none'}, reviewer_sha={rev_sha or 'none'}, "
+            f"blockers={findings_text})."
+        )
+        return {
+            "mechanical_ok": mechanical_ok,
+            "verdict": rev_verdict,
+            "blockers": blockers,
+            "observations": observations,
+            "coerced": coerced,
+            "retry_note": retry_note,
+        }
 
     def _finalize_task_done(
         self,
@@ -1806,9 +1964,17 @@ class LifecycleRunner:
         log_dir = self.root / ".devtool" / "logs" / "tasks"
         log_dir.mkdir(parents=True, exist_ok=True)
         log_file = log_dir / f"{task_slug}.log"
-        retry_note = ""
+        if worktree_dir is not None:
+            with self._audit_notes_lock:
+                self._pending_audit_notes.pop(task_slug, None)
 
-        for _attempt in range(2):
+        _, _, max_attempts = self._resolve_task_review_bounds()
+        retry_note = ""
+        pass1_tree_sha: str | None = None
+        pass1_blockers: list[dict[str, Any]] = []
+
+        for attempt_idx in range(max_attempts):
+            review_pass = attempt_idx + 1
             prompt = (
                 base_prompt
                 if not retry_note
@@ -1877,7 +2043,13 @@ class LifecycleRunner:
                 )
 
             rev_prompt = self._build_task_reviewer_prompt(
-                task_slug, task_file, exec_root, impl_head_sha
+                task_slug,
+                task_file,
+                exec_root,
+                impl_head_sha,
+                review_pass=review_pass,
+                pass1_tree_sha=pass1_tree_sha,
+                pass1_blockers=pass1_blockers,
             )
             rev_code, rev_out, rev_err, rev_disp_ok = self._dispatch_persona(
                 "ai_architect_reviewer",
@@ -1893,65 +2065,85 @@ class LifecycleRunner:
             if not rev_disp_ok:
                 return False
 
-            rev_summary = _extract_last_fenced_json(rev_out)
-            rev_verdict = (
-                str(rev_summary.get("verdict") or "").strip().upper()
-                if rev_summary is not None
-                else ""
+            eval_res = self._evaluate_task_reviewer_output(
+                task_slug, impl_head_sha, rev_code, rev_out, rev_err
             )
-            rev_sha = (
-                str(rev_summary.get("head_sha") or "").strip()
-                if rev_summary is not None
-                else ""
-            )
-            rev_done_gate = (
-                str(rev_summary.get("done_gate") or "").strip().upper()
-                if rev_summary is not None
-                else ""
-            )
-            rev_task_id_present = (
-                rev_summary is not None
-                and "task_id" in rev_summary
-                and rev_summary.get("task_id") is not None
-            )
-            rev_task_id = (
-                str(rev_summary.get("task_id") or "").strip()
-                if rev_task_id_present and rev_summary is not None
-                else ""
-            )
-            task_id_ok = (not rev_task_id_present) or (rev_task_id == task_slug)
-            if (
-                rev_code == 0
-                and rev_verdict == "PASS"
-                and rev_done_gate == "PASS"
-                and task_id_ok
-                and bool(impl_head_sha)
-                and rev_sha == impl_head_sha
-            ):
-                return self._finalize_task_done(
+            mechanical_ok = bool(eval_res["mechanical_ok"])
+            rev_verdict = str(eval_res["verdict"])
+            blockers: list[dict[str, Any]] = eval_res["blockers"]
+            observations: list[Any] = eval_res["observations"]
+            coerced = bool(eval_res["coerced"])
+
+            if mechanical_ok and rev_verdict == "APPROVED":
+                if not self._finalize_task_done(
                     task_slug,
                     exec_root,
                     sync_script,
                     commit_title=(
                         f"[{self.epic_slug.upper()}] Mark {task_slug} done after Architect review"
                     ),
-                )
+                ):
+                    return False
+                if observations or coerced:
+                    event_name = (
+                        "coerced_non_blocking_approval"
+                        if coerced
+                        else f"pass{review_pass}_observations"
+                    )
+                    self._record_or_queue_review_audit_note(
+                        task_slug,
+                        exec_root,
+                        worktree_dir,
+                        {
+                            "event": event_name,
+                            "task_id": task_slug,
+                            "review_pass": review_pass,
+                            "head_sha": impl_head_sha,
+                            "coerced_from_non_blocking": coerced,
+                            "observations": observations,
+                        },
+                    )
+                return True
 
-            findings_text = (
-                json.dumps(rev_summary.get("findings"))
-                if rev_summary is not None and rev_summary.get("findings") is not None
-                else _tail_lines(rev_err or rev_out, 10)
-            )
-            retry_note = (
-                f"Architect task-reviewer did not PASS for head_sha '{impl_head_sha}' "
-                f"(verdict={rev_verdict or 'UNPARSEABLE'}, done_gate={rev_done_gate or 'missing'}, "
-                f"task_id={rev_task_id or 'none'}, reviewer_sha={rev_sha or 'none'}, "
-                f"findings={findings_text})."
-            )
+            if mechanical_ok and review_pass >= max_attempts and review_pass >= 2:
+                if not self._finalize_task_done(
+                    task_slug,
+                    exec_root,
+                    sync_script,
+                    commit_title=(
+                        f"[{self.epic_slug.upper()}] Mark {task_slug} done after Architect review"
+                    ),
+                ):
+                    return False
+                residual_entry: dict[str, Any] = {
+                    "event": "pass2_residual_logged_on_cap",
+                    "task_id": task_slug,
+                    "head_sha": impl_head_sha,
+                    "blockers": blockers,
+                }
+                if observations:
+                    residual_entry["observations"] = observations
+                self._record_or_queue_review_audit_note(
+                    task_slug,
+                    exec_root,
+                    worktree_dir,
+                    residual_entry,
+                )
+                return True
+
+            if review_pass < max_attempts:
+                if review_pass == 1 and self._is_git_repo(exec_root):
+                    pass1_tree_sha = _manage_worker_pool().capture_slot_tree_sha(
+                        exec_root, self.epic_slug
+                    )
+                if blockers:
+                    pass1_blockers = blockers
+            retry_note = str(eval_res["retry_note"])
 
         if not self._halted_by_stop:
+            detail = f": {retry_note}" if retry_note else ""
             self.state.last_error = (
-                f"Task {task_slug} failed Architect task-reviewer verification"
+                f"Task {task_slug} failed Architect task-reviewer verification{detail}"
             )
         return False
 
@@ -2519,6 +2711,8 @@ class LifecycleRunner:
         merge_lock = threading.Lock()
         for slot_idx, task_slug, ok in sorted(results, key=lambda item: item[0]):
             if not ok:
+                with self._audit_notes_lock:
+                    self._pending_audit_notes.pop(task_slug, None)
                 pool_mod.sync_slot(
                     repo_root,
                     self.epic_slug,
@@ -2545,6 +2739,23 @@ class LifecycleRunner:
                     epic_worktree_root=epic_wt,
                     active_wave=wave_num,
                 )
+                with self._audit_notes_lock:
+                    pending_notes = self._pending_audit_notes.pop(task_slug, [])
+                if merged and pending_notes:
+                    append_fn = (
+                        getattr(pool_mod, "append_review_audit_note", None)
+                        or _manage_worker_pool().append_review_audit_note
+                    )
+                    for audit_entry in pending_notes:
+                        append_fn(
+                            repo_root,
+                            epic_wt,
+                            self.epic_slug,
+                            self.epic_slug,
+                            task_slug,
+                            audit_entry,
+                            commit=True,
+                        )
             if not merged:
                 pool_mod.sync_slot(
                     repo_root,

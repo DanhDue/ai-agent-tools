@@ -1,13 +1,15 @@
-# Scoped Re-Review Prompt Template
+# Pass 2 Delta-Only Re-Review Prompt Template
 
-Use this template when dispatching a re-review after a fix round. The
-re-reviewer verifies the findings were addressed and checks the fix diff for
-new breakage. It is not a fresh review — the full review already happened.
+Use this template when dispatching Pass 2 (`max_task_review_passes = 2`,
+`max_fix_passes = 1`) after Fix Pass 1. The re-reviewer performs **Delta-Only
+Verification** over `git diff <pass1_tree_sha>` (`[FIX_BASE_SHA]..[HEAD_SHA]`),
+verifies Pass 1 `BLOCKER` items were resolved, and flags only direct regressions
+(`DIRECT_REGRESSION`). Zero Fix Pass 2 runs after Pass 2.
 
-**Purpose:** Verify each finding from the previous review was addressed, and
-that the fix itself broke nothing.
+**Purpose:** Verify each Pass 1 `BLOCKER` was resolved and that Fix Pass 1
+introduced no `DIRECT_REGRESSION`.
 
-```
+````text
 Subagent (general-purpose):
   description: "Re-review Task N fix round R"
   model: [MODEL — REQUIRED: choose per SKILL.md Model Selection; an omitted
@@ -52,14 +54,17 @@ Subagent (general-purpose):
     verdict counts for nothing. If the diff feels too large for one
     pass, review it in passes yourself and say so in your report.
 
-    ## Scope
+    ## Scope (Pass 2 Delta-Only Verification)
 
-    Your scope is the findings list and the fix diff. Verdict every finding.
-    Inspect the fix diff for new problems the fix itself introduced. Do NOT
-    re-review code the fix did not touch: if you notice an issue entirely
-    outside the fix diff, report it under Out-of-Scope Observations — it
-    does not block this task and does not extend the loop. A broad
-    whole-branch review happens after all tasks are complete.
+    Your scope is strictly **Delta-Only**: inspect ONLY `git diff <pass1_tree_sha>`
+    (`[FIX_BASE_SHA]..[HEAD_SHA]`), the Pass 1 `BLOCKER` list,
+    `run_task_checks.py status`, and `check_bdd_traceability.py`. Verdict every
+    Pass 1 blocker. Introducing new non-regression findings, new edge cases, or
+    state-transition nitpicks in Pass 2 is strictly forbidden — only direct
+    syntax or runtime regressions introduced by Fix Pass 1
+    (`category: "DIRECT_REGRESSION"`) may be flagged as a `BLOCKER`. Minor or
+    out-of-scope observations must be logged under `Observations (Non-Blocking)`
+    / `"observations"` and never block finalization.
 
     ## Tests
 
@@ -77,40 +82,44 @@ Subagent (general-purpose):
     finding's verdict. Every line is a verdict, a finding with file:line,
     or a check you ran — no preamble, no process narration.
 
-    ### Finding Verdicts
+    ### Pass 1 Blocker Verdicts
 
-    For each finding in The Findings Under Verification, in order:
-    - **[finding one-liner]** — ADDRESSED | NOT ADDRESSED, with file:line
+    For each `BLOCKER` in The Findings Under Verification, in order:
+    - **[BLK-N one-liner]** — ADDRESSED | NOT ADDRESSED, with file:line
       evidence. "Attempted" is not addressed: the specific defect must no
       longer exist.
 
-    ### New Breakage in the Fix Diff
+    ### Direct Regressions in Fix Diff (`DIRECT_REGRESSION` only)
 
-    Anything the fix itself broke or introduced, with severity
-    (Critical/Important/Minor) and file:line. "None" if clean.
+    Direct syntax or runtime regressions introduced by the fix diff itself,
+    with file:line. "None" if clean.
 
-    ### Out-of-Scope Observations
+    ### Observations (Non-Blocking)
 
-    Issues you noticed entirely outside the fix diff. Non-blocking; the
-    controller ledgers these for the final review. "None" if none.
+    Any `NON_BLOCKING_OBSERVATION` items noticed (logged to
+    `review_audit_notes.jsonl`; non-blocking). "None" if none.
 
     ### Verdict
 
-    **Fix round:** [All findings addressed, no new Critical/Important
-    breakage | Findings remain open] — list the open ones.
-```
+    **Verdict:** [APPROVED | CHANGES_REQUESTED]
+
+    End with exactly one fenced `json` block matching:
+    ```json
+    {"task_id": "...", "pass": 2, "verdict": "APPROVED|CHANGES_REQUESTED", "head_sha": "...", "done_gate": "PASS|FAIL", "blockers": [...], "observations": [...]}
+    ```
+````
 
 **Placeholders:**
 - `[MODEL]` — REQUIRED: reviewer model per SKILL.md Model Selection; scoped
   re-reviews of small fix diffs take a cheap-to-mid tier
 - `[BRIEF_FILE]` — the task brief file (same file the implementer worked from)
-- `[FINDINGS]` — the Critical/Important findings and spec gaps from the
-  previous review, copied verbatim, one per bullet
+- `[FINDINGS]` — the Pass 1 `BLOCKER` findings from the previous review,
+  copied verbatim, one per bullet
 - `[REPORT_FILE]` — the implementer's report file (fix reports appended)
-- `[FIX_BASE_SHA]` — the head the previous review saw (for an uncommitted
-  task, the tree id the previous review package printed)
+- `[FIX_BASE_SHA]` — the `pass1_tree_sha` (or pre-fix commit) the previous review saw
 - `[HEAD_SHA]` — current commit, or `WORKTREE` for an uncommitted task
 - `[DIFF_FILE]` — the path `scripts/review-package PLAN_FILE FIX_BASE HEAD` printed
 
-**Re-reviewer returns:** per-finding verdicts (ADDRESSED / NOT ADDRESSED),
-new breakage in the fix diff, out-of-scope observations, and a round verdict.
+**Re-reviewer returns:** Pass 1 `BLOCKER` verdicts (`ADDRESSED` / `NOT ADDRESSED`),
+`DIRECT_REGRESSION` checks in the fix diff, `Observations (Non-Blocking)`, and
+fenced JSON verdict (`APPROVED` / `CHANGES_REQUESTED`).

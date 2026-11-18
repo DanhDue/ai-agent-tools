@@ -234,6 +234,7 @@ def cmd_status(
     lq_state = _pc.low_quota_state(project_root, profile, real_home=real_home)
     base_turns = int(cfg["checkpoint_policy"]["max_orchestrator_turns_before_checkpoint"])
     eff_turns = _pc.effective_turn_budget(project_root, profile, real_home=real_home)
+    max_rev, max_fix = _pc.resolve_task_review_limits(project_root, real_home=real_home)
 
     warnings = _pc.detect_legacy_warnings(project_root)
     personas_payload: dict[str, Any] = {}
@@ -254,6 +255,10 @@ def cmd_status(
         "presets": list(cfg["presets"].keys()),
         "profile": profile,
         "turn_budget": {"base": base_turns, "effective": eff_turns},
+        "task_review_limits": {
+            "max_task_review_passes": max_rev,
+            "max_fix_passes": max_fix,
+        },
         "low_quota": lq_state,
         "personas": personas_payload,
         "warnings": warnings,
@@ -264,6 +269,10 @@ def cmd_status(
 
     print(f"Active preset: {cfg['active_preset']} (presets: {', '.join(payload['presets'])})")
     print(f"Profile: {profile} | Turn budget: {eff_turns} (base {base_turns})")
+    print(
+        f"Task review limits: max_task_review_passes={max_rev}, "
+        f"max_fix_passes={max_fix}"
+    )
     if lq_state:
         print(f"Low-quota mode: ON (expires_at={lq_state.get('expires_at', 'none')})")
     else:
