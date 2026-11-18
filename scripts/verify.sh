@@ -403,6 +403,7 @@ SUITES = [
     ("11", "pytest",   "tests/test_fpg_governance_text.py", 5, True),
     ("11", "pytest",   "tests/test_fpg_english_only_text.py", 5, True),
     ("11", "pytest",   "tests/test_fpg_acceptance.py", 25, False),
+    ("11", "pytest",   "tests/test_agy_effortless_models.py", 15, False),
     # Section 12: Branch integration script
     ("12", "unittest", "skills/finishing-a-development-branch/resources/scripts/test_integrate_branch.py", 80, False),
     # Section 13: Quality provider contracts, schemas, aggregation, and platform capabilities

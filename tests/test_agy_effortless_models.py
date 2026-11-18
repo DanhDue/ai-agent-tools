@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 from types import ModuleType
 from typing import Any
@@ -13,6 +16,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PERSONA_CONFIG_SCRIPT = REPO_ROOT / "scripts" / "persona_config.py"
+DEV_CONFIG_SCRIPT = REPO_ROOT / "scripts" / "dev_config.py"
 
 
 def _load_module(name: str, path: Path) -> ModuleType:
@@ -42,6 +46,10 @@ def _make_stub_bin(bin_dir: Path, names: tuple[str, ...]) -> None:
         exe = bin_dir / name
         exe.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         exe.chmod(0o755)
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 EXPECTED_PRESETS: dict[str, dict[str, dict[str, str]]] = {
@@ -374,3 +382,283 @@ def test_build_dispatch_argv_handles_effort_none_per_cli(
     assert argv == expected_argv
     if cli in ("agy", "claude", "kiro") and effort == "none":
         assert "--effort" not in argv
+
+
+def _run_cli(
+    args: list[str],
+    *,
+    cwd: Path,
+    real_home: Path,
+    path_dir: Path | None = None,
+) -> subprocess.CompletedProcess[str]:
+    env = dict(os.environ)
+    env["HOME"] = str(real_home)
+    env["REAL_HOME"] = str(real_home)
+    for key in (
+        "AGY_PROFILE",
+        "ANTIGRAVITY_PROFILE",
+        "AGY_PROGRAMMER_MODEL",
+        "AGY_PROGRAMMER_EFFORT",
+        "AGY_ASSISTANT_MODEL",
+    ):
+        env.pop(key, None)
+    if path_dir is not None:
+        env["PATH"] = str(path_dir)
+    return subprocess.run(
+        [sys.executable, str(DEV_CONFIG_SCRIPT), *args],
+        cwd=cwd,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+@pytest.mark.parametrize(
+    ("set_args", "expected_alias", "expected_model_id", "expected_pool"),
+    [
+        (
+            ["set", "orchestrator", "orchestrator-argon"],
+            "orchestrator-argon",
+            "gemini-pro-orchestrator-argon",
+            "argonWeekly",
+        ),
+        (
+            ["set", "orchestrator", "orchestrator-argon", "none"],
+            "orchestrator-argon",
+            "gemini-pro-orchestrator-argon",
+            "argonWeekly",
+        ),
+        (
+            ["set", "orchestrator", "gemini-pro-orchestrator-argon"],
+            "orchestrator-argon",
+            "gemini-pro-orchestrator-argon",
+            "argonWeekly",
+        ),
+        (
+            ["set", "orchestrator", "orchestrator-carbon"],
+            "orchestrator-carbon",
+            "gemini-pro-orchestrator",
+            "gemini5h",
+        ),
+        (
+            [
+                "set",
+                "orchestrator",
+                "--provider",
+                "agy",
+                "--model",
+                "orchestrator-argon",
+            ],
+            "orchestrator-argon",
+            "gemini-pro-orchestrator-argon",
+            "argonWeekly",
+        ),
+        (
+            [
+                "set",
+                "orchestrator",
+                "--provider",
+                "agy",
+                "--model",
+                "gemini-pro-orchestrator-argon",
+            ],
+            "orchestrator-argon",
+            "gemini-pro-orchestrator-argon",
+            "argonWeekly",
+        ),
+    ],
+)
+def test_cli_set_and_resolve_effortless_models_end_to_end(
+    tmp_path: Path,
+    set_args: list[str],
+    expected_alias: str,
+    expected_model_id: str,
+    expected_pool: str,
+) -> None:
+    real_home = tmp_path / "real_home"
+    project = tmp_path / "project"
+    bin_dir = tmp_path / "bin"
+    real_home.mkdir()
+    project.mkdir()
+    _make_stub_bin(bin_dir, ("agy", "claude", "codex", "kiro-cli"))
+
+    res_set = _run_cli(set_args, cwd=project, real_home=real_home, path_dir=bin_dir)
+    assert res_set.returncode == 0, res_set.stderr
+
+    res_json = _run_cli(
+        ["resolve", "orchestrator", "--format", "json"],
+        cwd=project,
+        real_home=real_home,
+        path_dir=bin_dir,
+    )
+    assert res_json.returncode == 0, res_json.stderr
+    resolved = json.loads(res_json.stdout)
+    assert resolved["alias"] == expected_alias
+    assert resolved["model_id"] == expected_model_id
+    assert resolved["effort"] == "none"
+    assert resolved["quota_pool"] == expected_pool
+
+    for mode in ("read-only", "write"):
+        res_argv = _run_cli(
+            ["resolve", "orchestrator", "--format", "argv", "--mode", mode],
+            cwd=project,
+            real_home=real_home,
+            path_dir=bin_dir,
+        )
+        assert res_argv.returncode == 0, res_argv.stderr
+        assert "--effort" not in res_argv.stdout
+        assert expected_model_id in res_argv.stdout
+
+
+def test_cli_set_effortless_with_profile_preference_and_models_add_default(
+    tmp_path: Path,
+) -> None:
+    real_home = tmp_path / "real_home"
+    project = tmp_path / "project"
+    bin_dir = tmp_path / "bin"
+    (real_home / "antigravity_homes" / "p1").mkdir(parents=True)
+    project.mkdir()
+    _make_stub_bin(bin_dir, ("agy",))
+
+    assert (
+        _run_cli(
+            ["profiles", "add", "p1"],
+            cwd=project,
+            real_home=real_home,
+            path_dir=bin_dir,
+        ).returncode
+        == 0
+    )
+
+    res_add = _run_cli(
+        ["models", "add", "custom-orch", "--cli", "agy", "--id", "gemini-pro-custom"],
+        cwd=project,
+        real_home=real_home,
+        path_dir=bin_dir,
+    )
+    assert res_add.returncode == 0, res_add.stderr
+
+    res_set = _run_cli(
+        [
+            "set",
+            "orchestrator",
+            "--provider",
+            "agy",
+            "--profile",
+            "p1",
+            "--model",
+            "custom-orch",
+        ],
+        cwd=project,
+        real_home=real_home,
+        path_dir=bin_dir,
+    )
+    assert res_set.returncode == 0, res_set.stderr
+
+    res_json = _run_cli(
+        ["resolve", "orchestrator", "--format", "json"],
+        cwd=project,
+        real_home=real_home,
+        path_dir=bin_dir,
+    )
+    assert res_json.returncode == 0, res_json.stderr
+    resolved = json.loads(res_json.stdout)
+    assert resolved["alias"] == "custom-orch"
+    assert resolved["model_id"] == "gemini-pro-custom"
+    assert resolved["effort"] == "none"
+    assert resolved["profile"] == "p1"
+
+
+@pytest.mark.parametrize(
+    ("bad_args", "expected_fragment"),
+    [
+        (["set", "orchestrator", "orchestrator-argon", "high"], "allowed: none"),
+        (["set", "programmer", "carbon"], "required: model, effort"),
+        (
+            ["set", "programmer", "--model", "carbon"],
+            "--model and --effort are both required",
+        ),
+        (["set", "programmer", "no-such-model"], "required: model, effort"),
+        (
+            [
+                "set",
+                "programmer",
+                "--provider",
+                "kiro",
+                "--model",
+                "orchestrator-argon",
+            ],
+            "not a kiro model",
+        ),
+        (
+            [
+                "models",
+                "add",
+                "bad-empty",
+                "--cli",
+                "agy",
+                "--id",
+                "x",
+                "--efforts",
+                "",
+            ],
+            "Invalid efforts",
+        ),
+        (
+            [
+                "models",
+                "add",
+                "bad-mix",
+                "--cli",
+                "agy",
+                "--id",
+                "x",
+                "--efforts",
+                "none,high",
+            ],
+            "cannot be combined",
+        ),
+        (
+            [
+                "models",
+                "add",
+                "bad-tpl",
+                "--cli",
+                "agy",
+                "--id",
+                "gemini-pro-{effort}",
+            ],
+            "{effort}",
+        ),
+    ],
+)
+def test_cli_effortless_boundary_rejections_preserve_config_unchanged(
+    tmp_path: Path,
+    bad_args: list[str],
+    expected_fragment: str,
+) -> None:
+    real_home = tmp_path / "real_home"
+    project = tmp_path / "project"
+    bin_dir = tmp_path / "bin"
+    real_home.mkdir()
+    _make_stub_bin(bin_dir, ("agy", "claude", "codex", "kiro-cli"))
+    project_cfg = project / ".agents" / "config" / "personas.json"
+    _write_json(
+        project_cfg,
+        {
+            "schema_version": 1,
+            "overrides": {"programmer": {"model": "hydrogen", "effort": "xhigh"}},
+        },
+    )
+    before = _sha256(project_cfg)
+
+    res = _run_cli(
+        [*bad_args, "--scope", "project"],
+        cwd=project,
+        real_home=real_home,
+        path_dir=bin_dir,
+    )
+    assert res.returncode == 1, (res.stdout, res.stderr)
+    assert expected_fragment in res.stderr, res.stderr
+    assert _sha256(project_cfg) == before

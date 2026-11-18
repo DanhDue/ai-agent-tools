@@ -19,12 +19,12 @@ python3 scripts/dev_config.py <args>
 |---|---|
 | `status [--json]` | Print active preset, persona bindings with source layers, turn budget, low-quota expiry, missing-CLI alerts, and legacy-setting warnings |
 | `models [--persona P] [--json]` (alias `--models`) | List the merged model catalogue, allowed efforts, resolved IDs, `PATH` availability, and current persona users |
-| `models add ALIAS --cli CLI --id ID --efforts E1,E2 [--quota-pool POOL] [--scope global\|project]` | Add or replace a catalogue alias without editing JSON (`cli` in `agy`, `claude`, `codex`, `kiro`; optional `quota_pool` in `argonWeekly`, `gemini5h`, `provider`) |
+| `models add ALIAS --cli CLI --id ID [--efforts E1,E2\|none] [--quota-pool POOL] [--scope global\|project]` | Add or replace a catalogue alias without editing JSON (`cli` in `agy`, `claude`, `codex`, `kiro`; `--efforts` defaults to `none` for fixed-effort models; optional `quota_pool` in `argonWeekly`, `gemini5h`, `provider`) |
 | `models remove ALIAS [--scope global\|project]` | Remove an alias from that layer (refused while any merged binding or fallback references it) |
 | `preset NAME [--scope global\|project]` | Set `active_preset` (`default`, `gemini-saver`, `claude-hybrid`, `all-hydrogen`, `codex-kiro`, `all-claude`, `all-codex`); warns when project settings mask a global change |
 | `--provider agy\|claude\|codex [--scope global\|project]` | One-command quick-setup that sets `active_preset` to the provider's mapped preset and prints the resulting bindings; warns per persona if an override or higher layer masks it |
-| `set PERSONA MODEL EFFORT [--fallback MODEL] [--scope global\|project]` | Override `ai_architect_reviewer`, `orchestrator`, or `programmer` (positional form) |
-| `set PERSONA [--provider agy\|claude\|codex\|kiro] --model M --effort E [--profile NAME\|auto] [--fallback MODEL] [--scope global\|project]` | Flag form of `set`: `--model` is a catalogue alias or a model id, `--provider` checks that the model belongs to that CLI, and `--profile` names a pool profile for `agy` (`auto` clears it). Do not mix it with positional `MODEL EFFORT` |
+| `set PERSONA MODEL [EFFORT] [--fallback MODEL] [--scope global\|project]` | Override `ai_architect_reviewer`, `orchestrator`, or `programmer` (positional form; `EFFORT` may be omitted for fixed-effort models with `efforts: ["none"]`) |
+| `set PERSONA [--provider agy\|claude\|codex\|kiro] --model M [--effort E] [--profile NAME\|auto] [--fallback MODEL] [--scope global\|project]` | Flag form of `set`: `--model` is a catalogue alias or a model id, `--effort` may be omitted for fixed-effort models (`efforts: ["none"]`), `--provider` checks that the model belongs to that CLI, and `--profile` names a pool profile for `agy` (`auto` clears it). Do not mix it with positional `MODEL EFFORT` |
 | `reset [PERSONA] [--scope global\|project]` | Clear one or all persona overrides in the target layer |
 | `low-quota on\|off [--for HOURS] [--profile NAME]` (alias `--low-quota`) | Toggle profile-scoped low-quota mode in the global layer (default 5 hours; halves the turn budget) |
 | `checkpoint --turns N [--scope global\|project]` | Set `checkpoint_policy.max_orchestrator_turns_before_checkpoint` (default `8`) |
@@ -58,10 +58,12 @@ Flag form of `set` names the provider, the model, the effort and, for `agy`, a p
 ```bash
 python3 scripts/dev_config.py set programmer --provider kiro --model claude-sonnet-5.5 --effort high
 python3 scripts/dev_config.py set programmer --provider agy --profile p2 --model hydrogen --effort xhigh
+python3 scripts/dev_config.py set orchestrator orchestrator-argon
+python3 scripts/dev_config.py set orchestrator --provider agy --model gemini-pro-orchestrator-argon
 python3 scripts/dev_config.py set programmer codex-gpt xhigh        # positional form, unchanged
 ```
 
-- `--model` is resolved as a catalogue alias first, then as the `id` of a catalogue entry (with `{effort}` replaced by `--effort`). `--provider` must match the model's CLI. With flags, `--model` and `--effort` are both required, and mixing them with positional `MODEL EFFORT` exits `1`.
+- `--model` is resolved as a catalogue alias first, then as the `id` of a catalogue entry (with `{effort}` replaced by `--effort`). `--provider` must match the model's CLI. `--effort` / `EFFORT` is required for selectable-effort models (`hydrogen`, `argon`, `carbon`, etc.) and defaults to `none` (omitting `--effort` on headless CLI dispatch) only when the model defines `efforts` as `["none"]`; mixing flag options with positional `MODEL EFFORT` exits `1`.
 - `--provider` on `set` is an option of `set`. The top-level `--provider` quick-setup below still cannot be combined with a subcommand.
 - `--profile NAME` applies only to `agy` models and `NAME` must already be in the pool (`profiles add NAME`). The profile is a preference: dispatch tries it first, then rotates through the rest of the pool by priority when it is leased, exhausted, in use or out of quota. `--profile auto` removes the preference.
 - Every `set` replaces the persona's whole override entry in that scope, so a `set` without `--profile` clears a stored preference.
@@ -90,6 +92,7 @@ python3 scripts/dev_config.py set programmer codex-gpt xhigh        # positional
 | `all-claude` | `claude-opus` `high` | `claude-sonnet` `high` | `claude-sonnet` `high` |
 | `all-codex` | `codex-gpt` `high` | `codex-terra` `medium` | `codex-terra` `medium` |
 
+- Built-in `agy` aliases added alongside `argon` and `hydrogen`: `carbon` (`gemini-4-carbon-{effort}`, selectable efforts `low`/`medium`/`high`, pool `gemini5h`), `orchestrator-carbon` (`gemini-pro-orchestrator`, `efforts: ["none"]`, pool `gemini5h`), and `orchestrator-argon` (`gemini-pro-orchestrator-argon`, `efforts: ["none"]`, pool `argonWeekly`).
 - `agy` models with `argon` in the `id` template consume `argonWeekly`; other `agy` models consume `gemini5h`; `claude`, `codex`, and `kiro` consume `provider`.
 - When quota data is unreadable (`quota_unknown`), `quota-check` exits `0` and surfaces the warning without blocking; use `d3nexus:check-quota` for full multi-profile inspection.
 

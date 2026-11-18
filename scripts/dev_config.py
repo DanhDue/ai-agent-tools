@@ -611,6 +611,23 @@ def _resolve_catalogue_alias(
     return matches[0]
 
 
+def _is_effortless_target(
+    models: Mapping[str, Any],
+    raw_model: str,
+    provider: str | None,
+) -> bool:
+    """Return True when raw_model resolves uniquely to a model with efforts == ['none']."""
+    if raw_model in models:
+        return list(models[raw_model].get("efforts", [])) == ["none"]
+    matches = [
+        entry
+        for entry in models.values()
+        if (provider is None or entry.get("cli") == provider)
+        and str(entry.get("id", "")) == raw_model
+    ]
+    return len(matches) == 1 and list(matches[0].get("efforts", [])) == ["none"]
+
+
 def _checked_set_profile(
     profile: str | None,
     *,
@@ -651,23 +668,50 @@ def _resolve_set_request(
         raise PersonaConfigError(
             "Cannot mix the positional MODEL EFFORT form with --model/--effort; use one form"
         )
-    if flagged:
-        if flag_model is None or flag_effort is None:
-            raise PersonaConfigError("--model and --effort are both required when using flags")
-        model, effort = flag_model, flag_effort
-    elif model is None or effort is None:
-        raise PersonaConfigError(
-            "the following arguments are required: model, effort "
-            "(or use --model and --effort)"
-        )
     if provider is not None and provider not in ALLOWED_CLIS:
         raise PersonaConfigError(
             f"Unknown provider '{provider}'; expected one of {', '.join(sorted(ALLOWED_CLIS))}"
         )
-    if not flagged and provider is None and (profile is None or profile == "auto"):
+
+    models: Mapping[str, Any] | None = None
+    inferred_effortless = False
+    if flagged:
+        if flag_model is None:
+            raise PersonaConfigError("--model and --effort are both required when using flags")
+        if flag_effort is None:
+            models = _pc.load_persona_config(project_root, real_home=real_home)["models"]
+            if not _is_effortless_target(models, flag_model, provider):
+                raise PersonaConfigError(
+                    "--model and --effort are both required when using flags"
+                )
+            flag_effort = "none"
+            inferred_effortless = True
+        model, effort = flag_model, flag_effort
+    elif model is None:
+        raise PersonaConfigError(
+            "the following arguments are required: model, effort "
+            "(or use --model and --effort)"
+        )
+    elif effort is None:
+        models = _pc.load_persona_config(project_root, real_home=real_home)["models"]
+        if not _is_effortless_target(models, model, provider):
+            raise PersonaConfigError(
+                "the following arguments are required: model, effort "
+                "(or use --model and --effort)"
+            )
+        effort = "none"
+        inferred_effortless = True
+
+    if (
+        not flagged
+        and provider is None
+        and (profile is None or profile == "auto")
+        and not inferred_effortless
+    ):
         return model, effort, None
 
-    models = _pc.load_persona_config(project_root, real_home=real_home)["models"]
+    if models is None:
+        models = _pc.load_persona_config(project_root, real_home=real_home)["models"]
     alias = _resolve_catalogue_alias(models, model, effort, provider)
     entry = models[alias]
     if provider is not None and entry["cli"] != provider:
@@ -1322,7 +1366,7 @@ def _build_parser() -> _DevConfigParser:
     p_madd.add_argument("alias")
     p_madd.add_argument("--cli", required=True)
     p_madd.add_argument("--id", required=True, dest="model_id")
-    p_madd.add_argument("--efforts", required=True)
+    p_madd.add_argument("--efforts", default="none")
     p_madd.add_argument("--quota-pool", default=None)
     p_madd.add_argument("--scope", default=argparse.SUPPRESS)
 
