@@ -51,3 +51,5 @@
 | 2026-11-18T03:13:09.674681+00:00 | check_quota_dynamic_provider_account_tiers | 1 | fa01d38 | Spec approved by Human Architect (writing-plans route) |  | developer |
 | 2026-11-18T05:31:57.056567+00:00 | check_tasks_kanban_and_stage_title_fixes | 5 | 8fec545 | Option 1: --no-ff merge to main at 8fec545 |  | developer |
 | 2026-11-18T05:31:57.235988+00:00 | check_quota_dynamic_provider_account_tiers | 5 | 8fec545 | Option 1: --no-ff merge to main at 8fec545 |  | developer |
+| 2026-11-18T06:15:07.544592+00:00 | task_review_cap_and_risk_triage | 1 | fce0b70 | Spec approved |  | developer |
+| 2026-11-18T06:32:50.629069+00:00 | review_cap_and_risk_triage | 2 | fce0b70 | 4 tasks across 3 waves confirmed; check_epic_readiness 0 FAIL 0 WARN |  | developer |

@@ -1,9 +1,9 @@
 # Hard Review Cap Blocker-Only Triage and Two-Tier Risk Short-Circuit Design
 
 - **Date**: 2026-11-18
-- **Epic Slug**: `task_review_cap_and_risk_triage`
+- **Epic Slug**: `review_cap_and_risk_triage`
 - **Repository**: `ai-agent-tools` (`d3nexus` plugin)
-- **Status**: Draft for Gate 1 Review
+- **Status**: Approved
 - **PIC**: nguyenhieu000690
 
 ## Table of Contents
@@ -276,7 +276,7 @@ Align `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` with the same
 ### 10.1 Dependencies and Risks
 
 - **Existing Governance Text Contract Tests**: `tests/test_fpg_governance_text.py` and `tests/test_fpg_checkpoint_and_briefs.py` assert specific substrings in `orchestration-roles.md`, `CRITICAL_RULES.md`, and `resume_context.py`. Edits to those files MUST preserve required Four-Persona invariants and update contract assertions in lockstep.
-- **Dirty Unrelated File on `main`**: `skills/check-quota/resources/dashboard/quota_dashboard.html` has uncommitted edits on `main` in `ai-agent-tools`. All Stage 1–2 commits on `main` must stage explicit file paths only (`git add <exact_paths>`), and Stage 3 must execute inside an isolated epic worktree (`.worktrees/task_review_cap_and_risk_triage`).
+- **Dirty Unrelated File on `main`**: `skills/check-quota/resources/dashboard/quota_dashboard.html` has uncommitted edits on `main` in `ai-agent-tools`. All Stage 1–2 commits on `main` must stage explicit file paths only (`git add <exact_paths>`), and Stage 3 must execute inside an isolated epic worktree (`.worktrees/review_cap_and_risk_triage`).
 
 ### 10.2 Verification Plan
 
