@@ -88,10 +88,17 @@ def test_trc_hp_01_layered_task_review_limits_and_status_json(tmp_path: Path) ->
     real_home.mkdir()
     project.mkdir()
 
-    assert persona_config.resolve_task_review_limits(project, real_home=real_home) == (2, 1)
-    assert persona_config.resolve_task_review_limits(REPO_ROOT, real_home=real_home) == (2, 1)
+    assert persona_config.resolve_task_review_limits(project, real_home=real_home) == (
+        2,
+        1,
+    )
+    assert persona_config.resolve_task_review_limits(
+        REPO_ROOT, real_home=real_home
+    ) == (2, 1)
 
-    res_default_json = _run_dev_config(["status", "--json"], cwd=project, real_home=real_home)
+    res_default_json = _run_dev_config(
+        ["status", "--json"], cwd=project, real_home=real_home
+    )
     assert res_default_json.returncode == 0, res_default_json.stderr
     status_payload = json.loads(res_default_json.stdout)
     assert status_payload["task_review_limits"] == {
@@ -113,9 +120,14 @@ def test_trc_hp_01_layered_task_review_limits_and_status_json(tmp_path: Path) ->
         {"schema_version": 1, "max_fix_passes": 1},
     )
 
-    assert persona_config.resolve_task_review_limits(project, real_home=real_home) == (3, 1)
+    assert persona_config.resolve_task_review_limits(project, real_home=real_home) == (
+        3,
+        1,
+    )
 
-    res_override_json = _run_dev_config(["status", "--json"], cwd=project, real_home=real_home)
+    res_override_json = _run_dev_config(
+        ["status", "--json"], cwd=project, real_home=real_home
+    )
     assert res_override_json.returncode == 0, res_override_json.stderr
     override_payload = json.loads(res_override_json.stdout)
     assert override_payload["task_review_limits"] == {
@@ -129,10 +141,22 @@ def test_trc_hp_01_layered_task_review_limits_and_status_json(tmp_path: Path) ->
     [
         ({"schema_version": 1, "max_task_review_passes": 0}, "max_task_review_passes"),
         ({"schema_version": 1, "max_task_review_passes": -1}, "max_task_review_passes"),
-        ({"schema_version": 1, "max_task_review_passes": True}, "max_task_review_passes"),
-        ({"schema_version": 1, "max_task_review_passes": "2"}, "max_task_review_passes"),
-        ({"schema_version": 1, "max_task_review_passes": False}, "max_task_review_passes"),
-        ({"schema_version": 1, "max_task_review_passes": None}, "max_task_review_passes"),
+        (
+            {"schema_version": 1, "max_task_review_passes": True},
+            "max_task_review_passes",
+        ),
+        (
+            {"schema_version": 1, "max_task_review_passes": "2"},
+            "max_task_review_passes",
+        ),
+        (
+            {"schema_version": 1, "max_task_review_passes": False},
+            "max_task_review_passes",
+        ),
+        (
+            {"schema_version": 1, "max_task_review_passes": None},
+            "max_task_review_passes",
+        ),
         ({"schema_version": 1, "max_fix_passes": -1}, "max_fix_passes"),
         ({"schema_version": 1, "max_fix_passes": False}, "max_fix_passes"),
         ({"schema_version": 1, "max_fix_passes": True}, "max_fix_passes"),
@@ -176,7 +200,10 @@ def test_trc_ec_01_boundary_zero_fix_passes_and_merged_validation(
         project / ".agents" / "config" / "personas.json",
         {"schema_version": 1, "max_task_review_passes": 1, "max_fix_passes": 0},
     )
-    assert persona_config.resolve_task_review_limits(project, real_home=real_home) == (1, 0)
+    assert persona_config.resolve_task_review_limits(project, real_home=real_home) == (
+        1,
+        0,
+    )
 
     base_cfg = json.loads(KIT_DEFAULTS_FILE.read_text(encoding="utf-8"))
     base_cfg.pop("max_task_review_passes", None)
@@ -195,10 +222,15 @@ def test_trc_ec_01_boundary_zero_fix_passes_and_merged_validation(
             persona_config.validate_merged_config(bad_cfg)
 
     monkeypatch.setattr(persona_config, "load_persona_config", lambda *_a, **_kw: {})
-    assert persona_config.resolve_task_review_limits(project, real_home=real_home) == (2, 1)
+    assert persona_config.resolve_task_review_limits(project, real_home=real_home) == (
+        2,
+        1,
+    )
 
 
-def test_trc_fr_01_missing_layers_and_malformed_json_fail_closed(tmp_path: Path) -> None:
+def test_trc_fr_01_missing_layers_and_malformed_json_fail_closed(
+    tmp_path: Path,
+) -> None:
     """TRC-FR-01: Missing layers fall back to kit defaults; malformed JSON fails closed."""
     assert getattr(persona_config, "resolve_task_review_limits", None) is not None, (
         "persona_config.resolve_task_review_limits must exist"
@@ -208,7 +240,9 @@ def test_trc_fr_01_missing_layers_and_malformed_json_fail_closed(tmp_path: Path)
     real_home.mkdir()
     project.mkdir()
 
-    assert persona_config.resolve_task_review_limits(project, real_home=str(real_home)) == (2, 1)
+    assert persona_config.resolve_task_review_limits(
+        project, real_home=str(real_home)
+    ) == (2, 1)
     assert persona_config.resolve_task_review_limits(
         tmp_path / "unconfigured_workspace",
         real_home=real_home,
@@ -218,7 +252,9 @@ def test_trc_fr_01_missing_layers_and_malformed_json_fail_closed(tmp_path: Path)
     proj_cfg.parent.mkdir(parents=True, exist_ok=True)
     proj_cfg.write_text("{bad", encoding="utf-8")
 
-    with pytest.raises(persona_config.PersonaConfigError, match=r"\.agents/config/personas\.json"):
+    with pytest.raises(
+        persona_config.PersonaConfigError, match=r"\.agents/config/personas\.json"
+    ):
         persona_config.resolve_task_review_limits(project, real_home=real_home)
 
     proj_cfg.unlink()
@@ -226,5 +262,7 @@ def test_trc_fr_01_missing_layers_and_malformed_json_fail_closed(tmp_path: Path)
     global_cfg.parent.mkdir(parents=True, exist_ok=True)
     global_cfg.write_text("{bad", encoding="utf-8")
 
-    with pytest.raises(persona_config.PersonaConfigError, match=r"\.d3nexus/personas\.json"):
+    with pytest.raises(
+        persona_config.PersonaConfigError, match=r"\.d3nexus/personas\.json"
+    ):
         persona_config.resolve_task_review_limits(project, real_home=real_home)

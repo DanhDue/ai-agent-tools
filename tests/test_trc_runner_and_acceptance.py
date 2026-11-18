@@ -283,7 +283,13 @@ def test_trc_hp_04_end_to_end_runner_and_verify_registration(tmp_path: Path) -> 
                 val = "1" if call_idx == 1 else "0"
                 (wt / "src" / "b.py").write_text(f"B = {val}\n", encoding="utf-8")
                 _git(wt, "add", "src/b.py")
-                _git(wt, "commit", "-q", "-m", f"[TRC_HP04] Implement task_02 pass {call_idx}")
+                _git(
+                    wt,
+                    "commit",
+                    "-q",
+                    "-m",
+                    f"[TRC_HP04] Implement task_02 pass {call_idx}",
+                )
             head_sha = _git(wt, "rev-parse", "HEAD")
             with lock:
                 task_shas[task_slug].append(head_sha)
@@ -293,7 +299,9 @@ def test_trc_hp_04_end_to_end_runner_and_verify_registration(tmp_path: Path) -> 
                 "status": "DONE",
                 "head_sha": head_sha,
                 "verify": "PASS",
-                "changed_files": ["src/a.py"] if task_slug == "task_01" else ["src/b.py"],
+                "changed_files": ["src/a.py"]
+                if task_slug == "task_01"
+                else ["src/b.py"],
                 "non_test_modules_changed": 1,
                 "review_tier": "full",
                 "labels": [],
@@ -303,7 +311,9 @@ def test_trc_hp_04_end_to_end_runner_and_verify_registration(tmp_path: Path) -> 
 
         assert mode == "read-only"
         # Audit notes must never be created inside ephemeral pool slots.
-        assert not (wt / ".devtool" / "epic" / epic / "review_audit_notes.jsonl").exists()
+        assert not (
+            wt / ".devtool" / "epic" / epic / "review_audit_notes.jsonl"
+        ).exists()
         current_head = _git(wt, "rev-parse", "HEAD")
         if task_slug == "task_01":
             rev_out = {
@@ -448,7 +458,7 @@ def test_trc_hp_04_coercion_guard_approves_zero_blocker_changes_requested(
             head = _git(repo, "rev-parse", "HEAD")
             return (
                 0,
-                f'```json\n{json.dumps({"task_id": "task_01", "status": "DONE", "head_sha": head, "verify": "PASS", "finalized": False})}\n```\n',
+                f"```json\n{json.dumps({'task_id': 'task_01', 'status': 'DONE', 'head_sha': head, 'verify': 'PASS', 'finalized': False})}\n```\n",
                 "",
             )
         head = _git(repo, "rev-parse", "HEAD")
@@ -573,7 +583,7 @@ def test_trc_st_04_headless_runner_caps_passes_and_finalizes_on_pass2_residual(
                 head = _git(_repo, "rev-parse", "HEAD")
                 return (
                     0,
-                    f'```json\n{json.dumps({"task_id": "task_01", "status": "DONE", "head_sha": head, "verify": "PASS", "finalized": False})}\n```\n',
+                    f"```json\n{json.dumps({'task_id': 'task_01', 'status': 'DONE', 'head_sha': head, 'verify': 'PASS', 'finalized': False})}\n```\n",
                     "",
                 )
             bad_rev_count += 1
@@ -641,7 +651,7 @@ def test_trc_fr_03_unparseable_reviewer_output_fails_closed(tmp_path: Path) -> N
                 head = _git(_repo, "rev-parse", "HEAD")
                 return (
                     0,
-                    f'```json\n{json.dumps({"task_id": "task_01", "status": "DONE", "head_sha": head, "verify": "PASS", "finalized": False})}\n```\n',
+                    f"```json\n{json.dumps({'task_id': 'task_01', 'status': 'DONE', 'head_sha': head, 'verify': 'PASS', 'finalized': False})}\n```\n",
                     "",
                 )
             _rev_prompts.append(prompt)
@@ -654,7 +664,9 @@ def test_trc_fr_03_unparseable_reviewer_output_fails_closed(tmp_path: Path) -> N
         assert len(impl_prompts) == 2
         assert len(rev_prompts) == 2
         assert "verdict=UNPARSEABLE" in impl_prompts[1]
-        assert runner.state.last_error and "verdict=UNPARSEABLE" in runner.state.last_error
+        assert (
+            runner.state.last_error and "verdict=UNPARSEABLE" in runner.state.last_error
+        )
         assert not (repo / ".devtool" / "features" / "done" / "task_01.md").exists()
         assert not (
             repo / ".devtool" / "epic" / epic / "review_audit_notes.jsonl"
@@ -690,15 +702,23 @@ def test_trc_st_04_pool_batch_flushes_pass2_residual_audit_note_onto_epic_wt(
             impl_count += 1
             (wt / "src" / "a.py").write_text(f"A = {impl_count}\n", encoding="utf-8")
             _git(wt, "add", "src/a.py")
-            _git(wt, "commit", "-q", "-m", f"[TRC_POOL_RES] Impl task_01 pass {impl_count}")
+            _git(
+                wt,
+                "commit",
+                "-q",
+                "-m",
+                f"[TRC_POOL_RES] Impl task_01 pass {impl_count}",
+            )
             head = _git(wt, "rev-parse", "HEAD")
             return (
                 0,
-                f'```json\n{json.dumps({"task_id": "task_01", "slot": 1, "status": "DONE", "head_sha": head, "verify": "PASS", "finalized": False})}\n```\n',
+                f"```json\n{json.dumps({'task_id': 'task_01', 'slot': 1, 'status': 'DONE', 'head_sha': head, 'verify': 'PASS', 'finalized': False})}\n```\n",
                 "",
             )
         rev_count += 1
-        assert not (wt / ".devtool" / "epic" / epic / "review_audit_notes.jsonl").exists()
+        assert not (
+            wt / ".devtool" / "epic" / epic / "review_audit_notes.jsonl"
+        ).exists()
         head = _git(wt, "rev-parse", "HEAD")
         payload = {
             "task_id": "task_01",
@@ -763,12 +783,12 @@ def test_trc_st_04_custom_persona_limits_control_runner_attempts(
         if persona == "programmer":
             return (
                 0,
-                f'```json\n{json.dumps({"task_id": "task_01", "status": "DONE", "head_sha": head, "verify": "PASS", "finalized": False})}\n```\n',
+                f"```json\n{json.dumps({'task_id': 'task_01', 'status': 'DONE', 'head_sha': head, 'verify': 'PASS', 'finalized': False})}\n```\n",
                 "",
             )
         return (
             0,
-            f'```json\n{json.dumps({"task_id": "task_01", "pass": 1, "verdict": "CHANGES_REQUESTED", "head_sha": head, "done_gate": "FAIL", "blockers": [{"id": "BLK-1", "summary": "Gate failed"}], "observations": []})}\n```\n',
+            f"```json\n{json.dumps({'task_id': 'task_01', 'pass': 1, 'verdict': 'CHANGES_REQUESTED', 'head_sha': head, 'done_gate': 'FAIL', 'blockers': [{'id': 'BLK-1', 'summary': 'Gate failed'}], 'observations': []})}\n```\n",
             "",
         )
 
@@ -811,7 +831,7 @@ def test_trc_st_04_custom_persona_limits_control_runner_attempts(
             head = _git(repo3, "rev-parse", "HEAD")
             return (
                 0,
-                f'```json\n{json.dumps({"task_id": "task_01", "status": "DONE", "head_sha": head, "verify": "PASS", "finalized": False})}\n```\n',
+                f"```json\n{json.dumps({'task_id': 'task_01', 'status': 'DONE', 'head_sha': head, 'verify': 'PASS', 'finalized': False})}\n```\n",
                 "",
             )
         rev_pass += 1

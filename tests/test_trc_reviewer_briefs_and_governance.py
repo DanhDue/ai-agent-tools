@@ -446,7 +446,9 @@ def test_trc_ar_01_governance_exceptions_and_caps() -> None:
         "> 2",
         "skip",
     ):
-        assert token in sdd_skill, f"subagent-driven-development/SKILL.md missing {token!r}"
+        assert token in sdd_skill, (
+            f"subagent-driven-development/SKILL.md missing {token!r}"
+        )
 
     tr_prompt = _read("skills/subagent-driven-development/task-reviewer-prompt.md")
     for token in (
