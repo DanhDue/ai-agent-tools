@@ -1341,6 +1341,10 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
                             break
 
             task_count = len(list(d.glob("task_*.md")))
+            for wt_path in _collect_matching_worktrees(repo_path, slug):
+                for ed in _find_epic_dirs_for_checkout(wt_path, slug):
+                    with contextlib.suppress(OSError):
+                        task_count = max(task_count, len(list(ed.glob("task_*.md"))))
             pic = extract_epic_pic(repo_path, slug)
 
             # Last updated mtime calculation
@@ -1539,6 +1543,7 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
     """
     epic_dir = repo_path / ".devtool" / "epic"
     completed_slugs = get_completed_epic_slugs(repo_path)
+    abandoned_slugs = get_abandoned_epic_slugs(repo_path)
 
     candidate_epics: list[str] = []
     if active_epic:
@@ -1549,26 +1554,31 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
             if not d.is_dir() or d.name.startswith("."):
                 continue
             slug = d.name
-            if slug in completed_slugs and slug != active_epic:
+            if (
+                _is_completed_epic(slug, completed_slugs)
+                or _is_completed_epic(slug, abandoned_slugs)
+            ) and _normalize_slug(slug) != _normalize_slug(active_epic or ""):
                 continue
             if slug not in candidate_epics:
                 candidate_epics.append(slug)
 
-    # Fallback if no .devtool/epic exists (e.g. unit test mocks)
-    if not candidate_epics:
-        if active_epic:
-            candidate_epics.append(active_epic)
-        else:
-            features_dir = repo_path / ".devtool" / "features"
-            if features_dir.is_dir():
-                for tf in sorted(features_dir.glob("task_*.md"), key=natural_sort_key):
-                    with contextlib.suppress(Exception):
-                        fm = parse_frontmatter(tf.read_text(encoding="utf-8"))
-                        ep = fm.get("epic")
-                        if ep and ep not in candidate_epics:
-                            candidate_epics.append(ep)
+    features_dir = repo_path / ".devtool" / "features"
+    if features_dir.is_dir():
+        norm_candidates = {_normalize_slug(c) for c in candidate_epics}
+        for tf in sorted(features_dir.glob("task_*.md"), key=natural_sort_key):
+            with contextlib.suppress(Exception):
+                fm = parse_frontmatter(tf.read_text(encoding="utf-8"))
+                ep = str(fm.get("epic") or "").strip()
+                if (
+                    ep
+                    and not _is_completed_epic(ep, completed_slugs)
+                    and not _is_completed_epic(ep, abandoned_slugs)
+                    and _normalize_slug(ep) not in norm_candidates
+                ):
+                    candidate_epics.append(ep)
+                    norm_candidates.add(_normalize_slug(ep))
 
-    seen_tasks: set[str] = set()
+    seen_tasks: set[tuple[str, str]] = set()
     tally = {"backlog": 0, "todo": 0, "in-progress": 0, "review": 0, "done": 0}
     active_task: str | None = None
     all_tasks: list[dict[str, Any]] = []
@@ -1623,7 +1633,8 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
                     continue
                 for tf in sorted(d.glob("task_*.md"), key=natural_sort_key):
                     task_id = tf.stem
-                    if task_id in seen_tasks:
+                    seen_key = (_normalize_slug(ep), task_id)
+                    if seen_key in seen_tasks:
                         continue
                     with contextlib.suppress(OSError, UnicodeDecodeError):
                         content = tf.read_text(encoding="utf-8")
@@ -1640,7 +1651,7 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
                         ) or (not task_epic and d.name != ep and ep not in str(d)):
                             continue
 
-                        seen_tasks.add(task_id)
+                        seen_tasks.add(seen_key)
                         status = normalize_task_status(fm.get("status"))
 
                         title = task_id
@@ -1685,18 +1696,28 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
             continue
         for tf in sorted(d.glob("task_*.md"), key=natural_sort_key):
             task_id = tf.stem
-            if task_id in seen_tasks:
-                continue
             with contextlib.suppress(OSError, UnicodeDecodeError):
                 content = tf.read_text(encoding="utf-8")
                 fm = parse_frontmatter(content)
                 task_epic = fm.get("epic") or "backlog"
+                seen_key = (_normalize_slug(str(task_epic)), task_id)
+                if seen_key in seen_tasks:
+                    continue
+                is_active_match = bool(
+                    active_epic
+                    and _normalize_slug(str(task_epic)) == _normalize_slug(active_epic)
+                )
+                if not is_active_match and (
+                    _is_completed_epic(str(task_epic), completed_slugs)
+                    or _is_completed_epic(str(task_epic), abandoned_slugs)
+                ):
+                    continue
                 if candidate_epics:
                     norm_candidates = {_normalize_slug(e) for e in candidate_epics}
-                    if _normalize_slug(task_epic) not in norm_candidates:
+                    if _normalize_slug(str(task_epic)) not in norm_candidates:
                         continue
 
-                seen_tasks.add(task_id)
+                seen_tasks.add(seen_key)
                 status = normalize_task_status(fm.get("status"))
 
                 title = task_id
@@ -2279,9 +2300,20 @@ def derive_lifecycle_state(
             for t in task_progress.tasks
             if _normalize_slug(str(t.get("epic") or "")) == norm_active
         ]
-        active_total = len(active_tasks)
+        packaged_dir_task_count = 0
+        for checkout in [
+            find_epic_worktree_path(repo_path, active_epic),
+            *_collect_matching_worktrees(repo_path, active_epic),
+            repo_path,
+        ]:
+            for ed in _find_epic_dirs_for_checkout(checkout, active_epic):
+                with contextlib.suppress(OSError):
+                    packaged_dir_task_count = max(
+                        packaged_dir_task_count, len(list(ed.glob("task_*.md")))
+                    )
+        active_total = max(len(active_tasks), packaged_dir_task_count)
         active_done = sum(1 for t in active_tasks if t.get("status") == "done")
-        if active_total > 0 and active_done == active_total:
+        if active_total > 0 and active_done >= active_total:
             # All tasks done -> automatically run Gate 4 local verification
             return LifecycleDecision(
                 stage_name=LifecycleStage.STAGE_3_PHASE_4_REVIEW.value,
@@ -2775,6 +2807,14 @@ def _parse_review_rounds_summary(
     return summary
 
 
+_STAGE_INDEX_PREFIX_RE = re.compile(r"^\d+\.\s*")
+
+
+def _strip_stage_index_prefix(label: str) -> str:
+    """Strip leading stage index prefix (e.g. '3. Tasks' -> 'Tasks') for summary strings."""
+    return _STAGE_INDEX_PREFIX_RE.sub("", str(label or "").strip())
+
+
 def build_epic_pipeline_telemetry(
     repo_path: Path,
     epic_slug: str,
@@ -2805,10 +2845,15 @@ def build_epic_pipeline_telemetry(
 
     wt_path = find_epic_worktree_path(repo_path, epic_slug)
     head_sha = _get_short_head_sha(wt_path)
-    epic_dirs = [
-        *_find_epic_dirs_for_checkout(wt_path, epic_slug),
-        *_find_epic_dirs_for_checkout(repo_path, epic_slug),
-    ]
+    epic_dirs: list[Path] = []
+    for checkout in [
+        wt_path,
+        *_collect_matching_worktrees(repo_path, epic_slug),
+        repo_path,
+    ]:
+        for ed_candidate in _find_epic_dirs_for_checkout(checkout, epic_slug):
+            if ed_candidate not in epic_dirs:
+                epic_dirs.append(ed_candidate)
     has_spec = False
     has_hld = False
     has_bdd = False
@@ -2839,8 +2884,7 @@ def build_epic_pipeline_telemetry(
                     code_review_file = f
             dir_task_count = max(dir_task_count, len(list(ed.glob("task_*.md"))))
 
-    if total_tasks == 0 and dir_task_count > 0:
-        total_tasks = dir_task_count
+    total_tasks = max(total_tasks, dir_task_count)
 
     has_wt = (repo_path / ".worktrees" / epic_slug).is_dir() or bool(
         _collect_matching_worktrees(repo_path, epic_slug)
@@ -3284,6 +3328,8 @@ def build_epic_pipeline_telemetry(
             "label": "3. Tasks",
             "status": s3_status,
             "summary": f"{done_tasks}/{total_tasks} ({int(task_completion_pct)}%)",
+            "done_tasks": done_tasks,
+            "total_tasks": total_tasks,
             "sub_steps": s3_sub,
         },
         {
@@ -3341,10 +3387,12 @@ def build_epic_pipeline_telemetry(
     ]
 
     cur_stage_obj = stages[max(0, min(5, current_stage_index - 1))]
-    active_sub_summary = f"{cur_stage_obj['label']} · {cur_stage_obj['summary']}"
+    active_sub_summary = f"{_strip_stage_index_prefix(str(cur_stage_obj['label']))} · {cur_stage_obj['summary']}"
 
     return {
         "epic_slug": epic_slug,
+        "done_tasks": done_tasks,
+        "total_tasks": total_tasks,
         "task_completion_pct": task_completion_pct,
         "lifecycle_progress_pct": lifecycle_progress_pct,
         "current_stage_index": current_stage_index,
@@ -4644,12 +4692,41 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
     # Propagate deterministic action requirements and pipeline_telemetry to each epic in epics_summary
     completed_slugs = get_completed_epic_slugs(repo_path)
     abandoned_slugs = get_abandoned_epic_slugs(repo_path)
+    active_done_tasks = 0
+    active_total_tasks = 0
+    if active_epic:
+        norm_active = _normalize_slug(active_epic)
+        scoped_active_tasks = [
+            t
+            for t in task_progress.tasks
+            if _normalize_slug(str(t.get("epic") or "")) == norm_active
+        ]
+        if scoped_active_tasks:
+            active_done_tasks = sum(
+                1 for t in scoped_active_tasks if t.get("status") == "done"
+            )
+            active_total_tasks = len(scoped_active_tasks)
+        else:
+            distinct_epics = {
+                _normalize_slug(str(t.get("epic") or ""))
+                for t in task_progress.tasks
+                if str(t.get("epic") or "").strip()
+            }
+            known_other_epics = {
+                _normalize_slug(str(ep.get("slug") or ""))
+                for ep in (epics_summary.epics if epics_summary else [])
+                if _normalize_slug(str(ep.get("slug") or "")) != norm_active
+            }
+            if len(distinct_epics) <= 1 and not (distinct_epics & known_other_epics):
+                active_done_tasks = task_progress.done_tasks
+                active_total_tasks = task_progress.total_tasks
+
     pipeline_telemetry = (
         build_epic_pipeline_telemetry(
             repo_path,
             active_epic,
-            done_tasks=task_progress.done_tasks,
-            total_tasks=task_progress.total_tasks,
+            done_tasks=active_done_tasks,
+            total_tasks=active_total_tasks,
             heartbeat=heartbeat,
             quality_active=quality_active,
             pending_decision=matched_pending,
@@ -4718,6 +4795,11 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
                     )
                 )
                 ep["pipeline_telemetry"] = pipeline_telemetry
+                if pipeline_telemetry is not None:
+                    ep["task_count"] = max(
+                        int(ep.get("task_count") or 0),
+                        int(pipeline_telemetry.get("total_tasks") or 0),
+                    )
             else:
                 ep_pd = _match_pending_decision_for_epic(pd_snapshot, slug)
                 ep_decision = derive_lifecycle_state(
@@ -4772,7 +4854,9 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
                 else:
                     ep["action_prompt"] = ""
                 ep["is_review_converged"] = ep_conv
-                if ep.get("status") == "in_progress":
+                if ep.get("status") == "in_progress" or _normalize_slug(
+                    slug
+                ) == _normalize_slug(active_epic or ""):
                     ep_tasks = [
                         t
                         for t in task_progress.tasks
@@ -4780,13 +4864,17 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
                         == _normalize_slug(slug)
                     ]
                     ep_done = sum(1 for t in ep_tasks if t.get("status") == "done")
-                    ep_tot = len(ep_tasks) or int(ep.get("task_count") or 0)
+                    ep_tot = max(len(ep_tasks), int(ep.get("task_count") or 0))
                     ep["pipeline_telemetry"] = build_epic_pipeline_telemetry(
                         repo_path,
                         slug,
                         done_tasks=ep_done,
                         total_tasks=ep_tot,
                         pending_decision=ep_pd,
+                    )
+                    ep["task_count"] = max(
+                        int(ep.get("task_count") or 0),
+                        int(ep["pipeline_telemetry"].get("total_tasks") or 0),
                     )
 
             norm_slug = _normalize_slug(slug)
