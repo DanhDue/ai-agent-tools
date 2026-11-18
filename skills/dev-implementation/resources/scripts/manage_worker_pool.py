@@ -546,6 +546,8 @@ def normalize_task_review_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
                 }
             ]
         normalized_verdict = "CHANGES_REQUESTED"
+    elif normalized_verdict == "APPROVED" and blockers:
+        normalized_verdict = "CHANGES_REQUESTED"
     elif normalized_verdict == "CHANGES_REQUESTED" and not blockers and done_gate == "PASS":
         normalized_verdict = "APPROVED"
         coerced = True
@@ -1045,13 +1047,33 @@ def _is_test_file(rel_path: str) -> bool:
     return name.endswith(("_test.py", ".spec.ts", ".test.ts"))
 
 
+def _extract_diff_header_path(diff_git_line: str) -> str | None:
+    """Extract relative path from a `diff --git a/<p> b/<p>` header produced with --no-renames."""
+    prefix = "diff --git "
+    if not diff_git_line.startswith(prefix):
+        return None
+    rest = diff_git_line[len(prefix) :]
+    mid = len(rest) // 2
+    if (
+        len(rest) >= 5
+        and len(rest) % 2 == 1
+        and rest[mid] == " "
+        and rest[:mid].startswith("a/")
+        and rest[mid + 1 :].startswith("b/")
+        and rest[2:mid] == rest[mid + 3 :]
+    ):
+        return rest[2:mid]
+    return None
+
+
 def _classify_tier1_diff(
     numstat_raw: bytes,
     unified_text: str,
-) -> tuple[list[str], int, int, list[str]]:
+) -> tuple[list[str], int, int, list[str], str | None]:
     non_test_changed_lines = 0
     test_changed_lines = 0
     changed_files: list[str] = []
+    test_stats: dict[str, list[Any]] = {}
 
     tokens = numstat_raw.decode("utf-8", "surrogateescape").split("\0")
     for token in tokens:
@@ -1067,6 +1089,7 @@ def _classify_tier1_diff(
         changed_files.append(rel_path)
         if _is_test_file(rel_path):
             test_changed_lines += changed
+            test_stats.setdefault(rel_path, [0, 0, False])
         else:
             non_test_changed_lines += changed
 
@@ -1074,15 +1097,26 @@ def _classify_tier1_diff(
     if non_test_changed_lines > NON_TEST_DIFF_LINE_CAP:
         fired.add("NON_TEST_DIFF_OVER_30_LINES")
 
-    test_stats: dict[str, list[Any]] = {}
+    non_test_sections: list[str] = []
+    section_lines: list[str] = []
     current_file: str | None = None
     in_hunk = False
 
+    def _flush_section() -> None:
+        if not section_lines:
+            return
+        if current_file is None or not _is_test_file(current_file):
+            non_test_sections.append("\n".join(section_lines))
+
     for line in unified_text.splitlines():
         if line.startswith("diff --git "):
+            _flush_section()
+            section_lines = [line]
             in_hunk = False
-            current_file = None
+            current_file = _extract_diff_header_path(line)
             continue
+
+        section_lines.append(line)
         if not in_hunk:
             if line.startswith("--- "):
                 raw_old = line[4:].strip()
@@ -1128,13 +1162,29 @@ def _classify_tier1_diff(
         if any(p.search(stripped) for p in _CONCURRENCY_RES):
             fired.add("CONCURRENCY_OR_LOCKING_CHANGED")
 
+    _flush_section()
+
     for added_asserts, removed_asserts, skip_added in test_stats.values():
         if (added_asserts - removed_asserts) < 0 or skip_added:
             fired.add("TEST_ASSERTION_WEAKENED")
             break
 
     triggers = [code for code in TIER1_TRIGGER_ORDER if code in fired]
-    return triggers, non_test_changed_lines, test_changed_lines, sorted(set(changed_files))
+    bounded_diff: str | None = None
+    if not triggers:
+        test_summaries = [
+            f"# test-summary {tf}: +{stats[0]}/-{stats[1]} assertions, skip_added={stats[2]}"
+            for tf, stats in sorted(test_stats.items())
+        ]
+        bounded_parts = [*non_test_sections, *test_summaries]
+        bounded_diff = ("\n".join(bounded_parts) + "\n") if bounded_parts else ""
+    return (
+        triggers,
+        non_test_changed_lines,
+        test_changed_lines,
+        sorted(set(changed_files)),
+        bounded_diff,
+    )
 
 
 def triage_fix_slot(
@@ -1169,6 +1219,11 @@ def triage_fix_slot(
         if not pass1_tree_sha:
             raise RuntimeError(
                 f"Slot {slot} has no captured pass1_tree_sha; run sync --status review first"
+            )
+        fix_passes_used = int(counters.get("fix_passes_used", 0))
+        if fix_passes_used != 1:
+            raise RuntimeError(
+                f"Slot {slot} requires fix_passes_used == 1 before triage-fix (got {counters.get('fix_passes_used', 0)})"
             )
         pass1_blockers = list(counters.get("pass1_blockers") or [])
 
@@ -1222,15 +1277,14 @@ def triage_fix_slot(
         check=True,
     )
     unified_text = unified_res.stdout
-    triggers, non_test_lines, test_lines, changed_files = _classify_tier1_diff(
+    triggers, non_test_lines, test_lines, changed_files, bounded_diff = _classify_tier1_diff(
         numstat_res.stdout,
         unified_text,
     )
 
     tier1_status = "HIGH_RISK" if triggers else "ELIGIBLE_FOR_SHORT_CIRCUIT"
-    bounded_diff: str | None = (
-        unified_text if tier1_status == "ELIGIBLE_FOR_SHORT_CIRCUIT" else None
-    )
+    if tier1_status != "ELIGIBLE_FOR_SHORT_CIRCUIT":
+        bounded_diff = None
 
     normalized_risk: str | None = None
     if record_tier2:
@@ -1394,6 +1448,59 @@ def _find_epic_doc(epic_root: Path, stems: list[str]) -> Path | None:
     return None
 
 
+def _resolve_slot_task_mirror(
+    slot_path: Path,
+    epic_dir: str,
+    task_id: str,
+) -> tuple[Path | None, str]:
+    """Resolve a task markdown mirror inside slot_path by exact name or unique prefix."""
+    clean_id = task_id.strip()
+    if (
+        not clean_id
+        or "/" in clean_id
+        or "\\" in clean_id
+        or clean_id in (".", "..")
+    ):
+        return None, task_id
+
+    slot_epic_dir = slot_path / ".devtool" / "epic" / epic_dir
+    if slot_epic_dir.is_dir():
+        exact_epic = slot_epic_dir / f"{clean_id}.md"
+        if exact_epic.is_file() and not exact_epic.name.endswith(".vi.md"):
+            return exact_epic, exact_epic.stem
+        epic_matches = [
+            cand
+            for cand in sorted(slot_epic_dir.glob(f"{clean_id}_*.md"))
+            if cand.is_file() and not cand.name.endswith(".vi.md")
+        ]
+        if len(epic_matches) == 1:
+            return epic_matches[0], epic_matches[0].stem
+        if len(epic_matches) > 1:
+            return None, task_id
+
+    features_dir = slot_path / ".devtool" / "features"
+    done_dir = features_dir / "done"
+    for directory in (features_dir, done_dir):
+        if not directory.is_dir():
+            continue
+        exact_feat = directory / f"{clean_id}.md"
+        if exact_feat.is_file() and not exact_feat.name.endswith(".vi.md"):
+            return exact_feat, exact_feat.stem
+
+    prefix_matches: list[Path] = []
+    for directory in (features_dir, done_dir):
+        if not directory.is_dir():
+            continue
+        prefix_matches.extend(
+            cand
+            for cand in sorted(directory.glob(f"{clean_id}_*.md"))
+            if cand.is_file() and not cand.name.endswith(".vi.md")
+        )
+    if len(prefix_matches) == 1:
+        return prefix_matches[0], prefix_matches[0].stem
+    return None, task_id
+
+
 def _run_finalize_mechanical_gates(
     slot_path: Path,
     repo_root: Path,
@@ -1403,23 +1510,26 @@ def _run_finalize_mechanical_gates(
 ) -> str | None:
     """Verify run_task_checks.py status and check_bdd_traceability.py inside slot_path."""
     slot_epic_dir = slot_path / ".devtool" / "epic" / epic_dir
-    task_mirror = slot_epic_dir / f"{task_id}.md"
+    task_mirror, _ = _resolve_slot_task_mirror(slot_path, epic_dir, task_id)
+    if task_mirror is None or not task_mirror.is_file():
+        return f"MECHANICAL_GATE_FAILED: task file not found for {task_id}"
 
     rtc_script = _resolve_dev_script(slot_path, repo_root, "run_task_checks.py")
-    if rtc_script.is_file() and task_mirror.is_file():
-        rtc_res = subprocess.run(
-            [sys.executable, "-B", str(rtc_script), "status", str(task_mirror)],
-            cwd=slot_path,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if rtc_res.returncode != 0 or "done gate: PASS" not in (rtc_res.stdout or ""):
-            detail = (rtc_res.stdout or rtc_res.stderr or f"exit {rtc_res.returncode}").strip()
-            return f"MECHANICAL_GATE_FAILED: run_task_checks.py status failed ({detail})"
+    if not rtc_script.is_file():
+        return "MECHANICAL_GATE_FAILED: run_task_checks.py not found"
+    rtc_res = subprocess.run(
+        [sys.executable, "-B", str(rtc_script), "status", str(task_mirror)],
+        cwd=slot_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if rtc_res.returncode != 0 or "done gate: PASS" not in (rtc_res.stdout or ""):
+        detail = (rtc_res.stdout or rtc_res.stderr or f"exit {rtc_res.returncode}").strip()
+        return f"MECHANICAL_GATE_FAILED: run_task_checks.py status failed ({detail})"
 
     cbt_script = _resolve_dev_script(slot_path, repo_root, "check_bdd_traceability.py")
-    if cbt_script.is_file() and task_mirror.is_file():
+    if cbt_script.is_file():
         task_text = task_mirror.read_text(encoding="utf-8")
         covers_ids: list[str] = []
         for line in task_text.splitlines():
@@ -1526,19 +1636,57 @@ def finalize_slot(
         if review_payload is not None
         else None
     )
+    if (
+        mode == "pass1-approved"
+        and norm_review is not None
+        and (
+            not norm_review.get("valid")
+            or norm_review.get("verdict") != "APPROVED"
+            or norm_review.get("blockers")
+        )
+    ):
+        return {
+            "ok": False,
+            "code": "MECHANICAL_GATE_FAILED",
+            "error": "MECHANICAL_GATE_FAILED: pass1-approved requires an APPROVED review payload with zero blockers",
+            "task_id": task_id,
+            "slot": slot,
+            "mode": mode,
+            "merged": False,
+        }
+
+    if mode == "tier2-short-circuit":
+        slot_key = f"slot-{slot}"
+        with _pool_state_lock(repo_root):
+            existing_slots = _active_tasks_from_heartbeat(repo_root, epic_slug)
+            raw_entry = existing_slots.get(slot_key) or existing_slots.get(str(slot))
+            entry: Mapping[str, Any] = raw_entry if isinstance(raw_entry, Mapping) else {}
+            counters = _carry_forward_slot_counters(entry)
+        last_triage = counters.get("last_triage")
+        triage_ok = (
+            int(counters.get("fix_passes_used", 0)) == 1
+            and isinstance(last_triage, Mapping)
+            and last_triage.get("tier1_status") == "ELIGIBLE_FOR_SHORT_CIRCUIT"
+        )
+        if triage_ok and isinstance(last_triage, Mapping):
+            curr_tree_sha = capture_slot_tree_sha(slot_path, epic_dir)
+            triage_ok = bool(curr_tree_sha) and curr_tree_sha == last_triage.get("curr_tree_sha")
+        if not triage_ok:
+            return {
+                "ok": False,
+                "code": "TIER1_SHORT_CIRCUIT_NOT_ELIGIBLE",
+                "error": "MECHANICAL_GATE_FAILED: tier2-short-circuit requires prior triage-fix ELIGIBLE_FOR_SHORT_CIRCUIT on current slot tree",
+                "task_id": task_id,
+                "slot": slot,
+                "mode": mode,
+                "merged": False,
+            }
 
     sync_script = _resolve_dev_script(slot_path, repo_root, "sync_task_status.py")
-    task_present = any(
-        p.is_file()
-        for p in (
-            slot_path / ".devtool" / "epic" / epic_dir / f"{task_id}.md",
-            slot_path / ".devtool" / "features" / f"{task_id}.md",
-            slot_path / ".devtool" / "features" / "done" / f"{task_id}.md",
-        )
-    )
-    if sync_script.is_file() and task_present:
+    task_mirror, resolved_task_id = _resolve_slot_task_mirror(slot_path, epic_dir, task_id)
+    if sync_script.is_file() and task_mirror is not None and task_mirror.is_file():
         sync_res = subprocess.run(
-            [sys.executable, "-B", str(sync_script), "task", task_id, "done"],
+            [sys.executable, "-B", str(sync_script), "task", resolved_task_id, "done"],
             cwd=slot_path,
             capture_output=True,
             text=True,

@@ -2105,7 +2105,7 @@ class LifecycleRunner:
                     )
                 return True
 
-            if mechanical_ok and review_pass >= max_attempts:
+            if mechanical_ok and review_pass >= max_attempts and review_pass >= 2:
                 if not self._finalize_task_done(
                     task_slug,
                     exec_root,

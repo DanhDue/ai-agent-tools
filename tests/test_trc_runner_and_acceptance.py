@@ -870,6 +870,53 @@ def test_trc_st_04_custom_persona_limits_control_runner_attempts(
     ]
     assert (repo3 / ".devtool" / "features" / "done" / "task_01.md").is_file()
 
+    # Case 3: (2, 0) fails closed on Pass 1 CHANGES_REQUESTED with real blocker (no pass2_residual_logged_on_cap).
+    repo0, _ = _seed_epic_repo(
+        tmp_path, "repo_custom_2_0", epic, tasks={"task_01": ["src/a.py"]}
+    )
+    cfg0 = repo0 / ".agents" / "config" / "personas.json"
+    cfg0.parent.mkdir(parents=True, exist_ok=True)
+    cfg0.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "max_task_review_passes": 2,
+                "max_fix_passes": 0,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    r0 = lifecycle_runner.LifecycleRunner(root=repo0, epic_slug=epic)
+    calls0: list[str] = []
+
+    def disp0(cli: str, args: list[str], prompt: str) -> tuple[int, str, str]:
+        _ = prompt
+        persona, _ = _persona_from_cli_args(cli, args)
+        calls0.append(persona)
+        head = _git(repo0, "rev-parse", "HEAD")
+        if persona == "programmer":
+            return (
+                0,
+                f"```json\n{json.dumps({'task_id': 'task_01', 'status': 'DONE', 'head_sha': head, 'verify': 'PASS', 'finalized': False})}\n```\n",
+                "",
+            )
+        return (
+            0,
+            f"```json\n{json.dumps({'task_id': 'task_01', 'pass': 1, 'verdict': 'CHANGES_REQUESTED', 'head_sha': head, 'done_gate': 'PASS', 'blockers': [{'id': 'BLK-1', 'summary': 'Real blocker'}], 'observations': []})}\n```\n",
+            "",
+        )
+
+    with patch.object(r0.dispatcher, "dispatch", side_effect=disp0):
+        assert not r0._execute_single_task("task_01")
+    assert calls0 == ["programmer", "ai_architect_reviewer"]
+    assert not (repo0 / ".devtool" / "features" / "done" / "task_01.md").exists()
+    audit0 = repo0 / ".devtool" / "epic" / epic / "review_audit_notes.jsonl"
+    assert (
+        not audit0.exists()
+        or "pass2_residual_logged_on_cap" not in audit0.read_text(encoding="utf-8")
+    )
+
 
 class TestTrcRunnerAcceptance_Integration:
     """Tier C integration provenance wrappers for TRC-HP-04 and TRC-ST-04."""

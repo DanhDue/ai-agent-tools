@@ -433,6 +433,17 @@ def test_trc_ec_02_coercion_guard_and_normalization(tmp_path: Path) -> None:
     assert gate_fail["blockers"][0]["id"] == "BLK-GATE"
     assert gate_fail["blockers"][0]["category"] == "RUNTIME_SAFETY"
 
+    approved_with_blockers = norm_fn(
+        {
+            "verdict": "APPROVED",
+            "done_gate": "PASS",
+            "blockers": [{"id": "BLK-1", "summary": "Bug"}],
+        }
+    )
+    assert approved_with_blockers["verdict"] == "CHANGES_REQUESTED"
+    assert approved_with_blockers["coerced_from_non_blocking"] is False
+    assert len(approved_with_blockers["blockers"]) == 1
+
     for bad in ("not a mapping", {}, {"verdict": "MAYBE"}):
         unparsed = norm_fn(bad)  # type: ignore[arg-type]
         assert unparsed["valid"] is False
@@ -694,7 +705,10 @@ def test_trc_ec_03_boundary_30_lines_eligible_and_tier2_record(tmp_path: Path) -
         encoding="utf-8",
     )
     (slot1 / "tests" / "test_calc.py").write_text(
-        "def test_calc():\n    assert 1 == 1\n    assert 2 == 2\n",
+        "RAW_TEST_BODY_MARKER = 42\n"
+        "def test_calc():\n"
+        "    assert 1 == 1\n"
+        "    assert 2 == 2\n",
         encoding="utf-8",
     )
 
@@ -717,7 +731,16 @@ def test_trc_ec_03_boundary_30_lines_eligible_and_tier2_record(tmp_path: Path) -
     assert payload["tier1_status"] == "ELIGIBLE_FOR_SHORT_CIRCUIT"
     assert payload["non_test_changed_lines"] == 30
     assert payload["triggers"] == []
-    assert isinstance(payload["bounded_diff"], str) and payload["bounded_diff"]
+    bounded = payload["bounded_diff"]
+    assert isinstance(bounded, str) and bounded
+    assert "diff --git a/src/calc.py" in bounded
+    assert "diff --git a/tests/" not in bounded
+    assert "RAW_TEST_BODY_MARKER" not in bounded
+    assert "+    assert 2 == 2" not in bounded
+    assert (
+        "# test-summary tests/test_calc.py: +1/-0 assertions, skip_added=False"
+        in bounded
+    )
 
     # Also test --record-tier2 MEDIUM writes committed audit note in main_wt
     res_rec = _run_pool_cli(
@@ -1386,8 +1409,76 @@ class TestTrcWorkerPool_Integration:
 
         slot1 = manage_worker_pool.get_slot_path(repo, "trc_mirror", 1)
         slot2 = manage_worker_pool.get_slot_path(repo, "trc_mirror", 2)
+
+        for slot_num, task_id in ((1, "task_01"), (2, "task_02")):
+            assert (
+                _run_pool_cli(
+                    main_wt,
+                    [
+                        "sync",
+                        "trc_mirror",
+                        "--slot",
+                        str(slot_num),
+                        "--task",
+                        task_id,
+                        "--status",
+                        "review",
+                    ],
+                    home=home,
+                ).returncode
+                == 0
+            )
+            blocker_file = _write_json(
+                tmp_path / f"blk_{task_id}.json",
+                [
+                    {
+                        "id": "BLK-1",
+                        "category": "BDD_VIOLATION",
+                        "file": f"src/m{slot_num}.py",
+                        "summary": f"Surgical fix {task_id}",
+                    }
+                ],
+            )
+            assert (
+                _run_pool_cli(
+                    main_wt,
+                    [
+                        "sync",
+                        "trc_mirror",
+                        "--slot",
+                        str(slot_num),
+                        "--status",
+                        "working",
+                        "--no-reset",
+                        "--blockers-file",
+                        str(blocker_file),
+                    ],
+                    home=home,
+                ).returncode
+                == 0
+            )
+
         (slot1 / "src" / "m1.py").write_text("m1 = 1\n", encoding="utf-8")
         (slot2 / "src" / "m2.py").write_text("m2 = 2\n", encoding="utf-8")
+
+        for slot_num, task_id in ((1, "task_01"), (2, "task_02")):
+            tr_res = _run_pool_cli(
+                main_wt,
+                [
+                    "triage-fix",
+                    "trc_mirror",
+                    "--slot",
+                    str(slot_num),
+                    "--task",
+                    task_id,
+                ],
+                home=home,
+            )
+            assert tr_res.returncode == 0, tr_res.stderr
+            assert (
+                json.loads(tr_res.stdout)["tier1_status"]
+                == "ELIGIBLE_FOR_SHORT_CIRCUIT"
+            )
 
         # Pollute main_wt with unstaged tracked edits + untracked done mirror + non-.devtool file
         (main_wt / ".devtool" / "features" / "task_01.md").write_text(
@@ -1771,3 +1862,277 @@ def test_trc_redispatch_private_helper_and_pass1_coerced_finalize(
     )
     assert cap_res.returncode == 2
     assert "HARD_FIX_CAP_EXCEEDED" in cap_res.stderr
+
+
+def test_trc_round1_fail_closed_preconditions_and_prefix_resolution(
+    tmp_path: Path,
+) -> None:
+    """Round 1 fixes: fail-closed task mirror/prefix resolution, triage-fix/short-circuit preconditions, and APPROVED-with-blockers."""
+    # 1. Missing task file fails closed without commit/merge; unambiguous short prefix resolves
+    repo, main_wt, home = _init_pool_repo(tmp_path / "prefix_case")
+    _seed_task_stubs(
+        repo,
+        main_wt,
+        "trc_demo",
+        "trc-demo",
+        "task_01_alpha",
+        scenario_id="TRC-FR-02",
+        done_gate_pass=True,
+    )
+    assert _run_pool_cli(main_wt, ["init", "trc_demo"], home=home).returncode == 0
+    assert (
+        _run_pool_cli(
+            main_wt,
+            [
+                "sync",
+                "trc_demo",
+                "--slot",
+                "1",
+                "--task",
+                "task_01",
+                "--status",
+                "working",
+            ],
+            home=home,
+        ).returncode
+        == 0
+    )
+    slot1 = manage_worker_pool.get_slot_path(repo, "trc_demo", 1)
+    (slot1 / "src" / "feat.py").write_text("v = 1\n", encoding="utf-8")
+    epic_head_before = _git(main_wt, "rev-parse", "HEAD")
+    slot_head_before = _git(slot1, "rev-parse", "HEAD")
+
+    res_missing = _run_pool_cli(
+        main_wt,
+        [
+            "finalize-slot",
+            "trc_demo",
+            "--slot",
+            "1",
+            "--task",
+            "task_99",
+            "--mode",
+            "pass1-approved",
+        ],
+        home=home,
+    )
+    assert res_missing.returncode == 1
+    assert "MECHANICAL_GATE_FAILED" in res_missing.stderr
+    assert _git(main_wt, "rev-parse", "HEAD") == epic_head_before
+    assert _git(slot1, "rev-parse", "HEAD") == slot_head_before
+
+    bad_approved_file = _write_json(
+        tmp_path / "bad_approved.json",
+        {
+            "task_id": "task_01_alpha",
+            "pass": 1,
+            "verdict": "APPROVED",
+            "done_gate": "PASS",
+            "blockers": [{"id": "BLK-1", "summary": "Bug"}],
+        },
+    )
+    res_bad_approved = _run_pool_cli(
+        main_wt,
+        [
+            "finalize-slot",
+            "trc_demo",
+            "--slot",
+            "1",
+            "--task",
+            "task_01",
+            "--mode",
+            "pass1-approved",
+            "--review-file",
+            str(bad_approved_file),
+        ],
+        home=home,
+    )
+    assert res_bad_approved.returncode == 1
+    assert "MECHANICAL_GATE_FAILED" in res_bad_approved.stderr
+    assert _git(main_wt, "rev-parse", "HEAD") == epic_head_before
+
+    res_prefix = _run_pool_cli(
+        main_wt,
+        [
+            "finalize-slot",
+            "trc_demo",
+            "--slot",
+            "1",
+            "--task",
+            "task_01",
+            "--mode",
+            "pass1-approved",
+        ],
+        home=home,
+    )
+    assert res_prefix.returncode == 0, res_prefix.stderr
+    assert (main_wt / ".devtool" / "features" / "done" / "task_01_alpha.md").is_file()
+
+    # 2. triage-fix requires fix_passes_used == 1; tier2-short-circuit requires current ELIGIBLE last_triage
+    repo2, main_wt2, home2 = _init_pool_repo(tmp_path / "triage_case")
+    _seed_task_stubs(
+        repo2,
+        main_wt2,
+        "trc_demo",
+        "trc-demo",
+        "task_01",
+        scenario_id="TRC-HP-03",
+        done_gate_pass=True,
+    )
+    (main_wt2 / "src" / "calc.py").write_text(
+        "def compute_score(x: int) -> int:\n    return x\n", encoding="utf-8"
+    )
+    _git(main_wt2, "add", ".")
+    _git(main_wt2, "commit", "-q", "-m", "Add calc")
+    assert _run_pool_cli(main_wt2, ["init", "trc_demo"], home=home2).returncode == 0
+    assert (
+        _run_pool_cli(
+            main_wt2,
+            [
+                "sync",
+                "trc_demo",
+                "--slot",
+                "1",
+                "--task",
+                "task_01",
+                "--status",
+                "working",
+            ],
+            home=home2,
+        ).returncode
+        == 0
+    )
+    assert (
+        _run_pool_cli(
+            main_wt2,
+            [
+                "sync",
+                "trc_demo",
+                "--slot",
+                "1",
+                "--task",
+                "task_01",
+                "--status",
+                "review",
+            ],
+            home=home2,
+        ).returncode
+        == 0
+    )
+    res_triage_before_fix = _run_pool_cli(
+        main_wt2,
+        ["triage-fix", "trc_demo", "--slot", "1", "--task", "task_01"],
+        home=home2,
+    )
+    assert res_triage_before_fix.returncode == 1
+    assert "fix_passes_used == 1" in res_triage_before_fix.stderr
+
+    blocker_file = _write_json(
+        tmp_path / "blk_triage.json",
+        [{"id": "BLK-1", "category": "BDD_VIOLATION", "summary": "Fix calc"}],
+    )
+    assert (
+        _run_pool_cli(
+            main_wt2,
+            [
+                "sync",
+                "trc_demo",
+                "--slot",
+                "1",
+                "--status",
+                "working",
+                "--no-reset",
+                "--blockers-file",
+                str(blocker_file),
+            ],
+            home=home2,
+        ).returncode
+        == 0
+    )
+
+    # Missing last_triage
+    res_no_triage = _run_pool_cli(
+        main_wt2,
+        [
+            "finalize-slot",
+            "trc_demo",
+            "--slot",
+            "1",
+            "--task",
+            "task_01",
+            "--mode",
+            "tier2-short-circuit",
+            "--risk-level",
+            "LOW",
+        ],
+        home=home2,
+    )
+    assert res_no_triage.returncode == 1
+    assert "MECHANICAL_GATE_FAILED" in res_no_triage.stderr
+
+    # HIGH_RISK last_triage rejected by tier2-short-circuit
+    slot2_1 = manage_worker_pool.get_slot_path(repo2, "trc_demo", 1)
+    (slot2_1 / "src" / "calc.py").write_text(
+        "def compute_score(x: int, factor: int = 2) -> int:\n    return x * factor\n",
+        encoding="utf-8",
+    )
+    res_high = _run_pool_cli(
+        main_wt2,
+        ["triage-fix", "trc_demo", "--slot", "1", "--task", "task_01"],
+        home=home2,
+    )
+    assert res_high.returncode == 0
+    assert json.loads(res_high.stdout)["tier1_status"] == "HIGH_RISK"
+    res_fin_high = _run_pool_cli(
+        main_wt2,
+        [
+            "finalize-slot",
+            "trc_demo",
+            "--slot",
+            "1",
+            "--task",
+            "task_01",
+            "--mode",
+            "tier2-short-circuit",
+            "--risk-level",
+            "LOW",
+        ],
+        home=home2,
+    )
+    assert res_fin_high.returncode == 1
+    assert "MECHANICAL_GATE_FAILED" in res_fin_high.stderr
+
+    # Eligible triage becomes stale after subsequent slot edit
+    (slot2_1 / "src" / "calc.py").write_text(
+        "def compute_score(x: int) -> int:\n    return x\n", encoding="utf-8"
+    )
+    (slot2_1 / "src" / "patch.py").write_text("p = 1\n", encoding="utf-8")
+    res_eligible = _run_pool_cli(
+        main_wt2,
+        ["triage-fix", "trc_demo", "--slot", "1", "--task", "task_01"],
+        home=home2,
+    )
+    assert res_eligible.returncode == 0
+    assert (
+        json.loads(res_eligible.stdout)["tier1_status"] == "ELIGIBLE_FOR_SHORT_CIRCUIT"
+    )
+
+    (slot2_1 / "src" / "patch.py").write_text("p = 2\n", encoding="utf-8")
+    res_stale = _run_pool_cli(
+        main_wt2,
+        [
+            "finalize-slot",
+            "trc_demo",
+            "--slot",
+            "1",
+            "--task",
+            "task_01",
+            "--mode",
+            "tier2-short-circuit",
+            "--risk-level",
+            "LOW",
+        ],
+        home=home2,
+    )
+    assert res_stale.returncode == 1
+    assert "MECHANICAL_GATE_FAILED" in res_stale.stderr
