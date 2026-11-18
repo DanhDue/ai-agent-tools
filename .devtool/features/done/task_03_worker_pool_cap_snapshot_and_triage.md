@@ -1,13 +1,13 @@
 ---
 id: "task_03_worker_pool_cap_snapshot_and_triage"
-status: "todo"
-completedAt: null
+status: "done"
+completedAt: "2026-11-18T09:54:15Z"
 priority: "high"
 assignee: null
 epic: "review_cap_and_risk_triage"
 dueDate: null
 created: "2026-11-18T06:26:00Z"
-modified: "2026-11-18T06:45:00Z"
+modified: "2026-11-18T09:54:15Z"
 labels: ["pool", "cli", "concurrency", "architecture", "contract"]
 order: "a3"
 review_tier: "full"
