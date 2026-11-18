@@ -1,0 +1,432 @@
+{
+  "schema": 1,
+  "task": "task_04_runner_parity_and_acceptance",
+  "runs": {
+    "red": {
+      "head": "1a4f9f984f57ffb762e1c3c51ddb392491deca4e",
+      "tree": "3bcb847ccc786cf654fd380374d65754278f0995",
+      "patch_id": "93de08077cae8c014e5d18eeab181d17a5351a06",
+      "started": "2026-11-18T10:00:32Z",
+      "finished": "2026-11-18T10:00:34Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_trc_runner_and_acceptance.py::test_trc_hp_04_end_to_end_runner_and_verify_registration",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T10:00:32Z",
+          "finished": "2026-11-18T10:00:34Z",
+          "output_tail": [
+            "    ok = self._execute_single_task(",
+            "skills/dev-lifecycle/resources/scripts/lifecycle_runner.py:1817: in _execute_single_task",
+            "    exit_code, stdout, stderr, disp_ok = self._dispatch_persona(",
+            "skills/dev-lifecycle/resources/scripts/lifecycle_runner.py:1067: in _dispatch_persona",
+            "    exit_code, stdout, stderr = active_dispatcher.dispatch(",
+            "<string>:3: in dispatch",
+            "    ???",
+            "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/unittest/mock.py:1176: in __call__",
+            "    return self._mock_call(*args, **kwargs)",
+            "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/unittest/mock.py:1180: in _mock_call",
+            "    return self._execute_mock_call(*args, **kwargs)",
+            "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/unittest/mock.py:1247: in _execute_mock_call",
+            "    result = effect(*args, **kwargs)",
+            "             ^^^^^^^^^^^^^^^^^^^^^^^",
+            "tests/test_trc_runner_and_acceptance.py:274: in stub_dispatch",
+            "    _git(wt, \"commit\", \"-q\", \"-m\", \"[TRC_HP04] Implement task_01\")",
+            "tests/test_trc_runner_and_acceptance.py:93: in _git",
+            "    raise AssertionError(",
+            "E   AssertionError: git commit -q -m [TRC_HP04] Implement task_01 failed in /private/tmp/ag_duvthinh403/pytest-of-danhdueexoictif/pytest-192/test_trc_hp_04_end_to_end_runn0/repo_hp04/.worktrees/trc_hp04-slot-1: On branch epic/trc_hp04-slot-1",
+            "E   nothing to commit, working tree clean",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_trc_runner_and_acceptance.py::test_trc_hp_04_end_to_end_runner_and_verify_registration",
+            "1 failed in 1.84s"
+          ],
+          "output_sha256": "d252d1bc9bce5e3a2f2f0cfa0017021328b82911ac8af058ec7d7f610b78d23c"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "1a4f9f984f57ffb762e1c3c51ddb392491deca4e",
+      "tree": "e3b595f8e1c2f1150ae0cdfa1b10dd3d0638638e",
+      "patch_id": "9d8b54642163c7951d3561eb0c87e477237d26b5",
+      "started": "2026-11-18T10:12:32Z",
+      "finished": "2026-11-18T10:16:26Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_trc_runner_and_acceptance.py tests/test_fpg_runner_personas.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T10:12:32Z",
+          "finished": "2026-11-18T10:13:53Z",
+          "output_tail": [
+            "................................................................         [100%]",
+            "64 passed in 80.18s (0:01:20)"
+          ],
+          "output_sha256": "b2aa6cc33aa59ba2563d1dd66d45b1c8cf90d44866c8531cbb7e21ac90a55f11"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest tests/test_lifecycle_runner.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T10:13:53Z",
+          "finished": "2026-11-18T10:13:59Z",
+          "output_tail": [
+            "............................",
+            "----------------------------------------------------------------------",
+            "Ran 28 tests in 5.860s",
+            "OK",
+            "AUTO_PASS_CLEAN: 0 findings",
+            "AUTO_PASS_FINAL_MINOR_SWEEP: 0 Critical and 0 Important findings",
+            "AUTO_PASS_CLEAN: 0 findings. Running Gate 4...",
+            "🛑 CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)",
+            "🛑 CIRCUIT_BREAKER_HALT (FIX_LOOP)",
+            "🛑 FIX_PLAN_ESCALATE (CRITICAL_CONFLICT)",
+            "# Executive Review Report",
+            "======================================================================",
+            "🏁 Stage 3 completed. All tasks verified and Gate 4 PASS bound to candidate SHA.",
+            "Candidate readiness for Gate 5 recorded in .devtool/state/<epic>.pipeline.json.",
+            "Proceed to /finishing-a-development-branch to merge to local base branch.",
+            "======================================================================",
+            "AUTO_PASS_CLEAN: 0 findings",
+            "AUTO_PASS_CLEAN: 0 findings. Running Gate 4...",
+            "AUTO_PASS_CLEAN: 0 findings. Running Gate 4...",
+            "AUTO_PASS_CLEAN: 0 findings. Running Gate 4...",
+            "🛑 FIX_PLAN_ESCALATE (SHARED_CONTRACT_CONFLICT)",
+            "AUTO_PASS_CLEAN: 0 findings. Running Gate 4...",
+            "AUTO_PASS_CLEAN: 0 findings. Running Gate 4..."
+          ],
+          "output_sha256": "b8eb3b00d47e6e16d0fa8158531c0b827a703f4bd27c6bec5d4822a28e6c361d"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-lifecycle/resources/scripts/lifecycle_runner.py tests/test_trc_runner_and_acceptance.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T10:13:59Z",
+          "finished": "2026-11-18T10:13:59Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-lifecycle/resources/scripts/lifecycle_runner.py tests/test_trc_runner_and_acceptance.py --ignore-missing-imports --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T10:13:59Z",
+          "finished": "2026-11-18T10:13:59Z",
+          "output_tail": [
+            "Success: no issues found in 9 source files"
+          ],
+          "output_sha256": "46984ca20bf69f7b14ec1fd9bd82101d56a4e109e68f016fd2a04f22481b09b3"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/review-cap-and-risk-triage.xml tests/test_trc_persona_limits.py tests/test_trc_reviewer_briefs_and_governance.py tests/test_trc_worker_pool_triage.py tests/test_trc_runner_and_acceptance.py skills/dev-implementation/resources/scripts/test_manage_worker_pool.py tests/test_fpg_persona_config.py tests/test_fpg_checkpoint_and_briefs.py tests/test_fpg_governance_text.py tests/test_tto_docs_and_slimming.py tests/test_fpg_runner_personas.py tests/test_rsdh_orchestration.py tests/test_runtime_sync_and_dashboard_hardening.py tests/test_fpg_english_only_text.py tests/test_workflow_anti_rationalization.py",
+          "expect": "exit 0; results build/test-results/review-cap-and-risk-triage.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-18T10:13:59Z",
+          "finished": "2026-11-18T10:16:26Z",
+          "output_tail": [
+            "........................................................................ [ 30%]",
+            "........................................................................ [ 61%]",
+            "........................................................................ [ 92%]",
+            "..................                                                       [100%]",
+            "234 passed in 146.62s (0:02:26)"
+          ],
+          "output_sha256": "bd5afedd20cacf7420eb40684e1fa275f25d1735c77613cc1aa8e0173e1ee514",
+          "results": {
+            "path": "build/test-results/review-cap-and-risk-triage.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 47,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_trc_hp_01_layered_task_review_limits_and_status_json",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload0-max_task_review_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload1-max_task_review_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload2-max_task_review_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload3-max_task_review_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload4-max_task_review_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload5-max_task_review_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload6-max_fix_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload7-max_fix_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload8-max_fix_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload9-max_fix_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_invalid_task_review_limits_raise_persona_config_error[override_payload10-max_fix_passes]",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_01_boundary_zero_fix_passes_and_merged_validation",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_fr_01_missing_layers_and_malformed_json_fail_closed",
+                  "classname": "tests.test_trc_persona_limits",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_hp_02_task_reviewer_pass1_and_pass2_briefs",
+                  "classname": "tests.test_trc_reviewer_briefs_and_governance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_hp_02_python_api_and_se02_principal_review_identity",
+                  "classname": "tests.test_trc_reviewer_briefs_and_governance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_hp_02_brief_edge_cases[extra_args0-True]",
+                  "classname": "tests.test_trc_reviewer_briefs_and_governance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_hp_02_brief_edge_cases[extra_args1-True]",
+                  "classname": "tests.test_trc_reviewer_briefs_and_governance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_hp_02_brief_edge_cases[extra_args2-True]",
+                  "classname": "tests.test_trc_reviewer_briefs_and_governance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_hp_02_brief_edge_cases[extra_args3-False]",
+                  "classname": "tests.test_trc_reviewer_briefs_and_governance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ar_01_governance_exceptions_and_caps",
+                  "classname": "tests.test_trc_reviewer_briefs_and_governance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_st_01_and_st_02_hard_review_and_fix_caps",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_02_coercion_guard_and_normalization",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_st_03_temporary_index_snapshot_isolates_fix_delta",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_03_boundary_30_lines_eligible_and_tier2_record",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_03_tier1_sensitive_triggers_classify_high_risk[a_over_30_lines-src_override0-None-NON_TEST_DIFF_OVER_30_LINES]",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_03_tier1_sensitive_triggers_classify_high_risk[b_public_signature-def compute_score(val: int, weight: int = 1) -> int:\\n    return val * weight\\n-None-PUBLIC_SIGNATURE_CHANGED]",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_03_tier1_sensitive_triggers_classify_high_risk[c_api_route_or_schema-class Payload(BaseModel):\\n    name: str\\n\\n@router.post('/items')\\ndef _h():\\n    pass\\n-None-API_ROUTE_OR_SCHEMA_CHANGED]",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_03_tier1_sensitive_triggers_classify_high_risk[d_db_or_persistence-import sqlite3\\ndef _helper(val: int) -> int:\\n    q = 'UPDATE items SET v = 1'\\n    return val\\n-None-DB_OR_PERSISTENCE_CHANGED]",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_03_tier1_sensitive_triggers_classify_high_risk[e_concurrency_or_locking-import threading\\n_LOCK = threading.Lock()\\ndef _helper(val: int) -> int:\\n    return val\\n-None-CONCURRENCY_OR_LOCKING_CHANGED]",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_03_tier1_sensitive_triggers_classify_high_risk[f_test_assertion_removed-None-def test_calc():\\n    pass\\n-TEST_ASSERTION_WEAKENED]",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_03_tier1_sensitive_triggers_classify_high_risk[f_test_skip_added-None-import pytest\\n@pytest.mark.skip(reason='flaky')\\ndef test_calc():\\n    assert 1 == 1\\n-TEST_ASSERTION_WEAKENED]",
+                  "classname": "tests.test_trc_worker_pool_triage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_st_01_idempotent_resync_and_hard_review_cap",
+                  "classname": "tests.test_trc_worker_pool_triage.TestTrcWorkerPool_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_st_02_hard_fix_cap_rejects_second_fix_pass",
+                  "classname": "tests.test_trc_worker_pool_triage.TestTrcWorkerPool_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_hp_03_surgical_fix_and_tier2_short_circuit_finalize",
+                  "classname": "tests.test_trc_worker_pool_triage.TestTrcWorkerPool_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ec_04_pass2_residual_changes_requested_finalizes_to_done",
+                  "classname": "tests.test_trc_worker_pool_triage.TestTrcWorkerPool_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ar_02_concurrent_slots_preserve_independent_counters",
+                  "classname": "tests.test_trc_worker_pool_triage.TestTrcWorkerPool_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_ar_03_mirror_reconciliation_and_parallel_audit_notes",
+                  "classname": "tests.test_trc_worker_pool_triage.TestTrcWorkerPool_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_fr_02_finalize_slot_aborts_on_mechanical_gate_failure",
+                  "classname": "tests.test_trc_worker_pool_triage.TestTrcWorkerPool_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_hp_04_end_to_end_runner_and_verify_registration",
+                  "classname": "tests.test_trc_runner_and_acceptance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_hp_04_coercion_guard_approves_zero_blocker_changes_requested",
+                  "classname": "tests.test_trc_runner_and_acceptance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_st_04_headless_runner_caps_passes_and_finalizes_on_pass2_residual",
+                  "classname": "tests.test_trc_runner_and_acceptance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_fr_03_unparseable_reviewer_output_fails_closed",
+                  "classname": "tests.test_trc_runner_and_acceptance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_st_04_pool_batch_flushes_pass2_residual_audit_note_onto_epic_wt",
+                  "classname": "tests.test_trc_runner_and_acceptance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_st_04_custom_persona_limits_control_runner_attempts",
+                  "classname": "tests.test_trc_runner_and_acceptance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_hp_04_integration",
+                  "classname": "tests.test_trc_runner_and_acceptance.TestTrcRunnerAcceptance_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_trc_st_04_integration",
+                  "classname": "tests.test_trc_runner_and_acceptance.TestTrcRunnerAcceptance_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/verify.sh",
+            "skills/dev-lifecycle/resources/scripts/lifecycle_runner.py",
+            "tests/test_trc_runner_and_acceptance.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

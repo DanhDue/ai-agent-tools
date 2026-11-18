@@ -1,13 +1,13 @@
 ---
 id: "task_04_runner_parity_and_acceptance"
-status: "todo"
-completedAt: null
+status: "done"
+completedAt: "2026-11-18T10:19:16Z"
 priority: "high"
 assignee: null
 epic: "review_cap_and_risk_triage"
 dueDate: null
 created: "2026-11-18T06:26:00Z"
-modified: "2026-11-18T06:26:00Z"
+modified: "2026-11-18T10:19:16Z"
 labels: ["runner", "integration", "acceptance", "architecture"]
 order: "a4"
 review_tier: "full"
