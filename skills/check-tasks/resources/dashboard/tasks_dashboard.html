@@ -540,12 +540,31 @@
       display: none !important;
     }
 
-    /* Kanban Task Card Smooth Transitions & Animation */
+    /* Kanban Board Containment & Card Transitions */
+    .kanban-board-shell,
+    .kanban-columns-scroll {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+    }
+
     .kanban-task-card {
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
       transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
                   box-shadow 0.2s ease,
                   border-color 0.2s ease,
                   background-color 0.2s ease;
+    }
+
+    .kanban-epic-link-row,
+    .kanban-epic-chip {
+      max-width: 100%;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .kanban-task-card:hover {
@@ -2422,9 +2441,23 @@ Loading evidence data...
       );
 
       const pipelineTelemetry = summaryEp?.pipeline_telemetry || (isPrimaryActive ? repo.pipeline_telemetry : null) || null;
+      const repoTasksList = Array.isArray(repo.task_progress?.tasks) ? repo.task_progress.tasks : [];
+      const distinctTaskEpics = [];
+      repoTasksList.forEach(t => {
+        const epVal = String(t?.epic || '').trim();
+        if (epVal && !distinctTaskEpics.some(existing => slugsMatch(existing, epVal))) {
+          distinctTaskEpics.push(epVal);
+        }
+      });
+      const isSingleEpicTaskScope = (repo.epics_summary?.epics || []).length <= 1
+        && distinctTaskEpics.length <= 1
+        && (distinctTaskEpics.length === 0 || slugsMatch(distinctTaskEpics[0], slug));
       const rawTaskPct = pipelineTelemetry && typeof pipelineTelemetry.task_completion_pct === 'number'
         ? Number(pipelineTelemetry.task_completion_pct)
-        : (isPrimaryActive && typeof repo.task_progress?.task_completion_pct === 'number'
+        : (isPrimaryActive
+            && isSingleEpicTaskScope
+            && typeof repo.task_progress?.task_completion_pct === 'number'
+            && (totalCount === 0 || Number(repo.task_progress?.total_tasks || 0) >= totalCount)
           ? Number(repo.task_progress.task_completion_pct)
           : null);
       const taskPct = rawTaskPct !== null
@@ -2471,7 +2504,7 @@ Loading evidence data...
         } else {
           pct = 0;
         }
-      } else if (isPrimaryActive) {
+      } else if (isPrimaryActive && isSingleEpicTaskScope) {
         const rawPct = Number(repo.task_progress?.percentage || 0);
         if (isWaitingFinish) {
           pct = 98;
@@ -2743,10 +2776,14 @@ Loading evidence data...
         task_completion_pct: progState.taskPct,
         lifecycle_progress_pct: progState.pct,
         current_stage_index: currentStageIndex,
-        active_sub_step_summary: `${curSt.label} · ${curSt.summary}`,
+        active_sub_step_summary: `${stripStageIndexPrefix(curSt.label)} · ${curSt.summary}`,
         stages,
         events: Array.isArray(hb?.events) ? hb.events : [],
       };
+    }
+
+    function stripStageIndexPrefix(label) {
+      return String(label || '').replace(/^\d+\.\s*/, '').trim();
     }
 
     function buildStagePillsHtml(stages, curIdx, compact) {
@@ -2803,7 +2840,7 @@ Loading evidence data...
       } else if (activeStageObj && activeStageObj.summary) {
         reviewHeaderHtml = `
           <div style="font-size: 10px; font-family: monospace; color: #94a3b8; margin-bottom: 4px;">
-            <strong style="color: #cbd5e1;">${escapeHtml(String(activeStageObj.label || ''))}:</strong> ${escapeHtml(String(activeStageObj.summary || ''))}
+            <strong style="color: #cbd5e1;">${escapeHtml(stripStageIndexPrefix(activeStageObj.label))}:</strong> ${escapeHtml(String(activeStageObj.summary || ''))}
           </div>
         `;
       }
@@ -2962,8 +2999,17 @@ Loading evidence data...
 
         // Tasks for this epic
         const epicTasks = allTasks.filter(t => slugsMatch(t.epic, slug));
-        const totalCount = epicTasks.length > 0 ? epicTasks.length : (slugsMatch(repo.active_epic, slug) ? (repo.task_progress?.total_tasks || 0) : 0);
-        const doneCount = epicTasks.length > 0 ? epicTasks.filter(t => t.status === 'done').length : (slugsMatch(repo.active_epic, slug) ? (repo.task_progress?.done_tasks || 0) : 0);
+        const epicPt = epicMeta?.pipeline_telemetry || (slugsMatch(repo.active_epic, slug) ? repo.pipeline_telemetry : null) || null;
+        const ptTotalCount = Number(epicPt?.total_tasks || epicPt?.stages?.[2]?.total_tasks || 0);
+        const ptDoneCount = Number(epicPt?.done_tasks || epicPt?.stages?.[2]?.done_tasks || 0);
+        const rawEpicTasksCount = epicTasks.length > 0
+          ? epicTasks.length
+          : (slugsMatch(repo.active_epic, slug) && (repo.epics_summary?.epics || []).length <= 1 ? (repo.task_progress?.total_tasks || 0) : 0);
+        const metaTaskCount = Number(epicMeta?.task_count || 0);
+        const totalCount = Math.max(rawEpicTasksCount, metaTaskCount, ptTotalCount);
+        const doneCount = epicTasks.length > 0
+          ? epicTasks.filter(t => t.status === 'done').length
+          : (ptDoneCount > 0 ? ptDoneCount : (slugsMatch(repo.active_epic, slug) && (repo.epics_summary?.epics || []).length <= 1 ? (repo.task_progress?.done_tasks || 0) : 0));
 
         const progState = computeEpicProgressState(repo, slug, totalCount, doneCount, epicMeta);
         const matchingBlocker = progState.matchingBlocker;
@@ -2981,8 +3027,14 @@ Loading evidence data...
         // Active task name
         const inProgTask = epicTasks.find(t => t.status === 'in-progress' || t.status === 'review');
         const nextTodoTask = epicTasks.find(t => t.status === 'todo' || t.status === 'backlog');
-        let activeTaskName = inProgTask ? inProgTask.title : (nextTodoTask ? nextTodoTask.title : (totalCount > 0 && doneCount === totalCount ? 'All tasks completed ✓' : 'Setting up tasks...'));
-        if (isPrimaryActive && repo.task_progress?.active_task_name) {
+        let activeTaskName = inProgTask
+          ? inProgTask.title
+          : (nextTodoTask
+            ? nextTodoTask.title
+            : (totalCount > 0 && doneCount >= totalCount
+              ? 'All tasks completed ✓'
+              : (doneCount > 0 && doneCount < totalCount ? 'Promoting next wave tasks...' : 'Setting up tasks...')));
+        if (isPrimaryActive && repo.task_progress?.active_task_name && epicTasks.length === 0 && (repo.epics_summary?.epics || []).length <= 1) {
           activeTaskName = repo.task_progress.active_task_name;
         }
 
@@ -3146,7 +3198,9 @@ Loading evidence data...
       const epicsProgressMap = new Map();
 
       allTasks.forEach(t => {
-        const epSlug = t.epic || 'unknown';
+        const rawSlug = t.epic || 'unknown';
+        const existingKey = Array.from(epicsProgressMap.keys()).find(k => slugsMatch(k, rawSlug));
+        const epSlug = existingKey || rawSlug;
         epicsSet.add(epSlug);
 
         if (!epicsProgressMap.has(epSlug)) {
@@ -3171,18 +3225,23 @@ Loading evidence data...
       // Enrich epic titles and seed active/in-progress Stage 1-2 epics from repo.epics_summary if present
       if (repo.epics_summary && Array.isArray(repo.epics_summary.epics)) {
         repo.epics_summary.epics.forEach(summaryEp => {
-          if (epicsProgressMap.has(summaryEp.slug)) {
-            const item = epicsProgressMap.get(summaryEp.slug);
+          const epPt = summaryEp.pipeline_telemetry || (slugsMatch(repo.active_epic, summaryEp.slug) ? repo.pipeline_telemetry : null) || null;
+          const ptTot = Number(epPt?.total_tasks || epPt?.stages?.[2]?.total_tasks || 0);
+          const ptDone = Number(epPt?.done_tasks || epPt?.stages?.[2]?.done_tasks || 0);
+          const matchedKey = Array.from(epicsProgressMap.keys()).find(k => slugsMatch(k, summaryEp.slug));
+          if (matchedKey) {
+            const item = epicsProgressMap.get(matchedKey);
             if (summaryEp.title && summaryEp.title !== summaryEp.slug) {
               item.title = summaryEp.title;
             }
+            item.total = Math.max(item.total, Number(summaryEp.task_count || 0), ptTot);
           } else if (summaryEp.status === 'in_progress' || slugsMatch(repo.active_epic, summaryEp.slug)) {
             epicsSet.add(summaryEp.slug);
             epicsProgressMap.set(summaryEp.slug, {
               slug: summaryEp.slug,
               title: summaryEp.title || summaryEp.slug,
-              total: Number(summaryEp.task_count || 0),
-              done: 0,
+              total: Math.max(Number(summaryEp.task_count || 0), ptTot),
+              done: ptDone,
               in_progress: 0,
               review: 0,
             });
@@ -3243,7 +3302,7 @@ Loading evidence data...
         }
 
         const synthPt = synthesizePipelineTelemetry(repo, ep.slug, progState.isPrimaryActive, progState, ep.done, ep.total);
-        const kanbanStageSummary = String(synthPt.active_sub_step_summary || summaryEp?.active_stage || (progState.isPrimaryActive ? repo.active_stage : '') || '');
+        const kanbanStageSummary = stripStageIndexPrefix(synthPt.active_sub_step_summary || summaryEp?.active_stage || (progState.isPrimaryActive ? repo.active_stage : '') || '');
 
         return `
           <div class="epic-progress-item" 
@@ -3322,21 +3381,21 @@ Loading evidence data...
             const labels = Array.isArray(t.labels) ? t.labels : [];
 
             return `
-              <div class="kanban-task-card" style="background: #141824; border: 1px solid #222b3e; ${borderStyle} border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; transition: all 0.15s ease;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
-                  <strong style="font-size: 12px; font-weight: 700; color: #f8fafc; line-height: 1.4;">${escapeHtml(t.title || t.id)}</strong>
-                  <span style="${priStyle} font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; text-transform: uppercase;">
+              <div class="kanban-task-card" style="min-width: 0; overflow: hidden; background: #141824; border: 1px solid #222b3e; ${borderStyle} border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; transition: all 0.15s ease;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; min-width: 0;">
+                  <strong style="font-size: 12px; font-weight: 700; color: #f8fafc; line-height: 1.4; min-width: 0; overflow-wrap: anywhere; word-break: break-word;">${escapeHtml(t.title || t.id)}</strong>
+                  <span style="${priStyle} font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; flex-shrink: 0;">
                     ${escapeHtml(t.priority || 'medium')}
                   </span>
                 </div>
 
-                <div style="font-size: 11px; color: #94a3b8; line-height: 1.3;">
+                <div class="kanban-epic-link-row" style="font-size: 11px; color: #94a3b8; line-height: 1.3; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   <span style="color: #64748b;">Epic:</span> 
                   <span style="color: #60a5fa; text-decoration: underline; cursor: pointer;" onclick="openEpicsModal('${escapeHtml(repo.name)}')">[${escapeHtml(t.epic)}](${escapeHtml(t.epic)}.en.md)...</span>
                 </div>
 
-                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                  <span style="font-size: 10px; color: #c084fc; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); padding: 1px 6px; border-radius: 4px; font-family: monospace; font-weight: 600;">
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; overflow: hidden;">
+                  <span class="kanban-epic-chip" style="font-size: 10px; color: #c084fc; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); padding: 1px 6px; border-radius: 4px; font-family: monospace; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;">
                     🗂 ${escapeHtml(t.epic)}
                   </span>
                   ${labels.map(l => `
@@ -3356,7 +3415,7 @@ Loading evidence data...
         }
 
         columnsHtml += `
-          <div class="kanban-col" style="border-right: 1px solid #1e2638; display: flex; flex-direction: column;">
+          <div class="kanban-col" style="min-width: 0; overflow: hidden; border-right: 1px solid #1e2638; display: flex; flex-direction: column;">
             <div style="padding: 12px 14px; border-bottom: 1px solid #1e2638; display: flex; justify-content: space-between; align-items: center; background: #0f131d;">
               <div style="display: flex; align-items: center; gap: 6px;">
                 <span style="width: 7px; height: 7px; border-radius: 50%; background: ${col.dot};"></span>
@@ -3364,7 +3423,7 @@ Loading evidence data...
               </div>
               <span style="font-size: 11px; color: #94a3b8; font-weight: 700; background: #182030; border: 1px solid #243048; padding: 1px 7px; border-radius: 4px; font-family: monospace;">${col.items.length}</span>
             </div>
-            <div class="kanban-col-cards" data-scroll-id="kanban-col-${escapeHtml(repo.name)}-${key}" style="padding: 10px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; max-height: 680px; flex: 1; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: #1e2638 transparent;">
+            <div class="kanban-col-cards" data-scroll-id="kanban-col-${escapeHtml(repo.name)}-${key}" style="min-width: 0; overflow-x: hidden; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; max-height: 680px; flex: 1; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: #1e2638 transparent;">
               ${cardsHtml}
             </div>
           </div>
@@ -3372,10 +3431,10 @@ Loading evidence data...
       }
 
       return `
-        <div style="display: grid; grid-template-columns: 220px 1fr; min-height: 680px;">
+        <div class="kanban-board-shell" style="display: grid; grid-template-columns: 220px minmax(0, 1fr); min-width: 0; min-height: 680px; position: relative; overflow: hidden;">
 
           <!-- LEFT SIDEBAR: OVERVIEW -->
-          <div style="background: #090c14; border-right: 1px solid #1e2638; padding: 18px 16px; display: flex; flex-direction: column;">
+          <div data-kanban-overview="pinned" style="width: 220px; min-width: 220px; max-width: 220px; position: sticky; left: 0; z-index: 3; background: #090c14; border-right: 1px solid #1e2638; padding: 18px 16px; display: flex; flex-direction: column; flex-shrink: 0;">
             <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid #1e2638;">
               <span style="font-size: 11px; font-weight: 800; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;">OVERVIEW</span>
               <span style="font-size: 11px; font-weight: 800; color: #cbd5e1; font-family: monospace;">${totalCount} TOTAL</span>
@@ -3445,7 +3504,7 @@ Loading evidence data...
           </div>
 
           <!-- RIGHT: 5 KANBAN COLUMNS -->
-          <div class="kanban-columns-scroll" data-scroll-id="kanban-board-scroll-${escapeHtml(repo.name)}" style="min-width: 0; overflow-x: auto; display: grid; grid-template-columns: repeat(5, minmax(240px, 1fr)); gap: 0; background: #0c0f17;">
+          <div class="kanban-columns-scroll" data-scroll-id="kanban-board-scroll-${escapeHtml(repo.name)}" style="min-width: 0; overflow-x: auto; overflow-y: hidden; display: grid; grid-template-columns: repeat(5, minmax(260px, 1fr)); gap: 0; background: #0c0f17;">
             ${columnsHtml}
           </div>
 
@@ -3468,6 +3527,7 @@ Loading evidence data...
         ep: (repo.epics_summary?.epics || []).map(e => [
           e.slug,
           e.status,
+          Number(e.task_count || 0),
           e.active_stage || '',
           e.action_prompt || '',
           Boolean(e.is_review_converged),
@@ -3531,6 +3591,7 @@ Loading evidence data...
         ep: (repo.epics_summary?.epics || []).map(e => [
           e.slug,
           e.status,
+          Number(e.task_count || 0),
           e.pic || '',
           e.active_stage || '',
           e.action_prompt || '',
@@ -3913,12 +3974,12 @@ Loading evidence data...
       const initTier2Sig = buildTier2Sig(repo);
 
       container.innerHTML = `
-        <div id="repo-detail-content-${escapeHtml(repo.name)}" style="display: flex; flex-direction: column; gap: 20px;">
+        <div id="repo-detail-content-${escapeHtml(repo.name)}" style="display: flex; flex-direction: column; gap: 20px; min-width: 0; max-width: 100%;">
 
           <!-- ============================================================== -->
           <!-- TIER 1: PROJECT MANAGEMENT & BRAINSTORMING (ROOT DIRECTORY)    -->
           <!-- ============================================================== -->
-          <div style="background: #0f1422; border: 2px solid ${color}; border-radius: 8px; padding: 20px; box-shadow: 0 4px 20px -2px ${color}33;">
+          <div style="background: #0f1422; border: 2px solid ${color}; border-radius: 8px; padding: 20px; box-shadow: 0 4px 20px -2px ${color}33; min-width: 0; max-width: 100%;">
             
             <!-- Tier 1 Badge & Header -->
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; border-bottom: 1px solid #1e293b; padding-bottom: 14px; flex-wrap: wrap; gap: 12px;">
@@ -3971,7 +4032,7 @@ Loading evidence data...
             </div>
 
             <!-- KANBAN BOARD DASHBOARD -->
-            <div id="kanban-dashboard-wrapper-${escapeHtml(repo.name)}" data-sig="${escapeHtml(initKanbanSig)}" style="background: #0a0e17; border: 1px solid #1e2638; border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
+            <div id="kanban-dashboard-wrapper-${escapeHtml(repo.name)}" data-sig="${escapeHtml(initKanbanSig)}" style="background: #0a0e17; border: 1px solid #1e2638; border-radius: 8px; overflow: hidden; margin-bottom: 20px; min-width: 0; max-width: 100%;">
               ${renderKanbanDashboard(repo, selectedEpicFilter)}
             </div>
 
@@ -5222,10 +5283,10 @@ let currentReviewRepo = null;
         });
       }
 
-      let colsHtml = '<div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;">';
+      let colsHtml = '<div class="kanban-columns-scroll" style="min-width: 0; width: 100%; overflow-x: auto; overflow-y: hidden; display: grid; grid-template-columns: repeat(5, minmax(240px, 1fr)); gap: 10px;">';
       for (const [key, col] of Object.entries(columns)) {
         colsHtml += `
-          <div style="background: #14171f; border: 1px solid #1e2330; border-radius: 8px; padding: 10px; min-height: 250px;">
+          <div style="min-width: 0; overflow-x: hidden; background: #14171f; border: 1px solid #1e2330; border-radius: 8px; padding: 10px; min-height: 250px;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid #282f40; padding-bottom: 4px;">
               <span style="font-size: 12px; font-weight: 700; color: ${col.color};">● ${col.title} (${col.items.length})</span>
             </div>
@@ -5241,8 +5302,8 @@ let currentReviewRepo = null;
               ? 'border-left: 3px solid #10b981;' 
               : (isInProg ? 'border-left: 3px solid #fbbf24; box-shadow: 0 0 10px rgba(251, 191, 36, 0.15);' : '');
             colsHtml += `
-              <div style="background: #1e2330; border-radius: 6px; padding: 10px; font-size: 11px; margin-bottom: 8px; ${borderStyle}">
-                <strong style="color: #f1f5f9; display: block; margin-bottom: 4px; line-height: 1.4;">${escapeHtml(t.title || t.id)}</strong>
+              <div style="min-width: 0; overflow-x: hidden; background: #1e2330; border-radius: 6px; padding: 10px; font-size: 11px; margin-bottom: 8px; ${borderStyle}">
+                <strong style="color: #f1f5f9; display: block; margin-bottom: 4px; line-height: 1.4; overflow-wrap: anywhere; word-break: break-word;">${escapeHtml(t.title || t.id)}</strong>
                 <div style="font-size: 10px; color: #94a3b8; font-family: monospace; word-break: break-all;">ID: ${escapeHtml(t.id)}</div>
                 <div style="margin-top: 6px; display: flex; justify-content: space-between; align-items: center;">
                   ${t.priority ? `<span style="font-size: 9px; padding: 1px 6px; border-radius: 3px; background: #334155; color: #cbd5e1; text-transform: uppercase;">${escapeHtml(t.priority)}</span>` : '<span></span>'}

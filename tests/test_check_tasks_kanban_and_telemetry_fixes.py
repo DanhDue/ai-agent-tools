@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.test_ltsp_dashboard_ui import _eval_dashboard_js
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CHECK_TASKS_PATH = (
     REPO_ROOT / "skills" / "check-tasks" / "resources" / "scripts" / "check_tasks.py"
@@ -294,3 +296,263 @@ def test_multi_wave_lifecycle_state_and_worktree_packaged_overview(
         "5. Cross-Review",
         "6. Finish",
     ]
+
+
+def test_kanban_sticky_overview_single_scroll_and_long_slug_truncation() -> None:
+    """Kanban pins 220px Overview, uses one horizontal scroll track, locks column overflow-x, and truncates long epic slugs."""
+    long_slug = "translation_studio_sync_and_standalone_very_long_epic_identifier"
+    res = _eval_dashboard_js(
+        rf"""
+        const ctx = createDashboardContext();
+        const repo = {{
+          name: 'lyrics-sync',
+          path: '/tmp/lyrics-sync',
+          active_epic: '{long_slug}',
+          active_stage: 'Stage 3 Phase 2 (TDD)',
+          task_progress: {{
+            total_tasks: 2,
+            done_tasks: 1,
+            in_progress_tasks: 1,
+            todo_tasks: 0,
+            percentage: 50.0,
+            task_completion_pct: 50.0,
+            tasks: [
+              {{
+                id: 'task_01',
+                title: 'Task 1: Unbroken_identifier_token_check_in_kanban_card_title',
+                status: 'in-progress',
+                priority: 'high',
+                epic: '{long_slug}',
+                source: 'worktree',
+              }},
+              {{
+                id: 'task_02',
+                title: 'Task 2: Completed Wave Item',
+                status: 'done',
+                priority: 'medium',
+                epic: '{long_slug}',
+                source: 'worktree',
+              }},
+            ],
+          }},
+          epics_summary: {{
+            total: 1,
+            in_progress: 1,
+            completed: 0,
+            unstarted: 0,
+            abandoned: 0,
+            epics: [{{ slug: '{long_slug}', status: 'in_progress', task_count: 2 }}],
+          }},
+        }};
+        const kanbanHtml = ctx.renderKanbanDashboard(repo, 'all');
+        const colCardMatches = kanbanHtml.match(/<div class="kanban-col-cards"[^>]*>/g) || [];
+        const sigBefore = ctx.buildKanbanSig(repo, 'all');
+        repo.epics_summary.epics[0].task_count = 20;
+        const sigAfter = ctx.buildKanbanSig(repo, 'all');
+        console.log(JSON.stringify({{ kanbanHtml, colCardMatches, sigChanged: sigBefore !== sigAfter }}));
+        """
+    )
+    html = res["kanbanHtml"]
+    assert res["sigChanged"] is True
+    assert 'class="kanban-board-shell"' in html
+    assert "grid-template-columns: 220px minmax(0, 1fr)" in html
+    assert 'data-kanban-overview="pinned"' in html
+    assert "position: sticky; left: 0; z-index: 3" in html
+    assert 'class="kanban-columns-scroll"' in html
+    assert "overflow-x: auto; overflow-y: hidden" in html
+    assert "grid-template-columns: repeat(5, minmax(260px, 1fr))" in html
+    col_card_tags = res["colCardMatches"]
+    assert len(col_card_tags) == 5
+    for tag in col_card_tags:
+        assert "overflow-x: hidden" in tag
+        assert "overflow-y: auto" in tag
+    assert 'class="kanban-epic-link-row"' in html
+    assert 'class="kanban-epic-chip"' in html
+    assert f"[{long_slug}]" in html
+    assert f"🗂 {long_slug}" in html
+    assert html.count("text-overflow: ellipsis") >= 3
+    dashboard_text = (
+        REPO_ROOT
+        / "skills"
+        / "check-tasks"
+        / "resources"
+        / "dashboard"
+        / "tasks_dashboard.html"
+    ).read_text(encoding="utf-8")
+    assert ".kanban-board-shell," in dashboard_text
+    assert ".kanban-epic-link-row," in dashboard_text
+    assert ".kanban-epic-chip {" in dashboard_text
+
+
+def test_substeps_and_synthesized_telemetry_strip_stage_index_prefix_preserving_pills() -> (
+    None
+):
+    """Standalone sub-step headers and synthesized summaries omit numeric stage prefixes while 6-stage pills retain 1..6."""
+    res = _eval_dashboard_js(
+        r"""
+        const ctx = createDashboardContext();
+        const repo = {
+          name: 'lyrics-sync',
+          path: '/tmp/lyrics-sync',
+          active_epic: 'demo_epic',
+          active_stage: 'Stage 3 Phase 2 (TDD)',
+          task_progress: { total_tasks: 5, done_tasks: 2, in_progress_tasks: 1, todo_tasks: 2, percentage: 40.0, task_completion_pct: 40.0, tasks: [] },
+          epics_summary: { total: 1, in_progress: 1, epics: [{ slug: 'demo_epic', status: 'in_progress', task_count: 5 }] },
+        };
+        const progState = ctx.computeEpicProgressState(repo, 'demo_epic', 5, 2, repo.epics_summary.epics[0]);
+        const synthPt = ctx.synthesizePipelineTelemetry(repo, 'demo_epic', true, progState, 2, 5);
+        const pillsHtml = ctx.buildStagePillsHtml(synthPt.stages, 3, false);
+        const subStepsTasksHtml = ctx.buildSubStepsHtml(synthPt.stages, 3, null);
+        const subStepsQaHtml = ctx.buildSubStepsHtml(synthPt.stages, 4, null);
+        const stripped3 = typeof ctx.stripStageIndexPrefix === 'function' ? ctx.stripStageIndexPrefix('3. Tasks') : null;
+        console.log(JSON.stringify({
+          activeSummary: synthPt.active_sub_step_summary,
+          pillsHtml,
+          subStepsTasksHtml,
+          subStepsQaHtml,
+          stripped3,
+        }));
+        """
+    )
+    assert res["stripped3"] == "Tasks"
+    assert res["activeSummary"] == "Tasks · 2/5 (40%)"
+    assert not res["activeSummary"].startswith("3.")
+    assert "Tasks:</strong>" in res["subStepsTasksHtml"]
+    assert "3. Tasks:" not in res["subStepsTasksHtml"]
+    assert "Gate 4 QA:</strong>" in res["subStepsQaHtml"]
+    assert "4. Gate 4 QA:" not in res["subStepsQaHtml"]
+    for pill_lbl in (
+        "1. Spec",
+        "2. HLD &amp; Principal",
+        "3. Tasks",
+        "4. Gate 4 QA",
+        "5. Cross-Review",
+        "6. Finish",
+    ):
+        assert pill_lbl in res["pillsHtml"]
+
+
+def test_frontend_reconciles_multi_wave_and_multi_epic_task_counts() -> None:
+    """Multi-wave 4/20 epic renders 4 / 20 Completed (20%) & Promoting next wave tasks...; multi-epic 4/4 active epic renders 100% alongside 16 backlog tasks."""
+    res = _eval_dashboard_js(
+        r"""
+        const ctx = createDashboardContext();
+        const waveTasks = Array.from({ length: 4 }, (_, i) => ({
+          id: `task_0${i + 1}`,
+          title: `Wave 1 Task ${i + 1}`,
+          status: 'done',
+          priority: 'high',
+          epic: 'multi_wave_epic',
+        }));
+        const waveRepo = {
+          name: 'wave-repo',
+          path: '/tmp/wave-repo',
+          active_epic: 'multi_wave_epic',
+          active_stage: 'Stage 3 Phase 2 (TDD)',
+          worktrees: [{ path: '/tmp/wave-repo/.worktrees/multi_wave_epic', branch: 'epic/multi_wave_epic', is_dirty: false, dirty_file_count: 0 }],
+          task_progress: {
+            total_tasks: 4,
+            done_tasks: 4,
+            in_progress_tasks: 0,
+            todo_tasks: 0,
+            percentage: 96.0,
+            task_completion_pct: 100.0,
+            tasks: waveTasks,
+          },
+          epics_summary: {
+            total: 1,
+            in_progress: 1,
+            completed: 0,
+            unstarted: 0,
+            abandoned: 0,
+            epics: [{
+              slug: 'multi_wave_epic',
+              status: 'in_progress',
+              task_count: 20,
+              pipeline_telemetry: {
+                epic_slug: 'multi_wave_epic',
+                done_tasks: 4,
+                total_tasks: 20,
+                task_completion_pct: 20.0,
+                lifecycle_progress_pct: 36.0,
+                current_stage_index: 3,
+                active_sub_step_summary: 'Tasks · 4/20 (20%)',
+                stages: [
+                  { id: 'spec', index: 1, label: '1. Spec', status: 'done', summary: 'Gate 1 PASS', sub_steps: [] },
+                  { id: 'hld_principal', index: 2, label: '2. HLD & Principal', status: 'done', summary: 'Gate 2 PASS', sub_steps: [] },
+                  { id: 'tasks', index: 3, label: '3. Tasks', status: 'running', summary: '4/20 (20%)', done_tasks: 4, total_tasks: 20, sub_steps: [] },
+                  { id: 'gate4_quality', index: 4, label: '4. Gate 4 QA', status: 'pending', summary: 'Pending', sub_steps: [] },
+                  { id: 'cross_review', index: 5, label: '5. Cross-Review', status: 'pending', summary: 'Pending', sub_steps: [] },
+                  { id: 'finish', index: 6, label: '6. Finish', status: 'pending', summary: 'Pending', sub_steps: [] },
+                ],
+                events: [],
+              },
+            }],
+          },
+        };
+
+        const activeFour = Array.from({ length: 4 }, (_, i) => ({
+          id: `task_0${i + 1}_active`,
+          title: `Active Epic Task ${i + 1}`,
+          status: 'done',
+          priority: 'high',
+          epic: 'active_four_epic',
+        }));
+        const secondSixteen = Array.from({ length: 16 }, (_, i) => ({
+          id: `task_${String(i + 1).padStart(2, '0')}_backlog`,
+          title: `Second Backlog Task ${i + 1}`,
+          status: 'backlog',
+          priority: 'medium',
+          epic: 'second_backlog_epic',
+        }));
+        const multiRepo = {
+          name: 'lyrics-sync',
+          path: '/tmp/lyrics-sync',
+          active_epic: 'active_four_epic',
+          active_stage: 'Stage 3 Phase 4 (Review)',
+          worktrees: [{ path: '/tmp/lyrics-sync/.worktrees/active_four_epic', branch: 'epic/active_four_epic', is_dirty: false, dirty_file_count: 0 }],
+          task_progress: {
+            total_tasks: 20,
+            done_tasks: 4,
+            in_progress_tasks: 0,
+            todo_tasks: 0,
+            backlog_tasks: 16,
+            percentage: 20.0,
+            task_completion_pct: 20.0,
+            active_task_name: 'Second Backlog Task 1',
+            tasks: [...activeFour, ...secondSixteen],
+          },
+          epics_summary: {
+            total: 2,
+            in_progress: 1,
+            completed: 0,
+            unstarted: 1,
+            abandoned: 0,
+            epics: [
+              { slug: 'active_four_epic', status: 'in_progress', task_count: 4 },
+              { slug: 'second_backlog_epic', status: 'unstarted', task_count: 16 },
+            ],
+          },
+        };
+
+        console.log(JSON.stringify({
+          waveExecHtml: ctx.renderExecutionEpics(waveRepo),
+          waveKanbanHtml: ctx.renderKanbanDashboard(waveRepo, 'all'),
+          multiExecHtml: ctx.renderExecutionEpics(multiRepo),
+          multiKanbanHtml: ctx.renderKanbanDashboard(multiRepo, 'all'),
+        }));
+        """
+    )
+    assert "4 / 20 Completed (20%)" in res["waveExecHtml"]
+    assert "Promoting next wave tasks..." in res["waveExecHtml"]
+    assert "4 / 4 Completed" not in res["waveExecHtml"]
+    assert "All tasks completed ✓" not in res["waveExecHtml"]
+    assert "4/20 Tasks (20%)" in res["waveKanbanHtml"]
+    assert "4/4 Tasks" not in res["waveKanbanHtml"]
+
+    assert "4 / 4 Completed (100%" in res["multiExecHtml"]
+    assert "All tasks completed ✓" in res["multiExecHtml"]
+    assert "Second Backlog Task 1" not in res["multiExecHtml"]
+    assert "4 / 4 Completed (20%)" not in res["multiExecHtml"]
+    assert "4/4 Tasks (100%)" in res["multiKanbanHtml"]
+    assert "0/16 Tasks (0%)" in res["multiKanbanHtml"]
