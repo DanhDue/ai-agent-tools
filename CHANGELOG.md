@@ -8,6 +8,24 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.33.1 — 2026-11-19
+
+Aligns built-in Antigravity (`agy`) orchestrator and Neon model catalogue aliases with live CLI model IDs, ensures `orchestrator` + `g1-pro` infers the `argonWeekly` quota pool, and classifies invalid CLI model selections as `model_unavailable`.
+
+### Fixed
+
+- **Built-In `agy` Catalogue & `orchestrator-argon` ID Alignment (`scripts/personas.default.json`)**:
+  - Updates `orchestrator-argon` from unrecognized `gemini-pro-orchestrator-argon` to `gemini-pro-orchestrator-g1-pro` (`efforts: ["none"]`, `quota_pool: "argonWeekly"`).
+  - Replaces retired `carbon` (`gemini-4-carbon-{effort}`) and `orchestrator-carbon` (`gemini-pro-orchestrator`) aliases with `neon` (`gemini-4-neon-{effort}`, `efforts: ["low", "medium", "high", "xhigh"]`) and `orchestrator-neon` (`gemini-pro-orchestrator-neon`, `efforts: ["none"]`).
+- **Argon Weekly Inference & Invalid-Model Failure Classification (`scripts/persona_config.py`)**:
+  - Updates `derive_quota_pool` to infer `argonWeekly` for `agy` model IDs containing both `orchestrator` and `g1-pro` even when `quota_pool` is omitted.
+  - Adds `invalid model selection` and `not recognized as a known model` to `_MODEL_FAILURE_PATTERNS` so invalid CLI model rejections classify cleanly as `model_unavailable`.
+
+### Changed
+
+- **Skill Documentation & Regression Coverage (`skills/dev-config/SKILL.md`, `tests/test_agy_effortless_models.py`)**:
+  - Updates `dev-config` quick examples and model/pool descriptions to reflect `neon`, `orchestrator-neon`, and `orchestrator-argon` (`gemini-pro-orchestrator-g1-pro`), and expands regression coverage for `g1-pro` pool derivation and invalid model classification.
+
 ## 1.33.0 — 2026-11-18
 
 Delivers **Task Review Cap, Blocker-Only Triage & Two-Tier Risk Short-Circuit (`review_cap_and_risk_triage`)** across `dev-lifecycle` and `dev-implementation`, **Antigravity Orchestrator Aliases & Effortless Models (`agy_orchestrator_and_effortless_models`)** in `dev-config`, **Check-Quota Dynamic Models & Multi-Strategy Review Action (`check_quota_dynamic_models_and_review_action`)**, **Dynamic 4-Provider Account Tiers** in `/check-quota`, and **Kanban Scroll, Width & Stage Telemetry Fixes** in `/check-tasks`.

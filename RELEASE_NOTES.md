@@ -1,40 +1,35 @@
-# Release Notes: d3nexus v1.33.0
+# Release Notes: d3nexus v1.33.1
 
-**Release Date:** November 18, 2026  
-**Version:** `1.33.0`  
-**Git Tag:** `v1.33.0`, `d3nexus--v1.33.0`
+**Release Date:** November 19, 2026  
+**Version:** `1.33.1`  
+**Git Tag:** `v1.33.1`, `d3nexus--v1.33.1`
 
 ---
 
 ## Executive Summary
 
-`v1.33.0` introduces **Task Review Cap, Blocker-Only Triage & Two-Tier Risk Short-Circuit (`review_cap_and_risk_triage`)** across `dev-lifecycle` and `dev-implementation`, adds **Antigravity (`agy`) Orchestrator Aliases & Effortless Models (`agy_orchestrator_and_effortless_models`)** in `dev-config`, brings **Dynamic Model Discovery, Shared Argon Guards & Multi-Strategy Review Actions** to `/check-quota`, `/refresh-session`, and `/check-tasks`, normalizes **Dynamic 4-Provider Account Tiers** in `/check-quota`, and hardens **Kanban Scrolling, Card Sizing & Per-Epic Stage Telemetry** in `/check-tasks`.
+`v1.33.1` aligns the built-in Antigravity (`agy`) model catalogue in `dev-config` with live `agy` CLI model IDs so `orchestrator-argon` (`gemini-pro-orchestrator-g1-pro`), `orchestrator-neon` (`gemini-pro-orchestrator-neon`), and `neon` (`gemini-4-neon-{effort}`) work out of the box, infers `argonWeekly` accurately for `orchestrator` + `g1-pro` models, and classifies invalid CLI model selections as `model_unavailable`.
 
 ---
 
 ## Key Highlights
 
-### 1. Task Review Cap, Blocker-Only Triage & Two-Tier Risk Short-Circuit (`review_cap_and_risk_triage`)
-- **Configurable Review & Fix Caps (`scripts/persona_config.py`, `scripts/personas.default.json`, `scripts/dev_config.py`)**: Resolves `task_review_limits` (`max_task_review_passes = 2`, `max_fix_passes = 1`) with strict `type(v) is int` validation and displays resolved limits in `dev_config.py status`.
-- **Non-Destructive Pass 1 Snapshots & Delta-Only Pass 2 (`scripts/resume_context.py`, `skills/dev-implementation/resources/scripts/manage_worker_pool.py`)**: Captures `pass1_tree_sha` using a temporary `GIT_INDEX_FILE` (`capture_slot_tree_sha`) without mutating working trees or shared git indexes, enforces the `APPROVED|CHANGES_REQUESTED` (`blockers` / `observations`) contract in `--review-pass 1`, and generates Pass 2 Delta-Only prompts via `--review-pass 2 --pass1-tree-sha ... --blockers-file ...`.
-- **Blocker-Only Coercion Guard & Two-Tier Risk Triage (`manage_worker_pool.py`, `lifecycle_runner.py`)**: Coerces inconsistent `APPROVED` payloads with non-empty `blockers` via `normalize_task_review_payload`, applies Tier 1 deterministic heuristics (`triage-fix`) and bounded Role 2.2 Tier 2 short-circuit checks (`tier2-short-circuit`), enforces `finalize-slot` mechanical gates, and writes append-only records (`pass2_residual_logged_on_cap`, `tier1_triage_short_circuit`, `tier2_triage_short_circuit`) to `review_audit_notes.jsonl` with full `LifecycleRunner` parity.
+### 1. Built-In `agy` Catalogue Alignment (`scripts/personas.default.json`)
+- Updated `orchestrator-argon` from the unrecognized `gemini-pro-orchestrator-argon` ID to `gemini-pro-orchestrator-g1-pro` (`efforts: ["none"]`, `quota_pool: "argonWeekly"`).
+- Replaced retired `carbon` (`gemini-4-carbon-{effort}`) and `orchestrator-carbon` (`gemini-pro-orchestrator`) aliases with `neon` (`gemini-4-neon-{effort}`, `efforts: ["low", "medium", "high", "xhigh"]`) and `orchestrator-neon` (`gemini-pro-orchestrator-neon`, `efforts: ["none"]`).
 
-### 2. Antigravity Orchestrator Aliases & Effortless Models (`agy_orchestrator_and_effortless_models`)
-- **Effortless Dispatch & Defaults (`scripts/dev_config.py`, `scripts/persona_config.py`, `scripts/personas.default.json`, `skills/dev-config/SKILL.md`)**: Supports Antigravity `orchestrator` model aliases and effortless models across `dev-config set` and `dev-config models add`, backed by `tests/test_agy_effortless_models.py`.
+### 2. Quota Pool Inference & Failure Classification (`scripts/persona_config.py`)
+- Updated `derive_quota_pool` so `agy` model IDs containing `orchestrator` and `g1-pro` automatically resolve to the `argonWeekly` pool even without an explicit `quota_pool` override.
+- Added `invalid model selection` and `not recognized as a known model` patterns to `_MODEL_FAILURE_PATTERNS` so unrecognized CLI models are surfaced as `model_unavailable` instead of generic task failures.
 
-### 3. Check-Quota Dynamic Models, Shared Argon Guard & Review Proposed Actions (`check_quota_dynamic_models_and_review_action`)
-- **Dynamic Quota Discovery & `argonMode` (`scripts/agy_quota.py`, `skills/refresh-session/resources/scripts/refresh_session.py`, `skills/check-quota/resources/dashboard/quota_dashboard.html`)**: Combines `FetchAvailableModels` discovery with static fallbacks and `argonMode` (`PRO_ARGON`, `ULTRA_ARGON`, `PRO_HYDROGEN`, `ULTRA_CARBON`), renders dynamic rosters and shared pools in `quota_dashboard.html`, and suppresses redundant shared-pool Argon pings in `/refresh-session`.
-- **Multi-Strategy Review Action Extraction (`skills/dev-implementation/resources/scripts/run_external_review.py`, `skills/check-tasks/resources/scripts/tasks_server.py`, `tasks_dashboard.html`)**: Aligns `Proposed:` prompts across local and external review templates with prefill triage and multi-strategy action extraction in `/check-tasks`.
-
-### 4. Dynamic 4-Provider Account Tiers (`check_quota_dynamic_provider_account_tiers`)
-- **Unified Provider Tiers (`scripts/agy_quota.py`, `scripts/types/quota_dashboard.types.ts`, `skills/check-quota/resources/dashboard/quota_dashboard.html`)**: Normalizes `planLabel`, `vendorLabel`, priority sorting, and `accountMeta` across Antigravity (`GOOGLE`), Claude (`ANTHROPIC`), Codex (`OPENAI`), and Kiro (`AWS`), adding dynamic provider badges, an account info modal, and the Ultra Carbon-Argon row.
-
-### 5. `/check-tasks` Kanban Scroll, Width & Stage Telemetry Fixes (`check_tasks_kanban_and_stage_title_fixes`)
-- **Kanban UX & Telemetry (`skills/check-tasks/resources/dashboard/tasks_dashboard.html`, `skills/check-tasks/resources/scripts/check_tasks.py`)**: Pins Kanban Overview, unifies 5-column horizontal `Shift+Wheel` scrolling at `210px` column width, fixes 16-card height collapse and badge/chip right-edge clipping, scopes pipeline telemetry per epic, and removes orphan stage prefixes, verified via Chrome CDP E2E tests.
+### 3. Skill Documentation & Regression Tests (`skills/dev-config/SKILL.md`, `tests/test_agy_effortless_models.py`)
+- Updated `skills/dev-config/SKILL.md` examples and quota-pool guidance for `neon`, `orchestrator-neon`, and `orchestrator-argon` (`gemini-pro-orchestrator-g1-pro`).
+- Expanded `tests/test_agy_effortless_models.py` with tests covering kit defaults, `g1-pro` `argonWeekly` derivation, and `invalid model selection` classification.
 
 ---
 
 ## Verifications & Quality Gates Passed
 
-- `bash scripts/verify.sh` (all 22 verification sections & 89 Python test suites)
-- `uv run pytest tests/test_trc_*.py tests/test_agy_effortless_models.py tests/test_cqra_*.py tests/test_check_tasks_kanban_and_telemetry_fixes.py tests/test_check_quota_dynamic_provider_tiers.py`
+- `ruff check scripts/persona_config.py tests/test_agy_effortless_models.py` & `ruff format --check tests/test_agy_effortless_models.py`
+- `uv run pytest tests/test_agy_effortless_models.py tests/test_fpg_persona_config.py tests/test_fpg_dispatch_and_quota.py tests/test_fpg_set_provider_model_profile.py tests/test_fpg_agy_dispatch.py -q --tb=short` (`152 passed`)
+- `bash scripts/verify.sh` (all structural checks & 89 Python test suites)

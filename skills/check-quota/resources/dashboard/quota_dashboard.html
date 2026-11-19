@@ -3888,51 +3888,55 @@
     },
     "status": "ACTIVE",
     "isAppeal": false,
-    "isSessionActive": false,
-    "resetTime": "2026-11-18T13:22:05Z",
-    "resetTimeLocal": "20:22:05",
+    "isSessionActive": true,
+    "resetTime": "2026-11-19T09:09:15Z",
+    "resetTimeLocal": "16:09:15",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 1,
-      "countdown": "⏱ 4h 59m (20:22:05)",
-      "resetTime": "2026-11-18T13:22:05Z",
-      "resetTimeLocal": "20:22:05",
+      "fraction": 0.9993809461593628,
+      "countdown": "⏱ 4h 36m (16:09:15)",
+      "resetTime": "2026-11-19T09:09:15Z",
+      "resetTimeLocal": "16:09:15",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
-      "fraction": 1,
-      "countdown": "⏱ 4h 59m (20:22:05)",
-      "resetTime": "2026-11-18T13:22:05Z",
+      "fraction": 0.9753440022468567,
+      "countdown": "⏱ 4h 37m (16:09:33)",
+      "resetTime": "2026-11-19T09:09:33Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 1,
-      "countdown": "⏱ 6d 23h (25/11 15:22)",
-      "resetTime": "2026-11-25T08:22:05Z",
-      "resetTimeLocal": "25/11 15:22",
+      "fraction": 0.9998230934143066,
+      "countdown": "⏱ 6d 23h (26/11 11:09)",
+      "resetTime": "2026-11-26T04:09:15Z",
+      "resetTimeLocal": "26/11 11:09",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
-      "fraction": 1,
+      "fraction": 0.987671971321106,
       "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-25T08:22:05Z",
+      "resetTime": "2026-11-26T04:09:33Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 1,
+      "fraction": 0.9972252249717712,
       "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-25T08:22:05Z",
+      "resetTime": "2026-11-26T04:09:45Z",
       "unavailable": false,
       "tags": true,
       "sharedPool": false,
       "mode": "separate"
     },
     "availableModels": [
+      "gemini-4-neon-high",
+      "gemini-4-neon-xhigh",
+      "gemini-4-neon-medium",
+      "gemini-4-neon-low",
       "gemini-4-argon-medium",
       "gemini-4-argon-high",
       "gemini-4-argon-low",
@@ -3940,6 +3944,7 @@
       "gemini-4-hydrogen-xhigh",
       "gemini-4-hydrogen-medium",
       "gemini-4-hydrogen-low",
+      "gemini-pro-orchestrator-neon",
       "gemini-pro-orchestrator-g1-pro",
       "gemini-3.8-flash-high",
       "gemini-3.8-flash-medium",
@@ -3953,6 +3958,30 @@
       "gpt-oss-120b-medium"
     ],
     "modelCatalog": [
+      {
+        "id": "gemini-4-neon-high",
+        "label": "Gemini 4 Neon (High)",
+        "quotaFamily": "gemini",
+        "tags": []
+      },
+      {
+        "id": "gemini-4-neon-xhigh",
+        "label": "Gemini 4 Neon (XHigh)",
+        "quotaFamily": "gemini",
+        "tags": []
+      },
+      {
+        "id": "gemini-4-neon-medium",
+        "label": "Gemini 4 Neon (Medium)",
+        "quotaFamily": "gemini",
+        "tags": []
+      },
+      {
+        "id": "gemini-4-neon-low",
+        "label": "Gemini 4 Neon (Low)",
+        "quotaFamily": "gemini",
+        "tags": []
+      },
       {
         "id": "gemini-4-argon-medium",
         "label": "Gemini 4 Argon",
@@ -4007,6 +4036,14 @@
         "quotaFamily": "gemini",
         "tags": [
           "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-pro-orchestrator-neon",
+        "label": "Orchestrator",
+        "quotaFamily": "gemini",
+        "tags": [
+          "orchestrator"
         ]
       },
       {
@@ -4102,7 +4139,9 @@
     ],
     "groupModels": {
       "gemini": [
+        "Gemini 4 Neon",
         "Gemini 4 Hydrogen",
+        "Orchestrator (Neon)",
         "Gemini 3.8 Flash"
       ],
       "claude": [
@@ -4127,8 +4166,8 @@
         "Orchestrator"
       ]
     },
-    "modelsFetchedAt": "2026-11-18T05:33:38Z",
-    "groupDescSig": "e713ff4e3d0c080d"
+    "modelsFetchedAt": "2026-11-19T04:32:26Z",
+    "groupDescSig": "f73f6be36823ff30"
   },
   "tess": {
     "email": "ldejong322@gmail.com",
