@@ -12,20 +12,21 @@
       "id": "gemini-4-hydrogen-{effort}",
       "efforts": ["low", "medium", "high", "xhigh"]
     },
-    "carbon": {
+    "neon": {
       "cli": "agy",
-      "id": "gemini-4-carbon-{effort}",
-      "efforts": ["low", "medium", "high"]
+      "id": "gemini-4-neon-{effort}",
+      "efforts": ["low", "medium", "high", "xhigh"]
     },
-    "orchestrator-carbon": {
+    "orchestrator-neon": {
       "cli": "agy",
-      "id": "gemini-pro-orchestrator",
+      "id": "gemini-pro-orchestrator-neon",
       "efforts": ["none"]
     },
     "orchestrator-argon": {
       "cli": "agy",
-      "id": "gemini-pro-orchestrator-argon",
-      "efforts": ["none"]
+      "id": "gemini-pro-orchestrator-g1-pro",
+      "efforts": ["none"],
+      "quota_pool": "argonWeekly"
     },
     "claude-opus": {
       "cli": "claude",

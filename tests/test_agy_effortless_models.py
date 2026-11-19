@@ -154,17 +154,22 @@ EXPECTED_PRESETS: dict[str, dict[str, dict[str, str]]] = {
 @pytest.mark.parametrize(
     ("alias", "expected_id", "expected_efforts", "expected_pool"),
     [
-        ("carbon", "gemini-4-carbon-{effort}", ["low", "medium", "high"], "gemini5h"),
-        ("orchestrator-carbon", "gemini-pro-orchestrator", ["none"], "gemini5h"),
+        (
+            "neon",
+            "gemini-4-neon-{effort}",
+            ["low", "medium", "high", "xhigh"],
+            "gemini5h",
+        ),
+        ("orchestrator-neon", "gemini-pro-orchestrator-neon", ["none"], "gemini5h"),
         (
             "orchestrator-argon",
-            "gemini-pro-orchestrator-argon",
+            "gemini-pro-orchestrator-g1-pro",
             ["none"],
             "argonWeekly",
         ),
     ],
 )
-def test_kit_defaults_include_carbon_and_orchestrator_aliases(
+def test_kit_defaults_include_neon_and_orchestrator_aliases(
     tmp_path: Path,
     alias: str,
     expected_id: str,
@@ -187,12 +192,74 @@ def test_kit_defaults_include_carbon_and_orchestrator_aliases(
 
 
 @pytest.mark.parametrize(
+    ("entry", "alias", "expected_pool"),
+    [
+        (
+            {"cli": "agy", "id": "gemini-pro-orchestrator-g1-pro", "efforts": ["none"]},
+            "orchestrator-argon",
+            "argonWeekly",
+        ),
+        (
+            {"cli": "agy", "id": "gemini-pro-orchestrator-neon", "efforts": ["none"]},
+            "orchestrator-neon",
+            "gemini5h",
+        ),
+        (
+            {
+                "cli": "agy",
+                "id": "gemini-4-neon-{effort}",
+                "efforts": ["low", "medium", "high", "xhigh"],
+            },
+            "neon",
+            "gemini5h",
+        ),
+    ],
+)
+def test_derive_quota_pool_infers_g1_pro_as_argon_weekly(
+    entry: dict[str, Any],
+    alias: str,
+    expected_pool: str,
+) -> None:
+    pc = _load_module("persona_config", PERSONA_CONFIG_SCRIPT)
+    assert pc.derive_quota_pool(entry, alias) == expected_pool
+
+
+@pytest.mark.parametrize(
+    ("exit_code", "stderr", "expected_status"),
+    [
+        (
+            1,
+            'error: invalid model selection (--model "gemini-pro-orchestrator-argon" --effort ""): model gemini-pro-orchestrator-argon is not recognized as a known model or custom model in settings',
+            "model_unavailable",
+        ),
+        (
+            1,
+            "model foo is not recognized as a known model",
+            "model_unavailable",
+        ),
+        (
+            1,
+            "AssertionError: test failed",
+            "task_failure",
+        ),
+    ],
+)
+def test_classify_dispatch_failure_recognizes_invalid_model_selection(
+    exit_code: int,
+    stderr: str,
+    expected_status: str,
+) -> None:
+    pc = _load_module("persona_config", PERSONA_CONFIG_SCRIPT)
+    assert pc.classify_dispatch_failure(exit_code, "", stderr) == expected_status
+
+
+@pytest.mark.parametrize(
     ("model_entry", "error_fragment"),
     [
         (
             {
                 "cli": "agy",
-                "id": "gemini-pro-orchestrator",
+                "id": "gemini-pro-orchestrator-neon",
                 "efforts": ["none", "high"],
             },
             "cannot be combined",
@@ -200,7 +267,7 @@ def test_kit_defaults_include_carbon_and_orchestrator_aliases(
         (
             {
                 "cli": "agy",
-                "id": "gemini-pro-orchestrator",
+                "id": "gemini-pro-orchestrator-neon",
                 "efforts": ["low", "none"],
             },
             "cannot be combined",
@@ -235,7 +302,7 @@ def test_validate_model_entry_rejects_invalid_none_combinations(
     [
         (
             "agy",
-            "gemini-pro-orchestrator-argon",
+            "gemini-pro-orchestrator-g1-pro",
             "none",
             "read-only",
             [
@@ -244,25 +311,25 @@ def test_validate_model_entry_rejects_invalid_none_combinations(
                 "--mode",
                 "plan",
                 "--model",
-                "gemini-pro-orchestrator-argon",
+                "gemini-pro-orchestrator-g1-pro",
             ],
         ),
         (
             "agy",
-            "gemini-pro-orchestrator-argon",
+            "gemini-pro-orchestrator-g1-pro",
             "none",
             "write",
             [
                 "agy",
                 "--model",
-                "gemini-pro-orchestrator-argon",
+                "gemini-pro-orchestrator-g1-pro",
                 "--mode",
                 "auto",
             ],
         ),
         (
             "agy",
-            "gemini-pro-orchestrator",
+            "gemini-pro-orchestrator-neon",
             "none",
             "read-only",
             [
@@ -271,12 +338,12 @@ def test_validate_model_entry_rejects_invalid_none_combinations(
                 "--mode",
                 "plan",
                 "--model",
-                "gemini-pro-orchestrator",
+                "gemini-pro-orchestrator-neon",
             ],
         ),
         (
             "agy",
-            "gemini-4-carbon-high",
+            "gemini-4-neon-high",
             "high",
             "read-only",
             [
@@ -285,20 +352,20 @@ def test_validate_model_entry_rejects_invalid_none_combinations(
                 "--mode",
                 "plan",
                 "--model",
-                "gemini-4-carbon-high",
+                "gemini-4-neon-high",
                 "--effort",
                 "high",
             ],
         ),
         (
             "agy",
-            "gemini-4-carbon-high",
+            "gemini-4-neon-high",
             "high",
             "write",
             [
                 "agy",
                 "--model",
-                "gemini-4-carbon-high",
+                "gemini-4-neon-high",
                 "--effort",
                 "high",
                 "--mode",
@@ -420,25 +487,25 @@ def _run_cli(
         (
             ["set", "orchestrator", "orchestrator-argon"],
             "orchestrator-argon",
-            "gemini-pro-orchestrator-argon",
+            "gemini-pro-orchestrator-g1-pro",
             "argonWeekly",
         ),
         (
             ["set", "orchestrator", "orchestrator-argon", "none"],
             "orchestrator-argon",
-            "gemini-pro-orchestrator-argon",
+            "gemini-pro-orchestrator-g1-pro",
             "argonWeekly",
         ),
         (
-            ["set", "orchestrator", "gemini-pro-orchestrator-argon"],
+            ["set", "orchestrator", "gemini-pro-orchestrator-g1-pro"],
             "orchestrator-argon",
-            "gemini-pro-orchestrator-argon",
+            "gemini-pro-orchestrator-g1-pro",
             "argonWeekly",
         ),
         (
-            ["set", "orchestrator", "orchestrator-carbon"],
-            "orchestrator-carbon",
-            "gemini-pro-orchestrator",
+            ["set", "orchestrator", "orchestrator-neon"],
+            "orchestrator-neon",
+            "gemini-pro-orchestrator-neon",
             "gemini5h",
         ),
         (
@@ -451,7 +518,7 @@ def _run_cli(
                 "orchestrator-argon",
             ],
             "orchestrator-argon",
-            "gemini-pro-orchestrator-argon",
+            "gemini-pro-orchestrator-g1-pro",
             "argonWeekly",
         ),
         (
@@ -461,10 +528,10 @@ def _run_cli(
                 "--provider",
                 "agy",
                 "--model",
-                "gemini-pro-orchestrator-argon",
+                "gemini-pro-orchestrator-g1-pro",
             ],
             "orchestrator-argon",
-            "gemini-pro-orchestrator-argon",
+            "gemini-pro-orchestrator-g1-pro",
             "argonWeekly",
         ),
     ],
@@ -574,9 +641,9 @@ def test_cli_set_effortless_with_profile_preference_and_models_add_default(
     ("bad_args", "expected_fragment"),
     [
         (["set", "orchestrator", "orchestrator-argon", "high"], "allowed: none"),
-        (["set", "programmer", "carbon"], "required: model, effort"),
+        (["set", "programmer", "neon"], "required: model, effort"),
         (
-            ["set", "programmer", "--model", "carbon"],
+            ["set", "programmer", "--model", "neon"],
             "--model and --effort are both required",
         ),
         (["set", "programmer", "no-such-model"], "required: model, effort"),

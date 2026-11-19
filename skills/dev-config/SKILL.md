@@ -59,11 +59,11 @@ Flag form of `set` names the provider, the model, the effort and, for `agy`, a p
 python3 scripts/dev_config.py set programmer --provider kiro --model claude-sonnet-5.5 --effort high
 python3 scripts/dev_config.py set programmer --provider agy --profile p2 --model hydrogen --effort xhigh
 python3 scripts/dev_config.py set orchestrator orchestrator-argon
-python3 scripts/dev_config.py set orchestrator --provider agy --model gemini-pro-orchestrator-argon
+python3 scripts/dev_config.py set orchestrator --provider agy --model gemini-pro-orchestrator-g1-pro
 python3 scripts/dev_config.py set programmer codex-gpt xhigh        # positional form, unchanged
 ```
 
-- `--model` is resolved as a catalogue alias first, then as the `id` of a catalogue entry (with `{effort}` replaced by `--effort`). `--provider` must match the model's CLI. `--effort` / `EFFORT` is required for selectable-effort models (`hydrogen`, `argon`, `carbon`, etc.) and defaults to `none` (omitting `--effort` on headless CLI dispatch) only when the model defines `efforts` as `["none"]`; mixing flag options with positional `MODEL EFFORT` exits `1`.
+- `--model` is resolved as a catalogue alias first, then as the `id` of a catalogue entry (with `{effort}` replaced by `--effort`). `--provider` must match the model's CLI. `--effort` / `EFFORT` is required for selectable-effort models (`hydrogen`, `argon`, `neon`, etc.) and defaults to `none` (omitting `--effort` on headless CLI dispatch) only when the model defines `efforts` as `["none"]`; mixing flag options with positional `MODEL EFFORT` exits `1`.
 - `--provider` on `set` is an option of `set`. The top-level `--provider` quick-setup below still cannot be combined with a subcommand.
 - `--profile NAME` applies only to `agy` models and `NAME` must already be in the pool (`profiles add NAME`). The profile is a preference: dispatch tries it first, then rotates through the rest of the pool by priority when it is leased, exhausted, in use or out of quota. `--profile auto` removes the preference.
 - Every `set` replaces the persona's whole override entry in that scope, so a `set` without `--profile` clears a stored preference.
@@ -92,8 +92,8 @@ python3 scripts/dev_config.py set programmer codex-gpt xhigh        # positional
 | `all-claude` | `claude-opus` `high` | `claude-sonnet` `high` | `claude-sonnet` `high` |
 | `all-codex` | `codex-gpt` `high` | `codex-terra` `medium` | `codex-terra` `medium` |
 
-- Built-in `agy` aliases added alongside `argon` and `hydrogen`: `carbon` (`gemini-4-carbon-{effort}`, selectable efforts `low`/`medium`/`high`, pool `gemini5h`), `orchestrator-carbon` (`gemini-pro-orchestrator`, `efforts: ["none"]`, pool `gemini5h`), and `orchestrator-argon` (`gemini-pro-orchestrator-argon`, `efforts: ["none"]`, pool `argonWeekly`).
-- `agy` models with `argon` in the `id` template consume `argonWeekly`; other `agy` models consume `gemini5h`; `claude`, `codex`, and `kiro` consume `provider`.
+- Built-in `agy` aliases added alongside `argon` and `hydrogen`: `neon` (`gemini-4-neon-{effort}`, selectable efforts `low`/`medium`/`high`/`xhigh`, pool `gemini5h`), `orchestrator-neon` (`gemini-pro-orchestrator-neon`, `efforts: ["none"]`, pool `gemini5h`), and `orchestrator-argon` (`gemini-pro-orchestrator-g1-pro`, `efforts: ["none"]`, pool `argonWeekly`).
+- `agy` models with `argon` or `orchestrator` + `g1-pro` in the `id` template consume `argonWeekly`; other `agy` models consume `gemini5h`; `claude`, `codex`, and `kiro` consume `provider`.
 - When quota data is unreadable (`quota_unknown`), `quota-check` exits `0` and surfaces the warning without blocking; use `d3nexus:check-quota` for full multi-profile inspection.
 
 ## Agy Profile Pool and Pooled Dispatch

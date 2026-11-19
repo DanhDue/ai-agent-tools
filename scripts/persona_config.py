@@ -70,6 +70,8 @@ _MODEL_FAILURE_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
         r"not authenticated",
         r"please (log|sign) in",
         r"login required",
+        r"invalid model selection",
+        r"not recognized as a known model",
     )
 )
 
@@ -215,7 +217,9 @@ def derive_quota_pool(entry: Mapping[str, Any], alias: str = "<model>") -> str:
         return explicit
     if cli == "agy":
         model_id = str(entry.get("id", "")).lower()
-        return "argonWeekly" if "argon" in model_id else "gemini5h"
+        if "argon" in model_id or ("orchestrator" in model_id and "g1-pro" in model_id):
+            return "argonWeekly"
+        return "gemini5h"
     return "provider"
 
 
