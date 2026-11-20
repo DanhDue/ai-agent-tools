@@ -773,7 +773,7 @@ def check_baseline(ctx: Context) -> list[Finding]:
             continue
 
         for row in rows:
-            if row.phase not in ("GREEN", "TIER-B"):
+            if row.phase not in ("GREEN", "REGRESSION", "TIER-B"):
                 continue
 
             if any(np in row.command for np in new_paths):

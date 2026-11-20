@@ -828,6 +828,11 @@ def _verify_orchestration_and_quality_phases(
         cwd=wt,
         check=True,
     )
+    t1_wt = wt / ".devtool/epic/demo_epic/task_1.md"
+    t1_wt.write_text(
+        t1_wt.read_text(encoding="utf-8").replace("- [ ] ", "- [x] "),
+        encoding="utf-8",
+    )
     _run_cmd(
         [sys.executable, str(SYNC_TASK_SCRIPT), "task", "task_1", "done"],
         cwd=wt,
@@ -865,6 +870,11 @@ def _verify_orchestration_and_quality_phases(
         ],
         cwd=wt,
         check=True,
+    )
+    t2_wt = wt / ".devtool/epic/demo_epic/task_2.md"
+    t2_wt.write_text(
+        t2_wt.read_text(encoding="utf-8").replace("- [ ] ", "- [x] "),
+        encoding="utf-8",
     )
     _run_cmd(
         [sys.executable, str(SYNC_TASK_SCRIPT), "task", "task_2", "done"],

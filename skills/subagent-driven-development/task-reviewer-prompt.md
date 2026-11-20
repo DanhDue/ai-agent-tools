@@ -97,6 +97,8 @@ Subagent (general-purpose):
     - the evidence file is missing;
     - any Verification row that is not `PASS`, or a `done gate:` line that
       is not `PASS`;
+    - any unchecked `- [ ]` item remaining in `## Definition of Done` (every item must
+      be ticked `- [x]` with a brief mechanical result note after `verify` passes);
     - a `tree` mismatch: the evidence was recorded on a different tree than
       the one under review.
 

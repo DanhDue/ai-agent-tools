@@ -107,6 +107,8 @@ def _set_task_status(
                 count=1,
                 flags=re.MULTILINE,
             )
+            if new_status == "done":
+                updated = updated.replace("- [ ] ", "- [x] ")
             path.write_text(updated, encoding="utf-8")
 
 

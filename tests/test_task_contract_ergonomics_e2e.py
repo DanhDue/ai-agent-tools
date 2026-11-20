@@ -138,7 +138,7 @@ class TaskContractErgonomics_Integration_E2E_Test(unittest.TestCase):
             "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
             "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n"
             f"| V5 | TIER-C | `python3 tool.py int --evidence={ev_rel} --out=build/out.xml` | exit 0; results build/out.xml | — |\n\n"
-            "## Definition of Done\n\n- done (V2, V3, V4, V5)\n\n"
+            "## Definition of Done\n\n- [ ] done (V2, V3, V4, V5)\n\n"
             "## Stop and Report If\n\n- A command does not match.\n\n"
             "## Decisions Already Made\n\n- Grounded design decision.\n"
         )

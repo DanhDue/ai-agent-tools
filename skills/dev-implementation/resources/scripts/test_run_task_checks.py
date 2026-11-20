@@ -528,6 +528,61 @@ class RecorderTest(RepoCase):
         self.assertEqual(code, 0)
         self.assertIn("done gate: PASS", out)
 
+    def test_regression_phase_and_dod_checkbox_gate(self) -> None:
+        """REGRESSION phase executes during verify and unchecked DoD `- [ ]` blocks done gate until ticked `[x]`."""
+        rows = (
+            "| V1 | GREEN | `true` | exit 0 | — |\n"
+            "| V2 | REGRESSION | `echo '42 passed'` | exit 0; contains \"42 passed\" | — |\n"
+        )
+        raw = task_text(rows, allowed="- `feature.txt` (new)").replace(
+            "- done (V1)\n",
+            "- [ ] Unit test passes (V1)\n- [ ] Regression suite passes (V2)\n",
+        )
+        self.write(f"{EPIC}/demo.en.md", hld_text())
+        self.write(f"{EPIC}/bdd_scenarios.en.md", "# Scenarios\n")
+        task = self.write(TASK, raw)
+        self.commit()
+
+        self.write("feature.txt", "ok\n")
+        code, out, _ = self.run_cli("verify", task)
+        self.assertEqual(code, 0, out)
+        self.assertIn("V2 REGRESSION PASS", out)
+
+        # Unchecked `- [ ]` fails done gate condition 9
+        st_code, st_out, _ = self.run_cli("status", task)
+        self.assertEqual(st_code, 1, st_out)
+        self.assertIn("condition 9: Definition of Done contains unchecked '- [ ]' item(s)", st_out)
+
+        # Rewriting a DoD criterion before `(Vn)` is caught as TASK_TAMPERED_ERROR
+        tampered = raw.replace(
+            "- [ ] Unit test passes (V1)\n- [ ] Regression suite passes (V2)\n",
+            "- [x] Unit test passes - returns 200 (V1)\n- [x] Regression suite passes (V2)\n",
+        )
+        self.write(TASK, tampered)
+        t_code, t_out, _ = self.run_cli("status", task)
+        self.assertEqual(t_code, 1, t_out)
+        self.assertIn("TASK_TAMPERED_ERROR", t_out)
+
+        # Deleting the `- [ ]` checkbox prefix to turn bullets into plain `- ` is also caught as TASK_TAMPERED_ERROR
+        deleted_box = raw.replace(
+            "- [ ] Unit test passes (V1)\n- [ ] Regression suite passes (V2)\n",
+            "- Unit test passes (V1)\n- Regression suite passes (V2)\n",
+        )
+        self.write(TASK, deleted_box)
+        d_code, d_out, _ = self.run_cli("status", task)
+        self.assertEqual(d_code, 1, d_out)
+        self.assertIn("TASK_TAMPERED_ERROR", d_out)
+
+        # Ticking `- [x]` with post-reference mechanical result notes passes done gate and does not trigger TASK_TAMPERED_ERROR
+        ticked = raw.replace(
+            "- [ ] Unit test passes (V1)\n- [ ] Regression suite passes (V2)\n",
+            "- [x] Unit test passes (V1) — exit 0, 1 passed\n- [x] Regression suite passes (V2) — exit 0, 42 passed\n",
+        )
+        self.write(TASK, ticked)
+        st_code2, st_out2, _ = self.run_cli("status", task)
+        self.assertEqual(st_code2, 0, st_out2)
+        self.assertIn("done gate: PASS", st_out2)
+
 
 class PytestRedSemanticsTest(RepoCase):
     REASON = ("Invalid pytest RED phase: must fail on a collected test (exit 1 or 2), "

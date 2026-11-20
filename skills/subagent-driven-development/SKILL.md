@@ -252,10 +252,7 @@ task to `in-progress` BEFORE dispatching the implementer:
 - *Single-worktree / non-pool mode*: `python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <id> in-progress`
 
 **A task with a Verification table** (an epic task run by
-d3nexus:dev-implementation) is never committed by the implementer. It runs
-`run_task_checks.py red` before implementing and `run_task_checks.py verify`
-after its last change and after every fix round, and leaves the change
-uncommitted: the done gate refuses evidence recorded after a commit. You
+d3nexus:dev-implementation) is never committed by the implementer when `needs_review` is true. For **every task**, the implementer must execute and pass all mechanical Verification phases (`RED -> GREEN -> REGRESSION -> TIER-B -> TIER-C`): it runs `run_task_checks.py red` before implementing and `run_task_checks.py verify` after its last change and after every fix round, then ticks every `- [ ]` checkbox in `## Definition of Done` to `- [x]` with a brief mechanical result summary (e.g. `exit 0, 42 passed`) before `run_task_checks.py status` (`done gate: PASS`) or `sync_task_status.py task <id> done` can succeed (updating frontmatter to `status: "done"` or `completedAt` while any `- [ ]` remains is forbidden). When `needs_review` is true, it leaves the change uncommitted: the done gate refuses evidence recorded after a commit. You
 build every review package from the uncommitted diff (`WORKTREE` in place of
 HEAD, below), and you make the task's single commit yourself, after
 `sync_task_status.py task <id> done` passes (dev-implementation Phase 2).

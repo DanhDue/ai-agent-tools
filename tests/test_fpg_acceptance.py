@@ -221,7 +221,11 @@ def _write_agy_stub(bin_dir: Path, spy_log: Path) -> Path:
         "target_file = pathlib.Path.cwd() / target_rel\n"
         "target_file.write_text(f'VALUE = \"{task_id}_done\"\\n', encoding='utf-8')\n"
         "subprocess.run([sys.executable, run_checks_path, 'verify', task_mirror], check=True)\n"
-        "subprocess.run(['git', 'add', target_rel, f'.devtool/epic/fpg_demo/evidence/{task_id}.json'], check=True)\n"
+        "for rel in (task_mirror, f'.devtool/features/{task_id}.md'):\n"
+        "    p = pathlib.Path.cwd() / rel\n"
+        "    if p.is_file():\n"
+        "        p.write_text(p.read_text(encoding='utf-8').replace('- [ ] ', '- [x] '), encoding='utf-8')\n"
+        "subprocess.run(['git', 'add', target_rel, task_mirror, f'.devtool/epic/fpg_demo/evidence/{task_id}.json'], check=True)\n"
         "subprocess.run(['git', 'commit', '-q', '-m', f'[FPG_DEMO] Implement {task_id}'], check=True)\n"
         "head_sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()\n"
         "tier = 'full' if 'beta' in task_id else 'standard'\n"
@@ -290,7 +294,7 @@ def _make_task_md(
         f"| V5 | TIER-C | `python3 tool.py int {short}` | exit 0; results build/test-results/int.xml | — |\n\n"
         f"## Stop and Report If\n\n- Unexpected failure.\n\n"
         f"## Decisions Already Made\n\n- Keep change minimal.\n\n"
-        f"## Definition of Done\n\n- Passed all checks (V2, V3, V4, V5).\n\n"
+        f"## Definition of Done\n\n- [ ] Passed all checks (V2, V3, V4, V5).\n\n"
         f"## Dependencies & Blockers\n\nNone.\n"
     )
 

@@ -299,8 +299,8 @@ def replay_task(
         if not ev_file.is_file() or ev_file.stat().st_size == 0:
             return 1, [f"{task_path.name}: Evidence file {entry.pattern} missing or empty after MEASURE"]
 
-    # 4. Execute GREEN, TIER-B, and TIER-C rows
-    verify_rows = [r for r in rows if r.phase in ("GREEN", "TIER-B", "TIER-C")]
+    # 4. Execute GREEN, REGRESSION, TIER-B, and TIER-C rows
+    verify_rows = [r for r in rows if r.phase in ("GREEN", "REGRESSION", "TIER-B", "TIER-C")]
     for r in verify_rows:
         record = run_row(r, root, timeout, scenario_ids)
         if record["outcome"] != "PASS":

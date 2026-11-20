@@ -119,7 +119,16 @@ def table_rows(check: Checker, stem: str, text: str) -> list[Any]:
     return rows
 
 
-def check_structure(check: Checker, stem: str, path: Path, text: str, rows: list[Any]) -> None:
+def check_structure(
+    check: Checker,
+    stem: str,
+    path: Path,
+    text: str,
+    rows: list[Any],
+    *,
+    design: bool = False,
+    allow_historical: bool = False,
+) -> None:
     for title in SECTIONS:
         if tc.section(text, title) is None:
             check.problem(f"{stem}:{title}", "section is missing")
@@ -133,7 +142,16 @@ def check_structure(check: Checker, stem: str, path: Path, text: str, rows: list
         if covers_of(path) and not any(row.phase == "TIER-C" and row.expect.results for row in rows):
             check.problem(f"{stem}:Verification", "Covers line but no TIER-C row with results")
     ids = {row.id for row in rows}
+    task_status = _task_status(text)
+    require_checkbox = design and not allow_historical and task_status not in EXISTING_NEW_EXEMPT_STATUSES
     for bullet in tc.dod_bullets(text):
+        if require_checkbox and not (
+            tc.UNCHECKED_DOD_PREFIX.match(bullet) or tc.CHECKED_DOD_PREFIX.match(bullet)
+        ):
+            check.problem(
+                f"{stem}:Definition of Done",
+                f"{bullet} must start with a '- [ ]' (or '- [x]') checkbox",
+            )
         reference = tc.DOD_REFERENCE.search(bullet)
         if not reference:
             check.problem(f"{stem}:Definition of Done", f"{bullet} ends with no (V<n>) or (Gate 5) reference")
@@ -142,7 +160,12 @@ def check_structure(check: Checker, stem: str, path: Path, text: str, rows: list
         if missing:
             check.problem(f"{stem}:Definition of Done",
                           f"{bullet} references {', '.join(missing)}, which the table lacks")
-    has_executable = any(row.phase in ("RED", "GREEN") for row in rows)
+    if (task_status == "done" or tc.has_completed_at(text)) and tc.unchecked_dod_bullets(text):
+        check.problem(
+            f"{stem}:Definition of Done",
+            "task status is 'done' (or completedAt is set) while Definition of Done still contains unchecked '- [ ]' item(s)",
+        )
+    has_executable = any(row.phase in ("RED", "GREEN", "REGRESSION") for row in rows)
     if has_executable:
         decisions = tc.section(text, "Decisions Already Made")
         clean_decisions = decisions.strip().lower() if decisions else ""
@@ -637,11 +660,171 @@ def _cap_tool_prefix(cap: list[str]) -> list[str]:
     return list(cap[:-1]) if len(cap) > 1 else list(cap)
 
 
+def _is_test_path(path: str) -> bool:
+    norm = path.strip().strip("`").removeprefix("./")
+    parts = Path(norm).parts
+    name = Path(norm).name.lower()
+    return (
+        "tests" in parts
+        or "test" in parts
+        or "integration_test" in parts
+        or name.startswith("test_")
+        or name.endswith(("_test.py", "_test.dart", "_test.go", "_test.rs", ".test.ts", ".spec.ts", ".test.js", ".spec.js", "test.kt", "tests.swift"))
+    )
+
+
+def _target_covers_path(target_tok: str, file_path: str) -> bool:
+    clean_tok = target_tok.split("::", 1)[0].strip().removeprefix("./").rstrip("/")
+    clean_file = file_path.strip().removeprefix("./")
+    if not clean_tok or clean_tok.startswith("-"):
+        return False
+    if clean_tok in (".", clean_file):
+        return True
+    if GLOB_CHARS.search(clean_tok) and _glob_matches(clean_tok, clean_file):
+        return True
+    return clean_file.startswith(clean_tok + "/")
+
+
+def _extract_downstream_caller_tests(text: str) -> list[str]:
+    impact_body: str | None = None
+    for heading in (
+        "Impact Analysis & Blast Radius",
+        "Impact Analysis and Blast Radius",
+        "Impact analysis & blast radius",
+        "Impact Analysis",
+    ):
+        impact_body = tc.section(text, heading)
+        if impact_body:
+            break
+    if not impact_body:
+        return []
+    caller_header = re.compile(
+        r"^\s*(?:(?:[-*]|\d+[.)])\s*)?(?:#{3,6}\s*)?\*{0,2}Downstream Callers\*{0,2}\s*:?\s*(.*)$",
+        re.IGNORECASE,
+    )
+    in_callers = False
+    caller_chunks: list[str] = []
+    for line in impact_body.splitlines():
+        m = caller_header.match(line)
+        if m:
+            in_callers = True
+            caller_chunks.append(m.group(1))
+            continue
+        if in_callers:
+            if (
+                re.match(r"^\s*#{2,6}\s+", line)
+                or re.match(r"^\s*(?:[-*]|\d+[.)])\s+\*\*", line)
+                or (
+                    line.startswith(("- ", "* "))
+                    and not line.startswith(("  - ", "  * "))
+                )
+            ):
+                break
+            caller_chunks.append(line)
+    caller_tests: list[str] = []
+    for chunk in caller_chunks:
+        for span in tc.CODE_SPAN.findall(chunk):
+            cand = span.split("::", 1)[0].strip().removeprefix("./")
+            if (
+                cand
+                and not GLOB_CHARS.search(cand)
+                and _is_test_path(cand)
+                and cand not in caller_tests
+            ):
+                caller_tests.append(cand)
+    return caller_tests
+
+
+def _caller_test_exists(check: Checker, caller_test: str) -> bool:
+    if (check.root / caller_test).exists() or check.is_tracked(caller_test):
+        return True
+    if "/" not in caller_test:
+        return any(Path(t).name == caller_test for t in check.tracked)
+    return False
+
+
+def _token_covers_caller_test(tok: str, caller_test: str) -> bool:
+    if _target_covers_path(tok, caller_test):
+        return True
+    if "/" not in caller_test:
+        clean_tok = tok.split("::", 1)[0].strip().removeprefix("./").rstrip("/")
+        return Path(clean_tok).name == caller_test
+    return False
+
+
+def check_regression_coverage(
+    check: Checker, stem: str, text: str, rows: list[Any]
+) -> None:
+    """Enforce regression coverage for touched modules and Downstream Callers in Verification."""
+    test_rows = [r for r in rows if r.phase in ("GREEN", "REGRESSION", "TIER-C")]
+    if not test_rows:
+        return
+
+    row_tokens: list[str] = []
+    for r in test_rows:
+        try:
+            toks = shlex.split(r.command)
+        except ValueError:
+            toks = r.command.split()
+        for tok in toks:
+            val = tok.split("=", 1)[1] if tok.startswith("-") and "=" in tok else tok
+            row_tokens.append(val)
+
+    # 1. Every test file explicitly listed under Downstream Callers must be executed
+    for caller_test in _extract_downstream_caller_tests(text):
+        if _caller_test_exists(check, caller_test):
+            if not any(_token_covers_caller_test(tok, caller_test) for tok in row_tokens):
+                check.problem(
+                    f"{stem}:Verification",
+                    f"Downstream caller test {caller_test} listed in Impact Analysis is not executed in any REGRESSION, GREEN, or TIER-C row",
+                )
+
+    # 2. Forbid running ONLY newly created unit test files when existing non-test modules are modified
+    allowed = tc.parse_allowed_files(text)
+    modifies_existing_prod = any(
+        not entry.new and not _is_test_path(entry.pattern) for entry in allowed
+    )
+    new_test_files = {
+        entry.pattern.removeprefix("./")
+        for entry in allowed
+        if entry.new and _is_test_path(entry.pattern)
+    }
+    if not modifies_existing_prod or not new_test_files:
+        return
+
+    has_regression_phase = any(r.phase == "REGRESSION" for r in rows)
+    referenced_test_targets: list[str] = []
+    for r in test_rows:
+        paths, _ = command_paths(r.command)
+        for p in paths:
+            if p == (r.expect.results or ""):
+                continue
+            if _is_test_path(p):
+                referenced_test_targets.append(p)
+        try:
+            toks = shlex.split(r.command)
+        except ValueError:
+            toks = r.command.split()
+        for tok in toks:
+            clean = tok.split("::", 1)[0].strip().removeprefix("./").rstrip("/")
+            if clean in ("tests", "test", "integration_test") or (
+                _is_test_path(clean) and clean not in referenced_test_targets
+            ):
+                referenced_test_targets.append(clean)
+
+    if referenced_test_targets and all(t in new_test_files for t in referenced_test_targets) and not has_regression_phase:
+        check.problem(
+            f"{stem}:Verification",
+            "Verification only runs newly created test file(s); add a REGRESSION row (or expand GREEN/TIER-C) covering existing module and Downstream Caller tests",
+        )
+
+
 def check_python_tier_b(
     check: Checker,
     stem: str,
     rows: list[Any],
     *,
+    text: str = "",
     allow_historical_prefix: bool = False,
 ) -> None:
     tier_b_rows = [r for r in rows if r.phase == "TIER-B"]
@@ -691,6 +874,8 @@ def check_python_tier_b(
             check.problem(f"{stem}:Verification", f"Python task missing registered lint capability ({' '.join(lint_cmd)})")
         if not has_type:
             check.problem(f"{stem}:Verification", f"Python task missing registered type_check capability ({' '.join(type_check_cmd)})")
+        if has_lint and has_type and text and not allow_historical_prefix:
+            _check_python_tier_b_allowed_coverage(check, stem, text, tier_b_rows)
         return
 
     # Fallback tooling: ruff + (mypy / pyright / ty)
@@ -715,6 +900,79 @@ def check_python_tier_b(
         if not has_type_checker:
             missing_tools.append("type-check (mypy/pyright/ty)")
         check.problem(f"{stem}:Verification", f"Python task requires TIER-B direct {', '.join(missing_tools)}")
+        return
+
+    if text and not allow_historical_prefix:
+        _check_python_tier_b_allowed_coverage(check, stem, text, tier_b_rows)
+
+
+def _check_python_tier_b_allowed_coverage(
+    check: Checker,
+    stem: str,
+    text: str,
+    tier_b_rows: list[Any],
+) -> None:
+    """When Allowed files includes production and test Python files (or multiple production files), ensure TIER-B lint and type-check cover all Allowed .py files."""
+    allowed_entries = tc.parse_allowed_files(text)
+    allowed_py = [
+        entry.pattern.removeprefix("./")
+        for entry in allowed_entries
+        if entry.pattern.lower().endswith(".py") and not GLOB_CHARS.search(entry.pattern)
+    ]
+    has_test_py = any(_is_test_path(p) for p in allowed_py)
+    prod_py = [p for p in allowed_py if not _is_test_path(p)]
+    has_new_test_py = any(
+        entry.new and entry.pattern.lower().endswith(".py") and _is_test_path(entry.pattern)
+        for entry in allowed_entries
+    )
+    has_strict_or_format = any(
+        "--strict" in r.command or "ruff format" in r.command for r in tier_b_rows
+    )
+    if not (
+        prod_py
+        and has_test_py
+        and (has_new_test_py or len(prod_py) > 1 or has_strict_or_format)
+    ):
+        return
+
+    lint_targets: list[str] = []
+    type_targets: list[str] = []
+    for r in tier_b_rows:
+        try:
+            tokens = shlex.split(r.command)
+        except ValueError:
+            tokens = r.command.split()
+        for sub in _split_subcommands(tokens):
+            unwrapped = tc.strip_wrappers(list(sub))
+            if not unwrapped:
+                continue
+            tool = Path(unwrapped[0]).name
+            args = [t for t in unwrapped[1:] if not t.startswith("-")]
+            if tool == "ruff":
+                if args and args[0] in ("check", "format"):
+                    args = args[1:]
+                lint_targets.extend(args or ["."])
+            elif tool in ("mypy", "pyright", "ty"):
+                type_targets.extend(args or ["."])
+
+    if lint_targets:
+        missing_lint = [
+            p for p in allowed_py if not any(_target_covers_path(t, p) for t in lint_targets)
+        ]
+        if missing_lint:
+            check.problem(
+                f"{stem}:Verification",
+                f"Python task TIER-B lint must cover all Allowed Python files (including test files); missing: {', '.join(missing_lint)}",
+            )
+    if type_targets:
+        missing_type = [
+            p for p in allowed_py if not any(_target_covers_path(t, p) for t in type_targets)
+        ]
+        if missing_type:
+            check.problem(
+                f"{stem}:Verification",
+                f"Python task TIER-B type-check must cover all Allowed Python files (including test files); missing: {', '.join(missing_type)}",
+            )
 
 
 def check_weak_bdd(check: Checker, source_name: str, text: str) -> None:
@@ -927,20 +1185,30 @@ def check_task(
 ) -> None:
     stem = path.stem
     rows = table_rows(check, stem, text)
-    check_structure(check, stem, path, text, rows)
+    task_status = _task_status(text)
+    allow_hist = task_status == "done" or (
+        allow_existing_done_new and task_status in EXISTING_NEW_EXEMPT_STATUSES
+    )
+    check_structure(
+        check,
+        stem,
+        path,
+        text,
+        rows,
+        design=design,
+        allow_historical=allow_hist,
+    )
     for row in rows:
         if row.expect.results and not check.ignored(row.expect.results):
             check.problem(f"{stem}:{row.id}", f"results path {row.expect.results} is not ignored by git")
         check_pytest_k(check, stem, row)
         check_portable_command(check, stem, row)
     check_weak_bdd(check, stem, text)
-    task_status = _task_status(text)
     if design or task_status != "done":
         if is_python_task(text, rows):
-            allow_hist = task_status == "done" or (
-                allow_existing_done_new and task_status in EXISTING_NEW_EXEMPT_STATUSES
-            )
-            check_python_tier_b(check, stem, rows, allow_historical_prefix=allow_hist)
+            check_python_tier_b(check, stem, rows, text=text, allow_historical_prefix=allow_hist)
+        if design and not allow_hist:
+            check_regression_coverage(check, stem, text, rows)
         check_allowed(
             check,
             stem,

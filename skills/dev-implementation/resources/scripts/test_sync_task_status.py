@@ -999,6 +999,59 @@ class DoneGateTests(DoneGateCase):
             "condition 2: verify row V9 is FAIL and no longer in the table"
         )
 
+    def test_unchecked_dod_checkbox_refuses_done_until_ticked(self):
+        self.build()
+        for root in (self.main, self.wt):
+            for rel in (MIRROR, FEATURE):
+                p = root / rel
+                p.write_text(
+                    p.read_text(encoding="utf-8").replace(
+                        "- done (V2)\n", "- [ ] done (V2)\n"
+                    ),
+                    encoding="utf-8",
+                )
+            git(root, "commit", "-q", "-am", "use dod checkbox")
+        self.record()
+        self.refuse_leaves_copies("condition 9:", "unchecked '- [ ]'")
+
+        # Ticking `- [x]` in features copy but rewording a criterion is refused with TASK_TAMPERED_ERROR and leaves mirror untouched
+        feat = self.wt / FEATURE
+        feat.write_text(
+            feat.read_text(encoding="utf-8").replace(
+                "- [ ] done (V2)\n", "- [x] weakened criterion (V2) — exit 0, 2 passed\n"
+            ),
+            encoding="utf-8",
+        )
+        tamper_res = self.done(self.wt)
+        self.assert_refused(tamper_res, "TASK_TAMPERED_ERROR")
+        self.assertIn(
+            "- [ ] done (V2)",
+            (self.wt / MIRROR).read_text(encoding="utf-8"),
+        )
+
+        # Ticking `- [x]` in features copy without altering criteria propagates to mirror only when done gate passes
+        # Also verify that a same-id task in an unrelated second epic (old_epic) does not trigger false TASK_TAMPERED_ERROR
+        old_epic_task = self.wt / ".devtool/epic/old_epic/task_1_demo.md"
+        old_epic_task.parent.mkdir(parents=True, exist_ok=True)
+        old_epic_task.write_text(
+            '---\nid: "task_1_demo"\nepic: "old_epic"\nstatus: "done"\n---\n'
+            "# Old Task\n\n## Definition of Done\n\n- legacy plain done bullet (V1)\n",
+            encoding="utf-8",
+        )
+        feat.write_text(
+            feat.read_text(encoding="utf-8").replace(
+                "- [x] weakened criterion (V2) — exit 0, 2 passed\n",
+                "- [x] done (V2) — exit 0, 2 passed\n",
+            ),
+            encoding="utf-8",
+        )
+        res = self.done(self.wt)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertIn(
+            "- [x] done (V2) — exit 0, 2 passed",
+            (self.wt / MIRROR).read_text(encoding="utf-8"),
+        )
+
 
 class EpicCheckoutRootsTests(unittest.TestCase):
     def setUp(self) -> None:

@@ -416,7 +416,7 @@ def test_tto_hp_08_end_to_end_pipeline() -> None:
             "| V5 | TIER-C | `python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/demo.xml tests/test_feature.py` | exit 0; results build/demo.xml | — |\n\n"
             "## Stop and Report If\n\n- Unexpected error\n\n"
             "## Decisions Already Made\n\n- Edit only line 110 in src/feature.py.\n\n"
-            "## Definition of Done\n\n- Feature test and static checks pass (V2, V3, V4, V5).\n"
+            "## Definition of Done\n\n- [ ] Feature test and static checks pass (V2, V3, V4, V5).\n"
         )
         (epic_dir / "task_01_feature.md").write_text(task_body, encoding="utf-8")
         (features_dir / "task_01_feature.md").write_text(
@@ -495,6 +495,13 @@ def test_tto_hp_08_end_to_end_pipeline() -> None:
             "'\n"
             f'"{sys.executable}" "{DEV_IMPL_SCRIPTS / "run_task_checks.py"}" verify '
             ".devtool/epic/demo_epic/task_01_feature.md >/dev/null\n"
+            f'"{sys.executable}" -c \'\n'
+            "from pathlib import Path\n"
+            "for rel in (\".devtool/epic/demo_epic/task_01_feature.md\", \".devtool/features/task_01_feature.md\"):\n"
+            "    p = Path(rel)\n"
+            "    if p.is_file():\n"
+            "        p.write_text(p.read_text(encoding=\"utf-8\").replace(\"- [ ] \", \"- [x] \"), encoding=\"utf-8\")\n"
+            "'\n"
             'echo "Modified: src/feature.py"\n'
             'echo "Tests: 1 passed"\n',
             encoding="utf-8",
@@ -623,12 +630,15 @@ def test_tto_hp_08_end_to_end_pipeline() -> None:
         assert ok_impl, f"step_implementation failed: {runner.state.last_error}"
 
         # Mark task done cleanly and commit for code review
+        done_body = task_body.replace('status: "todo"', 'status: "done"').replace(
+            "- [ ] ", "- [x] "
+        )
         (epic_wt / ".devtool" / "epic" / "demo_epic" / "task_01_feature.md").write_text(
-            task_body.replace('status: "todo"', 'status: "done"'),
+            done_body,
             encoding="utf-8",
         )
         (epic_wt / ".devtool" / "features" / "task_01_feature.md").write_text(
-            task_body.replace('status: "todo"', 'status: "done"').replace(
+            done_body.replace(
                 "](demo_epic.en.md)", "](../epic/demo_epic/demo_epic.en.md)"
             ),
             encoding="utf-8",

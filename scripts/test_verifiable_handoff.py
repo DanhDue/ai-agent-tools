@@ -83,8 +83,8 @@ Allowed files:
 
 ## Definition of Done
 
-- the feature exists (V2)
-- the demo scenario passes (V3)
+- [ ] the feature exists (V2)
+- [ ] the demo scenario passes (V3)
 
 ## Stop and Report If
 
@@ -142,6 +142,9 @@ class DesignToAuditTest(unittest.TestCase):
         self.step("run_task_checks.py", "red", mirror)
         (self.root / "feature.txt").write_text("feature\n", encoding="utf-8")
         self.step("run_task_checks.py", "verify", mirror)
+        for rel in (mirror, f".devtool/features/{TASK}.md"):
+            p = self.root / rel
+            p.write_text(p.read_text(encoding="utf-8").replace("- [ ] ", "- [x] "), encoding="utf-8")
         self.step("sync_task_status.py", "task", TASK, "done")
         git(self.root, "add", "-A")
         git(self.root, "commit", "-q", "-m", "[DEMO] Task 1")

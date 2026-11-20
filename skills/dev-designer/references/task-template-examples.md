@@ -38,16 +38,19 @@ review_tier: "full"     # optional: "full" for high-risk/multi-module tasks; omi
    - Flutter: `flutter-ui-audit`, Mason bricks, `build_runner`
    - Android: `android-ui-audit`, `android-api-integration`, `moshi_dto_generator`
    - iOS: `ios-ui-audit`, `tuist generate`, `ArchTests`
-6. **Impact Analysis & Blast Radius**: Target Files & Symbols (with `(L<start>-L<end>)` for files `> 200` lines), Downstream Callers, Cross-Platform Bridges (`MethodChannel`), Target Coverage Threshold (`100%` Security, `>= 85%` Domain, `>= 80%` UI).
+6. **Impact Analysis & Blast Radius**: Target Files & Symbols (with `(L<start>-L<end>)` for files `> 200` lines), Downstream Callers (`- **Downstream Callers**: \`<caller_module>\`, \`<downstream_test_file>\``), Cross-Platform Bridges (`MethodChannel`), Target Coverage Threshold (`100%` Security, `>= 85%` Domain, `>= 80%` UI).
 7. **BDD Scenarios (`### BDD SCENARIOS`)**: `Covers: <ID>, <ID>` directly under heading (omit only on zero-scenario tooling tasks), followed by verbatim `Given / When / Then` blocks copied from `bdd_scenarios.md`.
 8. **Verification (`## Verification`)**: See [`verification-rows.md`](verification-rows.md) and [`verification-row-grammar.md`](verification-row-grammar.md).
+   - Every task MUST include at least one `REGRESSION` row (or expanded `GREEN`/`TIER-C` command) running the full test suite of the touched module and all *Downstream Callers* listed in `## Impact Analysis & Blast Radius` — never only a newly created unit test file.
+   - `TIER-B` lint/format (`ruff check`, `ruff format --check` or stack equivalent) and type-check (`mypy --strict` or stack equivalent) MUST target **all** `Allowed files` (both production files and new/modified test files), plus `lint-imports` (or contract boundary check) whenever cross-module imports or contracts are touched.
    ```markdown
    | ID | Phase | Command | Expect | Needs |
    |----|-------|---------|--------|-------|
-   | V1 | RED | `uv run pytest -q --tb=short --maxfail=3 tests/unit/test_taxonomy.py::test_parse_node` | exit 1; contains "FAILED" | — |
-   | V2 | GREEN | `uv run pytest -q --tb=short --maxfail=3 tests/unit/test_taxonomy.py` | exit 0; contains "passed" | — |
-   | V3 | TIER-B | `uv run ruff check src tests` | exit 0 | — |
-   | V4 | TIER-C | `uv run pytest -q --tb=short --maxfail=3 tests/integration/test_taxonomy_bdd.py --junitxml=build/test-results/task_1.xml` | exit 0; results build/test-results/task_1.xml | TEST_DATABASE_URL |
+   | V1 | RED | `uv run pytest -q --tb=short --maxfail=3 tests/unit/align/test_ctc_padding_guard.py::test_reject_short_audio` | exit 1; contains "FAILED" | — |
+   | V2 | GREEN | `uv run pytest -q --tb=short --maxfail=3 tests/unit/align/test_ctc_padding_guard.py` | exit 0; contains "passed" | — |
+   | V3 | REGRESSION | `uv run pytest -q --tb=short --maxfail=3 tests/unit/align/test_ctc.py tests/unit/pipeline/test_align_caller.py` | exit 0; contains "passed" | — |
+   | V4 | TIER-B | `uv run ruff check src/pkg/align/ctc.py tests/unit/align/test_ctc_padding_guard.py tests/unit/align/test_ctc.py && uv run ruff format --check src/pkg/align/ctc.py tests/unit/align/test_ctc_padding_guard.py tests/unit/align/test_ctc.py && uv run mypy --strict src/pkg/align/ctc.py tests/unit/align/test_ctc_padding_guard.py tests/unit/align/test_ctc.py && uv run lint-imports` | exit 0 | — |
+   | V5 | TIER-C | `uv run pytest -q --tb=short --maxfail=3 tests/integration/test_align_bdd.py --junitxml=build/test-results/task_1.xml` | exit 0; results build/test-results/task_1.xml | TEST_DATABASE_URL |
    ```
    Follow with verbatim boilerplate:
    ```markdown
@@ -56,11 +59,19 @@ review_tier: "full"     # optional: "full" for high-risk/multi-module tasks; omi
    - A command, path, symbol or anchor named in this task does not match the repository.
    - A Verification row fails for a reason other than its Expect.
    - The work needs a change to a file outside Allowed files, or to a protected path.
-   - The work needs a change to this task's Verification table, Definition of Done, Allowed files or
+   - The work needs a change to this task's Verification table, Definition of Done criteria (ticking `- [x]` with result notes after verify is expected), Allowed files or
      Covers line.
    - A variable named in the Needs column is unset.
    ```
-   Then `## Decisions Already Made`, `## Definition of Done` (`(V2, V4)` or `(Gate 5)` on every bullet), `## Dependencies & Blockers` (`Blocked by [Task N](...)`), and `## References & Rollback`.
+   Then `## Decisions Already Made`, `## Definition of Done` (checkboxes `- [ ] <criterion> (V2, V3, V5)` or `(Gate 5)` on every bullet — must all be ticked `- [x]` with a brief mechanical result note such as `exit 0, 42 passed` before `status: "done"` or `completedAt` is set), `## Dependencies & Blockers` (`Blocked by [Task N](...)`), and `## References & Rollback`:
+   ```markdown
+   ## Definition of Done
+
+   - [ ] New CTC padding guard unit tests pass (V2)
+   - [ ] Touched module and downstream caller regression suites pass without regressions (V3)
+   - [ ] Lint, format check, strict type-check across all Allowed files, and import boundary checks pass (V4)
+   - [ ] Assigned BDD integration scenarios pass with fresh JUnit XML report (V5)
+   ```
 
 ---
 

@@ -304,7 +304,7 @@ Scenario: [DEMO-HP-01] [Tier A - Unit] Unit scenario description
 
 ## Definition of Done
 
-- All checks pass (V2, V3, V4, V5).
+- [ ] All checks pass (V2, V3, V4, V5).
 """
 
     task_2_epic = """---
@@ -379,7 +379,7 @@ Scenario: [DEMO-HP-02] [Tier C - Integration] Integration scenario description
 
 ## Definition of Done
 
-- All checks pass (V2, V3, V4, V5).
+- [ ] All checks pass (V2, V3, V4, V5).
 
 ## Dependencies & Blockers
 

@@ -30,7 +30,7 @@ DEFAULT_ROWS = RED + GREEN + TIER_B + TIER_C
 VERIFICATION_ENV = "## 6. Verification Environment\n\nTests run in temporary directories. Variable: DEMO_TOKEN.\n"
 HLD = ("# Epic\n\n## Integration Test Plan\n\nProtected paths: scripts/verify.sh\n\n"
        "Integration results: python3 tool.py all -> build/all.xml\n\n" + VERIFICATION_ENV)
-DONE_LINE = "- done (V1)\n"
+DONE_LINE = "- [ ] done (V1)\n"
 
 
 def task_text(rows: str = DEFAULT_ROWS, allowed: str = "- `tool.py`", dod: str | None = None,
@@ -41,7 +41,8 @@ def task_text(rows: str = DEFAULT_ROWS, allowed: str = "- `tool.py`", dod: str |
         row_ids = [m.group(1) for m in re.finditer(r"^\|\s*([^|]+?)\s*\|\s*[^|]+\s*\|", rows, re.MULTILINE)
                    if m.group(1) not in ("ID", "") and not m.group(1).startswith("-")]
         non_v1 = [r for r in row_ids if r != "V1"]
-        dod = f"- done ({', '.join(non_v1)})\n" if non_v1 else "- done (Gate 5)\n"
+        box = "[x]" if status == "done" else "[ ]"
+        dod = f"- {box} done ({', '.join(non_v1)})\n" if non_v1 else f"- {box} done (Gate 5)\n"
     ev_part = f"\nEvidence files:\n{evidence}\n" if evidence else ""
     sections = {
         "Files": f"Allowed files:\n{allowed}\n{ev_part}\nRead-only context:\n{read_only}\n",
@@ -283,7 +284,7 @@ class PythonTierBAndFastModelTest(ContractCase):
                          rows=RED + GREEN +
                               "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
                               "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n" + TIER_C,
-                         dod="- done (V2, V3, V4, V5)\n",
+                         dod="- [ ] done (V2, V3, V4, V5)\n",
                          decisions="- Use standard tooling.\n")
         code, out, _ = self.check(task, design=True)
         self.assertEqual(code, 0, out)
@@ -303,7 +304,7 @@ class PythonTierBAndFastModelTest(ContractCase):
                          rows=RED + GREEN +
                               "| V3 | TIER-B | `uv run ruff check .` | exit 0 | — |\n"
                               "| V4 | TIER-B | `uv run mypy --strict src` | exit 0 | — |\n" + TIER_C,
-                         dod="- done (V2, V3, V4, V5)\n",
+                         dod="- [ ] done (V2, V3, V4, V5)\n",
                          decisions="- Use uv runner.\n")
         code, out, _ = self.check(task, design=True)
         self.assertEqual(code, 0, out)
@@ -340,7 +341,7 @@ class PythonTierBAndFastModelTest(ContractCase):
                               GREEN +
                               "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
                               "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n" + TIER_C,
-                         dod="- done (V2, V3, V4, V5)\n",
+                         dod="- [ ] done (V2, V3, V4, V5)\n",
                          decisions="- Testing -k rejection.\n")
         code, out, _ = self.check(task, design=True)
         self.assertEqual(code, 1)
@@ -355,7 +356,7 @@ class PythonTierBAndFastModelTest(ContractCase):
                               GREEN +
                               "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
                               "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n" + TIER_C,
-                         dod="- done (V2, V3, V4, V5)\n",
+                         dod="- [ ] done (V2, V3, V4, V5)\n",
                          decisions="- Exact node ID used.\n")
         code, out, _ = self.check(task, design=True)
         self.assertEqual(code, 0, out)
@@ -370,7 +371,7 @@ class PythonTierBAndFastModelTest(ContractCase):
                          rows=RED + GREEN +
                               "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
                               "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n" + TIER_C,
-                         dod="- done (V2, V3, V4, V5)\n",
+                         dod="- [ ] done (V2, V3, V4, V5)\n",
                          decisions="- Weak assertions test.\n")
         code, out, _ = self.check(task, design=True)
         self.assertEqual(code, 1)
@@ -382,7 +383,7 @@ class PythonTierBAndFastModelTest(ContractCase):
                          rows=RED + GREEN +
                               "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
                               "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n" + TIER_C,
-                         dod="- done (V2, V3, V4, V5)\n",
+                         dod="- [ ] done (V2, V3, V4, V5)\n",
                          decisions="None.\n")
         code, out, _ = self.check(task, design=True)
         self.assertEqual(code, 1)
@@ -394,7 +395,7 @@ class PythonTierBAndFastModelTest(ContractCase):
                          rows=RED + GREEN +
                               "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
                               "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n" + TIER_C,
-                         dod="- done (V2, V3, V4, V5)\n",
+                         dod="- [ ] done (V2, V3, V4, V5)\n",
                          decisions="- Grounded facts and architectural choices recorded.\n")
         code, out, _ = self.check(task, design=True)
         self.assertEqual(code, 0, out)
@@ -408,7 +409,7 @@ class PythonTierBAndFastModelTest(ContractCase):
                          rows=RED + GREEN +
                               "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
                               "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n" + TIER_C,
-                         dod="- done (V2, V3, V4, V5)\n",
+                         dod="- [ ] done (V2, V3, V4, V5)\n",
                          decisions="- Testing malformed manifest.\n")
         code, out, _ = self.check(task, design=True)
         self.assertEqual(code, 1)
@@ -469,7 +470,7 @@ class Evidence_Integration_Test(ContractCase):
             rows=RED + GREEN +
                  "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
                  "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n" + TIER_C,
-            dod="- done (V2, V3, V4, V5)\n",
+            dod="- [ ] done (V2, V3, V4, V5)\n",
             decisions="- Testing R3 mismatch.\n",
         )
         code, out, _ = self.check(task, design=True)
@@ -507,7 +508,7 @@ def test_TCAE_HP_01_evidence_files_grounding() -> None:
             + "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
             + "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n"
             + f"| V5 | TIER-C | `python3 tool.py int --evidence={evidence_file} --out=build/out.xml` | exit 0; results build/out.xml | — |\n",
-            dod="- done (V2, V3, V4, V5)\n",
+            dod="- [ ] done (V2, V3, V4, V5)\n",
             decisions="- Testing evidence files contract.\n",
         )
         task_body = (
@@ -664,7 +665,7 @@ class SurgicalAnchorTest(ContractCase):
             f"## Files\n\nAllowed files:\n{allowed}\n\nRead-only context:\n- `README.md` — note\n\n"
             f"{extra_sections}\n"
             f"## Verification\n\n{HEAD}{DEFAULT_ROWS}\n\n"
-            f"## Definition of Done\n\n- done (V2, V3, V4, V5)\n\n"
+            f"## Definition of Done\n\n- {'[x]' if status == 'done' else '[ ]'} done (V2, V3, V4, V5)\n\n"
             f"## Stop and Report If\n\n- A command does not match.\n\n"
             f"## Decisions Already Made\n\n- Grounded design decision.\n"
         )
@@ -861,6 +862,152 @@ class HistoricalPythonCapabilityCase(ContractCase):
             "--design", "--allow-existing-done-new", "--hld", f"{EPIC}/demo.en.md", "--tasks", t
         )
         self.assertEqual(code, 0, out)
+
+
+class MechanicalVerificationHardeningTest(ContractCase):
+    """Tests for REGRESSION phase, full Allowed-files TIER-B scope, and DoD <-> status='done' lock."""
+
+    def test_regression_phase_and_downstream_caller_coverage(self) -> None:
+        self.write("src/align/ctc.py", "def align():\n    return 1\n")
+        self.write("tests/unit/align/test_ctc.py", "def test_ctc():\n    assert True\n")
+        self.commit()
+
+        # 1. Fails when Verification only runs newly created unit test file and skips existing module / downstream test
+        bad_rows = (
+            "| V1 | RED | `pytest tests/unit/align/test_ctc_padding_guard.py::test_guard` | exit 1 | — |\n"
+            "| V2 | GREEN | `pytest tests/unit/align/test_ctc_padding_guard.py` | exit 0 | — |\n"
+            "| V3 | TIER-B | `ruff check src/align/ctc.py tests/unit/align/test_ctc_padding_guard.py` | exit 0 | — |\n"
+            "| V4 | TIER-B | `mypy --strict src/align/ctc.py tests/unit/align/test_ctc_padding_guard.py` | exit 0 | — |\n"
+        )
+        bad_task = self.write(
+            f"{EPIC}/task_1_only_new.md",
+            '---\nstatus: "todo"\n---\n# Task 1\n\n'
+            "## Files\n\nAllowed files:\n- `src/align/ctc.py`\n- `tests/unit/align/test_ctc_padding_guard.py` (new)\n\n"
+            "Read-only context:\n- `README.md` — note\n\n"
+            "## Impact Analysis & Blast Radius\n\n"
+            "- **Downstream Callers**: `tests/unit/align/test_ctc.py`\n\n"
+            f"## Verification\n\n{HEAD}{bad_rows}\n"
+            "## Definition of Done\n\n- [ ] Guard test passes (V2, V3, V4)\n\n"
+            "## Stop and Report If\n\n- A command does not match.\n\n"
+            "## Decisions Already Made\n\n- Grounded decision.\n",
+        )
+        code, out, _ = self.check(bad_task, design=True)
+        self.assertEqual(code, 1, out)
+        self.assertIn("Downstream caller test tests/unit/align/test_ctc.py", out)
+        self.assertIn("Verification only runs newly created test file(s)", out)
+
+        # 2. Passes when REGRESSION row runs touched module & Downstream Callers test suite
+        good_rows = (
+            "| V1 | RED | `pytest tests/unit/align/test_ctc_padding_guard.py::test_guard` | exit 1 | — |\n"
+            "| V2 | GREEN | `pytest tests/unit/align/test_ctc_padding_guard.py` | exit 0 | — |\n"
+            "| V3 | REGRESSION | `pytest tests/unit/align/test_ctc.py` | exit 0 | — |\n"
+            "| V4 | TIER-B | `ruff check src/align/ctc.py tests/unit/align/test_ctc_padding_guard.py` | exit 0 | — |\n"
+            "| V5 | TIER-B | `mypy --strict src/align/ctc.py tests/unit/align/test_ctc_padding_guard.py` | exit 0 | — |\n"
+        )
+        good_task = self.write(
+            f"{EPIC}/task_1_only_new.md",
+            '---\nstatus: "todo"\n---\n# Task 1\n\n'
+            "## Files\n\nAllowed files:\n- `src/align/ctc.py`\n- `tests/unit/align/test_ctc_padding_guard.py` (new)\n\n"
+            "Read-only context:\n- `README.md` — note\n\n"
+            "## Impact Analysis & Blast Radius\n\n"
+            "- **Downstream Callers**: `tests/unit/align/test_ctc.py`\n\n"
+            f"## Verification\n\n{HEAD}{good_rows}\n"
+            "## Definition of Done\n\n- [ ] Guard and regression suites pass (V2, V3, V4, V5)\n\n"
+            "## Stop and Report If\n\n- A command does not match.\n\n"
+            "## Decisions Already Made\n\n- Grounded decision.\n",
+        )
+        code2, out2, _ = self.check(good_task, design=True)
+        self.assertEqual(code2, 0, out2)
+
+    def test_tier_b_rejects_scanning_single_source_file_when_allowed_has_test_files(self) -> None:
+        self.write("src/align/ctc.py", "def align():\n    return 1\n")
+        self.write("tests/unit/align/test_ctc.py", "def test_ctc():\n    assert True\n")
+        self.commit()
+
+        # mypy only scans src/align/ctc.py and omits tests/unit/align/test_ctc.py
+        rows = (
+            "| V1 | RED | `pytest tests/unit/align/test_ctc.py::test_ctc` | exit 1 | — |\n"
+            "| V2 | GREEN | `pytest tests/unit/align/test_ctc.py` | exit 0 | — |\n"
+            "| V3 | TIER-B | `ruff check src/align/ctc.py tests/unit/align/test_ctc.py` | exit 0 | — |\n"
+            "| V4 | TIER-B | `mypy --strict src/align/ctc.py` | exit 0 | — |\n"
+        )
+        t = self.task(
+            "1_partial_tier_b",
+            allowed="- `src/align/ctc.py`\n- `tests/unit/align/test_ctc.py`",
+            rows=rows,
+            dod="- [ ] All pass (V2, V3, V4)\n",
+        )
+        code, out, _ = self.check(t, design=True)
+        self.assertEqual(code, 1, out)
+        self.assertIn("Python task TIER-B type-check must cover all Allowed Python files", out)
+        self.assertIn("tests/unit/align/test_ctc.py", out)
+
+    def test_dod_unchecked_checkbox_rejected_when_status_done_or_completed_at_set(self) -> None:
+        import task_contract as tc
+
+        # 1. status == "done" with unchecked `- [ ]` fails in both normal and --design modes
+        t_done = self.task(
+            "1_unchecked_done",
+            status="done",
+            dod="- [x] Unit tests pass (V2) — exit 0, 5 passed\n- [ ] Static checks pass (V3, V4, V5)\n",
+        )
+        code, out, _ = self.check(t_done, design=False)
+        self.assertEqual(code, 1, out)
+        self.assertIn("task status is 'done' (or completedAt is set) while Definition of Done still contains unchecked '- [ ]' item(s)", out)
+
+        # 2. All ticked `- [x]` with post-reference mechanical result notes passes
+        t_ticked = self.task(
+            "2_all_ticked_done",
+            status="done",
+            dod="- [x] Unit tests pass (V2) — exit 0, 5 passed\n- [x] Static & integration checks pass (V3, V4, V5) — exit 0, 0 errors\n",
+        )
+        code2, out2, _ = self.check(t_ticked, design=False)
+        self.assertEqual(code2, 0, out2)
+
+        # 3. --design rejects a todo task with plain `- ` DoD bullet lacking `[ ]` checkbox
+        t_plain = self.task(
+            "3_plain_dod_todo",
+            status="todo",
+            dod="- Plain bullet without checkbox (V2, V3, V4, V5)\n",
+        )
+        code3, out3, _ = self.check(t_plain, design=True)
+        self.assertEqual(code3, 1, out3)
+        self.assertIn("must start with a '- [ ]' (or '- [x]') checkbox", out3)
+
+        # 4. Historical done task with only-new-test rows and plain DoD bullet is exempt under --design --allow-existing-done-new
+        self.write("src/align/ctc.py", "def align():\n    return 1\n")
+        self.write("tests/unit/align/test_ctc.py", "def test_ctc():\n    assert True\n")
+        self.write("tests/unit/align/test_ctc_padding_guard.py", "def test_guard():\n    assert True\n")
+        self.commit()
+        hist_rows = (
+            "| V1 | RED | `pytest tests/unit/align/test_ctc_padding_guard.py::test_guard` | exit 1 | — |\n"
+            "| V2 | GREEN | `pytest tests/unit/align/test_ctc_padding_guard.py` | exit 0 | — |\n"
+            "| V3 | TIER-B | `ruff check src/align/ctc.py` | exit 0 | — |\n"
+            "| V4 | TIER-B | `mypy src/align/ctc.py` | exit 0 | — |\n"
+        )
+        hist_task = self.write(
+            f"{EPIC}/task_4_hist_done.md",
+            '---\nstatus: "done"\n---\n# Task 4\n\n'
+            "## Files\n\nAllowed files:\n- `src/align/ctc.py`\n- `tests/unit/align/test_ctc_padding_guard.py` (new)\n\n"
+            "Read-only context:\n- `README.md` — note\n\n"
+            "## Impact Analysis & Blast Radius\n\n"
+            "- **Downstream Callers**: `tests/unit/align/test_ctc.py`\n\n"
+            f"## Verification\n\n{HEAD}{hist_rows}\n"
+            "## Definition of Done\n\n- Legacy plain done bullet (V2, V3, V4)\n\n"
+            "## Stop and Report If\n\n- A command does not match.\n\n"
+            "## Decisions Already Made\n\n- Grounded decision.\n",
+        )
+        self.commit()
+        code4, out4, _ = self.run_cli(
+            "--design", "--allow-existing-done-new", "--hld", f"{EPIC}/demo.en.md", "--tasks", hist_task
+        )
+        self.assertEqual(code4, 0, out4)
+
+        # 5. completedAt edge cases: empty line, tilde `~`, and empty quotes `""` return False
+        self.assertFalse(tc.has_completed_at("---\ncompletedAt:\nstatus: \"todo\"\n---\n"))
+        self.assertFalse(tc.has_completed_at("---\ncompletedAt: ~\nstatus: \"todo\"\n---\n"))
+        self.assertFalse(tc.has_completed_at("---\ncompletedAt: \"\"\nstatus: \"todo\"\n---\n"))
+        self.assertTrue(tc.has_completed_at("---\ncompletedAt: \"2026-11-20T12:00:00Z\"\nstatus: \"todo\"\n---\n"))
 
 
 if __name__ == "__main__":

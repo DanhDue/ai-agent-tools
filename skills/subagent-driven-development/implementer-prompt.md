@@ -64,9 +64,13 @@ Subagent (general-purpose):
     1. Before implementing: `python3 [SCRIPTS]/run_task_checks.py red [TASK_MIRROR]`
        must exit 0 (each RED row fails as its Expect says).
     2. After your last change: `python3 [SCRIPTS]/run_task_checks.py verify [TASK_MIRROR]`
-       must exit 0 with every row and the scope check passing. Re-run it after
+       must exit 0 with every mechanical row (`GREEN`, `REGRESSION`, `TIER-B` across all
+       `Allowed files`, and `TIER-C`) and the scope check passing. Re-run it after
        any later change.
-    3. `python3 [SCRIPTS]/run_task_checks.py status [TASK_MIRROR]` must print
+    3. Tick every `- [ ]` checkbox in `## Definition of Done` to `- [x]` with a brief
+       mechanical result summary after the `(Vn)` reference (e.g. `- [x] Criterion (V2, V3) — exit 0, 42 passed`).
+       Never mark `status: "done"` or set `completedAt` while any `- [ ]` remains.
+    4. `python3 [SCRIPTS]/run_task_checks.py status [TASK_MIRROR]` must print
        `done gate: PASS`.
 
     Do not commit a task with a Verification table. `red` and `verify` must

@@ -88,7 +88,7 @@ UsageError: type[Exception] = _cbt.UsageError
 load_scenarios: Any = _cbt.load_scenarios
 
 TAIL_LINES = 25
-VERIFY_PHASES = ("GREEN", "TIER-B", "TIER-C")
+VERIFY_PHASES = ("GREEN", "REGRESSION", "TIER-B", "TIER-C")
 STALE = "results not produced by this run"
 
 INVALID_PYTEST_RED_REASON = (
@@ -179,7 +179,7 @@ def core_sections(text: str) -> tuple[str | None, str | None, str | None, list[s
     return (
         section(text, "Files"),
         section(text, "Verification"),
-        section(text, "Definition of Done"),
+        _tc.normalize_dod_for_tamper(section(text, "Definition of Done")),
         parse_covers(text),
     )
 

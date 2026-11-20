@@ -163,6 +163,9 @@ def audit_evidence(root: Path, epic_path: str, base: str, stem: str, text: str) 
             if err:
                 problems.append(f"{stem}: row {record['id']} {err}")
 
+    if tc.unchecked_dod_bullets(text):
+        problems.append(f"{stem}: Definition of Done contains unchecked '- [ ]' item(s)")
+
     commit = next(iter(git_lines(root, "log", "-1", "--format=%H", f"{base}..HEAD", "--", evidence_path)), None)
     if commit and patch_id(root, commit) != runs["verify"].get("patch_id"):
         return problems + [f"{stem}: patch changed after verify"], bool(problems)
@@ -195,8 +198,9 @@ def audit_protected(root: Path, epic_path: str, commits: list[Commit], texts: di
 def grader_text(text: str) -> list[str]:
     covers = [line for line in text.splitlines() if COVERS_LINE.match(line)]
     allowed = [f"`{entry.pattern}`" + (" (new)" if entry.new else "") for entry in parse_allowed_files(text)]
+    dod_lines = (tc.normalize_dod_for_tamper(section(text, "Definition of Done")) or "").splitlines()
     return (["# Verification"] + (section(text, "Verification") or "").splitlines()
-            + ["# Definition of Done"] + (section(text, "Definition of Done") or "").splitlines()
+            + ["# Definition of Done"] + dod_lines
             + ["# Allowed files"] + allowed + ["# Covers"] + covers)
 
 

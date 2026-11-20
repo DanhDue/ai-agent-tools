@@ -11,6 +11,8 @@ This document provides the canonical grammar rules, command syntax, and diagnost
 - [Rule 4: Evidence Files Declarations](#rule-4-evidence-files-declarations)
 - [Rule 5: Portable CLI and Kit Runtime Injection](#rule-5-portable-cli-and-kit-runtime-injection)
 - [Rule 6: Dynamic Code Fencing for Embedded Tasks](#rule-6-dynamic-code-fencing-for-embedded-tasks)
+- [Rule 7: Mandatory REGRESSION Coverage and Full Allowed-Files TIER-B Scope](#rule-7-mandatory-regression-coverage-and-full-allowed-files-tier-b-scope)
+- [Rule 8: Definition of Done Checkbox Lock with status: "done"](#rule-8-definition-of-done-checkbox-lock-with-status-done)
 - [Implicit Protected Paths Provenance](#implicit-protected-paths-provenance)
 
 ## Overview
@@ -72,6 +74,17 @@ When task contracts or BDD scenarios embed code blocks, task mirrors or HLD sect
 
 - **Fence rule**: The outer fence must have length `N = max(4, max_inner_backtick_run + 1)`.
 - **Rendering engine**: `sync_task_status.py render` automatically calculates the maximum internal backtick run and promotes outer fences to guarantee parseable markdown across nested code snippets.
+
+## Rule 7: Mandatory REGRESSION Coverage and Full Allowed-Files TIER-B Scope
+
+- **Supported phases**: `RED`, `MEASURE`, `GREEN`, `REGRESSION`, `TIER-B`, `TIER-C`.
+- **Mandatory regression coverage**: A task's `Verification` table must never run only a newly created unit test file when existing production modules are touched. Include at least one `REGRESSION` row (or expand `GREEN`/`TIER-C`) running the full test suite of the touched module and every test listed under *Downstream Callers* in `## Impact Analysis & Blast Radius`.
+- **Full `Allowed files` `TIER-B` coverage**: Static lint/format (`ruff check`, `ruff format --check`) and type-check (`mypy --strict` or equivalent) must cover **all** Python files in `Allowed files` (both production source files and new/modified test files), not just a single source file. Add `lint-imports` (or contract boundary check) when cross-module imports or contracts are touched.
+
+## Rule 8: Definition of Done Checkbox Lock with status: "done"
+
+- **Authoring syntax**: Write `## Definition of Done` items as checkboxes `- [ ] <criterion> (V2, V3)`.
+- **Completion lock**: Setting frontmatter `status: "done"` (or a non-null `completedAt`) while any `- [ ]` checkbox remains in `## Definition of Done` is rejected by `check_task_contract.py`, `evaluate_done_gate()` (`run_task_checks.py status`), `sync_task_status.py task <id> done`, and `audit_epic.py`. After `run_task_checks.py verify` passes, the implementer must tick every checkbox to `- [x]` and append a brief mechanical result summary after the row reference (e.g. `- [x] Criterion (V2, V3) — exit 0, 42 passed`).
 
 ## Implicit Protected Paths Provenance
 

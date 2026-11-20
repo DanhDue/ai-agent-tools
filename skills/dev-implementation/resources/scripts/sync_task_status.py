@@ -568,6 +568,63 @@ def _sync_runtime_envelope_and_memory(
         )
 
 
+def _replace_dod_section(text: str, new_dod_body: str) -> str:
+    """Replace the body under `## Definition of Done` with `new_dod_body`."""
+    lines = text.splitlines(keepends=True)
+    out: list[str] = []
+    in_dod = False
+    replaced = False
+    fence: str | None = None
+    for line in lines:
+        marker = tc.FENCE.match(line)
+        if marker:
+            if fence is None:
+                fence = marker.group(1)
+            elif marker.group(1)[0] == fence[0] and len(marker.group(1)) >= len(fence):
+                fence = None
+        elif fence is None and line.startswith("## "):
+            if in_dod:
+                in_dod = False
+            elif line[3:].strip() == "Definition of Done":
+                in_dod = True
+                replaced = True
+                out.append(line)
+                out.append(f"{new_dod_body}\n")
+                continue
+        if not in_dod:
+            out.append(line)
+    return "".join(out) if replaced else text
+
+
+def _propagate_ticked_dod(targets: list[Path]) -> None:
+    """If any target copy has ticked all DoD checkboxes `[x]`, propagate that DoD section to sibling copies."""
+    ticked_dod: str | None = None
+    ticked_norm: str | None = None
+    for path in targets:
+        text = path.read_text(encoding="utf-8")
+        bullets = tc.dod_bullets(text)
+        if (
+            bullets
+            and not tc.unchecked_dod_bullets(text)
+            and any(tc.CHECKED_DOD_PREFIX.match(b) for b in bullets)
+        ):
+            ticked_dod = tc.section(text, "Definition of Done")
+            if ticked_dod is not None:
+                ticked_norm = tc.normalize_dod_for_tamper(ticked_dod)
+                break
+    if ticked_dod is None:
+        return
+    for path in targets:
+        text = path.read_text(encoding="utf-8")
+        target_dod = tc.section(text, "Definition of Done")
+        if tc.normalize_dod_for_tamper(target_dod) != ticked_norm:
+            raise ValueError(
+                f"TASK_TAMPERED_ERROR: Definition of Done criteria in {path} differ from ticked copy"
+            )
+        if tc.unchecked_dod_bullets(text):
+            path.write_text(_replace_dod_section(text, ticked_dod), encoding="utf-8")
+
+
 def sync_task(
     roots: list[Path], task_id: str, new_status: str
 ) -> tuple[list[Path], list[str]]:
@@ -577,6 +634,21 @@ def sync_task(
     notes: list[str] = []
     touched_roots: list[Path] = []
     now = now_iso()
+
+    if new_status == "done":
+        all_valid_targets: list[Path] = []
+        for root in roots:
+            for path in task_targets(root, task_id):
+                file_epic = epic_of(path)
+                if exp_epic and file_epic and not _same_epic_slug(file_epic, exp_epic):
+                    continue
+                all_valid_targets.append(path)
+        _propagate_ticked_dod(all_valid_targets)
+        for path in all_valid_targets:
+            if tc.unchecked_dod_bullets(path.read_text(encoding="utf-8")):
+                raise ValueError(
+                    f"Cannot mark {task_id} done: {path} still has unchecked '- [ ]' items in Definition of Done"
+                )
 
     for root in roots:
         targets = task_targets(root, task_id)
@@ -963,7 +1035,7 @@ def code_epic_dir(root: Path, task_id: str) -> str | None:
 
 def done_gate_failures(task_id: str) -> list[str]:
     """Messages refusing `task <id> done` for a code epic's task; empty when the gate does not apply or passes."""
-    from task_contract import ContractError, evaluate_done_gate, section
+    from task_contract import ContractError, evaluate_done_gate, section, unchecked_dod_bullets
 
     top = subprocess.run(
         ["git", "rev-parse", "--show-toplevel"],
@@ -974,13 +1046,52 @@ def done_gate_failures(task_id: str) -> list[str]:
     if top.returncode != 0:
         return []
     root = Path(top.stdout.strip())
+    exp_epic = expected_epic([root], task_id)
+    local_targets = [
+        p
+        for p in task_targets(root, task_id)
+        if not (exp_epic and epic_of(p) and not _same_epic_slug(epic_of(p), exp_epic))
+    ]
+    has_ticked_sibling = False
+    ticked_sibling_norm: str | None = None
+    if local_targets:
+        norms = {
+            tc.normalize_dod_for_tamper(
+                section(p.read_text(encoding="utf-8"), "Definition of Done")
+            )
+            for p in local_targets
+        }
+        if len(norms) > 1:
+            return [
+                "condition 9: TASK_TAMPERED_ERROR: Definition of Done criteria altered between task copies"
+            ]
+        for p in local_targets:
+            t_text = p.read_text(encoding="utf-8")
+            bullets = tc.dod_bullets(t_text)
+            if (
+                bullets
+                and not unchecked_dod_bullets(t_text)
+                and any(tc.CHECKED_DOD_PREFIX.match(b) for b in bullets)
+            ):
+                has_ticked_sibling = True
+                ticked_sibling_norm = tc.normalize_dod_for_tamper(
+                    section(t_text, "Definition of Done")
+                )
+                break
+        if not has_ticked_sibling and any(
+            unchecked_dod_bullets(p.read_text(encoding="utf-8")) for p in local_targets
+        ):
+            return [
+                "condition 9: Definition of Done contains unchecked '- [ ]' item(s) — "
+                "tick '[x]' with mechanical verification summary before marking done"
+            ]
     epic_dir = code_epic_dir(root, task_id)
     if epic_dir is None:
         if any(
             code_epic_dir(other, task_id)
             for other in checkout_roots()
             if other.resolve() != root.resolve()
-        ) and not task_targets(root, task_id):
+        ) and not local_targets:
             return [
                 "run the done gate in the checkout that holds the task and its evidence (the epic worktree)"
             ]
@@ -997,7 +1108,24 @@ def done_gate_failures(task_id: str) -> list[str]:
             )
         ]
     try:
-        return evaluate_done_gate(mirror)
+        failures = evaluate_done_gate(mirror)
+        if has_ticked_sibling:
+            mirror_norm = tc.normalize_dod_for_tamper(
+                section(mirror.read_text(encoding="utf-8"), "Definition of Done")
+            )
+            if ticked_sibling_norm != mirror_norm:
+                failures.append(
+                    "condition 9: TASK_TAMPERED_ERROR: Definition of Done criteria altered from epic mirror"
+                )
+            else:
+                failures = [
+                    f
+                    for f in failures
+                    if not f.startswith(
+                        "condition 9: Definition of Done contains unchecked"
+                    )
+                ]
+        return failures
     except ContractError as error:
         return [f"condition 1: {error}"]
 
@@ -1485,7 +1613,11 @@ def main() -> None:
             if current_root is not None and _is_slot_worktree(current_root)
             else checkout_roots()
         )
-        written, notes = sync_task(roots, args.task_id, args.status)
+        try:
+            written, notes = sync_task(roots, args.task_id, args.status)
+        except ValueError as err:
+            sys.stderr.write(f"refused: {args.task_id} cannot be marked done\n  {err}\n")
+            sys.exit(1)
         for note in notes:
             sys.stderr.write(f"Note: {note}\n")
 

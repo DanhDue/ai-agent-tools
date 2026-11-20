@@ -25,7 +25,7 @@ from _epic_docs import is_task_markdown, iter_task_files, resolve_epic_doc
 from check_bdd_traceability import covers_of
 from result_reports import Case, verdicts
 
-PHASES = ("RED", "MEASURE", "GREEN", "TIER-B", "TIER-C")
+PHASES = ("RED", "MEASURE", "GREEN", "REGRESSION", "TIER-B", "TIER-C")
 HEADER = ["ID", "Phase", "Command", "Expect", "Needs"]
 NONE_CELL = ("—", "-")
 FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
@@ -46,7 +46,15 @@ INTERPRETERS = {"python", "python3", "bash", "sh", "zsh", "node", "deno", "ruby"
 CONTROL_TOKENS = {"&&", "||", ";", "|"}
 EXCLUDE_DEVTOOL = ":(exclude).devtool"
 DIFF_PLAIN = ("--no-ext-diff", "--no-color")  # user diff settings must not change a patch id
-DOD_REFERENCE = re.compile(r"\((V[0-9]+(?:,\s*V[0-9]+)*|Gate 5)\)\.?\s*$")
+DOD_REFERENCE = re.compile(
+    r"\((V[0-9]+(?:,\s*V[0-9]+)*|Gate 5)\)\.?(?:\s*(?:[—–-]|\(|\[)\s*[^\n]*)?\s*$"
+)
+UNCHECKED_DOD_PREFIX = re.compile(r"^\[\s\]\s+")
+CHECKED_DOD_PREFIX = re.compile(r"^\[[xX]\]\s+")
+COMPLETED_AT_RE = re.compile(
+    r"""^completedAt:[ \t]*(?!null\b|~(?=\s|$)|"null"|'null'|""|''|[ \t]*$)(\S+)""",
+    re.MULTILINE,
+)
 DEPENDS_ON_EPIC_RE = re.compile(
     r"^-\s*\*\*(?:Depends on epic|Phụ thuộc vào epic)\*\*:\s*(.+)$", re.MULTILINE
 )
@@ -253,6 +261,36 @@ def dod_bullets(task_text: str) -> list[str]:
         elif line.strip() and bullets and line[0] in " \t":
             bullets[-1] += " " + line.strip()
     return bullets
+
+
+def unchecked_dod_bullets(task_text: str) -> list[str]:
+    """Return Definition of Done bullets that carry an unchecked `- [ ]` checkbox."""
+    return [b for b in dod_bullets(task_text) if UNCHECKED_DOD_PREFIX.match(b)]
+
+
+def has_completed_at(task_text: str) -> bool:
+    """Return True when leading YAML frontmatter sets a non-null `completedAt` timestamp."""
+    if not task_text.startswith("---"):
+        return False
+    frontmatter = task_text.split("\n---", 1)[0]
+    return bool(COMPLETED_AT_RE.search(frontmatter))
+
+
+_DOD_RESULT_NOTE_AFTER_REF = re.compile(
+    r"(\((?:V[0-9]+(?:,\s*V[0-9]+)*|Gate 5)\)\.?)\s*(?:[—–-]|\(|\[)\s*[^\n]*$"
+)
+
+
+def normalize_dod_for_tamper(dod_section: str | None) -> str | None:
+    """Normalize Definition of Done checkbox ticks and post-reference mechanical result notes for tamper comparison."""
+    if dod_section is None:
+        return None
+    norm_lines: list[str] = []
+    for line in dod_section.splitlines():
+        cleaned = re.sub(r"^(\s*[-*]\s+)\[[ xX]\]\s+", r"\1[_] ", line)
+        cleaned = _DOD_RESULT_NOTE_AFTER_REF.sub(r"\1", cleaned)
+        norm_lines.append(cleaned.rstrip())
+    return "\n".join(norm_lines)
 
 
 @dataclass(frozen=True)
@@ -562,6 +600,25 @@ def evaluate_done_gate(task_file: Path) -> list[str]:
             sha256 = hashlib.sha256(ev_path.read_bytes()).hexdigest()
             if sha256 != measure_digests.get(ev.pattern):
                 problems.append(f"condition 8: evidence file {ev.pattern} digest does not match measure run")
+    if unchecked_dod_bullets(task_text):
+        problems.append(
+            "condition 9: Definition of Done contains unchecked '- [ ]' item(s) — "
+            "tick '[x]' with mechanical verification summary before marking done"
+        )
+    head_rel = Path(task_file).resolve().relative_to(layout.root).as_posix()
+    head_proc = subprocess.run(
+        ["git", "-C", str(layout.root), "show", f"HEAD:{head_rel}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if head_proc.returncode == 0:
+        if normalize_dod_for_tamper(section(task_text, "Definition of Done")) != normalize_dod_for_tamper(
+            section(head_proc.stdout, "Definition of Done")
+        ):
+            problems.append(
+                "condition 9: TASK_TAMPERED_ERROR: Definition of Done criteria altered from HEAD"
+            )
     return problems
 
 

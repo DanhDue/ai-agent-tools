@@ -144,7 +144,7 @@ def _task_markdown(
         "| V5 | TIER-C | `python3 tool.py int` | exit 0; results build/test-results/int.xml | — |"
     )
     used_rows = rows if rows is not None else default_rows
-    used_dod = dod if dod is not None else "- Verified cleanly (V2, V3, V4, V5)."
+    used_dod = dod if dod is not None else "- [ ] Verified cleanly (V2, V3, V4, V5)."
     covers_block = f"\n{covers}\n" if covers else "\n"
     bdd_block = f"\n### BDD SCENARIOS\n\n{covers}\n\n{gherkin}\n" if gherkin else ""
     return (
@@ -421,6 +421,12 @@ class Test_FPG_English_Only_Integration:
             ".devtool/epic/solo_epic/task_01_alpha.md",
         )
         assert res_verify.returncode == 0, res_verify.stdout + res_verify.stderr
+        t1_text = t1_text.replace("- [ ] ", "- [x] ")
+        t1_path.write_text(t1_text, encoding="utf-8")
+        (repo / ".devtool" / "features" / "task_01_alpha.md").write_text(
+            t1_text.replace("](solo_epic.md)", "](../epic/solo_epic/solo_epic.md)"),
+            encoding="utf-8",
+        )
         res_status = _run_py(
             DEV_IMPL_SCRIPTS / "run_task_checks.py",
             repo,

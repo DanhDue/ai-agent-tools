@@ -2,6 +2,17 @@
 
 Read when: you are a Role 2.3 `task-implementer`, or you dispatch one, and need the test-health rules, the Tri-Persona model or the anti-rationalization table.
 
+## Mechanical Verification vs. LLM Review & Tiered Execution
+
+- **Mandatory Per-Task Mechanical Verification (Role 2.3 Programmer)**: For **every task**, the Programmer must execute and pass the entire `Verification` table (`RED -> GREEN -> REGRESSION -> TIER-B -> TIER-C`):
+  1. `RED`: Exact node ID failing for the expected reason before production code changes.
+  2. `GREEN`: New/updated unit tests for the task pass.
+  3. `REGRESSION`: Full test suite of the touched module and all *Downstream Callers* from `## Impact Analysis & Blast Radius` pass (never run only the newly created unit test file).
+  4. `TIER-B`: Lint/format (`ruff check`, `ruff format --check` or stack equivalent) and strict type-check (`mypy --strict` or stack equivalent) across **all** `Allowed files` (both production and new/modified test files), plus `lint-imports` / contract checks when touching cross-module imports or contracts.
+  5. `TIER-C`: Integration / BDD scenario tests writing fresh report artifacts (`results <path>`).
+  6. **Definition of Done Lock**: After `run_task_checks.py verify` passes, tick every `- [ ]` checkbox in `## Definition of Done` to `- [x]` and append a brief mechanical result note after the `(Vn)` reference (e.g. `- [x] Criterion (V2, V3) — exit 0, 42 passed`). Updating frontmatter to `status: "done"` (or setting `completedAt`) is strictly forbidden while any `- [ ]` remains.
+- **Selective LLM / Cross-Model Review**: LLM review (`task-reviewer` Role 2.1) is skipped on small, purely mechanical tasks to avoid bottlenecks, and runs only at semantic/architectural boundaries or on high-risk tasks (`review_tier: "full"`, `security`/`architecture`/`concurrency`/`contract` labels, or `> 2` non-test modules changed), followed by epic-wide `/cross-model-review` after local Gate 4 passes.
+
 ## Test Assertion Health, Anti-Bloat & Tiered Execution
 
 Never assert only inside `if path.exists()`; always assert `found > 0`. Enforce:

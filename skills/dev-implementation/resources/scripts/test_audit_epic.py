@@ -417,6 +417,21 @@ class AuditEpicTest(AuditCase):
         self.assertIn("src/app_service.py", self.section(report, "Anti-stub check"))
         self.assertIn("Result: FAIL", report)
 
+    def test_audit_fails_when_done_task_has_unchecked_dod_checkbox(self) -> None:
+        """Gate 4 audit_epic.py fails when a done task still has unchecked '- [ ]' in Definition of Done."""
+        self.write(
+            self.mirror(1),
+            mirror_text(1, "in-progress").replace(
+                "- the demo works (V1)\n", "- [ ] the demo works (V1)\n"
+            ),
+        )
+        self.commit("[DEMO] Create task 1 with checkbox")
+        self.finish_task(1)
+        code, report, _ = self.audit()
+        self.assertEqual(code, 1, report)
+        self.assertIn("task_1_demo: Definition of Done contains unchecked '- [ ]' item(s)", self.section(report, "Evidence"))
+        self.assertIn("Result: FAIL", report)
+
 
 if __name__ == "__main__":
     unittest.main()

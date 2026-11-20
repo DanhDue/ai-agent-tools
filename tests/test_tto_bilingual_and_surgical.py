@@ -273,7 +273,7 @@ def test_tto_ec_03_surgical_anchor_required_for_large_files() -> None:
             "| V3 | TIER-B | `ruff check src/big_mod.py` | exit 0 | — |\n"
             "| V4 | TIER-B | `mypy src/big_mod.py` | exit 0 | — |\n"
             "| V5 | TIER-C | `pytest --junitxml=build/task.xml tests/test_big_mod.py` | exit 0; results build/task.xml | — |\n\n"
-            "## Definition of Done\n\n- Done (V2)\n"
+            "## Definition of Done\n\n- [ ] Done (V2)\n"
         )
         task = epic / "task_1.md"
         task.write_text(

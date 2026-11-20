@@ -2237,7 +2237,10 @@ def build_compact_json(
 
 _BRIEF_ROLE_CONTRACTS: dict[str, tuple[str, str]] = {
     "task-implementer": (
-        "Implement assigned Kanban task in isolated slot worktree using strict Red-Green-Refactor TDD.",
+        "Implement assigned Kanban task in isolated slot worktree using strict Red-Green-Refactor TDD, "
+        "execute and pass all mechanical Verification rows (RED -> GREEN -> REGRESSION -> TIER-B -> TIER-C), "
+        "and tick all `- [x]` checkboxes in `## Definition of Done` with brief mechanical result notes "
+        "(e.g. `exit 0, 42 passed`) before marking `done` or returning.",
         '{"task_id": "...", "slot": 1, "status": "DONE|BLOCKED|NEEDS_CONTEXT", '
         '"head_sha": "...", "verify": "PASS|FAIL", "changed_files": [...], '
         '"non_test_modules_changed": 0, "review_tier": "standard|full", '
