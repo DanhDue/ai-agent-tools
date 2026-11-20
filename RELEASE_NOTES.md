@@ -1,35 +1,40 @@
-# Release Notes: d3nexus v1.33.1
+# Release Notes: d3nexus v1.34.0
 
-**Release Date:** November 19, 2026  
-**Version:** `1.33.1`  
-**Git Tag:** `v1.33.1`, `d3nexus--v1.33.1`
+**Release Date:** November 21, 2026  
+**Version:** `1.34.0`  
+**Git Tag:** `v1.34.0`, `d3nexus--v1.34.0`
 
 ---
 
 ## Executive Summary
 
-`v1.33.1` aligns the built-in Antigravity (`agy`) model catalogue in `dev-config` with live `agy` CLI model IDs so `orchestrator-argon` (`gemini-pro-orchestrator-g1-pro`), `orchestrator-neon` (`gemini-pro-orchestrator-neon`), and `neon` (`gemini-4-neon-{effort}`) work out of the box, infers `argonWeekly` accurately for `orchestrator` + `g1-pro` models, and classifies invalid CLI model selections as `model_unavailable`.
+`v1.34.0` hardens task-level mechanical verification and governance across the `/dev-lifecycle` workflow and supporting skills (`dev-designer`, `dev-implementation`, `subagent-driven-development`). It introduces mandatory `REGRESSION` verification rows covering touched modules and downstream callers, mandates full `Allowed files` static analysis (`TIER-B`) including architectural boundary linting, enforces anti-tamper `Definition of Done` checkbox locks before marking tasks done, and clarifies the separation between exhaustive mechanical testing by the Programmer and focused semantic/architectural review.
 
 ---
 
 ## Key Highlights
 
-### 1. Built-In `agy` Catalogue Alignment (`scripts/personas.default.json`)
-- Updated `orchestrator-argon` from the unrecognized `gemini-pro-orchestrator-argon` ID to `gemini-pro-orchestrator-g1-pro` (`efforts: ["none"]`, `quota_pool: "argonWeekly"`).
-- Replaced retired `carbon` (`gemini-4-carbon-{effort}`) and `orchestrator-carbon` (`gemini-pro-orchestrator`) aliases with `neon` (`gemini-4-neon-{effort}`, `efforts: ["low", "medium", "high", "xhigh"]`) and `orchestrator-neon` (`gemini-pro-orchestrator-neon`, `efforts: ["none"]`).
+### 1. Mandatory `REGRESSION` Verification Row (`skills/dev-lifecycle/`, `skills/dev-designer/`, `check_task_contract.py`)
+- Every task must declare at least one `REGRESSION` verification row targeting the test suite of the touched module and all *Downstream Callers* listed in the task's blast radius analysis.
+- Validated automatically by `check_task_contract.py` (`check_regression_coverage`), blocking design-phase bypasses while grandfathering completed historical tasks.
 
-### 2. Quota Pool Inference & Failure Classification (`scripts/persona_config.py`)
-- Updated `derive_quota_pool` so `agy` model IDs containing `orchestrator` and `g1-pro` automatically resolve to the `argonWeekly` pool even without an explicit `quota_pool` override.
-- Added `invalid model selection` and `not recognized as a known model` patterns to `_MODEL_FAILURE_PATTERNS` so unrecognized CLI models are surfaced as `model_unavailable` instead of generic task failures.
+### 2. Comprehensive `TIER-B` Static Analysis on All `Allowed files`
+- Prohibits partial or single-file linting; linter, formatting, and strict type-checking commands must target **all** files in `Allowed files` (both production and test files).
+- Requires architectural boundary validation (`lint-imports` or stack contract check) whenever tasks alter inter-module imports or interface contracts.
 
-### 3. Skill Documentation & Regression Tests (`skills/dev-config/SKILL.md`, `tests/test_agy_effortless_models.py`)
-- Updated `skills/dev-config/SKILL.md` examples and quota-pool guidance for `neon`, `orchestrator-neon`, and `orchestrator-argon` (`gemini-pro-orchestrator-g1-pro`).
-- Expanded `tests/test_agy_effortless_models.py` with tests covering kit defaults, `g1-pro` `argonWeekly` derivation, and `invalid model selection` classification.
+### 3. Strict `Definition of Done` Checkbox Locking & Anti-Tamper Enforcement
+- `status: "done"` and `completedAt` are strictly blocked if any unchecked `- [ ]` box remains in `Definition of Done`.
+- Every checkbox must be marked `[x]` with mechanical evidence notes following the `(Vn)` reference (e.g. `- [x] Criterion (V1) — exit 0, 42 passed`).
+- Anti-tamper validation in `check_task_contract.py` detects and rejects tampering attempts, such as deleting checklist items or modifying criteria text.
+
+### 4. Clear Demarcation: Programmer Mechanical Verification vs. Semantic LLM Review
+- Role 2.3 Programmer is strictly required to execute and pass the complete mechanical verification suite (RED → GREEN → REGRESSION → TIER-B → TIER-C) for every task before claiming completion.
+- LLM and Cross-Model reviews are decoupled from routine mechanical tasks, focusing on architectural boundaries, high-risk items, and comprehensive Gate 4 synthesis to prevent orchestration bottlenecks.
 
 ---
 
 ## Verifications & Quality Gates Passed
 
-- `ruff check scripts/persona_config.py tests/test_agy_effortless_models.py` & `ruff format --check tests/test_agy_effortless_models.py`
-- `uv run pytest tests/test_agy_effortless_models.py tests/test_fpg_persona_config.py tests/test_fpg_dispatch_and_quota.py tests/test_fpg_set_provider_model_profile.py tests/test_fpg_agy_dispatch.py -q --tb=short` (`152 passed`)
-- `bash scripts/verify.sh` (all structural checks & 89 Python test suites)
+- `ruff check skills/dev-implementation/resources/scripts/ check_task_contract.py sync_task_status.py run_task_checks.py audit_epic.py check_epic_readiness.py replay_task_text.py`
+- `uv run pytest skills/dev-implementation/resources/scripts/ tests/test_task_contract_ergonomics_e2e.py tests/test_runtime_sync_and_dashboard_hardening.py tests/test_fpg_acceptance.py tests/test_rsdh_orchestration.py -q --tb=short`
+- `bash scripts/verify.sh --quiet` (all structural integrity checks & 89 test suites across 14 parallel workers: PASS)

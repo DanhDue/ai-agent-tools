@@ -8,6 +8,32 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.34.0 — 2026-11-21
+
+Delivers **Task-Level Mechanical Verification Hardening (`task_level_mechanical_verification`)** across `dev-lifecycle`, `dev-designer`, `dev-implementation`, and `subagent-driven-development`: mandatory `REGRESSION` test suite rows, full `Allowed files` static and architectural coverage (`TIER-B`), anti-tamper `Definition of Done` checkbox locks, and clear role demarcation between Programmer mechanical checks and semantic/Cross-Model review.
+
+### Added
+
+- **Mandatory `REGRESSION` Row & Downstream Caller Test Suites (`skills/dev-lifecycle/`, `skills/dev-designer/`, `skills/dev-implementation/`, `check_task_contract.py`)**:
+  - Requires every task specification to include at least one `REGRESSION` row covering touched module suites and all Downstream Callers identified in `Impact Analysis and Blast Radius`.
+  - Enforces `check_regression_coverage` in `check_task_contract.py` across all non-historical tasks, rejecting specs where regression test suites are omitted.
+- **Expanded `TIER-B` Static & Architectural Coverage Across All `Allowed files`**:
+  - Expands static lint, format, and typecheck commands (`ruff check`, `ruff format --check`, `mypy --strict`, or stack equivalents) to validate all production and test files listed in `Allowed files`, banning single-file scanning.
+  - Enforces explicit architectural boundary checks (`lint-imports` or contract validators) when a task touches cross-module imports or interface contracts.
+- **Strict `Definition of Done` Checkbox Locking & Anti-Tamper Enforcement (`check_task_contract.py`, `sync_task_status.py`, `run_task_checks.py`)**:
+  - Enforces that no task can transition to `status: "done"` (or record `completedAt`) while any uncompleted `- [ ]` checkbox remains.
+  - Requires completed checkboxes to include post-reference mechanical notes (e.g. `(V1) — exit 0, 42 passed`).
+  - Implements anti-tamper validation in `check_task_contract.py` (`TASK_TAMPERED_ERROR`) preventing subagents from deleting checkboxes or mutating criteria clauses before `(Vn)` references.
+- **Division of Labor: Mechanical Execution vs. Semantic Review**:
+  - Mandates that Role 2.3 Programmer executes and passes all mechanical verification rows (RED → GREEN → REGRESSION → TIER-B → TIER-C) for every task.
+  - Exempts standard mechanical tasks from redundant per-task LLM/Cross-Model reviews, focusing external and principal reviews on semantic/architectural boundaries, high-risk items, and Gate 4 synthesis.
+
+### Changed
+
+- **Task Governance & Verification Grammars (`skills/dev-designer/references/verification-row-grammar.md`, `skills/dev-designer/references/verification-rows.md`, `skills/dev-designer/references/task-template-examples.md`, `skills/dev-lifecycle/references/governance-checklists.md`)**:
+  - Standardizes the 5-phase verification row lifecycle (`RED`, `GREEN`, `REGRESSION`, `TIER-B`, `TIER-C`) with explicit bash syntax and evidence logging.
+  - Updates task reviewer prompts, implementer prompts, and worker execution rules to align with DoD mechanical result citations and regression suite requirements.
+
 ## 1.33.1 — 2026-11-19
 
 Aligns built-in Antigravity (`agy`) orchestrator and Neon model catalogue aliases with live CLI model IDs, ensures `orchestrator` + `g1-pro` infers the `argonWeekly` quota pool, and classifies invalid CLI model selections as `model_unavailable`.
