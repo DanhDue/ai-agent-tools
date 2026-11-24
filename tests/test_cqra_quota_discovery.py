@@ -204,7 +204,8 @@ def test_cqra_hp_01_ultra_shared_pool_discovery_and_mirror(
                     },
                 ],
             },
-        ]
+        ],
+        plan_name="Google AI Ultra",
     )
 
     def fake_run(cmd: list[str], **_kwargs: Any) -> MagicMock:
