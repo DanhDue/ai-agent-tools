@@ -280,15 +280,83 @@ def is_valid_profile_dir(path: str) -> bool:
     return bool(has_gemini or has_ag or has_data or has_kc)
 
 
+NATIVE_CONV_REL_DIRS = (
+    ".gemini/antigravity/conversations",
+    ".gemini/antigravity-cli/conversations",
+    ".gemini/antigravity-ide/conversations",
+    ".antigravity/antigravity/conversations",
+    ".antigravity/antigravity-cli/conversations",
+    ".antigravity/antigravity-ide/conversations",
+)
+
+
+def collect_profile_local_conversations(p_dir: str) -> set[str]:
+    """Collect all native conversation IDs across IDE and CLI runtime directories for a profile."""
+    local_convs: set[str] = set()
+    for rel_dir in NATIVE_CONV_REL_DIRS:
+        cdir = os.path.join(p_dir, rel_dir)
+        if os.path.isdir(cdir) and not os.path.islink(cdir):
+            try:
+                for f in os.listdir(cdir):
+                    if f.endswith(".db"):
+                        local_convs.add(f[:-3])
+            except OSError:
+                pass
+    return local_convs
+
+
+def is_proto_summaries_stale(
+    pb_path: str,
+    local_convs: set[str],
+    stale_conv_count: int = 0,
+    foreign_convs: set[str] | None = None,
+) -> bool:
+    """Return True if agyhub_summaries_proto.pb contains foreign/cloned trajectories or invalid summary entries."""
+    if not os.path.exists(pb_path):
+        return False
+    if stale_conv_count > 0:
+        return True
+    try:
+        with open(pb_path, "rb") as f:
+            raw = f.read()
+        if not raw:
+            return False
+        top_uuids = {
+            m.decode("ascii")
+            for m in re.findall(
+                rb"\n\$([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",
+                raw,
+            )
+        }
+        if not top_uuids:
+            all_uuids = {
+                m.decode("ascii")
+                for m in re.findall(
+                    rb"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",
+                    raw,
+                )
+            }
+            if not all_uuids:
+                return True
+            top_uuids = all_uuids
+        if not local_convs:
+            return True
+        if not top_uuids.issubset(local_convs):
+            return True
+        return bool(foreign_convs and (top_uuids & foreign_convs))
+    except Exception:
+        return True
+
+
 def audit_profile(
     p_dir: str,
     profile_name: str,
     duplicate_mid_map: dict[str, list[str]],
     duplicate_scope_map: dict[str, list[str]] | None = None,
+    foreign_convs: set[str] | None = None,
 ) -> dict:
     storage_path = os.path.join(p_dir, "data/User/globalStorage/storage.json")
     db_path = os.path.join(p_dir, ".gemini/antigravity/conversation_summaries.db")
-    conv_dir = os.path.join(p_dir, ".gemini/antigravity/conversations")
     tos_path = os.path.join(p_dir, ".gemini/antigravity/tos_disabled.json")
 
     # 1. Inspect Storage & Machine ID
@@ -311,19 +379,13 @@ def audit_profile(
         except Exception:
             pass
 
-    # 2. Inspect Conversation Summaries & Trajectory Leaks
+    # 2. Inspect Conversation Summaries & Trajectory Leaks (across IDE + CLI runtime dirs)
     total_convs_in_db = 0
     stale_conv_count = 0
-    local_conv_count = 0
 
-    local_convs = set()
-    if os.path.exists(conv_dir):
-        try:
-            for f in os.listdir(conv_dir):
-                if f.endswith(".db"):
-                    local_convs.add(f[:-3])
-        except Exception:
-            pass
+    local_convs = collect_profile_local_conversations(p_dir)
+    if foreign_convs and profile_name != "danhdue":
+        local_convs = local_convs - foreign_convs
     local_conv_count = len(local_convs)
 
     if os.path.exists(db_path):
@@ -339,7 +401,10 @@ def audit_profile(
             pass
 
     pb_path = os.path.join(p_dir, ".gemini/antigravity/agyhub_summaries_proto.pb")
-    has_stale_proto = os.path.exists(pb_path) and profile_name != "danhdue"
+    has_stale_proto = (
+        profile_name != "danhdue"
+        and is_proto_summaries_stale(pb_path, local_convs, stale_conv_count, foreign_convs)
+    )
 
     # 3. Inspect Block Status
     is_tos_disabled = os.path.exists(tos_path)
@@ -646,44 +711,49 @@ def remediate_single_profile(
         json.dump(data, f, indent=2)
     os.replace(tmp_path, storage_path)
 
-    # Sanitize SQLite
-    db_path = os.path.join(p_path, ".gemini/antigravity/conversation_summaries.db")
-    conv_dir = os.path.join(p_path, ".gemini/antigravity/conversations")
+    # Sanitize SQLite across both .gemini/antigravity and .gemini/antigravity-cli
+    local_convs = collect_profile_local_conversations(p_path)
     purged_count = 0
 
-    if os.path.exists(db_path) and profile_name != "danhdue":
-        try:
-            local_convs = set()
-            if os.path.exists(conv_dir):
-                for f in os.listdir(conv_dir):
-                    if f.endswith(".db"):
-                        local_convs.add(f[:-3])
+    for db_rel in (
+        ".gemini/antigravity/conversation_summaries.db",
+        ".gemini/antigravity-cli/conversation_summaries.db",
+    ):
+        db_path = os.path.join(p_path, db_rel)
+        if os.path.exists(db_path) and profile_name != "danhdue":
+            try:
+                conn = sqlite3.connect(db_path)
+                c = conn.cursor()
+                before_count = c.execute("SELECT count(*) FROM conversation_summaries").fetchone()[0]
 
-            shutil.copy2(db_path, f"{db_path}.bak.{timestamp}")
-            conn = sqlite3.connect(db_path)
-            c = conn.cursor()
-            before_count = c.execute("SELECT count(*) FROM conversation_summaries").fetchone()[0]
+                if local_convs:
+                    placeholders = ",".join("?" for _ in local_convs)
+                    c.execute(
+                        f"DELETE FROM conversation_summaries WHERE conversation_id NOT IN ({placeholders})",
+                        list(local_convs),
+                    )
+                else:
+                    c.execute("DELETE FROM conversation_summaries")
 
-            if local_convs:
-                placeholders = ",".join("?" for _ in local_convs)
-                c.execute(f"DELETE FROM conversation_summaries WHERE conversation_id NOT IN ({placeholders})", list(local_convs))
-            else:
-                c.execute("DELETE FROM conversation_summaries")
+                after_count = c.execute("SELECT count(*) FROM conversation_summaries").fetchone()[0]
+                deleted = before_count - after_count
+                purged_count += deleted
+                if deleted > 0:
+                    conn.commit()
+                    c.execute("VACUUM")
+                conn.close()
+            except Exception:
+                pass
 
-            after_count = c.execute("SELECT count(*) FROM conversation_summaries").fetchone()[0]
-            purged_count = before_count - after_count
-            conn.commit()
-            c.execute("VACUUM")
-            conn.close()
-        except Exception:
-            pass
-
-    # Sanitize agyhub_summaries_proto.pb (prevents agy from restoring foreign cloned summaries on startup)
+    # Sanitize agyhub_summaries_proto.pb only when it contains foreign/stale trajectories
     pb_path = os.path.join(p_path, ".gemini/antigravity/agyhub_summaries_proto.pb")
     purged_proto = False
-    if os.path.exists(pb_path) and profile_name != "danhdue":
+    if (
+        os.path.exists(pb_path)
+        and profile_name != "danhdue"
+        and is_proto_summaries_stale(pb_path, local_convs, purged_count)
+    ):
         try:
-            shutil.copy2(pb_path, f"{pb_path}.bak.{timestamp}")
             os.remove(pb_path)
             purged_proto = True
         except Exception:

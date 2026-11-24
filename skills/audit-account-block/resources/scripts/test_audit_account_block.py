@@ -358,6 +358,60 @@ class TestAuditAccountBlock(unittest.TestCase):
                 self.assertEqual(killed, [])
                 mock_kill.assert_not_called()
 
+    def test_audit_recognizes_native_cli_conversations_and_valid_proto_cache(self):
+        ide_uid = "11111111-2222-3333-4444-555555555555"
+        cli_uid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        foreign_uid = "99999999-8888-7777-6666-555555555555"
+
+        p_dir = self._create_mock_profile(
+            "prof_cli_native",
+            machine_id="mid_cli_native",
+            conv_ids=[ide_uid, cli_uid],
+            local_convs=[ide_uid],
+        )
+        # Create native CLI conversation db under .gemini/antigravity-cli/conversations/
+        cli_conv_dir = os.path.join(p_dir, ".gemini/antigravity-cli/conversations")
+        os.makedirs(cli_conv_dir, exist_ok=True)
+        with open(os.path.join(cli_conv_dir, f"{cli_uid}.db"), "w") as f:
+            f.write("mock_cli_conv")
+
+        # Create valid agyhub_summaries_proto.pb containing only native top-level UUIDs
+        pb_path = os.path.join(p_dir, ".gemini/antigravity/agyhub_summaries_proto.pb")
+        with open(pb_path, "wb") as f:
+            f.write(
+                f"\n${ide_uid}\x12\x04test\n${cli_uid}\x12\x04cli!".encode("ascii")
+            )
+
+        # Configure valid settings.json and credential-user-scope so profile is CLEAN
+        settings_dir = os.path.join(p_dir, "data/User")
+        os.makedirs(settings_dir, exist_ok=True)
+        with open(os.path.join(settings_dir, "settings.json"), "w") as f:
+            json.dump(
+                {"terminal.integrated.env.osx": {"AGY_PROFILE": "prof_cli_native"}},
+                f,
+            )
+        scope_dir = os.path.join(p_dir, "Library/Application Support/antigravity")
+        os.makedirs(scope_dir, exist_ok=True)
+        with open(os.path.join(scope_dir, "credential-user-scope"), "w") as f:
+            f.write("u1234567890abcdef")
+
+        report = auditor.audit_all_profiles(self.homes_dir)
+        prof_data = report["profiles"]["prof_cli_native"]
+        self.assertEqual(prof_data["stale_conversation_count"], 0)
+        self.assertFalse(prof_data["vulnerabilities"]["stale_trajectories"])
+        self.assertFalse(prof_data["vulnerabilities"]["stale_proto_summaries"])
+        self.assertEqual(prof_data["risk_level"], "CLEAN")
+
+        # Now inject a foreign UUID into agyhub_summaries_proto.pb -> should flag stale_proto_summaries
+        with open(pb_path, "wb") as f:
+            f.write(
+                f"\n${ide_uid}\x12\x04test\n${foreign_uid}\x12\x07foreign".encode("ascii")
+            )
+        report_dirty = auditor.audit_all_profiles(self.homes_dir)
+        self.assertTrue(
+            report_dirty["profiles"]["prof_cli_native"]["vulnerabilities"]["stale_proto_summaries"]
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

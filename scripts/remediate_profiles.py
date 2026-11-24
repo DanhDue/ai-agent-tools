@@ -24,9 +24,11 @@ if _AUDIT_SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _AUDIT_SCRIPTS_DIR)
 
 from audit_account_block import (  # noqa: E402
+    collect_profile_local_conversations,
     convert_symlinks_to_relative,
     find_absolute_symlinks,
     find_rogue_symlinks,
+    is_proto_summaries_stale,
     is_valid_profile_dir,
     terminate_profile_processes,
 )
@@ -114,22 +116,12 @@ def remediate():
         if rel_count:
             print(f"  ✓ Converted {rel_count} absolute symlinks to relative paths")
 
-        # 3. Sanitize conversation_summaries.db
+        # 3. Sanitize conversation_summaries.db across IDE + CLI runtime directories
         db_path = os.path.join(h, ".gemini/antigravity/conversation_summaries.db")
-        conv_dir = os.path.join(h, ".gemini/antigravity/conversations")
+        local_convs = collect_profile_local_conversations(h)
 
         if os.path.exists(db_path) and profile != "danhdue":
             try:
-                local_convs = set()
-                if os.path.exists(conv_dir):
-                    for f in os.listdir(conv_dir):
-                        if f.endswith(".db"):
-                            local_convs.add(f[:-3])
-
-                # Backup DB
-                db_bak = f"{db_path}.bak.{timestamp}"
-                shutil.copy2(db_path, db_bak)
-
                 conn = sqlite3.connect(db_path)
                 c = conn.cursor()
                 before_count = c.execute("SELECT count(*) FROM conversation_summaries").fetchone()[0]
@@ -142,9 +134,14 @@ def remediate():
 
                 after_count = c.execute("SELECT count(*) FROM conversation_summaries").fetchone()[0]
                 deleted = before_count - after_count
-                conn.commit()
-                c.execute("VACUUM")
+                if deleted > 0:
+                    conn.commit()
+                    c.execute("VACUUM")
                 conn.close()
+
+                pb_path = os.path.join(h, ".gemini/antigravity/agyhub_summaries_proto.pb")
+                if os.path.exists(pb_path) and is_proto_summaries_stale(pb_path, local_convs, deleted):
+                    os.remove(pb_path)
 
                 if deleted > 0:
                     print(f"  ✓ Purged {deleted} stale cloned conversation summaries (Remaining: {after_count})")

@@ -17,7 +17,7 @@ When managing 20+ isolated Antigravity user profiles on a single machine:
 
 ## 2. The 6 Core Isolation Rules
 
-```
+```text
                       ┌───────────────────────────────────────────────┐
                       │            macOS Host Environment             │
                       │  Default Keychain: login.keychain-db (Fixed)  │
@@ -129,7 +129,7 @@ To prevent Google Cloud Code Assist and Clearcut Telemetry from correlating mult
    ```
    This prevents Antigravity IDE from transmitting host machine hardware fingerprints, open folder URIs (`backupWorkspaces`), and project paths back to telemetry collection endpoints.
 3. **Trajectory Leak Elimination**:
-   Never clone `conversation_summaries.db` or `agyhub_summaries_proto.pb`. On profile initialization, ensure `conversation_summaries.db` only references conversation UUIDs residing in that profile's own `.gemini/antigravity/conversations/` directory.
+   Never clone `conversation_summaries.db` or `agyhub_summaries_proto.pb`. On profile initialization and audit, ensure `conversation_summaries.db` and `agyhub_summaries_proto.pb` only reference conversation UUIDs residing natively in that profile's own isolated runtime directories (`.gemini/antigravity/conversations/`, `.gemini/antigravity-cli/conversations/`, `.gemini/antigravity-ide/conversations/`, and `.antigravity/antigravity*/conversations/`). Native CLI trajectories reconciled by Antigravity's summary store into `conversation_summaries.db` and `agyhub_summaries_proto.pb` are preserved as valid local trajectories.
 4. **Credential User Scope Decoupling**:
    Every profile MUST have a unique `Library/Application Support/antigravity/credential-user-scope` (`u<16_hex_chars>`). This file is directly read by Google's native `language_server` binary; sharing it across profiles causes Cloud Code completions and telemetry to cross-link accounts.
 
