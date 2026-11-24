@@ -15,7 +15,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 from unittest.mock import MagicMock
 import urllib.parse
 import urllib.request
@@ -489,6 +489,167 @@ def test_antigravity_tier_and_priority_matrix(
         formatted,
         ["ya29.secret_agy_access", "1//secret_agy_refresh", "secret-vscdb-key"],
     )
+
+
+def test_dynamic_google_oauth_license_and_vscdb_discovery(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify Keychain go-keyring-base64 decoding, dual-path state.vscdb email, and live Google fetchLicenses tier resolution."""
+    _setup_isolated_env(tmp_path, monkeypatch, ["tess", "brother", "phungthuy8901"])
+
+    # 1. Populate modern data/User/globalStorage/state.vscdb for 'brother'
+    modern_vscdb = (
+        tmp_path
+        / "antigravity_homes"
+        / "brother"
+        / "data"
+        / "User"
+        / "globalStorage"
+        / "state.vscdb"
+    )
+    modern_vscdb.parent.mkdir(parents=True, exist_ok=True)
+    con = sqlite3.connect(str(modern_vscdb))
+    con.execute("CREATE TABLE ItemTable (key TEXT PRIMARY KEY, value TEXT);")
+    con.execute(
+        "INSERT INTO ItemTable (key, value) VALUES (?, ?);",
+        (
+            "google.google-antigravity",
+            json.dumps(
+                {
+                    "antigravity-storage": {
+                        "agy.onboarding.lastLoginUsername": "dvtung0868377966@gmail.com"
+                    }
+                }
+            ),
+        ),
+    )
+    con.commit()
+    con.close()
+
+    assert (
+        agy_quota.read_antigravity_vscdb_email("brother")
+        == "dvtung0868377966@gmail.com"
+    )
+
+    # 2. Simulate go-keyring-base64 Keychain payload for 'tess'
+    kc_payload = {
+        "token": {
+            "access_token": "ya29.tess_live_token",
+            "refresh_token": "1//tess_refresh",
+            "expiry": "2026-12-01T00:00:00Z",
+        },
+        "auth_method": "consumer",
+        "id_token_email": "ldejong322@gmail.com",
+    }
+    encoded_kc = "go-keyring-base64:" + base64.b64encode(
+        json.dumps(kc_payload).encode("utf-8")
+    ).decode("ascii")
+
+    kc_file = (
+        tmp_path
+        / "antigravity_homes"
+        / "tess"
+        / "Library"
+        / "Keychains"
+        / "tess.keychain-db"
+    )
+    kc_file.parent.mkdir(parents=True, exist_ok=True)
+    kc_file.write_text("dummy", encoding="utf-8")
+
+    usage_stdout = json.dumps(
+        {
+            "command": {
+                "data": {
+                    "groups": [
+                        {
+                            "name": "Gemini Models",
+                            "description": "Models within this group: Gemini 4 Carbon, Gemini 4 Argon, Gemini 3.8 Flash",
+                            "buckets": [
+                                {
+                                    "window": "5h",
+                                    "remaining_fraction": 0.95,
+                                    "reset_time": "2026-11-24T20:00:00Z",
+                                },
+                                {
+                                    "window": "weekly",
+                                    "remaining_fraction": 0.92,
+                                    "reset_time": "2026-11-30T20:00:00Z",
+                                },
+                            ],
+                        }
+                    ]
+                }
+            }
+        }
+    )
+    credits_stdout = json.dumps(
+        {
+            "command": {
+                "name": "credits",
+                "data": {"remaining_credits": 250},
+            }
+        }
+    )
+
+    def fake_run(cmd: list[str], **_kw: Any) -> MagicMock:
+        if cmd and cmd[0] == "security":
+            if "find-generic-password" in cmd and "-w" in cmd:
+                return MagicMock(returncode=0, stdout=encoded_kc, stderr="")
+            return MagicMock(returncode=0, stdout="", stderr="")
+        if len(cmd) >= 2 and cmd[1] == "models":
+            return MagicMock(returncode=0, stdout="gemini-4-argon-high\n", stderr="")
+        if "/credits" in cmd:
+            return MagicMock(returncode=0, stdout=credits_stdout, stderr="")
+        if "/usage" in cmd:
+            return MagicMock(returncode=0, stdout=usage_stdout, stderr="")
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    class _FakeResp:
+        status = 200
+
+        def __enter__(self) -> Self:
+            return self
+
+        def __exit__(self, *_a: object) -> None:
+            return None
+
+        def read(self) -> bytes:
+            return json.dumps(
+                {
+                    "licenses": [
+                        {
+                            "userTier": "g1-ultra-tier",
+                            "tierDisplayName": "Google AI Ultra",
+                            "upgradeSubscription": {
+                                "text": "You are subscribed to the best Google AI plan."
+                            },
+                        }
+                    ]
+                }
+            ).encode("utf-8")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        urllib.request,
+        "urlopen",
+        lambda req, timeout=4.0: _FakeResp(),
+    )
+
+    res = agy_quota.fetch_quota_for_profile("tess")
+    assert res["success"] is True
+    assert res["tier"] == "ULTRA"
+    assert res["priority"] == 80
+    formatted = agy_quota.format_profile_for_dashboard("tess", res)
+    assert formatted["tier"] == "ULTRA"
+    assert formatted["planLabel"] == "ULTRA"
+    assert formatted["priority"] == 80
+    assert formatted["email"] == "ldejong322@gmail.com"
+    assert formatted["accountMeta"]["userTier"] == "g1-ultra-tier"
+    assert formatted["accountMeta"]["tierDisplayName"] == "Google AI Ultra"
+    assert formatted["accountMeta"]["authMethod"] == "consumer"
+    assert formatted["accountMeta"]["remainingCredits"] == 250
+    _assert_zero_secret_leakage(formatted, ["ya29.tess_live_token", "1//tess_refresh"])
 
 
 def test_antigravity_disabled_preservation_and_ultra_ping_fallback(
@@ -1679,7 +1840,7 @@ assert.ok(ultraModels.some((m) => m.includes('Orchestrator')), 'Orchestrator mod
 
 const ultraCard = sandbox.renderProfileCard('nguyenhieu000690', fixture.nguyenhieu000690);
 assert.ok(ultraCard.includes('data-tier-badge="ULTRA"'), 'Ultra card must show ULTRA badge');
-assert.ok(ultraCard.includes('Priority: 80'), 'Ultra card must show Priority: 80');
+assert.ok(!ultraCard.includes('Priority:'), 'Antigravity profile card must NOT show synthetic Priority');
 assert.ok(ultraCard.includes('data-capability-badge="Carbon"'), 'Ultra card must show Carbon badge');
 assert.ok(ultraCard.includes('data-capability-badge="Argon"'), 'Ultra card must show Argon badge');
 assert.ok(ultraCard.includes('data-capability-badge="Orchestrator"'), 'Ultra card must show Orchestrator badge');
@@ -2010,7 +2171,6 @@ def test_e2e_chrome_cdp_quota_provider_tiers_modal_and_sort(
         ultra_text = snapshot["ultra"]["text"]
         for expected_ultra_token in (
             "ULTRA",
-            "Priority: 80",
             "Carbon",
             "Argon",
             "Orchestrator",
@@ -2020,13 +2180,15 @@ def test_e2e_chrome_cdp_quota_provider_tiers_modal_and_sort(
             "Shared w/ Gemini Pool",
         ):
             assert expected_ultra_token in ultra_text
+        assert "Priority:" not in ultra_text
         assert len(snapshot["ultra"]["rosters"]) >= 4
         assert "models within this group" not in ultra_text.lower()
 
         # Antigravity PRO + separate Argon checks
         danhdue_text = snapshot["danhdue"]["text"]
-        for expected_pro_token in ("PRO", "Priority: 60", "Argon", "100%"):
+        for expected_pro_token in ("PRO", "Argon", "100%"):
             assert expected_pro_token in danhdue_text
+        assert "Priority:" not in danhdue_text
         assert "for paid pro plans" not in danhdue_text.lower()
 
         # Modal checks

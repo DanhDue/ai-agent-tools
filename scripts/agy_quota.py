@@ -446,7 +446,7 @@ def _derive_profile_capabilities(
     plan_up = str(plan_name or "").upper()
     if tier == "FREE":
         cap_tier = "FREE"
-    elif "ULTRA" in plan_up or (not has_dedicated_argon and has_carbon):
+    elif "ULTRA" in plan_up:
         cap_tier = "ULTRA"
     else:
         cap_tier = "PRO"
@@ -679,45 +679,222 @@ def _decode_jwt_claims_unverified(token: object) -> dict:
 
 
 def read_antigravity_vscdb_email(profile: str) -> str | None:
-    """Read authenticated Google email from profile state.vscdb in read-only SQLite URI mode."""
-    db_path = (
-        Path(REAL_HOME)
-        / "antigravity_homes"
-        / profile
+    """Read authenticated Google email from profile state.vscdb (modern data/User or legacy Library path) in read-only SQLite URI mode."""
+    p_home = Path(REAL_HOME) / "antigravity_homes" / profile
+    candidates = (
+        p_home / "data" / "User" / "globalStorage" / "state.vscdb",
+        p_home
         / "Library"
         / "Application Support"
         / "Antigravity"
         / "User"
         / "globalStorage"
-        / "state.vscdb"
+        / "state.vscdb",
     )
-    if not db_path.is_file():
-        return None
-    con = None
-    try:
-        uri = f"{db_path.resolve().as_uri()}?mode=ro"
-        con = sqlite3.connect(uri, uri=True, timeout=1.0)
-        cur = con.cursor()
-        cur.execute(
-            "SELECT value FROM ItemTable WHERE key = 'antigravityAuthStatus' LIMIT 1;"
-        )
-        row = cur.fetchone()
-        if not row or not row[0]:
-            return None
-        parsed = json.loads(row[0])
-        if isinstance(parsed, dict):
-            raw_email = parsed.get("email")
-            if isinstance(raw_email, str) and raw_email.strip():
-                return raw_email.strip()
-    except Exception:
-        return None
-    finally:
-        if con is not None:
-            try:
-                con.close()
-            except Exception:
-                pass
+    for db_path in candidates:
+        if not db_path.is_file():
+            continue
+        con = None
+        try:
+            uri = f"{db_path.resolve().as_uri()}?mode=ro"
+            con = sqlite3.connect(uri, uri=True, timeout=1.0)
+            cur = con.cursor()
+            cur.execute(
+                "SELECT value FROM ItemTable WHERE key = 'antigravityAuthStatus' LIMIT 1;"
+            )
+            row = cur.fetchone()
+            if row and row[0]:
+                parsed = json.loads(row[0])
+                if isinstance(parsed, dict):
+                    raw_email = parsed.get("email")
+                    if isinstance(raw_email, str) and raw_email.strip():
+                        return raw_email.strip()
+
+            cur.execute(
+                "SELECT value FROM ItemTable WHERE key = 'google.google-antigravity' LIMIT 1;"
+            )
+            row2 = cur.fetchone()
+            if row2 and row2[0]:
+                parsed2 = json.loads(row2[0])
+                if isinstance(parsed2, dict):
+                    storage = parsed2.get("antigravity-storage")
+                    if isinstance(storage, dict):
+                        login_user = storage.get("agy.onboarding.lastLoginUsername")
+                        if isinstance(login_user, str) and login_user.strip():
+                            return login_user.strip()
+        except Exception:
+            pass
+        finally:
+            if con is not None:
+                try:
+                    con.close()
+                except Exception:
+                    pass
     return None
+
+
+def _parse_antigravity_oauth_json(raw_text: str) -> dict:
+    """Decode raw or go-keyring-base64 OAuth JSON into `{access_token, email, auth_method, expiry}`."""
+    txt = str(raw_text or "").strip()
+    if not txt:
+        return {}
+    if txt.startswith("go-keyring-base64:"):
+        b64_part = txt[len("go-keyring-base64:") :].strip()
+        b64_part += "=" * (-len(b64_part) % 4)
+        try:
+            txt = base64.b64decode(b64_part.encode("ascii")).decode("utf-8")
+        except Exception:
+            return {}
+    try:
+        payload = json.loads(txt)
+    except Exception:
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+
+    tok = payload.get("token")
+    access_token = ""
+    expiry = ""
+    id_tok_email = ""
+    if isinstance(tok, dict):
+        access_token = str(tok.get("access_token") or "").strip()
+        expiry = str(tok.get("expiry") or "").strip()
+        claims = _decode_jwt_claims_unverified(tok.get("id_token"))
+        if isinstance(claims.get("email"), str):
+            id_tok_email = claims["email"].strip()
+    elif isinstance(tok, str):
+        access_token = tok.strip()
+
+    email = str(payload.get("id_token_email") or id_tok_email or "").strip()
+    auth_method = str(payload.get("auth_method") or "").strip()
+    out: dict[str, str] = {}
+    if access_token:
+        out["access_token"] = access_token
+    if email:
+        out["email"] = email
+    if auth_method:
+        out["auth_method"] = auth_method
+    if expiry:
+        out["expiry"] = expiry
+    return out
+
+
+def read_antigravity_oauth_record(profile: str) -> dict:
+    """Read profile OAuth metadata (`email`, `auth_method`, in-memory `access_token`) from Keychain or fallback token file."""
+    wait_for_launch_lock()
+    profile_home = Path(REAL_HOME) / "antigravity_homes" / profile
+    kc = profile_home / "Library" / "Keychains" / f"{profile}.keychain-db"
+    if kc.is_file():
+        try:
+            subprocess.run(
+                ["security", "unlock-keychain", "-p", KC_PASS, str(kc)],
+                capture_output=True,
+                timeout=2.0,
+            )
+            res = subprocess.run(
+                [
+                    "security",
+                    "find-generic-password",
+                    "-s",
+                    "gemini",
+                    "-a",
+                    "antigravity",
+                    "-w",
+                    str(kc),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+            )
+            if res.returncode == 0 and res.stdout:
+                parsed = _parse_antigravity_oauth_json(res.stdout)
+                if parsed:
+                    return parsed
+        except Exception:
+            pass
+
+    for rel_path in (
+        Path(".gemini") / "antigravity-cli" / "antigravity-oauth-token",
+        Path(".gemini") / "jetski-standalone-oauth-token",
+    ):
+        token_path = profile_home / rel_path
+        if not token_path.is_file():
+            continue
+        try:
+            parsed = _parse_antigravity_oauth_json(
+                token_path.read_text(encoding="utf-8")
+            )
+            if parsed:
+                return parsed
+        except Exception:
+            continue
+    return {}
+
+
+def fetch_antigravity_google_license(
+    profile: str,
+    access_token: str | None = None,
+) -> dict:
+    """Query Google AICode `GET /v1alpha:fetchLicenses` for live userTier (`g1-ultra-tier`, `g1-pro-tier`, `free-tier`) and tierDisplayName."""
+    tok = str(access_token or "").strip()
+    if not tok:
+        oauth_rec = read_antigravity_oauth_record(profile)
+        tok = str(oauth_rec.get("access_token") or "").strip()
+    if not tok:
+        return {}
+
+    req = urllib.request.Request(
+        "https://aicode.googleapis.com/v1alpha:fetchLicenses",
+        method="GET",
+        headers={
+            "Authorization": f"Bearer {tok}",
+            "Accept": "application/json",
+            "User-Agent": "antigravity-cli/2.7.0",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=4.0) as resp:
+            if getattr(resp, "status", 200) != 200:
+                return {}
+            body = json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        return {}
+
+    if not isinstance(body, dict):
+        return {}
+    licenses = body.get("licenses")
+    if not isinstance(licenses, list) or not licenses or not isinstance(licenses[0], dict):
+        return {}
+
+    lic = licenses[0]
+    user_tier = str(lic.get("userTier") or "").strip()
+    display_name = str(lic.get("tierDisplayName") or "").strip()
+    up_sub = lic.get("upgradeSubscription") if isinstance(lic.get("upgradeSubscription"), dict) else {}
+    upgrade_text = str(up_sub.get("text") or "").strip()
+    upgrade_url = str(up_sub.get("url") or "").strip()
+
+    combined_low = f"{user_tier} {display_name}".lower()
+    if "ultra" in combined_low:
+        canonical_tier = "ULTRA"
+    elif "free" in combined_low or "starter" in combined_low:
+        canonical_tier = "FREE"
+    elif "pro" in combined_low or "standard" in combined_low:
+        canonical_tier = "PRO"
+    else:
+        canonical_tier = ""
+
+    out: dict[str, str] = {}
+    if user_tier:
+        out["userTier"] = user_tier
+    if display_name:
+        out["tierDisplayName"] = display_name
+    if canonical_tier:
+        out["tier"] = canonical_tier
+    if upgrade_text:
+        out["upgradeText"] = upgrade_text
+    if upgrade_url:
+        out["upgradeUrl"] = upgrade_url
+    return out
 
 
 def normalize_antigravity_account(
@@ -725,10 +902,29 @@ def normalize_antigravity_account(
     capabilities: dict | None,
     argon_mode: str = "none",
     email: str | None = None,
+    license_info: dict | None = None,
+    oauth_info: dict | None = None,
+    credits_info: dict | None = None,
 ) -> dict:
     """Normalize Antigravity tier, priority (80/60/50/20), and non-secret AccountMeta."""
     caps = capabilities if isinstance(capabilities, dict) else {}
-    cap_tier = str(caps.get("tier") or "PRO").strip().upper()
+    lic = license_info if isinstance(license_info, dict) else {}
+    oauth = oauth_info if isinstance(oauth_info, dict) else {}
+    cred = credits_info if isinstance(credits_info, dict) else {}
+
+    lic_tier = str(lic.get("tier") or "").strip().upper()
+    user_tier_raw = str(lic.get("userTier") or "").strip()
+    disp_name_raw = str(lic.get("tierDisplayName") or "").strip()
+    combined_lic_low = f"{user_tier_raw} {disp_name_raw}".lower()
+    if not lic_tier and combined_lic_low.strip():
+        if "ultra" in combined_lic_low:
+            lic_tier = "ULTRA"
+        elif "free" in combined_lic_low or "starter" in combined_lic_low:
+            lic_tier = "FREE"
+        elif "pro" in combined_lic_low or "standard" in combined_lic_low:
+            lic_tier = "PRO"
+
+    cap_tier = str(lic_tier or caps.get("tier") or "PRO").strip().upper()
     eff_argon = str(argon_mode or caps.get("argonMode") or "none").strip()
 
     if cap_tier == "ULTRA":
@@ -740,12 +936,21 @@ def normalize_antigravity_account(
     else:
         tier, plan_label, plan_type, priority = "PRO", "PRO", "pro", 50
 
-    resolved_email = (
-        (str(email).strip() if isinstance(email, str) and email.strip() else "")
-        or read_antigravity_vscdb_email(profile)
-        or f"{profile}@gmail.com"
+    oauth_email = str(oauth.get("email") or "").strip()
+    vscdb_email = read_antigravity_vscdb_email(profile) or ""
+    explicit_email = str(email).strip() if isinstance(email, str) and email.strip() else ""
+    synthetic_fallback = f"{profile}@gmail.com"
+    non_synthetic_explicit = (
+        explicit_email if explicit_email and explicit_email != synthetic_fallback else ""
     )
-    account_meta = {
+    resolved_email = (
+        oauth_email
+        or vscdb_email
+        or non_synthetic_explicit
+        or explicit_email
+        or synthetic_fallback
+    )
+    account_meta: dict[str, object] = {
         "provider": "antigravity",
         "vendorLabel": "GOOGLE",
         "planType": plan_type,
@@ -755,6 +960,27 @@ def normalize_antigravity_account(
         "configPath": f"~/antigravity_homes/{profile}",
         "secondaryPath": f"~/antigravity_homes/{profile}/Library/Keychains/{profile}.keychain-db",
     }
+    if user_tier_raw:
+        account_meta["userTier"] = user_tier_raw
+    if disp_name_raw:
+        account_meta["tierDisplayName"] = disp_name_raw
+    auth_method = str(oauth.get("auth_method") or oauth.get("authMethod") or "").strip()
+    if auth_method:
+        account_meta["authMethod"] = auth_method
+    upgrade_text = str(lic.get("upgradeText") or "").strip()
+    if upgrade_text:
+        account_meta["upgradeText"] = upgrade_text
+    upgrade_url = str(lic.get("upgradeUrl") or cred.get("upgradeUrl") or "").strip()
+    if upgrade_url:
+        account_meta["upgradeUrl"] = upgrade_url
+    if "remainingCredits" in cred and cred["remainingCredits"] is not None:
+        try:
+            rem_cr = int(cred["remainingCredits"])
+            account_meta["remainingCredits"] = rem_cr
+            account_meta["creditsSummary"] = f"{rem_cr} AI credits remaining"
+        except (TypeError, ValueError):
+            pass
+
     return {
         "email": resolved_email,
         "tier": tier,
@@ -985,13 +1211,17 @@ def str_vis_width(s: str) -> int:
 
 def format_countdown(reset_time_str: str) -> str:
     """Calculate remaining time to full reset from now."""
-    if not reset_time_str:
+    if not reset_time_str or reset_time_str.startswith("1970"):
         return "⏱ --"
     try:
         dt = datetime.datetime.fromisoformat(reset_time_str.replace("Z", "+00:00"))
+        if dt.year <= 1970:
+            return "⏱ --"
         now = datetime.datetime.now(datetime.timezone.utc)
         diff = dt - now
-        total_seconds = max(0, int(diff.total_seconds()))
+        total_seconds = int(diff.total_seconds())
+        if total_seconds <= 0:
+            return "⏱ --"
         days = total_seconds // 86400
         hours = (total_seconds % 86400) // 3600
         minutes = (total_seconds % 3600) // 60
@@ -1002,7 +1232,7 @@ def format_countdown(reset_time_str: str) -> str:
         elif minutes > 0:
             return f"⏱ {minutes}m"
         else:
-            return "⏱ 0m"
+            return "⏱ --"
     except Exception:
         return "⏱ --"
 
@@ -1401,13 +1631,71 @@ def _query_agy_models_stdout(env: dict[str, str], cwd: str) -> str | None:
     return None
 
 
+def _query_agy_credits(env: dict[str, str], cwd: str) -> dict | None:
+    """Invoke `agy --output-format json -p /credits` inside an isolated cwd, returning parsed credits dict or None."""
+    try:
+        res = subprocess.run(
+            [AGY_BIN, "--output-format", "json", "-p", "/credits"],
+            env=env,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if res.returncode == 0 and res.stdout:
+            payload = json.loads(res.stdout.strip())
+            if isinstance(payload, dict) and payload.get("status") != "ERROR":
+                cmd_data = (payload.get("command") or {}).get("data")
+                if isinstance(cmd_data, dict) and "remaining_credits" in cmd_data:
+                    out: dict[str, object] = {
+                        "remainingCredits": int(cmd_data.get("remaining_credits") or 0)
+                    }
+                    up_uri = str(cmd_data.get("upgrade_uri") or "").strip()
+                    if up_uri:
+                        out["upgradeUrl"] = up_uri
+                    return out
+    except (Exception, AssertionError):
+        pass
+    return None
+
+
+def _extract_cached_google_license_and_credits(cached_entry: dict | None) -> tuple[dict, dict, dict]:
+    """Extract cached `(license_info, oauth_info, credits_info)` from a profile's cached accountMeta."""
+    if not isinstance(cached_entry, dict):
+        return {}, {}, {}
+    meta = cached_entry.get("accountMeta")
+    if not isinstance(meta, dict):
+        return {}, {}, {}
+    lic: dict[str, str] = {}
+    for k in ("userTier", "tierDisplayName", "upgradeText", "upgradeUrl"):
+        val = meta.get(k)
+        if isinstance(val, str) and val.strip():
+            lic[k] = val.strip()
+    if lic.get("userTier") or lic.get("tierDisplayName"):
+        comb = f"{lic.get('userTier', '')} {lic.get('tierDisplayName', '')}".lower()
+        if "ultra" in comb:
+            lic["tier"] = "ULTRA"
+        elif "free" in comb or "starter" in comb:
+            lic["tier"] = "FREE"
+        elif "pro" in comb or "standard" in comb:
+            lic["tier"] = "PRO"
+    oauth: dict[str, str] = {}
+    auth_m = meta.get("authMethod")
+    if isinstance(auth_m, str) and auth_m.strip():
+        oauth["auth_method"] = auth_m.strip()
+    cred: dict[str, object] = {}
+    if "remainingCredits" in meta and meta["remainingCredits"] is not None:
+        cred["remainingCredits"] = meta["remainingCredits"]
+    return lic, oauth, cred
+
+
 def fetch_quota_for_profile(
     profile: str,
     force_probe: bool = False,
     batch_mode: bool = False,
     cached_override: dict | None = None,
 ) -> dict:
-    """Execute agy --output-format json -p '/usage' (plus Hybrid + Cache `agy models`) for a profile."""
+    """Execute agy --output-format json -p '/usage' (plus Hybrid + Cache `agy models` and Google license discovery) for a profile."""
     ag_home = f"{REAL_HOME}/antigravity_homes/{profile}"
     if not os.path.isdir(ag_home):
         return {"profile": profile, "success": False, "error": f"Profile home not found: {ag_home}"}
@@ -1483,23 +1771,67 @@ def fetch_quota_for_profile(
                 or cmd_data.get("tier")
                 or cmd_data.get("tier_name")
                 or ""
-            ).strip().upper()
-            items = parse_quota_items(groups)
-            has_5h = items["gem_5h"]["available"] or items["cld_5h"]["available"]
-            tier = "FREE" if ("FREE" in plan_raw or (groups and not has_5h)) else "PRO"
+            ).strip()
 
-            usage_parsed = parse_usage_group_models(groups)
-            group_desc_sig = usage_parsed["groupDescSig"]
             cached_entry = dict(_peek_cached_profile(profile))
             if isinstance(cached_override, dict):
                 cached_entry.update(cached_override)
+            cached_lic, cached_oauth, cached_cred = _extract_cached_google_license_and_credits(
+                cached_entry
+            )
+
+            usage_parsed = parse_usage_group_models(groups)
+            group_desc_sig = usage_parsed["groupDescSig"]
 
             should_fetch_models = (not batch_mode) or (
                 not _is_models_cache_warm(cached_entry, group_desc_sig)
             )
+            has_warm_cached_license = bool(
+                cached_lic.get("userTier") or cached_lic.get("tierDisplayName")
+            )
+
+            # Read live OAuth metadata from Keychain (local-only, zero network calls)
+            oauth_info = read_antigravity_oauth_record(profile) or cached_oauth
+
+            # ANTI-BAN / RATE-LIMIT GUARD:
+            # In batch_mode ("Refresh tất cả" across 20+ profiles), skip calling
+            # aicode.googleapis.com/v1alpha:fetchLicenses when the 24h hybrid cache
+            # already holds the profile's verified Google license tier.
+            if should_fetch_models or not has_warm_cached_license:
+                live_license = fetch_antigravity_google_license(
+                    profile,
+                    access_token=oauth_info.get("access_token") if isinstance(oauth_info, dict) else None,
+                )
+            else:
+                live_license = {}
+            license_info = live_license if live_license else cached_lic
+
+            if not plan_raw and license_info.get("tierDisplayName"):
+                plan_raw = str(license_info["tierDisplayName"]).strip()
+
+            plan_up = plan_raw.upper()
+            lic_tier = str(license_info.get("tier") or "").strip().upper()
+            items = parse_quota_items(groups)
+            has_5h = items["gem_5h"]["available"] or items["cld_5h"]["available"]
+            if lic_tier in ("ULTRA", "PRO", "FREE"):
+                tier = lic_tier
+            elif "ULTRA" in plan_up:
+                tier = "ULTRA"
+            elif "FREE" in plan_up or (groups and not has_5h):
+                tier = "FREE"
+            else:
+                tier = "PRO"
+
             models_stdout = (
                 _query_agy_models_stdout(env, sandbox_cwd) if should_fetch_models else None
             )
+            credits_info = (
+                (_query_agy_credits(env, sandbox_cwd) if tier != "FREE" else None)
+                if should_fetch_models
+                else cached_cred
+            )
+            if credits_info is None and cached_cred:
+                credits_info = cached_cred
 
         if models_stdout is not None:
             available_models = parse_agy_models_output(models_stdout)
@@ -1538,13 +1870,25 @@ def fetch_quota_for_profile(
             model_catalog=model_catalog,
             available_models=available_models,
         )
-        norm_acct = normalize_antigravity_account(profile, capabilities, argon_mode)
+        safe_oauth_info = {
+            k: v for k, v in (oauth_info or {}).items() if k in ("email", "auth_method", "expiry")
+        }
+        norm_acct = normalize_antigravity_account(
+            profile,
+            capabilities,
+            argon_mode,
+            email=safe_oauth_info.get("email"),
+            license_info=license_info,
+            oauth_info=safe_oauth_info,
+            credits_info=credits_info,
+        )
 
         return {
             "profile": profile,
             "success": True,
             "duration": duration,
             "groups": groups,
+            "email": norm_acct["email"],
             "tier": capabilities["tier"],
             "planLabel": norm_acct["planLabel"],
             "vendorLabel": norm_acct["vendorLabel"],
@@ -1558,6 +1902,9 @@ def fetch_quota_for_profile(
             "argonMode": argon_mode,
             "capabilities": capabilities,
             "accountMeta": norm_acct["accountMeta"],
+            "licenseInfo": license_info,
+            "oauthInfo": safe_oauth_info,
+            "creditsInfo": credits_info or {},
         }
     except subprocess.TimeoutExpired:
         return {"profile": profile, "success": False, "duration": 45.0, "error": "Request timed out (45s)"}
@@ -3954,10 +4301,52 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
         return fetch_kiro_quota()
 
     current = _peek_cached_profile(profile)
+    cached_lic, cached_oauth, cached_cred = _extract_cached_google_license_and_credits(
+        current
+    )
+    res_oauth = result.get("oauthInfo") if isinstance(result.get("oauthInfo"), dict) else {}
+    oauth_info = res_oauth or read_antigravity_oauth_record(profile) or cached_oauth
+    safe_oauth_info = {
+        k: v for k, v in (oauth_info or {}).items() if k in ("email", "auth_method", "expiry")
+    }
+    res_lic = result.get("licenseInfo") if isinstance(result.get("licenseInfo"), dict) else {}
+    explicit_plan_name = str(result.get("plan_name") or "").strip()
+    if res_lic:
+        license_info = res_lic
+    elif explicit_plan_name:
+        plan_low = explicit_plan_name.lower()
+        if "ultra" in plan_low:
+            inferred_tier = "ULTRA"
+        elif "free" in plan_low or "starter" in plan_low:
+            inferred_tier = "FREE"
+        elif "pro" in plan_low or "standard" in plan_low:
+            inferred_tier = "PRO"
+        else:
+            inferred_tier = ""
+        license_info = (
+            {"tier": inferred_tier, "tierDisplayName": explicit_plan_name}
+            if inferred_tier
+            else {}
+        )
+    else:
+        license_info = cached_lic
+    res_cred = result.get("creditsInfo") if isinstance(result.get("creditsInfo"), dict) else {}
+    credits_info = res_cred or cached_cred
+
+    oauth_email = str(safe_oauth_info.get("email") or "").strip()
     vscdb_email = read_antigravity_vscdb_email(profile)
     explicit_email = str(result.get("email") or "").strip()
     cached_email = str(current.get("email") or "").strip()
-    email = vscdb_email or explicit_email or cached_email or f"{profile}@gmail.com"
+    synthetic_fallback = f"{profile}@gmail.com"
+    email = (
+        oauth_email
+        or vscdb_email
+        or (explicit_email if explicit_email != synthetic_fallback else "")
+        or (cached_email if cached_email != synthetic_fallback else "")
+        or explicit_email
+        or cached_email
+        or synthetic_fallback
+    )
     tier = current.get("tier", "PRO")
     priority = current.get("priority", 50)
     fallback_norm = normalize_antigravity_account(
@@ -3965,6 +4354,9 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
         current.get("capabilities") if isinstance(current.get("capabilities"), dict) else {"tier": tier},
         str((current.get("capabilities") or {}).get("argonMode") or "none"),
         email=email,
+        license_info=license_info,
+        oauth_info=safe_oauth_info,
+        credits_info=credits_info,
     )
 
     if result.get("is_appeal") or result.get("status") == "DISABLED":
@@ -4068,8 +4460,21 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
     )
 
     has_5h = items["gem_5h"]["available"] or items["cld_5h"]["available"]
-    plan_raw = str(result.get("plan_name") or "").upper()
-    base_tier = "FREE" if ("FREE" in plan_raw or (groups and not has_5h)) else ("PRO" if has_5h else "FREE")
+    plan_raw = str(
+        result.get("plan_name")
+        or license_info.get("tierDisplayName")
+        or ""
+    ).strip()
+    plan_up = plan_raw.upper()
+    lic_tier = str(license_info.get("tier") or result.get("tier") or "").strip().upper()
+    if lic_tier in ("ULTRA", "PRO", "FREE"):
+        base_tier = lic_tier
+    elif "ULTRA" in plan_up:
+        base_tier = "ULTRA"
+    elif "FREE" in plan_up or (groups and not has_5h):
+        base_tier = "FREE"
+    else:
+        base_tier = "PRO" if has_5h else "FREE"
 
     capabilities = _derive_profile_capabilities(
         tier=base_tier,
@@ -4080,7 +4485,15 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
         model_catalog=model_catalog,
         available_models=available_models,
     )
-    norm_acct = normalize_antigravity_account(profile, capabilities, argon_mode, email=email)
+    norm_acct = normalize_antigravity_account(
+        profile,
+        capabilities,
+        argon_mode,
+        email=email,
+        license_info=license_info,
+        oauth_info=safe_oauth_info,
+        credits_info=credits_info,
+    )
     tier = norm_acct["tier"]
     priority = norm_acct["priority"]
     has_argon = argon_mode != "none"
@@ -4099,11 +4512,12 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
     gem_5h_ts = 0
     local_5h_reset = ""
 
-    if gem_5h_reset:
+    if gem_5h_reset and not gem_5h_reset.startswith("1970"):
         try:
             dt_5h = datetime.datetime.fromisoformat(gem_5h_reset.replace("Z", "+00:00"))
-            gem_5h_ts = int(dt_5h.timestamp())
-            local_5h_reset = dt_5h.astimezone().strftime("%H:%M:%S")
+            if dt_5h.year > 1970:
+                gem_5h_ts = int(dt_5h.timestamp())
+                local_5h_reset = dt_5h.astimezone().strftime("%H:%M:%S")
         except Exception:
             pass
 
@@ -4113,34 +4527,53 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
 
     gem_w_ts = 0
     local_w_reset = ""
-    if gem_w_reset:
+    if gem_w_reset and not gem_w_reset.startswith("1970"):
         try:
             dt_w = datetime.datetime.fromisoformat(gem_w_reset.replace("Z", "+00:00"))
-            gem_w_ts = int(dt_w.timestamp())
-            local_w_reset = dt_w.astimezone().strftime("%d/%m %H:%M")
+            if dt_w.year > 1970:
+                gem_w_ts = int(dt_w.timestamp())
+                local_w_reset = dt_w.astimezone().strftime("%d/%m %H:%M")
         except Exception:
             pass
 
     # Save to hashed SQLite session store!
     save_session_record(profile, gem_5h_ts, gem_w_ts, items["gem_5h"]["fraction"], is_5h_active)
 
-    countdown_5h_str = format_countdown(gem_5h_reset) if gem_5h_reset else "⏱ 4h 59m"
+    countdown_5h_str = format_countdown(gem_5h_reset) if (gem_5h_reset and not gem_5h_reset.startswith("1970")) else "⏱ --"
     if local_5h_reset and countdown_5h_str != "⏱ --":
         countdown_5h_str += f" ({local_5h_reset})"
 
-    countdown_cld_str = format_countdown(items["cld_5h"]["reset_time"]) if items["cld_5h"]["reset_time"] else "⏱ 4h 59m"
-    if items["cld_5h"]["reset_time"]:
+    cld_5h_reset = items["cld_5h"]["reset_time"]
+    local_cld_5h_reset = ""
+    if cld_5h_reset and not cld_5h_reset.startswith("1970"):
         try:
-            dt_cld = datetime.datetime.fromisoformat(items["cld_5h"]["reset_time"].replace("Z", "+00:00"))
-            countdown_cld_str += f" ({dt_cld.astimezone().strftime('%H:%M:%S')})"
+            dt_cld = datetime.datetime.fromisoformat(cld_5h_reset.replace("Z", "+00:00"))
+            if dt_cld.year > 1970:
+                local_cld_5h_reset = dt_cld.astimezone().strftime("%H:%M:%S")
         except Exception:
             pass
 
-    countdown_w_str = format_countdown(gem_w_reset) if gem_w_reset else "⏱ 6d 20h"
+    countdown_cld_str = format_countdown(cld_5h_reset) if (cld_5h_reset and not cld_5h_reset.startswith("1970")) else "⏱ --"
+    if local_cld_5h_reset and countdown_cld_str != "⏱ --":
+        countdown_cld_str += f" ({local_cld_5h_reset})"
+
+    countdown_w_str = format_countdown(gem_w_reset) if (gem_w_reset and not gem_w_reset.startswith("1970")) else "⏱ --"
     if local_w_reset and countdown_w_str != "⏱ --":
         countdown_w_str += f" ({local_w_reset})"
 
-    countdown_cld_w_str = format_countdown(items["cld_weekly"]["reset_time"]) if items["cld_weekly"]["reset_time"] else "⏱ 6d 20h"
+    cld_w_reset = items["cld_weekly"]["reset_time"]
+    local_cld_w_reset = ""
+    if cld_w_reset and not cld_w_reset.startswith("1970"):
+        try:
+            dt_cw = datetime.datetime.fromisoformat(cld_w_reset.replace("Z", "+00:00"))
+            if dt_cw.year > 1970:
+                local_cld_w_reset = dt_cw.astimezone().strftime("%d/%m %H:%M")
+        except Exception:
+            pass
+
+    countdown_cld_w_str = format_countdown(cld_w_reset) if (cld_w_reset and not cld_w_reset.startswith("1970")) else "⏱ --"
+    if local_cld_w_reset and countdown_cld_w_str != "⏱ --":
+        countdown_cld_w_str += f" ({local_cld_w_reset})"
 
     gemini_weekly_bucket = {
         "name": "Gemini Weekly",
@@ -4171,8 +4604,8 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
     elif argon_mode == "separate":
         countdown_arg_str = (
             format_countdown(items["argon_weekly"]["reset_time"])
-            if items["argon_weekly"]["reset_time"]
-            else ("⏱ 6d 20h" if items["argon_weekly"]["available"] else "Unavailable N/A")
+            if (items["argon_weekly"]["reset_time"] and not items["argon_weekly"]["reset_time"].startswith("1970"))
+            else ("⏱ --" if items["argon_weekly"]["available"] else "Unavailable N/A")
         )
         argon_weekly_bucket = {
             "name": "Gemini 4 Argon Weekly",
@@ -4240,6 +4673,112 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
         "modelsFetchedAt": models_fetched_at,
         "groupDescSig": group_desc_sig,
     }
+
+
+def apply_activated_countdown_estimates(profile_data: dict, now_utc: datetime.datetime | None = None) -> dict:
+    """Ensure all 5H and Weekly buckets have estimated active countdown timers following successful activation."""
+    if not isinstance(profile_data, dict):
+        return profile_data
+    if now_utc is None:
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+
+    # 5-Hour rolling window
+    est_5h_dt = now_utc + datetime.timedelta(hours=5)
+    est_5h_iso = est_5h_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+    local_5h = est_5h_dt.astimezone().strftime("%H:%M:%S")
+
+    # 7-Day (Weekly) rolling window
+    est_7d_dt = now_utc + datetime.timedelta(days=7)
+    est_7d_iso = est_7d_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+    local_7d = est_7d_dt.astimezone().strftime("%d/%m %H:%M")
+
+    def _is_invalid_or_past(reset_str: str) -> bool:
+        if not reset_str or reset_str.startswith("1970"):
+            return True
+        try:
+            dt = datetime.datetime.fromisoformat(reset_str.replace("Z", "+00:00"))
+            return dt.year <= 1970 or (dt - now_utc).total_seconds() <= 60
+        except Exception:
+            return True
+
+    # 1. Gemini 5H
+    g5 = profile_data.get("gemini5h")
+    if isinstance(g5, dict) and not g5.get("unavailable"):
+        if _is_invalid_or_past(g5.get("resetTime", "")):
+            g5["resetTime"] = est_5h_iso
+            g5["resetTimeLocal"] = local_5h
+            g5["countdown"] = f"⏱ 4h 59m ({local_5h})"
+        else:
+            loc = g5.get("resetTimeLocal", "")
+            g5["countdown"] = format_countdown(g5["resetTime"]) + (f" ({loc})" if loc else "")
+        if g5.get("fraction", 0.0) == 0.0:
+            g5["fraction"] = 1.0
+
+    # 2. Claude 5H
+    c5 = profile_data.get("claude5h")
+    if isinstance(c5, dict) and not c5.get("unavailable"):
+        if _is_invalid_or_past(c5.get("resetTime", "")):
+            c5["resetTime"] = est_5h_iso
+            c5["resetTimeLocal"] = local_5h
+            c5["countdown"] = f"⏱ 4h 59m ({local_5h})"
+        else:
+            loc = c5.get("resetTimeLocal", "")
+            c5["countdown"] = format_countdown(c5["resetTime"]) + (f" ({loc})" if loc else "")
+        if c5.get("fraction", 0.0) == 0.0:
+            c5["fraction"] = 1.0
+
+    # 3. Gemini Weekly
+    gw = profile_data.get("geminiWeekly")
+    if isinstance(gw, dict) and not gw.get("unavailable"):
+        if _is_invalid_or_past(gw.get("resetTime", "")):
+            gw["resetTime"] = est_7d_iso
+            gw["resetTimeLocal"] = local_7d
+            gw["countdown"] = f"⏱ 6d 23h ({local_7d})"
+        else:
+            loc = gw.get("resetTimeLocal", "")
+            gw["countdown"] = format_countdown(gw["resetTime"]) + (f" ({loc})" if loc else "")
+        if gw.get("fraction", 0.0) == 0.0:
+            gw["fraction"] = 1.0
+
+    # 4. Claude Weekly
+    cw = profile_data.get("claudeWeekly")
+    if isinstance(cw, dict) and not cw.get("unavailable"):
+        if _is_invalid_or_past(cw.get("resetTime", "")):
+            cw["resetTime"] = est_7d_iso
+            cw["resetTimeLocal"] = local_7d
+            cw["countdown"] = f"⏱ 6d 23h ({local_7d})"
+        else:
+            loc = cw.get("resetTimeLocal", "")
+            cw["countdown"] = format_countdown(cw["resetTime"]) + (f" ({loc})" if loc else "")
+        if cw.get("fraction", 0.0) == 0.0:
+            cw["fraction"] = 1.0
+
+    # 5. Argon Weekly
+    aw = profile_data.get("argonWeekly")
+    if isinstance(aw, dict) and not aw.get("unavailable"):
+        is_shared = aw.get("sharedPool") or aw.get("mode") == "shared_gemini"
+        if is_shared and isinstance(gw, dict):
+            aw["resetTime"] = gw.get("resetTime", est_7d_iso)
+            aw["resetTimeLocal"] = gw.get("resetTimeLocal", local_7d)
+            aw["countdown"] = gw.get("countdown", f"⏱ 6d 23h ({local_7d})")
+            aw["fraction"] = gw.get("fraction", 1.0)
+        elif _is_invalid_or_past(aw.get("resetTime", "")):
+            aw["resetTime"] = est_7d_iso
+            aw["resetTimeLocal"] = local_7d
+            aw["countdown"] = f"⏱ 6d 23h ({local_7d})"
+            if aw.get("fraction", 0.0) == 0.0:
+                aw["fraction"] = 1.0
+        else:
+            loc = aw.get("resetTimeLocal", "")
+            aw["countdown"] = format_countdown(aw["resetTime"]) + (f" ({loc})" if loc else "")
+
+    # Top-level session state
+    profile_data["isSessionActive"] = True
+    if _is_invalid_or_past(profile_data.get("resetTime", "")):
+        profile_data["resetTime"] = est_5h_iso
+        profile_data["resetTimeLocal"] = local_5h
+
+    return profile_data
 
 
 def execute_ping_profile(profile: str, force: bool = False) -> dict:
@@ -4496,6 +5035,11 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
             active_parts.append("Không hỗ trợ Argon")
 
         msg = f"Tất cả models đang trong phiên hoạt động ({', '.join(active_parts)}). Bỏ qua ping."
+        cached_p = _peek_cached_profile(profile) or {}
+        post_q_data = None
+        if cached_p:
+            post_q_data = apply_activated_countdown_estimates(dict(cached_p), now_utc)
+            update_cached_profile(profile, post_q_data)
         return {
             "profile": profile,
             "success": True,
@@ -4507,6 +5051,7 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
             "pinged_gemini": False,
             "pinged_claude": False,
             "pinged_argon": False,
+            "post_quota": post_q_data,
         }
 
     # Unlock keychain if needed
@@ -4635,6 +5180,13 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
             if meta_key in seed_model_meta and not post_q_merged.get(meta_key):
                 post_q_merged[meta_key] = seed_model_meta[meta_key]
         post_quota_formatted = format_profile_for_dashboard(profile, post_q_merged)
+    elif cached_p:
+        post_quota_formatted = dict(cached_p)
+
+    if post_quota_formatted and (len(failures) == 0 or act_names):
+        post_quota_formatted = apply_activated_countdown_estimates(post_quota_formatted, now_utc)
+        update_cached_profile(profile, post_quota_formatted)
+    elif post_quota_formatted:
         update_cached_profile(profile, post_quota_formatted)
 
     jitter_str = f", Jitter {jitter_applied}s" if jitter_applied > 0 else ""
@@ -5186,13 +5738,14 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
                 })
                 return
             post_q = ping_res.get("post_quota")
-            if isinstance(post_q, dict) and post_q.get("success") and not post_q.get("groups"):
-                formatted = post_q
+            if isinstance(post_q, dict) and not post_q.get("groups"):
+                formatted = apply_activated_countdown_estimates(post_q, datetime.datetime.now(datetime.timezone.utc))
                 update_cached_profile(profile, formatted)
             else:
                 result = post_q if (isinstance(post_q, dict) and post_q.get("groups")) else fetch_quota_for_profile(profile)
                 formatted = format_profile_for_dashboard(profile, result) if result.get("groups") else load_cached_profiles().get(profile, {})
-                if result.get("groups"):
+                if isinstance(formatted, dict):
+                    formatted = apply_activated_countdown_estimates(formatted, datetime.datetime.now(datetime.timezone.utc))
                     update_cached_profile(profile, formatted)
             self.send_json({
                 "success": bool(ping_res.get("success", False)),

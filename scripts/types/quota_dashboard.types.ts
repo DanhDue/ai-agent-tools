@@ -86,6 +86,12 @@ export interface AccountMeta {
   vendorLabel: string;
   planType: string;
   planLabel: string;
+  userTier?: string;
+  tierDisplayName?: string;
+  authMethod?: string;
+  upgradeText?: string;
+  upgradeUrl?: string;
+  remainingCredits?: number;
   organizationName?: string;
   organizationType?: string;
   billingType?: string;

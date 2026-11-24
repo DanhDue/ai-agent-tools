@@ -1743,9 +1743,13 @@ def ping_profile(profile_name: str, timeout: int = 50) -> dict[str, Any]:
             argon_mode = _resolve_live_argon_mode(usage_buckets, available_models)
             has_argon = argon_mode == "separate" and bool(argon_bucket.get("available"))
         else:
+            has_sep_argon = bool(check_profile_has_argon(profile_name))
             cached_mode = _get_cached_profile_argon_mode(profile_name)
-            argon_mode = cached_mode if cached_mode in ("separate", "shared_gemini") else "none"
-            has_argon = argon_mode == "separate" and check_profile_has_argon(profile_name)
+            if has_sep_argon and cached_mode != "separate":
+                argon_mode = "separate"
+            else:
+                argon_mode = cached_mode if cached_mode in ("separate", "shared_gemini") else "none"
+            has_argon = argon_mode == "separate" and has_sep_argon
             argon_bucket = {"available": has_argon}
 
         should_gem = bool(gem_bucket.get("available")) and not (has_live and is_bucket_activated(gem_bucket, 5 * 3600, now_ts=now_ts))
