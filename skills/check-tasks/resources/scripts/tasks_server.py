@@ -1409,6 +1409,61 @@ def _is_pic_hld_or_spec(doc: Path, epic_slug: str) -> bool:
     )
 
 
+def set_epic_execution_state_for_repo(
+    workspace_root: Path,
+    repo_name: str,
+    epic_slug: str,
+    state: str,
+    reason: str = "",
+) -> dict[str, Any]:
+    """Validate and persist an epic's UI execution state (`doing`, `pending`, or `cancelled`)."""
+    if not isinstance(epic_slug, str) or not _EPIC_SLUG_RE.fullmatch(epic_slug):
+        raise ValueError(f"Invalid epic slug: {epic_slug!r}")
+    if (
+        not isinstance(repo_name, str)
+        or not repo_name
+        or "/" in repo_name
+        or "\\" in repo_name
+        or ".." in repo_name
+    ):
+        raise ValueError(f"Invalid repository name: {repo_name!r}")
+    norm_state = str(state or "").strip().lower()
+    if norm_state not in ("doing", "pending", "cancelled"):
+        raise ValueError(
+            f"Invalid execution state: {state!r} (expected doing, pending, or cancelled)"
+        )
+    clean_reason = str(reason or "").strip()
+    if norm_state in ("pending", "cancelled") and not clean_reason:
+        raise ValueError(f"Reason is required when setting epic state to '{norm_state}'")
+
+    ws_resolved = workspace_root.resolve()
+    repo_path = (ws_resolved / repo_name).resolve()
+    try:
+        repo_path.relative_to(ws_resolved)
+    except ValueError as exc:
+        raise ValueError(f"Repository path escapes workspace root: {repo_name!r}") from exc
+    if not repo_path.is_dir():
+        raise ValueError(f"Repository not found: {repo_name!r}")
+
+    state_env = _load_state_envelope()
+    if state_env is None:
+        raise RuntimeError("_state_envelope module is unavailable")
+
+    state_env.set_epic_execution_state(
+        repo_path,
+        epic_slug,
+        norm_state,
+        reason=clean_reason,
+    )
+    return {
+        "status": "ok",
+        "repo": repo_name,
+        "epic": epic_slug,
+        "state": norm_state,
+        "reason": clean_reason,
+    }
+
+
 def assign_epic_pic(
     workspace_root: Path,
     repo_name: str,
@@ -2031,6 +2086,37 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
             payload = json.loads(body.decode("utf-8")) if body else {}
         except Exception:
             payload = {}
+
+        if path == "/api/epic/execution-state":
+            repo_name = payload.get("repo", "")
+            epic_slug = payload.get("epic", "")
+            state = payload.get("state", "")
+            reason = payload.get("reason", "")
+
+            if not repo_name or not epic_slug or not state:
+                self._send_json(
+                    400,
+                    {
+                        "status": "error",
+                        "error": "Missing required fields: repo, epic, state",
+                    },
+                )
+                return
+
+            try:
+                result = set_epic_execution_state_for_repo(
+                    self.server.workspace_root,
+                    repo_name,
+                    epic_slug,
+                    state,
+                    reason=reason,
+                )
+            except (ValueError, RuntimeError) as exc:
+                self._send_json(400, {"status": "error", "error": str(exc)})
+                return
+
+            self._send_json(200, result)
+            return
 
         if path == "/api/epic/pic":
             repo_name = payload.get("repo", "")

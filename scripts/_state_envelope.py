@@ -936,6 +936,117 @@ def clear_pending_decision(
     )
 
 
+EPIC_EXECUTION_STATES = frozenset({"doing", "pending", "cancelled"})
+
+
+def _normalize_execution_slug(slug: str) -> str:
+    return re.sub(r"[-_]+", "_", str(slug or "").strip().lower()).strip("_")
+
+
+def read_epic_execution_states(
+    start_path: Path | None,
+    *,
+    extra_devtool_dirs: Sequence[Path] | None = None,
+) -> dict[str, dict[str, str]]:
+    """Read the highest-generation `epic_execution_state.json` states mapping."""
+    target_dirs = _collect_target_devtool_dirs(
+        start_path, "epic_execution_state.json", extra_devtool_dirs
+    )
+    if not any(
+        (d / "state" / "epic_execution_state.json").is_file() for d in target_dirs
+    ):
+        return {}
+    snapshot, _ = _read_highest_snapshot(
+        target_dirs,
+        "epic_execution_state.json",
+        {"schema_version": SCHEMA_VERSION, "generation": 0, "states": {}},
+    )
+    raw_states = snapshot.get("states")
+    if not isinstance(raw_states, dict):
+        return {}
+    result: dict[str, dict[str, str]] = {}
+    for slug_key, entry in raw_states.items():
+        if not isinstance(entry, dict):
+            continue
+        st_val = str(entry.get("state") or "").strip().lower()
+        if st_val not in ("pending", "cancelled"):
+            continue
+        result[str(slug_key)] = {
+            "state": st_val,
+            "reason": str(entry.get("reason") or "").strip(),
+            "updated_at": str(entry.get("updated_at") or "").strip(),
+        }
+    return result
+
+
+def set_epic_execution_state(
+    start_path: Path | None,
+    epic_slug: str,
+    state: str,
+    *,
+    reason: str = "",
+    extra_devtool_dirs: Sequence[Path] | None = None,
+) -> dict[str, Any]:
+    """Persist an epic's UI execution tab state (`doing`, `pending`, or `cancelled`)."""
+    norm_state = str(state or "").strip().lower()
+    if norm_state not in EPIC_EXECUTION_STATES:
+        raise ValueError(
+            f"Invalid execution state '{state}'. Expected one of: doing, pending, cancelled"
+        )
+    clean_slug = str(epic_slug or "").strip()
+    if not clean_slug:
+        raise ValueError("epic_slug must be non-empty")
+    clean_reason = str(reason or "").strip()
+    if norm_state in ("pending", "cancelled") and not clean_reason:
+        raise ValueError(f"Reason is required when moving an epic to '{norm_state}'")
+
+    default_payload: dict[str, Any] = {
+        "schema_version": SCHEMA_VERSION,
+        "generation": 0,
+        "states": {},
+    }
+    norm_target = _normalize_execution_slug(clean_slug)
+    now_iso = _utc_now_iso()
+
+    def _mutate(payload: dict[str, Any]) -> None:
+        states = payload.get("states")
+        if not isinstance(states, dict):
+            states = {}
+            payload["states"] = states
+        # Remove any existing slug variant first to avoid duplicate _ / - entries
+        for existing_key in list(states.keys()):
+            if _normalize_execution_slug(existing_key) == norm_target:
+                states.pop(existing_key, None)
+        if norm_state in ("pending", "cancelled"):
+            states[clean_slug] = {
+                "state": norm_state,
+                "reason": clean_reason,
+                "updated_at": now_iso,
+            }
+
+    updated = run_state_transaction(
+        start_path,
+        "epic_execution_state.json",
+        _mutate,
+        default=default_payload,
+        extra_devtool_dirs=extra_devtool_dirs,
+    )
+
+    if norm_state in ("pending", "cancelled"):
+        for slug_variant in {
+            clean_slug,
+            clean_slug.replace("_", "-"),
+            clean_slug.replace("-", "_"),
+        }:
+            clear_pending_decision(
+                start_path,
+                slug_variant,
+                extra_devtool_dirs=extra_devtool_dirs,
+            )
+
+    return updated
+
+
 def _sync_quality_summary(state: dict[str, Any], preferred_run_id: str) -> None:
     """Keep top-level `quality_active.json` summary synced with active or latest run."""
     runs = state.get("runs")

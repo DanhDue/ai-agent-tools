@@ -465,6 +465,7 @@ SUITES = [
     # 22. Check-Tasks Kanban Sticky Scroll & Check-Quota Dynamic 4-Provider Tiers suites
     ("22", "pytest",   "tests/test_check_tasks_kanban_and_telemetry_fixes.py", 35, False),
     ("22", "pytest",   "tests/test_check_quota_dynamic_provider_tiers.py", 45, False),
+    ("22", "pytest",   "tests/test_tasks_ui_epic_execution_tabs.py", 35, False),
 ]
 
 active_suites = [

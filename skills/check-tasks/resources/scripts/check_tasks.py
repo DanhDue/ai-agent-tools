@@ -323,6 +323,9 @@ class EpicsSummary:
     in_progress: int = 0
     unstarted: int = 0
     abandoned: int = 0
+    doing_count: int = 0
+    pending_count: int = 0
+    cancelled_count: int = 0
     epics: list[dict[str, Any]] = field(default_factory=list)
 
 
@@ -2192,6 +2195,96 @@ def _read_quality_state(
     return quality_active, quality_runs
 
 
+_PAUSED_STAGE_TOKENS = (
+    "waiting",
+    "paused",
+    "halted",
+    "blocked",
+    "awaiting",
+    "circuit_breaker",
+    "choice a",
+    "dừng",
+)
+
+
+def _derive_active_auto_decision(
+    repo_path: Path,
+    active_epic: str,
+) -> LifecycleDecision | None:
+    """Detect active non-paused AUTO execution from quality_active.json or epic heartbeat."""
+    active_quality, _ = _read_quality_state(repo_path, active_epic)
+    if isinstance(active_quality, dict):
+        q_status = str(active_quality.get("status") or "").strip().lower()
+        if q_status not in ("passed", "failed", "completed", "error", "idle"):
+            return LifecycleDecision(
+                stage_name=LifecycleStage.STAGE_3_PHASE_4_REVIEW.value,
+                gate_status="Quality Check Running",
+                prompt="Đang thực thi kiểm thử tự động (quality_check)",
+                is_human_action_required=False,
+            )
+
+    hb = _read_epic_heartbeat(repo_path, active_epic)
+    if not isinstance(hb, dict):
+        return None
+
+    stage_raw = str(hb.get("stage") or "").strip()
+    stage_low = stage_raw.lower()
+    sub_step_low = str(hb.get("sub_step") or "").strip().lower()
+    last_event = str(hb.get("last_event") or "").strip()
+
+    if any(tok in stage_low for tok in _PAUSED_STAGE_TOKENS):
+        return None
+
+    rev_state = hb.get("review_state")
+    if isinstance(rev_state, dict):
+        rev_phase = str(rev_state.get("phase") or "").strip().lower()
+        rev_action = str(rev_state.get("action") or "").strip()
+        if rev_phase in ("reviewing", "triage", "fixing", "verifying") and not rev_action.startswith(
+            "CIRCUIT_BREAKER_HALT"
+        ):
+            rev_kind = str(rev_state.get("kind") or "").strip().lower()
+            label = str(rev_state.get("label") or last_event or "").strip()
+            if rev_kind == "principal":
+                return LifecycleDecision(
+                    stage_name="Stage 2 (Principal Review)",
+                    gate_status="Gate 2 PASS (Principal Review)",
+                    prompt=label or "Đang chạy /principal-review tự động",
+                    is_human_action_required=False,
+                )
+            return LifecycleDecision(
+                stage_name=LifecycleStage.STAGE_3_PHASE_4_REVIEW.value,
+                gate_status="Cross-Model Review Running",
+                prompt=label or "Đang chạy /cross-model-review tự động",
+                is_human_action_required=False,
+            )
+
+    slots = hb.get("slots")
+    has_active_slot = isinstance(slots, dict) and any(
+        isinstance(s, dict)
+        and str(s.get("status") or "").strip().lower() in ("working", "review")
+        for s in slots.values()
+    )
+    has_active_tasks = bool(hb.get("active_tasks"))
+    is_active_stage = (
+        stage_low.startswith("in progress")
+        or "principal review" in stage_low
+        or "cross-model review" in stage_low
+        or "stage 3" in stage_low
+        or "wave " in stage_low
+        or "implement" in stage_low
+        or "tdd" in stage_low
+        or sub_step_low in ("working", "review", "resumed", "running", "fixing", "verifying")
+    )
+    if has_active_slot or has_active_tasks or is_active_stage:
+        return LifecycleDecision(
+            stage_name=stage_raw or LifecycleStage.STAGE_3_PHASE_2_TDD.value,
+            gate_status="AUTO MODE Running",
+            prompt=last_event or "AI Agent đang thực thi tự động (AUTO MODE)",
+            is_human_action_required=False,
+        )
+    return None
+
+
 def derive_lifecycle_state(
     repo_path: Path,
     active_epic: str | None,
@@ -2335,6 +2428,10 @@ def derive_lifecycle_state(
 
     # Gate 2 PASS
     if 2 in approved_gate_nums:
+        active_auto = _derive_active_auto_decision(repo_path, active_epic)
+        if active_auto is not None:
+            return active_auto
+
         matching_wts = _collect_matching_worktrees(repo_path, active_epic)
         has_worktree = (repo_path / ".worktrees" / active_epic).is_dir() or bool(
             matching_wts
@@ -4681,12 +4778,41 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
 
     pd_snapshot = _read_state_snapshot(repo_path, "pending_decision.json", {})
     matched_pending = _match_pending_decision_for_epic(pd_snapshot, active_epic)
+    exec_state_snapshot = _read_state_snapshot(
+        repo_path, "epic_execution_state.json", {}
+    )
+    raw_exec_states = (
+        exec_state_snapshot.get("states")
+        if isinstance(exec_state_snapshot, dict)
+        else {}
+    )
+    exec_states_by_norm: dict[str, dict[str, str]] = {}
+    if isinstance(raw_exec_states, dict):
+        for raw_slug, raw_entry in raw_exec_states.items():
+            if not isinstance(raw_entry, dict):
+                continue
+            st_val = str(raw_entry.get("state") or "").strip().lower()
+            if st_val in ("pending", "cancelled"):
+                exec_states_by_norm[_normalize_slug(str(raw_slug))] = {
+                    "state": st_val,
+                    "reason": str(raw_entry.get("reason") or "").strip(),
+                    "updated_at": str(raw_entry.get("updated_at") or "").strip(),
+                }
     heartbeat = _read_epic_heartbeat(repo_path, active_epic)
     quality_active, quality_runs = _read_quality_state(repo_path, active_epic)
 
     decision = derive_lifecycle_state(
         repo_path, active_epic, pending_decision=matched_pending
     )
+    if active_epic and _normalize_slug(active_epic) in exec_states_by_norm:
+        active_exec = exec_states_by_norm[_normalize_slug(active_epic)]
+        decision = LifecycleDecision(
+            stage_name=decision.stage_name,
+            gate_status=active_exec["state"].capitalize(),
+            prompt=active_exec["reason"] or f"Epic marked as {active_exec['state']}",
+            is_human_action_required=False,
+            is_blocked=False,
+        )
     active_stage = decision.stage_name
 
     # Propagate deterministic action requirements and pipeline_telemetry to each epic in epics_summary
@@ -4760,9 +4886,18 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
         seen_blockers.add(_normalize_slug(active_epic))
 
     if epics_summary and epics_summary.epics:
+        doing_count = 0
+        pending_count = 0
+        cancelled_count = 0
+        base_abandoned_count = 0
         for ep in epics_summary.epics:
             slug = str(ep.get("slug") or "")
+            norm_ep_slug = _normalize_slug(slug)
+            exec_entry = exec_states_by_norm.get(norm_ep_slug)
             if ep.get("status") == "done" or _is_completed_epic(slug, completed_slugs):
+                ep["execution_state"] = "doing"
+                ep["execution_state_reason"] = ""
+                ep["execution_state_updated_at"] = ""
                 ep["is_action_required"] = False
                 ep["action_prompt"] = ""
                 ep["is_review_converged"] = True
@@ -4774,11 +4909,35 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
                 "discarded",
                 "cancelled",
             ) or _is_completed_epic(slug, abandoned_slugs):
+                base_abandoned_count += 1
+                ep["execution_state"] = (
+                    exec_entry["state"] if exec_entry else "cancelled"
+                )
+                ep["execution_state_reason"] = (
+                    exec_entry["reason"] if exec_entry else ""
+                )
+                ep["execution_state_updated_at"] = (
+                    exec_entry["updated_at"] if exec_entry else ""
+                )
                 ep["is_action_required"] = False
                 ep["action_prompt"] = ""
                 ep["is_review_converged"] = False
                 ep["active_stage"] = ""
                 continue
+            ep_exec_state = exec_entry["state"] if exec_entry else "doing"
+            ep["execution_state"] = ep_exec_state
+            ep["execution_state_reason"] = exec_entry["reason"] if exec_entry else ""
+            ep["execution_state_updated_at"] = (
+                exec_entry["updated_at"] if exec_entry else ""
+            )
+            if ep_exec_state == "pending":
+                pending_count += 1
+            elif ep_exec_state == "cancelled":
+                cancelled_count += 1
+            elif ep.get("status") == "in_progress" or (
+                active_epic and norm_ep_slug == _normalize_slug(active_epic)
+            ):
+                doing_count += 1
             if active_epic and _normalize_slug(slug) == _normalize_slug(active_epic):
                 ep["active_stage"] = decision.stage_name
                 ep["is_action_required"] = decision.is_human_action_required
@@ -4877,6 +5036,10 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
                         int(ep["pipeline_telemetry"].get("total_tasks") or 0),
                     )
 
+            if ep.get("execution_state") in ("pending", "cancelled"):
+                ep["is_action_required"] = False
+                ep["action_prompt"] = ""
+
             norm_slug = _normalize_slug(slug)
             if (
                 slug
@@ -4893,6 +5056,12 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
                     }
                 )
                 seen_blockers.add(norm_slug)
+
+        epics_summary.doing_count = doing_count
+        epics_summary.pending_count = pending_count
+        epics_summary.cancelled_count = cancelled_count
+        epics_summary.in_progress = doing_count
+        epics_summary.abandoned = base_abandoned_count + cancelled_count
 
     signals = _collect_orchestrator_signals(
         repo_path,

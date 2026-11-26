@@ -1033,6 +1033,44 @@
     </div>
   </div>
 
+  <!-- MODAL: EPIC EXECUTION STATE CONFIRMATION (PENDING / CANCEL WITH REASON) -->
+  <div id="modal-epic-state-confirm" class="modal-backdrop" onclick="if (event.target === this) closeEpicStateModal();">
+    <div class="modal-dialog" style="max-width: 480px; width: 92%;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span id="epic-state-modal-icon" style="font-size: 18px;">⏸</span>
+          <div>
+            <div id="epic-state-modal-title" style="font-size: 15px; font-weight: 700; color: #f8fafc;">Confirm Epic Action</div>
+            <div id="epic-state-modal-subtitle" style="font-size: 11px; color: #94a3b8; font-family: monospace;"></div>
+          </div>
+        </div>
+        <button onclick="closeEpicStateModal()" class="modal-close-btn" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 12px;">
+        <div id="epic-state-modal-desc" style="font-size: 12px; color: #cbd5e1; line-height: 1.5;"></div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <label for="epic-state-reason-input" style="font-size: 11px; font-weight: 700; color: #e2e8f0; text-transform: uppercase; letter-spacing: 0.04em;">
+            Reason <span style="color: #f87171;">*</span>
+          </label>
+          <textarea id="epic-state-reason-input" rows="3" placeholder="Enter reason for pausing or cancelling this epic..."
+                    style="width: 100%; box-sizing: border-box; background: #0b0e17; border: 1px solid #334155; border-radius: 6px; padding: 10px 12px; color: #f8fafc; font-size: 12px; font-family: inherit; resize: vertical; outline: none;"
+                    oninput="const errEl = document.getElementById('epic-state-reason-error'); if (errEl) errEl.style.display = 'none';"></textarea>
+          <div id="epic-state-reason-error" style="display: none; font-size: 11px; color: #f87171; font-weight: 600;">
+            Please enter a reason before confirming.
+          </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; padding-top: 10px; border-top: 1px solid #1e293b;">
+          <button type="button" onclick="closeEpicStateModal()" class="btn-action-neutral" style="font-size: 12px; padding: 6px 14px; border-radius: 5px;">
+            Cancel
+          </button>
+          <button type="button" id="epic-state-modal-submit-btn" onclick="submitEpicStateModal()" class="btn-action-primary" style="font-size: 12px; padding: 6px 14px; border-radius: 5px;">
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL 2: TWO-TIER CONTEXT DIALOG -->
   <div id="modal-context" class="modal-backdrop">
     <div class="modal-box" style="border-color: #a855f7; max-width: 1100px;">
@@ -2959,6 +2997,245 @@ Loading evidence data...
       });
     }
 
+    const executionTabByRepo = {};
+    const executionPanelMinHeightByRepo = {};
+    const kanbanExecutionFilterByRepo = {};
+    const kanbanPanelMinHeightByRepo = {};
+    let epicStateModalContext = null;
+
+    function getEpicExecutionState(repo, slug) {
+      const ep = (repo?.epics_summary?.epics || []).find(e => slugsMatch(e.slug, slug));
+      const raw = String(ep?.execution_state || 'doing').trim().toLowerCase();
+      return (raw === 'pending' || raw === 'cancelled') ? raw : 'doing';
+    }
+
+    function getEpicExecutionReason(repo, slug) {
+      const ep = (repo?.epics_summary?.epics || []).find(e => slugsMatch(e.slug, slug));
+      return String(ep?.execution_state_reason || '').trim();
+    }
+
+    function setExecutionTab(repoName, tab) {
+      const normTab = (tab === 'pending' || tab === 'cancelled') ? tab : 'doing';
+      const w = document.getElementById('tier2-execution-epics-wrapper-' + repoName);
+      if (w) {
+        const panel = w.querySelector('.exec-tab-panel');
+        if (panel) {
+          const measured = Math.round(panel.getBoundingClientRect().height || 0);
+          if (measured > 0) {
+            executionPanelMinHeightByRepo[repoName] = Math.max(
+              executionPanelMinHeightByRepo[repoName] || 0,
+              measured
+            );
+          }
+        }
+      }
+      executionTabByRepo[repoName] = normTab;
+      const repo = (currentReposData || []).find(r => r.name === repoName);
+      if (!repo) return;
+      if (w) {
+        w.innerHTML = renderExecutionEpics(repo);
+        w.dataset.sig = buildTier2Sig(repo);
+      }
+    }
+
+    function captureKanbanPanelMinHeight(repoName) {
+      const wrapper = document.getElementById('kanban-dashboard-wrapper-' + repoName);
+      if (!wrapper) return;
+      const shell = wrapper.querySelector('.kanban-board-shell');
+      if (!shell) return;
+      const measured = Math.round(shell.getBoundingClientRect().height || 0);
+      if (measured > 0) {
+        kanbanPanelMinHeightByRepo[repoName] = Math.max(
+          kanbanPanelMinHeightByRepo[repoName] || 0,
+          measured
+        );
+      }
+    }
+
+    function setKanbanExecutionFilter(repoName, tab) {
+      captureKanbanPanelMinHeight(repoName);
+      const normTab = (tab === 'pending' || tab === 'cancelled') ? tab : 'doing';
+      kanbanExecutionFilterByRepo[repoName] = normTab;
+      const repo = (currentReposData || []).find(r => r.name === repoName);
+      if (!repo) return;
+      const currentFilter = currentKanbanFilter[repoName] || 'all';
+      if (currentFilter !== 'all' && getEpicExecutionState(repo, currentFilter) !== normTab) {
+        currentKanbanFilter[repoName] = 'all';
+      }
+      const nextEpicFilter = currentKanbanFilter[repoName] || 'all';
+      const wrapper = document.getElementById('kanban-dashboard-wrapper-' + repoName);
+      if (wrapper) {
+        const scrollSnapshot = captureAllScrollPositions(wrapper, false);
+        wrapper.innerHTML = renderKanbanDashboard(repo, nextEpicFilter);
+        wrapper.dataset.sig = buildKanbanSig(repo, nextEpicFilter);
+        restoreAllScrollPositions(wrapper, scrollSnapshot);
+      }
+    }
+
+    function openEpicStateModal(repoName, epicSlug, targetState) {
+      const isCancel = targetState === 'cancelled';
+      epicStateModalContext = { repoName, epicSlug, targetState };
+      const modal = document.getElementById('modal-epic-state-confirm');
+      const iconEl = document.getElementById('epic-state-modal-icon');
+      const titleEl = document.getElementById('epic-state-modal-title');
+      const subtitleEl = document.getElementById('epic-state-modal-subtitle');
+      const descEl = document.getElementById('epic-state-modal-desc');
+      const inputEl = document.getElementById('epic-state-reason-input');
+      const errEl = document.getElementById('epic-state-reason-error');
+      const submitBtn = document.getElementById('epic-state-modal-submit-btn');
+
+      if (iconEl) iconEl.textContent = isCancel ? '✕' : '⏸';
+      if (titleEl) titleEl.textContent = isCancel ? 'Confirm Cancel Epic' : 'Confirm Pending Epic';
+      if (subtitleEl) subtitleEl.textContent = `${repoName} • ${epicSlug}`;
+      if (descEl) {
+        descEl.textContent = isCancel
+          ? `Move "${epicSlug}" to the Cancelled tab? It will be hidden from the Doing Kanban view without modifying git files or worktrees.`
+          : `Move "${epicSlug}" to the Pending tab? It will be paused from the Doing Kanban view until you click Resume.`;
+      }
+      if (inputEl) {
+        inputEl.value = '';
+        inputEl.placeholder = isCancel
+          ? 'Enter reason for cancelling this epic...'
+          : 'Enter reason for pausing this epic...';
+      }
+      if (errEl) errEl.style.display = 'none';
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = isCancel ? 'Confirm Cancel' : 'Confirm Pending';
+        submitBtn.style.background = isCancel ? '#dc2626' : '#d97706';
+        submitBtn.style.borderColor = isCancel ? '#ef4444' : '#f59e0b';
+      }
+      if (modal) {
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+        setTimeout(() => { if (inputEl) inputEl.focus(); }, 30);
+      }
+    }
+
+    function closeEpicStateModal() {
+      if (typeof closeLiveModal === 'function') {
+        closeLiveModal('modal-epic-state-confirm');
+      } else {
+        const modal = document.getElementById('modal-epic-state-confirm');
+        if (modal) modal.style.display = 'none';
+      }
+      epicStateModalContext = null;
+    }
+
+    function submitEpicStateModal() {
+      if (!epicStateModalContext) return;
+      const inputEl = document.getElementById('epic-state-reason-input');
+      const errEl = document.getElementById('epic-state-reason-error');
+      const submitBtn = document.getElementById('epic-state-modal-submit-btn');
+      const reason = String(inputEl ? inputEl.value : '').trim();
+      if (!reason) {
+        if (errEl) errEl.style.display = 'block';
+        if (inputEl) inputEl.focus();
+        return;
+      }
+      const { repoName, epicSlug, targetState } = epicStateModalContext;
+      if (submitBtn) submitBtn.disabled = true;
+      updateEpicExecutionState(repoName, epicSlug, targetState, reason).then(ok => {
+        if (ok) {
+          closeEpicStateModal();
+        } else if (submitBtn) {
+          submitBtn.disabled = false;
+        }
+      });
+    }
+
+    function updateEpicExecutionState(repoName, epicSlug, targetState, reason = '') {
+      const repo = (currentReposData || []).find(r => r.name === repoName);
+      const targetEp = repo?.epics_summary?.epics?.find(e => slugsMatch(e.slug, epicSlug));
+      const prevState = targetEp ? (targetEp.execution_state || 'doing') : 'doing';
+      const prevReason = targetEp ? (targetEp.execution_state_reason || '') : '';
+      const prevActionReq = targetEp ? Boolean(targetEp.is_action_required) : false;
+
+      if (targetEp) {
+        targetEp.execution_state = targetState;
+        targetEp.execution_state_reason = targetState === 'doing' ? '' : reason;
+        if (targetState !== 'doing') {
+          targetEp.is_action_required = false;
+          targetEp.action_prompt = '';
+        }
+      }
+      if (repo) {
+        const ow = document.getElementById('epics-overview-counts-' + repoName);
+        if (ow) {
+          ow.innerHTML = renderEpicsOverviewAndApprovalGate(repo);
+          ow.dataset.sig = buildOverviewSig(repo);
+        }
+        const w = document.getElementById('tier2-execution-epics-wrapper-' + repoName);
+        if (w) {
+          w.innerHTML = renderExecutionEpics(repo);
+          w.dataset.sig = buildTier2Sig(repo);
+        }
+        const kw = document.getElementById('kanban-dashboard-wrapper-' + repoName);
+        if (kw) {
+          const curF = currentKanbanFilter[repoName] || 'all';
+          const activeKTab = kanbanExecutionFilterByRepo[repoName] || 'doing';
+          if (curF !== 'all' && getEpicExecutionState(repo, curF) !== activeKTab) {
+            currentKanbanFilter[repoName] = 'all';
+          }
+          const ef = currentKanbanFilter[repoName] || 'all';
+          kw.innerHTML = renderKanbanDashboard(repo, ef);
+          kw.dataset.sig = buildKanbanSig(repo, ef);
+        }
+      }
+
+      return fetch(getApiUrl('/api/epic/execution-state'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repo: repoName, epic: epicSlug, state: targetState, reason }),
+      })
+        .then(r => r.text().then(text => {
+          let data = {};
+          try { data = text ? JSON.parse(text) : {}; } catch (_) {
+            data = { error: `HTTP ${r.status} (server may need restart)` };
+          }
+          return { ok: r.ok, status: r.status, data };
+        }))
+        .then(({ ok, data }) => {
+          if (ok && data.status === 'ok') {
+            const label = targetState === 'doing' ? 'Resumed to Doing' : (targetState === 'pending' ? 'Moved to Pending' : 'Moved to Cancelled');
+            if (typeof showToast === 'function') {
+              showToast(`✅ Epic ${epicSlug}: ${label}`, 'success');
+            }
+            if (typeof fetchStatus === 'function') fetchStatus();
+            return true;
+          }
+          if (targetEp) {
+            targetEp.execution_state = prevState;
+            targetEp.execution_state_reason = prevReason;
+            targetEp.is_action_required = prevActionReq;
+          }
+          if (repo) {
+            setExecutionTab(repoName, executionTabByRepo[repoName] || 'doing');
+            setKanbanExecutionFilter(repoName, kanbanExecutionFilterByRepo[repoName] || 'doing');
+          }
+          if (typeof showToast === 'function') {
+            showToast(`❌ Failed to update epic state: ${data.error || 'Unknown error'}`, 'danger');
+          }
+          return false;
+        })
+        .catch(() => {
+          if (targetEp) {
+            targetEp.execution_state = prevState;
+            targetEp.execution_state_reason = prevReason;
+            targetEp.is_action_required = prevActionReq;
+          }
+          if (repo) {
+            setExecutionTab(repoName, executionTabByRepo[repoName] || 'doing');
+            setKanbanExecutionFilter(repoName, kanbanExecutionFilterByRepo[repoName] || 'doing');
+          }
+          if (typeof showToast === 'function') {
+            showToast(`❌ Could not connect to server to update epic state`, 'danger');
+          }
+          return false;
+        });
+    }
+
     function renderExecutionEpics(repo) {
       if (!repo) return '';
       const theme = REPO_THEMES[repo.name] || { color: '#38bdf8', icon: '📦', name: repo.name, border: '#0284c7' };
@@ -2966,15 +3243,26 @@ Loading evidence data...
       const defaultAccountId = repo.account_id || 'danhdue';
       const allTasks = repo.task_progress?.tasks || [];
 
-      // 1. Collect epics for Tier 2:
+      // 1. Collect all non-done active/paused/cancelled epics for Section II:
       // Priority 1: active_epic
-      // Priority 2: in_progress epics from epics_summary
+      // Priority 2: in_progress epics & any epic with execution_state pending/cancelled from epics_summary
       const epicSlugs = [];
-      if (repo.active_epic) epicSlugs.push(repo.active_epic);
+      const addUniqueSlug = (candidate) => {
+        if (!candidate) return;
+        if (!epicSlugs.some(s => slugsMatch(s, candidate))) {
+          epicSlugs.push(candidate);
+        }
+      };
 
-      const inProgEpics = (repo.epics_summary?.epics || []).filter(e => e.status === 'in_progress');
-      inProgEpics.forEach(e => {
-        if (!epicSlugs.includes(e.slug)) epicSlugs.push(e.slug);
+      if (repo.active_epic) addUniqueSlug(repo.active_epic);
+
+      const summaryEpics = repo.epics_summary?.epics || [];
+      summaryEpics.forEach(e => {
+        if (e.status === 'done') return;
+        const execSt = String(e.execution_state || 'doing').toLowerCase();
+        if (e.status === 'in_progress' || execSt === 'pending' || execSt === 'cancelled') {
+          addUniqueSlug(e.slug);
+        }
       });
 
       // Track worktree paths already claimed
@@ -2986,33 +3274,79 @@ Loading evidence data...
         }
       });
 
-      // Check remaining worktrees only if they match known epics in epics_summary
+      // Check remaining worktrees only if they match known non-done epics in epics_summary
       (repo.worktrees || []).forEach(wt => {
         if (wt.path !== repo.path && !claimedWtPaths.has(wt.path)) {
           const parts = wt.path.split(/[\/]/);
           const name = parts[parts.length - 1];
           if (name && !['features', 'done', '.devtool'].includes(name)) {
-            const matched = (repo.epics_summary?.epics || []).find(e => e.slug === name || e.slug === name.replace(/_/g, '-') || e.slug === name.replace(/-/g, '_'));
-            if (matched && !epicSlugs.includes(matched.slug)) {
-              epicSlugs.push(matched.slug);
+            const matched = summaryEpics.find(e => e.status !== 'done' && slugsMatch(e.slug, name));
+            if (matched) {
+              addUniqueSlug(matched.slug);
               claimedWtPaths.add(wt.path);
             }
           }
         }
       });
 
-      if (epicSlugs.length === 0) {
-        return `
-          <div style="background: #141724; border: 1px dashed #374151; border-radius: 6px; padding: 28px; text-align: center; color: #94a3b8;">
-            <span style="font-size: 20px; display: block; margin-bottom: 6px;">☕</span>
-            <strong style="color: #cbd5e1; font-size: 13px;">No Epics are currently executing in a worktree</strong>
-            <p style="font-size: 11px; color: #64748b; margin-top: 4px;">Human Architect can brainstorm and create a new Epic in Tier 1 above to start isolated worktree execution.</p>
+      const doingSlugs = [];
+      const pendingSlugs = [];
+      const cancelledSlugs = [];
+      epicSlugs.forEach(slug => {
+        const st = getEpicExecutionState(repo, slug);
+        if (st === 'pending') pendingSlugs.push(slug);
+        else if (st === 'cancelled') cancelledSlugs.push(slug);
+        else doingSlugs.push(slug);
+      });
+
+      const activeTab = executionTabByRepo[repo.name] || 'doing';
+      const tabDefs = [
+        { key: 'doing', label: 'Doing', icon: '⚡', count: doingSlugs.length, accent: '#38bdf8' },
+        { key: 'pending', label: 'Pending', icon: '⏸', count: pendingSlugs.length, accent: '#f59e0b' },
+        { key: 'cancelled', label: 'Cancelled', icon: '✕', count: cancelledSlugs.length, accent: '#ef4444' },
+      ];
+      const tabsHtml = `
+        <div class="exec-tabs-bar" data-exec-tabs-repo="${escapeHtml(repo.name)}" style="display: flex; align-items: center; gap: 6px; margin-bottom: 12px; border-bottom: 1px solid #1e293b; padding-bottom: 8px; flex-wrap: wrap;">
+          ${tabDefs.map(t => {
+            const isSel = activeTab === t.key;
+            return `
+              <button type="button"
+                      data-exec-tab="${t.key}"
+                      onclick="setExecutionTab('${escapeHtml(repo.name)}', '${t.key}')"
+                      style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 5px; font-size: 11px; font-weight: 700; cursor: pointer; border: 1px solid ${isSel ? t.accent : '#283347'}; background: ${isSel ? 'rgba(56, 189, 248, 0.14)' : '#0f131f'}; color: ${isSel ? '#f8fafc' : '#94a3b8'}; transition: all 0.15s ease;">
+                <span>${t.icon}</span>
+                <span>${t.label}</span>
+                <span style="font-family: monospace; font-size: 10px; padding: 1px 6px; border-radius: 9999px; background: ${isSel ? t.accent : '#1e293b'}; color: ${isSel ? '#0b0e17' : '#cbd5e1'};">${t.count}</span>
+              </button>
+            `;
+          }).join('')}
+        </div>
+      `;
+
+      const visibleSlugs = activeTab === 'pending' ? pendingSlugs : (activeTab === 'cancelled' ? cancelledSlugs : doingSlugs);
+      const panelMinH = Math.max(260, Number(executionPanelMinHeightByRepo[repo.name] || 0));
+
+      if (visibleSlugs.length === 0) {
+        const emptyMeta = activeTab === 'pending'
+          ? { icon: '⏸', title: 'No Pending Epics', desc: 'Click Pending on any Doing epic to pause it here.' }
+          : (activeTab === 'cancelled'
+            ? { icon: '✕', title: 'No Cancelled Epics', desc: 'Click Cancel on any Doing epic to shelve it here.' }
+            : { icon: '☕', title: 'No Epics are currently executing in Doing', desc: 'Human Architect can brainstorm a new Epic in Tier 1 above or Resume an epic from Pending/Cancelled.' });
+        return tabsHtml + `
+          <div class="exec-tab-panel" style="min-height: ${panelMinH}px; display: flex; flex-direction: column;">
+            <div data-exec-empty="${activeTab}" style="flex: 1; min-height: ${panelMinH}px; box-sizing: border-box; background: #141724; border: 1px dashed #374151; border-radius: 6px; padding: 36px 28px 28px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; text-align: center; color: #94a3b8;">
+              <span style="font-size: 22px; display: block; margin-bottom: 8px;">${emptyMeta.icon}</span>
+              <strong style="color: #cbd5e1; font-size: 13px;">${emptyMeta.title}</strong>
+              <p style="font-size: 11px; color: #64748b; margin-top: 4px;">${emptyMeta.desc}</p>
+            </div>
           </div>
         `;
       }
 
-      return epicSlugs.map(slug => {
-        const epicMeta = (repo.epics_summary?.epics || []).find(e => slugsMatch(e.slug, slug));
+      const cardsHtml = visibleSlugs.map(slug => {
+        const epicMeta = summaryEpics.find(e => slugsMatch(e.slug, slug));
+        const epicExecState = getEpicExecutionState(repo, slug);
+        const epicExecReason = getEpicExecutionReason(repo, slug);
 
         // Tasks for this epic
         const epicTasks = allTasks.filter(t => slugsMatch(t.epic, slug));
@@ -3081,7 +3415,7 @@ Loading evidence data...
           : `linear-gradient(90deg, ${color} 0%, #10b981 100%)`;
 
         return `
-          <div class="epic-execution-item" style="background: #141724; border: 1px solid #283347; border-left: 4px solid ${color}; border-radius: 6px; padding: 16px; margin-bottom: 14px;">
+          <div class="epic-execution-item" data-epic-slug="${escapeHtml(slug)}" data-epic-exec-state="${escapeHtml(epicExecState)}" style="background: #141724; border: 1px solid #283347; border-left: 4px solid ${epicExecState === 'pending' ? '#f59e0b' : (epicExecState === 'cancelled' ? '#ef4444' : color)}; border-radius: 6px; padding: 16px; margin-bottom: 14px;">
             
             <!-- Row 1: Epic Title, PIC, Stage -->
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
@@ -3104,6 +3438,13 @@ Loading evidence data...
                 </span>
               </div>
             </div>
+
+            ${(epicExecState === 'pending' || epicExecState === 'cancelled') && epicExecReason ? `
+              <div data-epic-state-reason="${escapeHtml(slug)}" style="background: ${epicExecState === 'pending' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)'}; border: 1px solid ${epicExecState === 'pending' ? 'rgba(245, 158, 11, 0.4)' : 'rgba(239, 68, 68, 0.4)'}; border-radius: 4px; padding: 8px 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; font-size: 12px;">
+                <span style="font-weight: 700; color: ${epicExecState === 'pending' ? '#fbbf24' : '#fca5a5'}; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em;">${epicExecState === 'pending' ? '⏸ Pending Reason:' : '✕ Cancelled Reason:'}</span>
+                <span style="color: #f8fafc;">${escapeHtml(epicExecReason)}</span>
+              </div>
+            ` : ''}
 
             <!-- Action Required Alert Banner (when approval blocker exists) -->
             ${isActionReq ? `
@@ -3160,7 +3501,34 @@ Loading evidence data...
                 </button>
               </div>
 
-              <div style="display: flex; gap: 6px; align-items: center;">
+              <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                ${epicExecState === 'doing' ? `
+                  <button type="button"
+                          data-epic-action="pending"
+                          onclick="openEpicStateModal('${escapeHtml(repo.name)}', '${escapeHtml(slug)}', 'pending')"
+                          class="btn-action-neutral"
+                          style="font-size: 11px; padding: 5px 10px; border-radius: 4px; border-color: rgba(245, 158, 11, 0.45); color: #fbbf24;"
+                          title="Move epic to Pending tab">
+                    <span>⏸</span> Pending
+                  </button>
+                  <button type="button"
+                          data-epic-action="cancelled"
+                          onclick="openEpicStateModal('${escapeHtml(repo.name)}', '${escapeHtml(slug)}', 'cancelled')"
+                          class="btn-action-neutral"
+                          style="font-size: 11px; padding: 5px 10px; border-radius: 4px; border-color: rgba(239, 68, 68, 0.45); color: #f87171;"
+                          title="Move epic to Cancelled tab">
+                    <span>✕</span> Cancel
+                  </button>
+                ` : `
+                  <button type="button"
+                          data-epic-action="resume"
+                          onclick="updateEpicExecutionState('${escapeHtml(repo.name)}', '${escapeHtml(slug)}', 'doing', '')"
+                          class="btn-action-primary"
+                          style="font-size: 11px; padding: 5px 12px; border-radius: 4px; background: #059669; border-color: #10b981;"
+                          title="Resume epic back to Doing tab">
+                    <span>▶</span> Resume
+                  </button>
+                `}
                 <button onclick="openReviewModal('${escapeHtml(repo.name)}', '${escapeHtml(slug)}', 1, 'principal')" 
                         class="btn-action-neutral" 
                         style="font-size: 11px; padding: 5px 12px; border-radius: 4px;"
@@ -3179,16 +3547,21 @@ Loading evidence data...
           </div>
         `;
       }).join('');
+      return tabsHtml + `<div class="exec-tab-panel" style="min-height: ${panelMinH}px;">${cardsHtml}</div>`;
     }
 
     function renderKanbanDashboard(repo, selectedEpicFilter) {
       if (!repo) return '';
-      const allTasks = (repo.task_progress && repo.task_progress.tasks) ? repo.task_progress.tasks : [];
+      const rawAllTasks = (repo.task_progress && repo.task_progress.tasks) ? repo.task_progress.tasks : [];
+      const activeExecFilter = kanbanExecutionFilterByRepo[repo.name] || 'doing';
 
-      // Filter if epic selected
+      // Restrict Kanban tasks to epics matching the selected execution tab (Doing / Pending / Cancelled)
+      const allTasks = rawAllTasks.filter(t => getEpicExecutionState(repo, t.epic || '') === activeExecFilter);
+
+      // Filter if specific epic selected
       const filteredTasks = (!selectedEpicFilter || selectedEpicFilter === 'all')
         ? allTasks
-        : allTasks.filter(t => t.epic === selectedEpicFilter || t.epic === selectedEpicFilter.replace(/_/g, '-') || t.epic === selectedEpicFilter.replace(/-/g, '_'));
+        : allTasks.filter(t => slugsMatch(t.epic, selectedEpicFilter));
 
       const totalCount = filteredTasks.length;
 
@@ -3239,9 +3612,11 @@ Loading evidence data...
         else if (st === 'review') epItem.review++;
       });
 
-      // Enrich epic titles and seed active/in-progress Stage 1-2 epics from repo.epics_summary if present
+      // Enrich epic titles and seed active/in-progress/pending/cancelled epics matching activeExecFilter
       if (repo.epics_summary && Array.isArray(repo.epics_summary.epics)) {
         repo.epics_summary.epics.forEach(summaryEp => {
+          if (summaryEp.status === 'done') return;
+          if (getEpicExecutionState(repo, summaryEp.slug) !== activeExecFilter) return;
           const epPt = summaryEp.pipeline_telemetry || (slugsMatch(repo.active_epic, summaryEp.slug) ? repo.pipeline_telemetry : null) || null;
           const ptTot = Number(epPt?.total_tasks || epPt?.stages?.[2]?.total_tasks || 0);
           const ptDone = Number(epPt?.done_tasks || epPt?.stages?.[2]?.done_tasks || 0);
@@ -3252,7 +3627,11 @@ Loading evidence data...
               item.title = summaryEp.title;
             }
             item.total = Math.max(item.total, Number(summaryEp.task_count || 0), ptTot);
-          } else if (summaryEp.status === 'in_progress' || slugsMatch(repo.active_epic, summaryEp.slug)) {
+          } else if (
+            activeExecFilter !== 'doing' ||
+            summaryEp.status === 'in_progress' ||
+            slugsMatch(repo.active_epic, summaryEp.slug)
+          ) {
             epicsSet.add(summaryEp.slug);
             epicsProgressMap.set(summaryEp.slug, {
               slug: summaryEp.slug,
@@ -3447,8 +3826,10 @@ Loading evidence data...
         `;
       }
 
+      const kanbanMinH = Math.max(680, Number(kanbanPanelMinHeightByRepo[repo.name] || 0));
+
       return `
-        <div class="kanban-board-shell" style="display: grid; grid-template-columns: 220px minmax(0, 1fr); min-width: 0; min-height: 680px; position: relative; overflow: hidden;">
+        <div class="kanban-board-shell" style="display: grid; grid-template-columns: 220px minmax(0, 1fr); min-width: 0; min-height: ${kanbanMinH}px; position: relative; overflow: hidden;">
 
           <!-- LEFT SIDEBAR: OVERVIEW -->
           <div data-kanban-overview="pinned" style="width: 220px; min-width: 220px; max-width: 220px; position: sticky; left: 0; z-index: 3; background: #090c14; border-right: 1px solid #1e2638; padding: 18px 16px; display: flex; flex-direction: column; flex-shrink: 0;">
@@ -3494,8 +3875,29 @@ Loading evidence data...
               </div>
             </div>
 
+            <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid #1e2638;">
+              <div style="font-size: 10px; font-weight: 800; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 6px;">EPIC STATUS</div>
+              <div data-kanban-exec-filter-bar="${escapeHtml(repo.name)}" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px;">
+                ${[
+                  { key: 'doing', label: 'Doing', accent: '#38bdf8' },
+                  { key: 'pending', label: 'Pending', accent: '#f59e0b' },
+                  { key: 'cancelled', label: 'Cancelled', accent: '#ef4444' },
+                ].map(opt => {
+                  const isSel = activeExecFilter === opt.key;
+                  return `
+                    <button type="button"
+                            data-kanban-exec-filter="${opt.key}"
+                            onclick="setKanbanExecutionFilter('${escapeHtml(repo.name)}', '${opt.key}')"
+                            style="padding: 4px 2px; border-radius: 4px; font-size: 10px; font-weight: 700; cursor: pointer; border: 1px solid ${isSel ? opt.accent : '#1e2638'}; background: ${isSel ? 'rgba(56, 189, 248, 0.14)' : '#0d111a'}; color: ${isSel ? '#f8fafc' : '#94a3b8'}; text-align: center;">
+                      ${opt.label}
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+
             ${epicsList.length > 0 ? `
-            <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid #1e2638; display: flex; flex-direction: column; gap: 8px;">
+            <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid #1e2638; display: flex; flex-direction: column; gap: 8px;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: 10px; font-weight: 800; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;">EPICS PROGRESS</span>
                 <span style="font-size: 10px; font-weight: 700; color: #94a3b8; font-family: monospace;">${epicsList.length}</span>
@@ -3504,7 +3906,11 @@ Loading evidence data...
                 ${epicsProgressHtml}
               </div>
             </div>
-            ` : ''}
+            ` : `
+            <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid #1e2638; font-size: 11px; color: #64748b; text-align: center;">
+              No ${escapeHtml(activeExecFilter)} epics
+            </div>
+            `}
 
             ${uniqueEpics.length > 1 ? `
             <div style="margin-top: auto; padding-top: 16px; border-top: 1px solid #1e2638;">
@@ -3532,6 +3938,7 @@ Loading evidence data...
     function buildKanbanSig(repo, selectedEpicFilter) {
       return JSON.stringify({
         f: selectedEpicFilter,
+        kf: kanbanExecutionFilterByRepo[repo.name] || 'doing',
         act: repo.active_epic || null,
         stg: repo.active_stage || null,
         req: Boolean(repo.is_human_action_required),
@@ -3544,6 +3951,8 @@ Loading evidence data...
         ep: (repo.epics_summary?.epics || []).map(e => [
           e.slug,
           e.status,
+          e.execution_state || 'doing',
+          e.execution_state_reason || '',
           Number(e.task_count || 0),
           e.active_stage || '',
           e.action_prompt || '',
@@ -3555,11 +3964,54 @@ Loading evidence data...
       });
     }
 
+    function computeOverviewCounts(repo) {
+      const epicsSummary = repo.epics_summary || { total: 0, completed: 0, in_progress: 0, unstarted: 0, abandoned: 0, epics: [] };
+      const list = Array.isArray(epicsSummary.epics) ? epicsSummary.epics : [];
+      if (list.length === 0) {
+        return {
+          total: Number(epicsSummary.total || 0),
+          doing: Number(epicsSummary.doing_count ?? epicsSummary.in_progress ?? 0),
+          pending: Number(epicsSummary.pending_count || 0),
+          backlog: Number(epicsSummary.unstarted || 0),
+          done: Number(epicsSummary.completed || 0),
+          cancelled: Number(epicsSummary.abandoned || 0),
+        };
+      }
+      let doing = 0;
+      let pending = 0;
+      let backlog = 0;
+      let done = 0;
+      let cancelled = 0;
+      list.forEach(ep => {
+        const st = String(ep.status || '').toLowerCase();
+        const execSt = String(ep.execution_state || 'doing').toLowerCase();
+        if (st === 'done') {
+          done++;
+        } else if (st === 'abandon' || st === 'abandoned' || st === 'discarded' || st === 'cancelled' || execSt === 'cancelled') {
+          cancelled++;
+        } else if (execSt === 'pending') {
+          pending++;
+        } else if (st === 'in_progress' || slugsMatch(repo.active_epic, ep.slug)) {
+          doing++;
+        } else {
+          backlog++;
+        }
+      });
+      return {
+        total: Math.max(Number(epicsSummary.total || 0), list.length),
+        doing,
+        pending,
+        backlog,
+        done,
+        cancelled,
+      };
+    }
+
     function buildOverviewSig(repo) {
-      const epicsSummary = repo.epics_summary || { total: 0, completed: 0, in_progress: 0, unstarted: 0, abandoned: 0 };
+      const c = computeOverviewCounts(repo);
       const blockerSig = collectRepoActionBlockers(repo).map(b => `${b.epic}|${b.stage}|${b.reason}`).join(';');
       const noticeSig = (Array.isArray(repo.notices) ? repo.notices : []).join(';');
-      return `${epicsSummary.in_progress}|${epicsSummary.unstarted}|${epicsSummary.completed}|${epicsSummary.abandoned || 0}|${epicsSummary.total}|${repo.prompt || ''}|${Boolean(repo.is_human_action_required)}|${blockerSig}|${noticeSig}`;
+      return `${c.doing}|${c.pending}|${c.backlog}|${c.done}|${c.cancelled}|${c.total}|${repo.prompt || ''}|${Boolean(repo.is_human_action_required)}|${blockerSig}|${noticeSig}`;
     }
 
     function buildRoadmapSig(repo) {
@@ -3582,6 +4034,7 @@ Loading evidence data...
     function buildTier2Sig(repo) {
       const tp = repo.task_progress || {};
       return JSON.stringify({
+        etab: executionTabByRepo[repo.name] || 'doing',
         act: repo.active_epic || null,
         stg: repo.active_stage || null,
         acc: repo.account_id || null,
@@ -3608,6 +4061,8 @@ Loading evidence data...
         ep: (repo.epics_summary?.epics || []).map(e => [
           e.slug,
           e.status,
+          e.execution_state || 'doing',
+          e.execution_state_reason || '',
           Number(e.task_count || 0),
           e.pic || '',
           e.active_stage || '',
@@ -3666,6 +4121,7 @@ Loading evidence data...
     }
 
     function onFilterKanbanBoard(repoName, epicValue) {
+      captureKanbanPanelMinHeight(repoName);
       currentKanbanFilter[repoName] = epicValue;
       const repo = (currentReposData || []).find(r => r.name === repoName);
       if (!repo) return;
@@ -3679,7 +4135,7 @@ Loading evidence data...
     }
 
     function renderEpicsOverviewAndApprovalGate(repo) {
-      const epicsSummary = repo.epics_summary || { total: 0, completed: 0, in_progress: 0, unstarted: 0, abandoned: 0, epics: [] };
+      const counts = computeOverviewCounts(repo);
       const blockers = collectRepoActionBlockers(repo);
       const needsConfirm = blockers.length > 0;
       const notices = Array.isArray(repo.notices) ? repo.notices : [];
@@ -3689,37 +4145,44 @@ Loading evidence data...
         <div style="background: #141722; border: 1px solid #1e2638; border-radius: 8px; padding: 14px 18px; display: flex; flex-direction: column; justify-content: space-between;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #1e2638; padding-bottom: 8px;">
             <span style="font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
-              <span>📦</span> Epics Overview (${epicsSummary.total} Epics)
+              <span>📦</span> Epics Overview (${counts.total} Epics)
             </span>
             <span style="font-size: 11px; color: #64748b; font-family: monospace;">.devtool/epic/</span>
           </div>
-          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+          <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px;">
             
-            <!-- 1. In-progress -->
-            <div style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #fbbf24; border-radius: 6px; padding: 8px 12px;">
+            <!-- 1. In-Progress (Doing) -->
+            <div data-overview-stat="doing" style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #fbbf24; border-radius: 6px; padding: 8px 12px;">
               <div style="font-size: 10px; color: #fbbf24; font-weight: 700; text-transform: uppercase;">1. In-Progress</div>
-              <div style="font-size: 20px; font-weight: 800; color: #fbbf24; margin-top: 2px;">${epicsSummary.in_progress}</div>
-              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">In Progress</div>
+              <div data-overview-count="doing" style="font-size: 20px; font-weight: 800; color: #fbbf24; margin-top: 2px;">${counts.doing}</div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Doing</div>
             </div>
 
-            <!-- 2. Backlog -->
-            <div style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #38bdf8; border-radius: 6px; padding: 8px 12px;">
-              <div style="font-size: 10px; color: #38bdf8; font-weight: 700; text-transform: uppercase;">2. Backlog</div>
-              <div style="font-size: 20px; font-weight: 800; color: #38bdf8; margin-top: 2px;">${epicsSummary.unstarted}</div>
+            <!-- 2. Pending -->
+            <div data-overview-stat="pending" style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #f59e0b; border-radius: 6px; padding: 8px 12px;">
+              <div style="font-size: 10px; color: #f59e0b; font-weight: 700; text-transform: uppercase;">2. Pending</div>
+              <div data-overview-count="pending" style="font-size: 20px; font-weight: 800; color: #f59e0b; margin-top: 2px;">${counts.pending}</div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Paused / Pending</div>
+            </div>
+
+            <!-- 3. Backlog -->
+            <div data-overview-stat="backlog" style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #38bdf8; border-radius: 6px; padding: 8px 12px;">
+              <div style="font-size: 10px; color: #38bdf8; font-weight: 700; text-transform: uppercase;">3. Backlog</div>
+              <div data-overview-count="backlog" style="font-size: 20px; font-weight: 800; color: #38bdf8; margin-top: 2px;">${counts.backlog}</div>
               <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Queued / Backlog</div>
             </div>
 
-            <!-- 3. Done -->
-            <div style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #10b981; border-radius: 6px; padding: 8px 12px;">
-              <div style="font-size: 10px; color: #34d399; font-weight: 700; text-transform: uppercase;">3. Done</div>
-              <div style="font-size: 20px; font-weight: 800; color: #10b981; margin-top: 2px;">${epicsSummary.completed}</div>
+            <!-- 4. Done -->
+            <div data-overview-stat="done" style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #10b981; border-radius: 6px; padding: 8px 12px;">
+              <div style="font-size: 10px; color: #34d399; font-weight: 700; text-transform: uppercase;">4. Done</div>
+              <div data-overview-count="done" style="font-size: 20px; font-weight: 800; color: #10b981; margin-top: 2px;">${counts.done}</div>
               <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Completed</div>
             </div>
 
-            <!-- 4. Abandon -->
-            <div style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #ef4444; border-radius: 6px; padding: 8px 12px;">
-              <div style="font-size: 10px; color: #f87171; font-weight: 700; text-transform: uppercase;">4. Abandon</div>
-              <div style="font-size: 20px; font-weight: 800; color: #ef4444; margin-top: 2px;">${epicsSummary.abandoned || 0}</div>
+            <!-- 5. Cancelled / Abandon -->
+            <div data-overview-stat="cancelled" style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #ef4444; border-radius: 6px; padding: 8px 12px;">
+              <div style="font-size: 10px; color: #f87171; font-weight: 700; text-transform: uppercase;">5. Cancelled</div>
+              <div data-overview-count="cancelled" style="font-size: 20px; font-weight: 800; color: #ef4444; margin-top: 2px;">${counts.cancelled}</div>
               <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Shelved / Cancelled</div>
             </div>
 
@@ -4093,7 +4556,7 @@ Loading evidence data...
               </div>
 
               <!-- Column 2: Strategic Notes (Human Architect) -->
-              <div id="note-container-detail-${escapeHtml(repo.name)}" class="antigravity-note-container" style="background: #141722; border: 1px solid #1e2638; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; min-height: 420px;">
+              <div id="note-container-detail-${escapeHtml(repo.name)}" class="antigravity-note-container" style="background: #141722; border: 1px solid #1e2638; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; min-height: 420px; max-height: 600px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                   <span style="font-size: 13px; font-weight: 700; color: #f1f5f9;">
                     📝 Strategic Notes (Human Architect)
@@ -4106,8 +4569,8 @@ Loading evidence data...
                 <div style="font-size: 10px; color: #64748b; margin-bottom: 8px;">
                   Auto-saved • Press Enter to auto-number 1., 2., 3... • Tab to indent
                 </div>
-                <textarea id="note-textarea-detail-${repo.name}" 
-                          style="flex: 1; width: 100%; min-height: 320px; height: 100%; box-sizing: border-box; background: #0c0f17; border: 1px solid #282f40; border-radius: 8px; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, monospace; font-size: 12px; line-height: 1.6; padding: 12px; resize: vertical;"
+                <textarea id="note-textarea-detail-${repo.name}" class="custom-scroll"
+                          style="flex: 1; width: 100%; min-height: 320px; max-height: 510px; height: 100%; box-sizing: border-box; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: #334155 transparent; background: #0c0f17; border: 1px solid #282f40; border-radius: 8px; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, monospace; font-size: 12px; line-height: 1.6; padding: 12px; resize: vertical;"
                           placeholder="1. Strategic ideas / roadmap..." 
                           onkeydown="handleAntigravityNoteKeydown(event, this, '${repo.name}')"
                           oninput="saveRepoNoteText('${repo.name}', this.value)">${escapeHtml(noteText)}</textarea>
