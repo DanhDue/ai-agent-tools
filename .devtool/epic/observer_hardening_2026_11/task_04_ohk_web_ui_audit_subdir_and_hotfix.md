@@ -1,13 +1,13 @@
 ---
 id: "task_04_ohk_web_ui_audit_subdir_and_hotfix"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "observer-hardening-2026-11"
 dueDate: null
 created: "2026-11-26T22:10:00Z"
-modified: "2026-11-26T22:10:00Z"
-completedAt: null
+modified: "2026-11-26T17:16:54Z"
+completedAt: "2026-11-26T17:16:54Z"
 labels: ["architecture", "web-quality"]
 order: "a4"
 review_tier: "full"
@@ -120,10 +120,10 @@ Then status is "NOT_APPLICABLE" with reason code "scope_unmodified" and "ui_modi
 
 ## Definition of Done
 
-- [ ] `_get_base_file_content` uses `{base_ref}:./{norm_rel}` and `get_git_diff_files` unions committed and uncommitted diffs (V2, V3, V6)
-- [ ] Folded live plugin exclusions (`dist`, `.astro`, `.devtool`, `docs`, `target`, `tests`), `ui_modified` scoping, and pre-existing base-ref filtering pass without regressing existing tests (V2, V3, V6)
-- [ ] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4, V5)
-- [ ] Assigned BDD integration scenarios (`OHK-HP-04`, `OHK-EC-04`, `OHK-AR-01`) pass with JUnit XML evidence (V6)
+- [x] `_get_base_file_content` uses `{base_ref}:./{norm_rel}` and `get_git_diff_files` unions committed and uncommitted diffs (V2, V3, V6) — exit 0, V2/V6 11 passed, V3 18 passed
+- [x] Folded live plugin exclusions (`dist`, `.astro`, `.devtool`, `docs`, `target`, `tests`), `ui_modified` scoping, and pre-existing base-ref filtering pass without regressing existing tests (V2, V3, V6) — exit 0, V2/V6 11 passed, V3 18 passed
+- [x] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4, V5) — exit 0, 0 issues
+- [x] Assigned BDD integration scenarios (`OHK-HP-04`, `OHK-EC-04`, `OHK-AR-01`) pass with JUnit XML evidence (V6) — exit 0, 3/3 covered in `build/test-results/task_04.xml`
 
 ## Dependencies & Blockers
 
