@@ -20,7 +20,10 @@ SCRIPT_DIR = (
     / "resources"
     / "scripts"
 )
-sys.path.insert(0, str(SCRIPT_DIR))
+_SCRIPT_DIR_STR = str(SCRIPT_DIR)
+_ADDED_SCRIPT_DIR = _SCRIPT_DIR_STR not in sys.path
+if _ADDED_SCRIPT_DIR:
+    sys.path.insert(0, _SCRIPT_DIR_STR)
 
 try:
     from check_tasks import (
@@ -36,6 +39,9 @@ try:
     )
 except ImportError:
     pass
+finally:
+    if _ADDED_SCRIPT_DIR and _SCRIPT_DIR_STR in sys.path:
+        sys.path.remove(_SCRIPT_DIR_STR)
 
 
 class TestCheckTasksCLI_Integration(unittest.TestCase):
@@ -165,8 +171,16 @@ class TestCheckTasksCLI_Integration(unittest.TestCase):
             text=True,
             timeout=30,
         )
+        self.assertNotIn("Traceback", proc.stderr)
+        self.assertNotIn("ModuleNotFoundError", proc.stderr)
         self.assertNotIn("ImportError", proc.stderr)
-        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn(proc.returncode, (0, 1), proc.stderr)
+        if proc.returncode == 0:
+            self.assertRegex(
+                proc.stdout, r"Tasks server running \(PID \d+\)\.", proc.stderr
+            )
+        else:
+            self.assertIn("Tasks server is stopped.", proc.stdout, proc.stderr)
 
 
 if __name__ == "__main__":

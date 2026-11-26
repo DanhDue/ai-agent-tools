@@ -42,7 +42,9 @@ def _init_git_repo(repo_dir: Path) -> Path:
     subprocess.run(
         ["git", "config", "user.email", "test@example.com"], cwd=repo_dir, check=True
     )
-    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo_dir, check=True)
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=repo_dir, check=True
+    )
     (repo_dir / "README.md").write_text("# Demo Repo\n", encoding="utf-8")
     subprocess.run(["git", "add", "README.md"], cwd=repo_dir, check=True)
     subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=repo_dir, check=True)
@@ -106,15 +108,21 @@ def _seed_demo_workspace(ws_root: Path) -> Path:
     return repo
 
 
-def test_state_envelope_execution_state_and_harvester_propagation(tmp_path: Path) -> None:
+def test_state_envelope_execution_state_and_harvester_propagation(
+    tmp_path: Path,
+) -> None:
     """State envelope persists pending/cancelled + reason, clears pending_decision, and harvester propagates counts."""
     repo = _seed_demo_workspace(tmp_path)
 
     with pytest.raises(ValueError, match="Reason is required"):
-        _state_envelope.set_epic_execution_state(repo, "handoff_epic", "pending", reason="   ")
+        _state_envelope.set_epic_execution_state(
+            repo, "handoff_epic", "pending", reason="   "
+        )
 
     with pytest.raises(ValueError, match="Invalid execution state"):
-        _state_envelope.set_epic_execution_state(repo, "handoff_epic", "archived", reason="x")
+        _state_envelope.set_epic_execution_state(
+            repo, "handoff_epic", "archived", reason="x"
+        )
 
     _state_envelope.set_epic_execution_state(
         repo, "handoff_epic", "pending", reason="Waiting for API contract"
@@ -127,7 +135,9 @@ def test_state_envelope_execution_state_and_harvester_propagation(tmp_path: Path
     assert meta.epics_summary is not None
     ep_map = {e["slug"]: e for e in meta.epics_summary.epics}
     assert ep_map["handoff_epic"]["execution_state"] == "pending"
-    assert ep_map["handoff_epic"]["execution_state_reason"] == "Waiting for API contract"
+    assert (
+        ep_map["handoff_epic"]["execution_state_reason"] == "Waiting for API contract"
+    )
     assert ep_map["handoff_epic"]["is_action_required"] is False
     assert ep_map["stage1_epic"]["execution_state"] == "doing"
     assert meta.epics_summary.doing_count == 1
@@ -150,9 +160,13 @@ def test_tasks_server_execution_state_api_validation(tmp_path: Path) -> None:
     _seed_demo_workspace(tmp_path)
 
     with pytest.raises(ValueError, match="Reason is required"):
-        set_epic_execution_state_for_repo(tmp_path, "ai-agent-tools", "handoff_epic", "cancelled", "")
+        set_epic_execution_state_for_repo(
+            tmp_path, "ai-agent-tools", "handoff_epic", "cancelled", ""
+        )
     with pytest.raises(ValueError, match="Invalid repository name"):
-        set_epic_execution_state_for_repo(tmp_path, "../escape", "handoff_epic", "pending", "bad")
+        set_epic_execution_state_for_repo(
+            tmp_path, "../escape", "handoff_epic", "pending", "bad"
+        )
 
     port = find_available_port(19720)
     server = TasksServer("127.0.0.1", port, workspace_root=tmp_path)
@@ -176,7 +190,12 @@ def test_tasks_server_execution_state_api_validation(tmp_path: Path) -> None:
                 return err.code, json.loads(err.read().decode("utf-8"))
 
         rc_bad, data_bad = _post(
-            {"repo": "ai-agent-tools", "epic": "handoff_epic", "state": "pending", "reason": ""}
+            {
+                "repo": "ai-agent-tools",
+                "epic": "handoff_epic",
+                "state": "pending",
+                "reason": "",
+            }
         )
         assert rc_bad == 400
         assert data_bad["status"] == "error"
@@ -210,7 +229,15 @@ def test_remove_worktree_clean_and_preserve_dirty(tmp_path: Path) -> None:
         check=True,
     )
     subprocess.run(
-        ["git", "worktree", "add", "-q", "--detach", str(clean_slot), "epic/handoff-epic"],
+        [
+            "git",
+            "worktree",
+            "add",
+            "-q",
+            "--detach",
+            str(clean_slot),
+            "epic/handoff-epic",
+        ],
         cwd=repo,
         check=True,
     )
