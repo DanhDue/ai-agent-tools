@@ -352,6 +352,140 @@ def test_ohk_st_02_replay_enforces_strict_red_and_green_on_directive_tasks(
     assert "R8 FAIL" in fail_res.stdout, f"Expected R8 FAIL:\n{fail_res.stdout}"
 
 
+def test_replay_mixed_epic_applies_skipped_prod_directives_and_surfaces_skip_note(
+    tmp_path: Path,
+) -> None:
+    """Mixed epic applies non-test production directives of skipped tasks and reports SKIP notes with R8 PASS."""
+    import replay_task_text
+
+    repo, home = _init_repo(tmp_path, branch="main")
+    build_ready_epic(repo)
+
+    (repo / "tool.py").write_text(
+        "import pathlib\n"
+        "import sys\n\n\n"
+        "def run() -> None:\n"
+        "    if len(sys.argv) > 1 and sys.argv[1] == 'int':\n"
+        "        p = pathlib.Path('build/test-results/int.xml')\n"
+        "        p.parent.mkdir(parents=True, exist_ok=True)\n"
+        '        p.write_text(\'<testsuite><testcase name="int"/></testsuite>\', encoding="utf-8")\n'
+        "        sys.exit(0)\n\n\n"
+        "if __name__ == '__main__':\n"
+        "    run()\n",
+        encoding="utf-8",
+    )
+
+    # task_1: contract-based (new) test target with zero test directives,
+    # BUT embeds a non-test production directive that task_2 anchors on.
+    task_1_text = (repo / ".devtool" / "epic" / "demo_epic" / "task_1.md").read_text(
+        encoding="utf-8"
+    )
+    task_1_text = task_1_text.replace(
+        "Allowed files:\n- `tool.py`\n",
+        "Allowed files:\n- `tool.py`\n- `tests/test_contract_t1.py` (new)\n",
+    )
+    task_1_prod_block = (
+        "## Changes\n\n"
+        "Insert in tool.py (before):\n"
+        "```python\n"
+        "if __name__ == '__main__':\n"
+        "```\n"
+        "With:\n"
+        "```python\n"
+        "def shared_helper() -> int:\n"
+        "    return 40\n\n\n"
+        "```\n\n"
+    )
+    task_1_text = task_1_text.replace(
+        "## Requirement Analysis", task_1_prod_block + "## Requirement Analysis"
+    )
+    task_1_text = task_1_text.replace(
+        "`ruff check tool.py`",
+        "`ruff check tool.py tests/test_contract_t1.py`",
+    )
+    task_1_text = task_1_text.replace(
+        "`mypy tool.py`",
+        "`mypy tool.py tests/test_contract_t1.py`",
+    )
+    _write_task_mirrors(repo, "demo_epic", "task_1.md", task_1_text)
+
+    # task_2: directive-bearing task that anchors directly on shared_helper() added by task_1
+    task_2_text = (repo / ".devtool" / "epic" / "demo_epic" / "task_2.md").read_text(
+        encoding="utf-8"
+    )
+    task_2_text = task_2_text.replace(
+        "Allowed files:\n- `tool.py`\n",
+        "Allowed files:\n- `tool.py`\n- `tests/test_chained_replay.py` (new)\n",
+    )
+    task_2_block = (
+        "## Changes\n\n"
+        "Create tests/test_chained_replay.py:\n"
+        "```python\n"
+        "import sys\n"
+        "from pathlib import Path\n\n"
+        "sys.path.insert(0, str(Path(__file__).resolve().parents[1]))\n\n\n"
+        "def test_chained_helper() -> None:\n"
+        "    from tool import final_value\n\n"
+        "    assert final_value() == 42\n"
+        "```\n\n"
+        "Insert in tool.py (after):\n"
+        "```python\n"
+        "def shared_helper() -> int:\n"
+        "    return 40\n"
+        "```\n"
+        "With:\n"
+        "```python\n\n\n"
+        "def final_value() -> int:\n"
+        "    return shared_helper() + 2\n"
+        "```\n\n"
+    )
+    task_2_text = task_2_text.replace(
+        "## Requirement Analysis", task_2_block + "## Requirement Analysis"
+    )
+    task_2_text = task_2_text.replace(
+        "| V1 | RED | `python3 tool.py red2` | exit 1 | — |",
+        '| V1 | RED | `python3 -m pytest -q tests/test_chained_replay.py` | exit 1; contains "FAILED" | — |',
+    )
+    task_2_text = task_2_text.replace(
+        "| V2 | GREEN | `python3 tool.py green2` | exit 0 | — |",
+        '| V2 | GREEN | `python3 -m pytest -q tests/test_chained_replay.py` | exit 0; contains "passed" | — |\n'
+        "| V6 | REGRESSION | `python3 tool.py` | exit 0 | — |",
+    )
+    task_2_text = task_2_text.replace(
+        "`ruff check tool.py`",
+        "`ruff check tool.py tests/test_chained_replay.py`",
+    )
+    task_2_text = task_2_text.replace(
+        "`mypy tool.py`",
+        "`mypy --ignore-missing-imports tool.py tests/test_chained_replay.py`",
+    )
+    _write_task_mirrors(repo, "demo_epic", "task_2.md", task_2_text)
+
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "Add mixed epic with chained prod directive")
+
+    code, msgs = replay_task_text.replay_epic_in_worktree(
+        repo, "demo_epic", timeout=120
+    )
+    assert code == 0, f"Expected replay_epic_in_worktree success, got {msgs}"
+    assert msgs == [
+        "SKIP: task_1.md (no literal test-creation directives for (new) test files)"
+    ]
+
+    readiness = _run_script(
+        READINESS_SCRIPT, repo, ["demo_epic", "--replay"], home=home
+    )
+    assert readiness.returncode == 0, (
+        f"Expected readiness --replay PASS:\n{readiness.stdout}\n{readiness.stderr}"
+    )
+    assert "R8 PASS" in readiness.stdout
+    assert "R8 SKIP" not in readiness.stdout
+    assert (
+        "SKIP: task_1.md (no literal test-creation directives for (new) test files)"
+        in readiness.stdout
+    )
+
+
 class Test_Ohk_Revise_And_Replay_Integration:
     """[Tier C - Integration] Integration runner provenance for OHK-HP-02, OHK-EC-02, and OHK-ST-02."""
 

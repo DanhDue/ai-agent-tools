@@ -15,6 +15,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 OHK_SUITES: tuple[str, ...] = (
@@ -342,25 +344,22 @@ def _run_non_recursive_static_checks() -> None:
     assert "hookSpecificOutput" in payload or "injectSteps" in payload
 
 
-_VERIFY_SH_FULL_RESULT: subprocess.CompletedProcess[str] | None = None
+@pytest.fixture(scope="module")
+def verify_sh_full_result() -> subprocess.CompletedProcess[str] | None:
+    """Run bash scripts/verify.sh --full at most once per pytest invocation of this module."""
+    if os.environ.get("VERIFY_SH_ACTIVE") == "1":
+        return None
+    return subprocess.run(
+        ["bash", "scripts/verify.sh", "--full"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
 
-def _run_verify_sh_full() -> subprocess.CompletedProcess[str]:
-    """Run bash scripts/verify.sh --full once per pytest process and cache its result."""
-    global _VERIFY_SH_FULL_RESULT
-    if _VERIFY_SH_FULL_RESULT is None:
-        _VERIFY_SH_FULL_RESULT = subprocess.run(
-            ["bash", "scripts/verify.sh", "--full"],
-            cwd=REPO_ROOT,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    return _VERIFY_SH_FULL_RESULT
-
-
-def test_ohk_ar_03_verify_sh_passes() -> None:
-    """[OHK-AR-03] [Tier C - Integration] Kit verification gate verify.sh passes cleanly across all registered suites and contracts."""
+def _assert_verify_sh_passes(proc: subprocess.CompletedProcess[str] | None) -> None:
+    """Validate verify.sh registrations and either nested static checks or full run output."""
     verify_text = _read("scripts/verify.sh")
     assert "export VERIFY_SH_ACTIVE=1" in verify_text
 
@@ -375,7 +374,7 @@ def test_ohk_ar_03_verify_sh_passes() -> None:
         _run_non_recursive_static_checks()
         return
 
-    proc = _run_verify_sh_full()
+    assert proc is not None
     tail_out = "\n".join(proc.stdout.splitlines()[-40:])
     assert proc.returncode == 0, (
         f"bash scripts/verify.sh --full exited {proc.returncode}:\n"
@@ -394,6 +393,13 @@ def test_ohk_ar_03_verify_sh_passes() -> None:
         )
 
 
+def test_ohk_ar_03_verify_sh_passes(
+    verify_sh_full_result: subprocess.CompletedProcess[str] | None,
+) -> None:
+    """[OHK-AR-03] [Tier C - Integration] Kit verification gate verify.sh passes cleanly across all registered suites and contracts."""
+    _assert_verify_sh_passes(verify_sh_full_result)
+
+
 class Test_Ohk_Docs_And_Acceptance_Integration:
     """Tier C integration provenance wrapper for Task 06 BDD scenarios."""
 
@@ -405,6 +411,9 @@ class Test_Ohk_Docs_And_Acceptance_Integration:
         """[OHK-AR-02] [Tier C - Integration] Non-overlapping watchdog timer guidance preserves merge hygiene in subagent-driven-development."""
         test_ohk_ar_02_subagent_waiting_merge_hygiene()
 
-    def test_ohk_ar_03_integration(self) -> None:
+    def test_ohk_ar_03_integration(
+        self,
+        verify_sh_full_result: subprocess.CompletedProcess[str] | None,
+    ) -> None:
         """[OHK-AR-03] [Tier C - Integration] Kit verification gate verify.sh passes cleanly across all registered suites and contracts."""
-        test_ohk_ar_03_verify_sh_passes()
+        _assert_verify_sh_passes(verify_sh_full_result)

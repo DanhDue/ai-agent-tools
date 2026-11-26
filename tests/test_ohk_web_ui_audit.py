@@ -15,8 +15,12 @@ AUDIT_SCRIPT = WEB_SCRIPTS_DIR / "audit_ui_state_and_styles.py"
 if str(WEB_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(WEB_SCRIPTS_DIR))
 
+from unittest import mock
+
 from audit_ui_state_and_styles import (  # noqa: E402
+    _collect_base_defined_classes,
     _get_base_file_content,
+    _get_base_files_contents,
     _is_excluded,
     get_git_diff_files,
     run_all_ui_reviews,
@@ -497,6 +501,88 @@ def test_is_excluded_covers_all_required_directories(tmp_path: Path) -> None:
         assert _is_excluded(tmp_path / name / "file.html", tmp_path) is True
     assert _is_excluded(tmp_path / ".well-known" / "portal.html", tmp_path) is False
     assert _is_excluded(tmp_path / "src" / "page.html", tmp_path) is False
+
+
+def test_collect_base_defined_classes_batches_git_cat_file_in_subdir(
+    tmp_path: Path,
+) -> None:
+    """_collect_base_defined_classes reads multiple base-ref files in a single git cat-file --batch call."""
+    import audit_ui_state_and_styles
+
+    repo = tmp_path / "batched_subdir_repo"
+    _init_git_repo(repo)
+
+    preview = repo / "src" / "app" / "preview"
+    static_dir = preview / "static"
+    well_known_dir = preview / ".well-known"
+    dist_dir = preview / "dist"
+    static_dir.mkdir(parents=True, exist_ok=True)
+    well_known_dir.mkdir(parents=True, exist_ok=True)
+    dist_dir.mkdir(parents=True, exist_ok=True)
+
+    (repo / "outside.css").write_text(
+        ".outside-root-cls { color: red; }\n", encoding="utf-8"
+    )
+    (static_dir / "main.css").write_text(
+        "/* Tiến độ UI */\n.base-btn { padding: 8px; }\n",
+        encoding="utf-8",
+    )
+    (static_dir / "extra.scss").write_text(
+        ".extra-badge { border-radius: 4px; }\n",
+        encoding="utf-8",
+    )
+    (static_dir / "Card.astro").write_text(
+        "<div class='astro-panel'>Card</div>\n<style>.astro-panel { display: block; }</style>\n",
+        encoding="utf-8",
+    )
+    (well_known_dir / "portal.html").write_text(
+        "<style>.portal-shell { margin: 0; }</style>\n<div class='portal-shell'>OK</div>\n",
+        encoding="utf-8",
+    )
+    (dist_dir / "compiled.css").write_text(
+        ".excluded-dist-cls { display: none; }\n",
+        encoding="utf-8",
+    )
+    _commit_all(repo, "Base main with multiple stylesheets and components")
+
+    # Verify _get_base_files_contents handles valid, dot-prefixed, missing, and traversal paths in one batch
+    batched = _get_base_files_contents(
+        preview,
+        "main",
+        [
+            "static/main.css",
+            ".well-known/portal.html",
+            "missing.css",
+            "../outside.css",
+            "../../outside.css",
+        ],
+    )
+    assert set(batched.keys()) == {"static/main.css", ".well-known/portal.html"}
+    assert "Tiến độ UI" in batched["static/main.css"]
+    assert ".portal-shell" in batched[".well-known/portal.html"]
+
+    calls: list[list[str]] = []
+    real_run = audit_ui_state_and_styles.subprocess.run
+
+    def _spy_run(cmd: list[str], *args: Any, **kwargs: Any) -> Any:
+        calls.append(list(cmd))
+        return real_run(cmd, *args, **kwargs)
+
+    with mock.patch.object(
+        audit_ui_state_and_styles.subprocess, "run", side_effect=_spy_run
+    ):
+        defined = _collect_base_defined_classes(preview, "main")
+
+    assert {"base-btn", "extra-badge", "astro-panel", "portal-shell"} <= defined
+    assert "excluded-dist-cls" not in defined
+    assert "outside-root-cls" not in defined
+
+    cat_file_calls = [c for c in calls if c[:3] == ["git", "cat-file", "--batch"]]
+    git_show_calls = [c for c in calls if c[:2] == ["git", "show"]]
+    assert len(cat_file_calls) == 1, (
+        f"Expected 1 git cat-file --batch call, got {calls}"
+    )
+    assert git_show_calls == [], f"Expected 0 git show calls, got {git_show_calls}"
 
 
 class Test_Ohk_Web_Ui_Audit_Integration:

@@ -37,7 +37,7 @@ LINTER_PATH = SCRIPTS_DIR.parents[2] / "doc_quality_check" / "resources" / "scri
 @dataclass(frozen=True)
 class Finding:
     check: str     # "R1" ... "R8", "R5b", "R7b"
-    severity: str  # "FAIL", "WARN", or "SKIP"
+    severity: str  # "FAIL", "WARN", "SKIP", or "NOTE"
     message: str
 
 
@@ -750,9 +750,25 @@ def check_baseline(ctx: Context) -> list[Finding]:
                 for msg in msgs:
                     findings.append(Finding("R8", "FAIL", msg))
             elif msgs and all(msg.startswith("SKIP:") for msg in msgs):
+                all_skipped_sentinels = {
+                    "SKIP: no literal test-creation directives for (new) test files",
+                    "SKIP: no literal patch directives in epic tasks",
+                }
+                all_skipped = (
+                    any(msg in all_skipped_sentinels for msg in msgs)
+                    or len(msgs) >= len(ctx.tasks)
+                )
                 for msg in msgs:
-                    reason = msg[len("SKIP:"):].strip()
-                    findings.append(Finding("R8", "SKIP", f"({reason})" if reason else ""))
+                    if all_skipped:
+                        reason = msg[len("SKIP:"):].strip()
+                        formatted = (
+                            f"({reason})"
+                            if msg in all_skipped_sentinels or not reason.startswith("task_")
+                            else reason
+                        )
+                        findings.append(Finding("R8", "SKIP", formatted))
+                    else:
+                        findings.append(Finding("R8", "NOTE", msg))
 
     if not ctx.baseline:
         return findings

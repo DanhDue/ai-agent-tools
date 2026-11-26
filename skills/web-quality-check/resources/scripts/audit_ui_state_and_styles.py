@@ -293,6 +293,105 @@ def _get_base_file_content(repo_root: Path, base_ref: str, rel_path: str) -> str
     return None
 
 
+_BATCH_HEADER_PATTERN = re.compile(rb"^([0-9a-f]{40,64}) (blob|tree|commit|tag) (\d+)$")
+
+
+def _fallback_base_files_contents(
+    repo_root: Path, base_ref: str, rel_paths: list[str]
+) -> dict[str, str]:
+    """Fallback single-file base lookup used only if batched git cat-file fails."""
+    if not _git_base_ref_exists(repo_root, base_ref):
+        return {}
+    results: dict[str, str] = {}
+    for rel_f in rel_paths:
+        content = _get_base_file_content(repo_root, base_ref, rel_f)
+        if content is not None:
+            results[rel_f] = content
+    return results
+
+
+def _get_base_files_contents(
+    repo_root: Path, base_ref: str, rel_paths: list[str]
+) -> dict[str, str]:
+    """Batch-read multiple base-ref files via a single `git cat-file --batch` call."""
+    if not rel_paths or "\n" in base_ref or "\r" in base_ref:
+        return {}
+
+    queries: list[tuple[str, str]] = []
+    seen_norms: set[str] = set()
+    for rel_f in rel_paths:
+        norm_rel = _normalize_repo_rel_path(rel_f)
+        if norm_rel is None or "\n" in norm_rel or "\r" in norm_rel:
+            continue
+        if norm_rel in seen_norms:
+            continue
+        seen_norms.add(norm_rel)
+        queries.append((rel_f, f"{base_ref}:./{norm_rel}"))
+
+    if not queries:
+        return {}
+
+    stdin_bytes = ("\n".join(spec for _, spec in queries) + "\n").encode("utf-8")
+    try:
+        proc = subprocess.run(
+            ["git", "cat-file", "--batch"],
+            cwd=str(repo_root),
+            input=stdin_bytes,
+            capture_output=True,
+            check=False,
+        )
+    except (subprocess.SubprocessError, OSError):
+        return _fallback_base_files_contents(
+            repo_root, base_ref, [rel_f for rel_f, _ in queries]
+        )
+
+    if proc.returncode != 0:
+        return _fallback_base_files_contents(
+            repo_root, base_ref, [rel_f for rel_f, _ in queries]
+        )
+
+    stdout = proc.stdout
+    pos = 0
+    spec_idx = 0
+    results: dict[str, str] = {}
+    total_len = len(stdout)
+
+    while spec_idx < len(queries) and pos < total_len:
+        nl_idx = stdout.find(b"\n", pos)
+        if nl_idx == -1:
+            return _fallback_base_files_contents(
+                repo_root, base_ref, [rel_f for rel_f, _ in queries]
+            )
+        header = stdout[pos:nl_idx]
+        pos = nl_idx + 1
+
+        rel_f, _ = queries[spec_idx]
+        spec_idx += 1
+
+        match = _BATCH_HEADER_PATTERN.match(header)
+        if match:
+            obj_type = match.group(2)
+            size = int(match.group(3))
+            payload_end = pos + size
+            if payload_end > total_len:
+                return _fallback_base_files_contents(
+                    repo_root, base_ref, [rel_f for rel_f, _ in queries]
+                )
+            payload = stdout[pos:payload_end]
+            pos = payload_end
+            if pos < total_len and stdout[pos : pos + 1] == b"\n":
+                pos += 1
+            if obj_type == b"blob":
+                results[rel_f] = payload.decode("utf-8", errors="replace")
+
+    if spec_idx != len(queries) and total_len > 0:
+        return _fallback_base_files_contents(
+            repo_root, base_ref, [rel_f for rel_f, _ in queries]
+        )
+
+    return results
+
+
 def audit_cache_busting(
     repo_root: Path,
     modified_files: list[str],
@@ -497,7 +596,8 @@ def _collect_base_defined_classes(repo_root: Path, base_ref: str) -> set[str]:
                 if not _is_excluded(f, repo_root):
                     candidate_rels.append(f.relative_to(repo_root).as_posix())
 
-    base_defined: set[str] = set()
+    stylesheet_rels: list[str] = []
+    component_rels: list[str] = []
     seen: set[str] = set()
     for rel_f in candidate_rels:
         if rel_f in seen or _is_excluded(repo_root / rel_f, repo_root):
@@ -505,13 +605,24 @@ def _collect_base_defined_classes(repo_root: Path, base_ref: str) -> set[str]:
         seen.add(rel_f)
         suffix = Path(rel_f).suffix.lower()
         if suffix in STYLESHEET_EXTENSIONS:
-            base_text = _get_base_file_content(repo_root, base_ref, rel_f)
-            if base_text is not None:
-                base_defined.update(_extract_defined_classes_from_css(base_text))
+            stylesheet_rels.append(rel_f)
         elif suffix in COMPONENT_STYLE_EXTENSIONS:
-            base_text = _get_base_file_content(repo_root, base_ref, rel_f)
-            if base_text is not None:
-                base_defined.update(_extract_defined_classes_from_component(base_text))
+            component_rels.append(rel_f)
+
+    target_rels = stylesheet_rels + component_rels
+    if not target_rels:
+        return set()
+
+    base_contents = _get_base_files_contents(repo_root, base_ref, target_rels)
+    base_defined: set[str] = set()
+    for rel_f in stylesheet_rels:
+        base_text = base_contents.get(rel_f)
+        if base_text is not None:
+            base_defined.update(_extract_defined_classes_from_css(base_text))
+    for rel_f in component_rels:
+        base_text = base_contents.get(rel_f)
+        if base_text is not None:
+            base_defined.update(_extract_defined_classes_from_component(base_text))
     return base_defined
 
 

@@ -306,6 +306,8 @@ def replay_task(
     if run_rows:
         skip_reason = _task_skip_reason(root, task_text, directives)
         if skip_reason is not None:
+            if "test-creation" in skip_reason and prod_directives:
+                apply_task_directives(root, prod_directives)
             return 0, [f"SKIP: {task_path.name}: {skip_reason}"]
 
     # 1. Apply test directives
@@ -396,6 +398,7 @@ def replay_epic_in_worktree(
 
         task_files = sorted(epic_tasks_dir.glob("task_*.md"))
         errors: list[str] = []
+        skip_msgs: list[str] = []
         replayed = 0
         skipped = 0
         skipped_for_new_tests = False
@@ -407,6 +410,15 @@ def replay_epic_in_worktree(
                 skipped += 1
                 if "test-creation" in skip_reason:
                     skipped_for_new_tests = True
+                    prod_directives = [
+                        d for d in directives if not is_test_file(d.path)
+                    ]
+                    if prod_directives:
+                        try:
+                            apply_task_directives(worktree_path, prod_directives)
+                        except ContractError as err:
+                            return 1, [f"{task_path.name}: {err}"]
+                skip_msgs.append(f"SKIP: {task_path.name} ({skip_reason})")
                 continue
             replayed += 1
             code, msgs = replay_task(worktree_path, task_path, text, run_rows=True, timeout=timeout)
@@ -415,11 +427,14 @@ def replay_epic_in_worktree(
                 return code, errors
 
         if replayed == 0 and skipped > 0:
-            if skipped_for_new_tests:
-                return 0, ["SKIP: no literal test-creation directives for (new) test files"]
-            return 0, ["SKIP: no literal patch directives in epic tasks"]
+            summary = (
+                "SKIP: no literal test-creation directives for (new) test files"
+                if skipped_for_new_tests
+                else "SKIP: no literal patch directives in epic tasks"
+            )
+            return 0, [summary, *skip_msgs]
 
-        return 0, []
+        return 0, skip_msgs
 
     finally:
         subprocess.run(
