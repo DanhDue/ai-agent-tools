@@ -17,7 +17,7 @@
 ## Meta Data
 
 - **Epic**: `observer-hardening-2026-11`
-- **Status**: Packaged (2026-11-26)
+- **Status**: In Progress
 - **PIC**: duvthinh403
 - **Target Release**: 1.36.0 (local branch — release deferred until active sibling epics finish)
 - **Platform**: Python / Shell / Markdown Agent Kit
