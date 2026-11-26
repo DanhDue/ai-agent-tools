@@ -85,15 +85,15 @@ Then it exits 1 and reports "ships in the build: src/app.py"
 When "--changed-files" receives a newline-joined string of three documentation files "docs/a.md\ndocs/b.md\nCHANGELOG.md"
 Then it exits 0 and reports "none of 3 changed files ship in the build"
 
-Scenario: [OHK-EC-04] [Tier C - Integration] UI auditor excludes build directories, ignores pre-existing base-ref orphans, and catches CSS-only class removals
+Scenario: [OHK-EC-04] [Tier C - Integration] UI auditor excludes build directories, ignores pre-existing base-ref orphans, and catches CSS-only class removals including layout-inherited templates
 Given a web project containing compiled HTML with orphaned classes inside "dist/", ".astro/", ".devtool/", "docs/", "target/", and "tests/"
-And an existing page "src/page.html" already had orphaned class "legacy-unmapped" plus styled class "active-card" defined in "src/style.css" at base ref "main"
+And "src/layout.html" links "src/style.css" while unchanged child page "src/page.html" inherits "src/layout.html" without a direct stylesheet link and carries pre-existing orphaned class "legacy-unmapped" plus styled class "active-card" defined in "src/style.css" at base ref "main"
 And HEAD edits only text on "src/page.html" without touching "src/style.css"
 When "audit_ui_state_and_styles.py --base-ref main --json" executes
 Then files under "dist/", ".astro/", ".devtool/", "docs/", "target/", and "tests/" produce zero findings
 And pre-existing "legacy-unmapped" on "src/page.html" is filtered out so status is "PASS"
-When HEAD instead modifies only "src/style.css" to delete ".active-card" while leaving "src/page.html" untouched
-Then "audit_ui_state_and_styles.py --base-ref main --json" returns status "FAIL" with an "orphaned_class" finding for "active-card" on "src/page.html"
+When HEAD instead modifies only "src/style.css" to delete ".active-card" while leaving both "src/layout.html" and child "src/page.html" untouched
+Then "audit_ui_state_and_styles.py --base-ref main --json" scans all non-excluded templates for Invariant 2 and returns status "FAIL" with an "orphaned_class" finding for "active-card" on "src/page.html" while still suppressing pre-existing "legacy-unmapped"
 And adding a brand-new undefined class "new-orphan-cls" on "src/page.html" also returns status "FAIL" with category "orphaned_class"
 
 Scenario: [OHK-EC-05] [Tier C - Integration] Smoke checklist generator ignores CSS selector backticks and infers web target from HLD or BDD URL

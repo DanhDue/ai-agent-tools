@@ -69,15 +69,15 @@ And the JSON report returns status "PASS" with 0 cache_bust findings
 When ".well-known/portal.html" is modified without bumping "?v=1"
 Then "audit_ui_state_and_styles.py --project-root src/app/preview --base-ref main --json" returns status "FAIL" with a "cache_bust" finding on ".well-known/portal.html"
 
-Scenario: [OHK-EC-04] [Tier C - Integration] UI auditor excludes build directories, ignores pre-existing base-ref orphans, and catches CSS-only class removals
+Scenario: [OHK-EC-04] [Tier C - Integration] UI auditor excludes build directories, ignores pre-existing base-ref orphans, and catches CSS-only class removals including layout-inherited templates
 Given a web project containing compiled HTML with orphaned classes inside "dist/", ".astro/", ".devtool/", "docs/", "target/", and "tests/"
-And an existing page "src/page.html" already had orphaned class "legacy-unmapped" plus styled class "active-card" defined in "src/style.css" at base ref "main"
+And "src/layout.html" links "src/style.css" while unchanged child page "src/page.html" inherits "src/layout.html" without a direct stylesheet link and carries pre-existing orphaned class "legacy-unmapped" plus styled class "active-card" defined in "src/style.css" at base ref "main"
 And HEAD edits only text on "src/page.html" without touching "src/style.css"
 When "audit_ui_state_and_styles.py --base-ref main --json" executes
 Then files under "dist/", ".astro/", ".devtool/", "docs/", "target/", and "tests/" produce zero findings
 And pre-existing "legacy-unmapped" on "src/page.html" is filtered out so status is "PASS"
-When HEAD instead modifies only "src/style.css" to delete ".active-card" while leaving "src/page.html" untouched
-Then "audit_ui_state_and_styles.py --base-ref main --json" returns status "FAIL" with an "orphaned_class" finding for "active-card" on "src/page.html"
+When HEAD instead modifies only "src/style.css" to delete ".active-card" while leaving both "src/layout.html" and child "src/page.html" untouched
+Then "audit_ui_state_and_styles.py --base-ref main --json" scans all non-excluded templates for Invariant 2 and returns status "FAIL" with an "orphaned_class" finding for "active-card" on "src/page.html" while still suppressing pre-existing "legacy-unmapped"
 And adding a brand-new undefined class "new-orphan-cls" on "src/page.html" also returns status "FAIL" with category "orphaned_class"
 
 Scenario: [OHK-AR-01] [Tier C - Integration] Non-UI changes return NOT_APPLICABLE when only excluded paths contain HTML or CSS
@@ -114,8 +114,8 @@ Then status is "NOT_APPLICABLE" with reason code "scope_unmodified" and "ui_modi
 - **Source (`audit_ui_state_and_styles.py:158-169`, `286-391`, `600-651`)**: `_is_excluded` excludes only 4 dirs; `run_all_ui_reviews` runs Invariants 2–4 with `target_files=None`.
   - **New contract**: Exclude `("node_modules", "build", ".worktrees", ".git", "dist", ".astro", ".devtool", "docs", "target", "tests")`. When `_git_base_ref_exists(root, base_ref)` is True: compute `ui_modified` excluding `_is_excluded`; short-circuit `NOT_APPLICABLE` if `modified_files` non-empty and `ui_modified` empty; when `ui_modified` is non-empty:
     - For Invariants 3 and 4, pass `target_files=ui_modified`.
-    - For Invariant 2 (`audit_orphaned_classes_and_styles`), build `inv2_targets`: start from `ui_modified`, and whenever any `.css` file appears in `ui_modified`, also include non-excluded template files (`*.html`, `*.astro`, `*.jinja`, `*.jinja2`, `*.jsx`, `*.tsx`) referencing the modified stylesheet (or all non-excluded templates when CSS changed without explicit `<link>` match, so CSS-only class removals never go undetected in unchanged templates).
-    - Filter out pre-existing base-ref findings in Invariants 2, 3, and 4 using `_get_base_file_content(root, base_ref, rel_f)`: for `orphaned_class`, compute baseline stylesheet + component `<style>` class definitions at `base_ref` (`base_defined_classes`, collected via `_get_base_file_content` across stylesheets/components) and suppress `(rel_f, cls)` ONLY when `cls` was ALREADY referenced in `base_contents[rel_f]` AND was ALREADY undefined (`cls not in base_defined_classes`) at `base_ref` — ensuring deleting `.active-card` from `style.css` is NEVER suppressed as pre-existing! Precompute `base_unstyled_by_file` once per file rather than per finding.
+    - For Invariant 2 (`audit_orphaned_classes_and_styles`), check `has_css_change = any(Path(f).suffix.lower() in {".css", ".scss"} for f in ui_modified)`: when `has_css_change` is True, pass `target_files=None` so ALL non-excluded source templates (`*.html`, `*.astro`, `*.jinja`, `*.jinja2`, `*.jsx`, `*.tsx`) are checked — catching newly orphaned classes in both directly linked and layout-inherited templates (`layout.html` -> `page.html`) without fragile link-graph heuristics; when `has_css_change` is False, pass `target_files=ui_modified`.
+    - Filter out pre-existing base-ref findings across all files reported in `inv234` (not just `ui_modified`, since CSS-change Invariant 2 scans unchanged templates too!) using `_get_base_file_content(root, base_ref, rel_f)`: for `orphaned_class`, collect `base_defined_classes` from all non-excluded stylesheets and component `<style>` blocks at `base_ref` via `_get_base_file_content()` and suppress `(rel_f, cls)` ONLY when `cls` was ALREADY referenced in `base_contents[rel_f]` AND was ALREADY undefined (`cls not in base_defined_classes`) at `base_ref` — ensuring deleting `.active-card` from `style.css` flags `page.html` while pre-existing `legacy-unmapped` remains suppressed. Precompute `base_unstyled_by_file` once per file rather than per finding.
     - When `modified_files` is empty (non-git temp dir or clean checkout with zero diff against `base_ref`), pass `target_files=None` so existing full-directory unit tests in `test_audit_ui_state_and_styles.py` keep passing unchanged.
 
 ## Definition of Done
