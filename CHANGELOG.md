@@ -8,6 +8,34 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.35.0 — 2026-11-26
+
+Delivers **Zero-Pause AUTO MODE Alignment**, **Immediate Tasks UI Confirmation Clearing**, **Section II Execution Tabs (`Doing` / `Pending` / `Cancelled`) with Kanban & Epics Overview Sync**, **Check-Quota Dynamic Google Profile Discovery**, and **Native CLI Trajectory Audit Hardening**.
+
+### Added
+
+- **Tasks UI Execution Tabs (`Doing` / `Pending` / `Cancelled`) & Confirmation Reason Modal (`scripts/_state_envelope.py`, `skills/check-tasks/`)**:
+  - Adds non-destructive local state persistence in `.devtool/state/epic_execution_state.json` (`read_epic_execution_states`, `set_epic_execution_state`) mirrored across root and worktrees, automatically clearing active `pending_decision` alerts when an epic moves to `pending` or `cancelled`.
+  - Adds `POST /api/epic/execution-state` in `tasks_server.py` with strict slug, repository, state, and required-reason validation.
+  - Adds 3 execution tabs (`Doing`, `Pending`, `Cancelled`) in Section II (*Worktree & Profile (PIC) Execution*) displaying all active epics in `Doing` (including pre-handoff Stage 1/2 epics), `Pending`/`Cancel` buttons with a required-reason confirmation modal, `Resume` button on `Pending`/`Cancelled` cards, and height-locked panels with top-center empty states to prevent layout shifts.
+  - Adds a 3-way `Doing` / `Pending` / `Cancelled` filter in the Kanban Dashboard sidebar (defaulting to `Doing`) with stable board height, expands **Epics Overview** to 5 synced cards (`In-Progress`, `Pending`, `Backlog`, `Done`, `Cancelled`), and adds vertical scrolling to the `Strategic Notes` textarea.
+  - Adds `tests/test_tasks_ui_epic_execution_tabs.py` (unit, API, and 9-step Headless Chrome CDP E2E suite) registered in `scripts/verify.sh`.
+- **Dynamic Google Profile Data Discovery (`skills/check-quota/`, `scripts/agy_quota.py`)**:
+  - Dynamically fetches Google tier, email, and license metadata for Antigravity profiles and updates the Quota Dashboard UI.
+
+### Changed
+
+- **End-to-End Zero-Pause AUTO MODE (`rules/CRITICAL_RULES.md`, `skills/dev-lifecycle/`, `skills/principal-review/`, `skills/dev-implementation/`, `skills/cross-model-review/`, `skills/finishing-a-development-branch/`)**:
+  - Removes redundant confirmation prompts during `/principal-review` rounds (when all findings verify `Valid` with zero halt triggers), after `package_epic.py`, at Gate 3 worktree bootstrap, during `/cross-model-review` rounds in AUTO MODE (`Triển khai (tự động)`), and merges Gate 5 + `/finishing-a-development-branch` Step 4 into a single final confirmation menu.
+
+### Fixed
+
+- **Immediate Tasks UI Human-Confirmation Alert Clearing (`skills/check-tasks/resources/scripts/check_tasks.py`, `scripts/resume_context.py`, `run_external_review.py`, `manage_worker_pool.py`, `lifecycle_runner.py`)**:
+  - Clears `pending_decision.json` and writes non-paused active heartbeats immediately upon `--clear-decision`, `--confirm-fixes`, active review phases, and active worker-pool `init`/`working`/`review` syncs (preserving `quota_low`/`model_unavailable` alerts during `cleanup()`).
+  - Updates `check_tasks.derive_lifecycle_state()` to detect active non-paused heartbeats and live `quality_active.json` runs so the red `HUMAN DECISION REQUIRED` banner clears immediately upon resuming AUTO MODE.
+- **Native CLI Trajectory Detection (`skills/audit-account-block/`)**:
+  - Recognizes native CLI trajectories to prevent false-positive foreign trajectory alerts.
+
 ## 1.34.0 — 2026-11-21
 
 Delivers **Task-Level Mechanical Verification Hardening (`task_level_mechanical_verification`)** across `dev-lifecycle`, `dev-designer`, `dev-implementation`, and `subagent-driven-development`: mandatory `REGRESSION` test suite rows, full `Allowed files` static and architectural coverage (`TIER-B`), anti-tamper `Definition of Done` checkbox locks, and clear role demarcation between Programmer mechanical checks and semantic/Cross-Model review.
