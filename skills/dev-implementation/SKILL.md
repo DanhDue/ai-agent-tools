@@ -132,7 +132,7 @@ Rows 4 and 5 only. **MANDATORY: read [references/entry-point-and-resume.md](refe
    If overview Status begins with `Packaged`, run `python3 "$SKILL_DIR"/resources/scripts/sync_task_status.py epic <epic_dir> "In Progress"`.
 
    **Isolated IDE Window**: Optionally open the worktree in a separate IDE profile window (`antigravity <profile> .worktrees/<epic_dir>`).
-5. Bootstrap worktree using platform tooling (`bootstrap_worktree.sh`, Gradle sync, Tuist, npm/pnpm, uv sync, cargo check).
+5. Bootstrap worktree using platform tooling (`bootstrap_worktree.sh` — installs Python `[project.optional-dependencies]` via `uv sync --all-extras` and `[dependency-groups].dev` via `--group dev` when declared; `verify_polyglot_registry.py` injects `UV_NO_SYNC=1` on `uv run` capabilities to preserve extras — plus Gradle sync, Tuist, npm/pnpm, cargo check). Whenever a linked worktree reuses a symlinked parent `.venv`, run all worker commands with `UV_NO_SYNC=1 PYTHONPATH="$WORKTREE_ROOT/src"` so editable `.pth` files never shadow the worktree's `src/` and `uv run` never prunes shared extras.
 6. Never copy build caches (`.dart_tool/`, `/build/`, `.build/`, `android/**/.cxx/`) from another checkout into this worktree.
 7. **Initialize 2-Slot Ephemeral Worker Pool:**
    Set up isolated worktree slots with shared caches (APFS clone / symlink):

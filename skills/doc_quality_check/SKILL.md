@@ -41,9 +41,10 @@ misuse.
 ### Check 0 — Refusal rule
 
 ```bash
-python3 skills/doc_quality_check/resources/scripts/check_document.py \
-  --changed-files $(git diff --name-only <base_ref>...HEAD)
+git diff --name-only -z <base_ref>...HEAD | xargs -0 python3 skills/doc_quality_check/resources/scripts/check_document.py --changed-files
 ```
+
+Using `-z | xargs -0` is zsh-safe (prevents unquoted newline-joined argument splitting bugs and preserves filenames with spaces); `check_document.py` also splits embedded newlines defensively.
 
 Any changed file whose extension ships in a build aborts the run and names the offending paths.
 Documentation directories (`docs/`, `.devtool/`, `.github/`) and `CHANGELOG.md` are exempt.

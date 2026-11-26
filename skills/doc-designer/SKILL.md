@@ -95,7 +95,11 @@ When designing a **Reference** document (`Diátaxis mode: reference`) that defin
 ### Step 4 — Break the outline into tasks
 
 One task per section. Present the numbered list and ask the user to confirm the breakdown and
-granularity. **This checkpoint is Gate 2.** Write no task file before the user confirms.
+granularity. **This checkpoint is Gate 2.** Write no task file before the user confirms. In the
+overview document prior to Gate 2, format planned task filenames as inline code spans (e.g.
+`` `task_01_<name>.md` ``) so `check_document.py` never fails on not-yet-created files; immediately
+after Gate 2 confirmation and writing the `task_*.md` files, upgrade those inline code spans to
+relative Markdown links (e.g. `[Task 01](task_01_<name>.md)`).
 
 **Contract Synchronization Task Priority (`task_01` Rule)**:
 If the reference document affects `shared-contracts/<domain>/`:
@@ -126,7 +130,7 @@ Source Spec: <link, if this came from doc-brainstorming>
 not a dispatch key — `doc-lifecycle` names `doc_quality_check` as Gate 3 directly, so the two
 quality gates never have to know about each other.
 
-Before Gate 2, verify the overview pair mechanically:
+Before Gate 2, verify the overview pair mechanically (keeping planned task filenames as inline code spans such as `` `task_01_<name>.md` `` until Gate 2 creates the task files, then upgrading them to relative Markdown links such as `[Task 01](task_01_<name>.md)`):
 
 ```bash
 python3 skills/doc_quality_check/resources/scripts/check_document.py \

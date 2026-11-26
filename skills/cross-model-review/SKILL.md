@@ -78,6 +78,7 @@ Follow [review-triage.md](references/review-triage.md) and the role matrix in [o
      python3 skills/dev-implementation/resources/scripts/run_external_review.py check --epic-dir <epic_dir>
      python3 skills/dev-implementation/resources/scripts/run_external_review.py triage --epic-dir <epic_dir>
      ```
+   - **Immutable Epic Doc `Minor` Deferral (§4.4)**: For `Minor` code-review findings targeting immutable `.devtool/epic/<epic_dir>/` artefacts, `run_external_review.py triage` pre-fills the sole machine-recordable non-action terminal decision `deferred: out-of-scope epic doc (§4.4)` and auto-defers them into `AUTO_PASS_CLEAN` (never valid for `Critical`/`Important` blockers or ordinary source-file findings).
    - **Boundary**: never read or edit `src/` / `tests/` and never run `pytest`/`ruff`/`mypy` in the main session.
    - **Route by risk** from the triage. **Low risk**: every open finding is `Valid` with severity `Important` or `Minor` (a `Critical` finding is always high risk) and the triage contains no escalation marker (`shared-contracts`, `CRITICAL_CONFLICT`, `SHARED_CONTRACT_CONFLICT`, `Debatable`, `ambiguous`, `architectural state transition`, `trade-off`, `Not shown`, `False positive`), or a Gate 4 failure is the first failure of that check: dispatch a `review-fixer` in `fast-track`. **High risk**: any `Critical` finding, any escalation marker, or the same Gate 4 check failing twice in a row: dispatch a `fix-planner`. The Orchestrator never rules on fix plans.
 

@@ -122,7 +122,12 @@ digraph process {
 Ensure the work happens in an isolated workspace: use
 d3nexus:using-git-worktrees to create one or verify the existing one.
 Never start implementation on a main/master branch without your human
-partner's explicit consent.
+partner's explicit consent. For Python linked worktrees that reuse a
+symlinked parent `.venv` instead of an isolated venv, require every
+subagent test and quality command to run with
+`UV_NO_SYNC=1 PYTHONPATH="$WORKTREE_ROOT/src"` so editable `.pth`
+pointers never shadow the worktree's `src/` and `uv run` never prunes
+shared optional extras.
 
 Conversation memory does not survive compaction. In real sessions,
 controllers that lost their place have re-dispatched entire completed task
@@ -240,6 +245,8 @@ line of status and reconcile your live children: list them, and chase
 any that finished without reporting. A bounded stretch keeps nearly
 all of a long wait's efficiency while guaranteeing a stuck or lost
 child is noticed within minutes, not at the end of the session.
+
+- **Reactive watchdog for `invoke_subagent`:** on runtimes supporting reactive timers, pair `invoke_subagent` dispatches with `schedule(DurationSeconds=180, TimerCondition="any")` (complementing 240s watchdogs on backgrounded shell/`agy` tasks) so interactive-stdin hangs are caught within 3 minutes.
 
 ### 1. Dispatch the implementer
 

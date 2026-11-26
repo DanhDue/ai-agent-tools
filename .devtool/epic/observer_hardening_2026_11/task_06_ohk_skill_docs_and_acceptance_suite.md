@@ -1,13 +1,13 @@
 ---
 id: "task_06_ohk_skill_docs_and_acceptance_suite"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "observer-hardening-2026-11"
 dueDate: null
 created: "2026-11-26T22:10:00Z"
-modified: "2026-11-26T22:10:00Z"
-completedAt: null
+modified: "2026-11-26T17:57:33Z"
+completedAt: "2026-11-26T17:57:33Z"
 labels: ["architecture", "documentation", "acceptance"]
 order: "a6"
 review_tier: "full"
@@ -152,10 +152,10 @@ Then every static section (1 through 10) and all registered unittest and pytest 
 
 ## Definition of Done
 
-- [ ] All 10 observation doc updates (`#4`, `#5`, `#6`, `#8`, `#9`, `#11`, `#12`, `#13`, `#15`, `#16`) applied cleanly with valid frontmatter, links, and ToC anchors (V2, V3)
-- [ ] `skills/subagent-driven-development/SKILL.md` preserves the original Waiting paragraph verbatim and adds the 180s `invoke_subagent` bullet (V2)
-- [ ] All six `tests/test_ohk_*.py` suites registered in `scripts/verify.sh` and `bash scripts/verify.sh --full` exits 0 (`PASS — safe to publish`) (V2, V4, V5, V6)
-- [ ] Full 20-scenario Tier C integration suite passes with JUnit XML evidence at `build/test-results/ohk_acceptance.xml` (V6)
+- [x] All 10 observation doc updates (`#4`, `#5`, `#6`, `#8`, `#9`, `#11`, `#12`, `#13`, `#15`, `#16`) applied cleanly with valid frontmatter, links, and ToC anchors (V2, V3) — exit 0, V2 6 passed, V3 50 pytest + 22 unittest passed
+- [x] `skills/subagent-driven-development/SKILL.md` preserves the original Waiting paragraph verbatim and adds the 180s `invoke_subagent` bullet (V2) — exit 0, 6 passed
+- [x] All six `tests/test_ohk_*.py` suites registered in `scripts/verify.sh` and `bash scripts/verify.sh --full` exits 0 (`PASS — safe to publish`) (V2, V4, V5, V6) — exit 0, ruff/mypy clean, verify.sh --full PASS
+- [x] Full 20-scenario Tier C integration suite passes with JUnit XML evidence at `build/test-results/ohk_acceptance.xml` (V6) — exit 0, 42 passed, 20/20 BDD scenarios covered
 
 ## Dependencies & Blockers
 

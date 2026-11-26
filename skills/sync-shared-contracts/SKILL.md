@@ -96,7 +96,7 @@ python3 sync_contracts.py brief [--repo-root <path>] [--domain <name>] [--output
 python3 sync_contracts.py ack [--repo-root <path>] [--domain <name>] [--snapshot <id>] [--rfc <ID> ...] [--all-rfcs]
 
 # Verify branch diff against shared contract mappings and waivers
-python3 sync_contracts.py diff-check [--repo-root <path>] [--base-ref <ref>] [--domain <name>] [--json]
+python3 sync_contracts.py diff-check [--repo-root <path>] [--base-ref <ref>] [--domain <name>] [--allow-dirty] [--json]
 ```
 
 ## Contract Diff Gate (diff-check)
@@ -111,11 +111,12 @@ The `diff-check` subcommand enforces contract governance during pull requests an
    - `--repo-root <path>`: Path to repository root (defaults to current working directory).
    - `--base-ref <ref>`: Git reference for merge-base calculation (e.g. `main`, `develop`, `{base_ref}`). If omitted, falls back to the `base_ref` declared in `.agents/contract_map.json`.
    - `--domain <name>`: Optional repeatable filter to verify only specific domains. Passing an unknown domain exits `2` (`BLOCKED`).
+   - `--allow-dirty`: Permitted only for uncommitted `review_tier: "full"` Tier C task tests running inside worker slots; audits committed `merge_base..HEAD` while STILL returning `BLOCKED` (exit `2`) whenever `shared-contracts`, `.agents/contract_map.json`, or `.agents/contract_sync.json` (tracked or untracked) is dirty. Omit `--allow-dirty` at Gate 4 and release to preserve strict clean-tree enforcement.
    - `--json`: Emits machine-readable verification summary including per-domain `domains` proof records and `active_waivers`.
 3. **Exit Code Mapping**:
    - `0` (`PASS`): All mapped file changes are accompanied by contract changes, fresh `ack`, or valid waivers (or no mapped files changed).
    - `1` (`FAIL`): Unacknowledged mapped file changes, outdated `ack`, or invalid/stale waivers.
-   - `2` (`BLOCKED`): Dirty tracked working tree, missing/invalid `.agents/contract_map.json`, missing `shared-contracts/` directory or symlink, unresolved base ref, git command failure, or unknown `--domain` filter.
+   - `2` (`BLOCKED`): Dirty tracked working tree (or dirty protected contract path under `--allow-dirty`), missing/invalid `.agents/contract_map.json`, missing `shared-contracts/` directory or symlink, unresolved base ref, git command failure, or unknown `--domain` filter.
 4. **Git Diffing & Baseline Probing**:
    - Diffing executes `git diff --no-ext-diff --no-renames --name-only -z <merge_base>..HEAD` to parse exact file paths with NUL delimiters, preserving whitespace and paths requiring C-quoting.
    - Baseline file presence is probed using `git ls-tree` at merge-base.
@@ -126,7 +127,7 @@ The `diff-check` subcommand enforces contract governance during pull requests an
    - Waivers must be newly introduced in the branch diff; historical waivers present at `merge-base` cannot mask new file changes.
    - Each waiver must set `gap: null` or reference a documented `GAP-XX` in `gaps_and_rfcs.md` with active/pending status (`ACTIONABLE_PENDING`).
 7. **Gate 4 Quality Check Wiring**:
-   - Configured in `.agents/quality/*-quality.json` across all five quality providers:
+   - Configured in `.agents/quality/*-quality.json` across all five quality providers (always omitting `--allow-dirty` so Gate 4 enforces a clean working tree):
      `["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "diff-check", "--base-ref", "{base_ref}"]`
    - Quality providers map exit code `2` to check status `BLOCKED` for `contract_diff`, while exit code `0` maps to `PASS` and `1` maps to `FAIL`.
 

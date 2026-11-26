@@ -257,6 +257,8 @@ scripts/stop-server.sh $SESSION_DIR
 
 If the session used `--project-dir`, mockup files persist in `.superpowers/brainstorm/` for later reference. Only ephemeral sessions (`.agents/tmp/`) get deleted on stop.
 
+**Epic Handoff Persistence:** Before leaving Stage 1 for an epic, copy the final approved HTML mockup files from `.superpowers/brainstorm/` into `.devtool/epic/<epic_dir>/assets/` and list relative `assets/*.html` links under `Approved Visual Companions` in the relocated design spec so `d3nexus:dev-designer` and Stage 3 UI tests can inspect them directly.
+
 ## Reference
 
 - Frame template (CSS reference): `scripts/frame-template.html`
