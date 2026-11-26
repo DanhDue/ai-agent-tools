@@ -8,6 +8,18 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.35.1 — 2026-11-26
+
+Adds safe, clean-only worktree and worker-slot cleanup when moving an epic to **Pending** or **Cancelled** from the Tasks UI to free disk space without risking uncommitted work.
+
+### Added
+
+- **Safe Clean-Only Worktree Removal on Pending / Cancel (`skills/check-tasks/resources/scripts/tasks_server.py`, `skills/check-tasks/resources/dashboard/tasks_dashboard.html`)**:
+  - Adds `_cleanup_epic_worktrees_if_clean()` and `remove_worktree` support on `POST /api/epic/execution-state`, removing clean `.worktrees/<slug>` and `-slot-*` checkouts + running `git worktree prune` while preserving `.devtool/epic/<slug>/` and the git branch `epic/<slug>`.
+  - Protects dirty worktrees (`git status --porcelain -uall` non-empty) from removal, reporting them in `worktree_cleanup.skipped_dirty` with a warning toast instead of force-deleting uncommitted files.
+  - Adds a default-checked *"Remove worktree & worker slots to free disk space"* checkbox to the Pending / Cancel confirmation modal.
+  - Adds `test_remove_worktree_clean_and_preserve_dirty` in `tests/test_tasks_ui_epic_execution_tabs.py`.
+
 ## 1.35.0 — 2026-11-26
 
 Delivers **Zero-Pause AUTO MODE Alignment**, **Immediate Tasks UI Confirmation Clearing**, **Section II Execution Tabs (`Doing` / `Pending` / `Cancelled`) with Kanban & Epics Overview Sync**, **Check-Quota Dynamic Google Profile Discovery**, and **Native CLI Trajectory Audit Hardening**.
