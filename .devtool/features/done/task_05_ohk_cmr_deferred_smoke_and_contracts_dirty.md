@@ -1,13 +1,13 @@
 ---
 id: "task_05_ohk_cmr_deferred_smoke_and_contracts_dirty"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "observer-hardening-2026-11"
 dueDate: null
 created: "2026-11-26T22:10:00Z"
-modified: "2026-11-26T22:10:00Z"
-completedAt: null
+modified: "2026-11-26T17:37:39Z"
+completedAt: "2026-11-26T17:37:39Z"
 labels: ["architecture", "contract", "review"]
 order: "a5"
 review_tier: "full"
@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 5: Handle Immutable `.devtool/epic/` Minor Findings in Cross-Model Review, Improve Smoke Checklist Target Inference, and Add Scoped `sync_contracts.py diff-check --allow-dirty`
 
-Epic: [observer-hardening-2026-11](../epic/observer_hardening_2026_11/observer_hardening_2026_11.md)
+Epic: [observer-hardening-2026-11](../../epic/observer_hardening_2026_11/observer_hardening_2026_11.md)
 
 ## Requirement Analysis
 
@@ -144,10 +144,10 @@ Then it still exits 2 with status "BLOCKED" naming the dirty protected path so a
 
 ## Definition of Done
 
-- [ ] `external-review-prompt.md` and `run_external_review.py` exclude/auto-defer `.devtool/epic/` Minor rows to `AUTO_PASS_CLEAN` while preserving strict `check()` on `Critical`/`Important` (V2, V3, V6)
-- [ ] `generate_smoke_checklist.py` ignores backticked CSS selectors and infers web URL / `"Web Preview UI"` for browser/Playwright BDD scenarios (V2, V3, V4, V5, V6)
-- [ ] `sync_contracts.py diff-check` preserves strict default clean-tree `BLOCKED` and supports scoped `--allow-dirty` guarding `shared-contracts`, `.agents/contract_map.json`, and `.agents/contract_sync.json` (V2, V3, V4, V5, V6)
-- [ ] Assigned BDD integration scenarios (`OHK-HP-05`, `OHK-EC-05`, `OHK-ST-03`, `OHK-FR-03`) pass with JUnit XML evidence (V6)
+- [x] `external-review-prompt.md` and `run_external_review.py` exclude/auto-defer `.devtool/epic/` Minor rows to `AUTO_PASS_CLEAN` while preserving strict `check()` on `Critical`/`Important` (V2, V3, V6) — exit 0, 8 passed (V2/V6) + regression passed (V3)
+- [x] `generate_smoke_checklist.py` ignores backticked CSS selectors and infers web URL / `"Web Preview UI"` for browser/Playwright BDD scenarios (V2, V3, V4, V5, V6) — exit 0, ruff/mypy clean (V4/V5), 8 passed (V2/V6)
+- [x] `sync_contracts.py diff-check` preserves strict default clean-tree `BLOCKED` and supports scoped `--allow-dirty` guarding `shared-contracts`, `.agents/contract_map.json`, and `.agents/contract_sync.json` (V2, V3, V4, V5, V6) — exit 0, ruff/mypy clean (V4/V5), 8 passed (V2/V6)
+- [x] Assigned BDD integration scenarios (`OHK-HP-05`, `OHK-EC-05`, `OHK-ST-03`, `OHK-FR-03`) pass with JUnit XML evidence (V6) — exit 0, 4/4 covered PASS (`build/test-results/task_05.xml`)
 
 ## Dependencies & Blockers
 
@@ -155,7 +155,7 @@ None.
 
 ## References & Rollback
 
-- Spec: [2026-11-26-observer-hardening-design.md](../epic/observer_hardening_2026_11/2026-11-26-observer-hardening-design.md)
-- HLD: [observer_hardening_2026_11.md](../epic/observer_hardening_2026_11/observer_hardening_2026_11.md)
-- BDD: [bdd_scenarios.md](../epic/observer_hardening_2026_11/bdd_scenarios.md)
+- Spec: [2026-11-26-observer-hardening-design.md](../../epic/observer_hardening_2026_11/2026-11-26-observer-hardening-design.md)
+- HLD: [observer_hardening_2026_11.md](../../epic/observer_hardening_2026_11/observer_hardening_2026_11.md)
+- BDD: [bdd_scenarios.md](../../epic/observer_hardening_2026_11/bdd_scenarios.md)
 - Rollback: Revert this task's commit on `epic/observer-hardening-2026-11`.

@@ -1183,6 +1183,43 @@ def cmd_ack(args: argparse.Namespace) -> int:
     return 0
 
 
+PROTECTED_CONTRACT_PATHS = (
+    "shared-contracts",
+    ".agents/contract_map.json",
+    ".agents/contract_sync.json",
+)
+
+
+def _extract_porcelain_paths(raw_output: str) -> list[str]:
+    """Extract normalized repo-relative paths from `git status --porcelain` output."""
+    paths: list[str] = []
+    for raw_line in raw_output.splitlines():
+        line = raw_line.rstrip("\r\n")
+        if len(line) < 4:
+            continue
+        entry = line[3:].strip()
+        candidates = entry.split(" -> ") if " -> " in entry else [entry]
+        for candidate in candidates:
+            cleaned = candidate.strip().strip('"').replace("\\", "/").rstrip("/")
+            while cleaned.startswith("./"):
+                cleaned = cleaned[2:]
+            if cleaned and cleaned not in paths:
+                paths.append(cleaned)
+    return paths
+
+
+def _is_protected_contract_path(rel_path: str) -> bool:
+    """Return True when rel_path targets shared-contracts or contract metadata files."""
+    norm = rel_path.replace("\\", "/").strip().rstrip("/")
+    while norm.startswith("./"):
+        norm = norm[2:]
+    return (
+        norm == "shared-contracts"
+        or norm.startswith("shared-contracts/")
+        or norm in {".agents/contract_map.json", ".agents/contract_sync.json"}
+    )
+
+
 def cmd_diff_check(args: argparse.Namespace) -> int:
     """Audit diff between merge-base and HEAD against .agents/contract_map.json."""
     repo_root = Path(args.repo_root).resolve() if args.repo_root else Path.cwd().resolve()
@@ -1239,18 +1276,54 @@ def cmd_diff_check(args: argparse.Namespace) -> int:
             if d not in head_domains:
                 return emit_blocked([f"Unknown domain filter '{d}' not in contract_map.json domains"])
 
-    # 3. Preconditions: Check tracked working-tree cleanliness
+    # 3. Preconditions: Check working-tree cleanliness (strict by default; scoped guard under --allow-dirty)
+    allow_dirty = bool(getattr(args, "allow_dirty", False))
     proc_status = subprocess.run(
-        ["git", "status", "--porcelain", "--untracked-files=no"],
+        ["git", "-c", "core.quotepath=false", "status", "--porcelain", "--untracked-files=no"],
         check=False,
         cwd=repo_root,
         capture_output=True,
     )
     if proc_status.returncode != 0:
         return emit_blocked([f"git status failed: {proc_status.stderr.decode(errors='replace').strip()}"])
-    if proc_status.stdout.strip():
-        dirty_lines = [line.strip() for line in proc_status.stdout.decode(errors='replace').splitlines() if line.strip()]
-        return emit_blocked([f"Working tree has tracked modifications: {', '.join(dirty_lines)}"])
+    tracked_stdout = proc_status.stdout.decode(errors="replace")
+    if not allow_dirty:
+        if tracked_stdout.strip():
+            dirty_lines = [line.strip() for line in tracked_stdout.splitlines() if line.strip()]
+            return emit_blocked([f"Working tree has tracked modifications: {', '.join(dirty_lines)}"])
+    else:
+        proc_protected = subprocess.run(
+            [
+                "git",
+                "-c",
+                "core.quotepath=false",
+                "status",
+                "--porcelain",
+                "--untracked-files=all",
+                "--",
+                *PROTECTED_CONTRACT_PATHS,
+            ],
+            check=False,
+            cwd=repo_root,
+            capture_output=True,
+        )
+        if proc_protected.returncode != 0:
+            return emit_blocked(
+                [
+                    f"git status failed on protected contract paths: {proc_protected.stderr.decode(errors='replace').strip()}"
+                ]
+            )
+        all_dirty_paths = _extract_porcelain_paths(tracked_stdout)
+        for p in _extract_porcelain_paths(proc_protected.stdout.decode(errors="replace")):
+            if p not in all_dirty_paths:
+                all_dirty_paths.append(p)
+        protected_dirty = [p for p in all_dirty_paths if _is_protected_contract_path(p)]
+        if protected_dirty:
+            return emit_blocked(
+                [
+                    f"Working tree has dirty protected contract path(s) disallowed even with --allow-dirty: {', '.join(protected_dirty)}"
+                ]
+            )
 
     # 4. Preconditions: Determine effective_base_ref and resolve merge-base
     effective_base_ref: str = args.base_ref if args.base_ref else head_map_data["base_ref"]
@@ -1732,6 +1805,11 @@ def main(argv: list[str] | None = None) -> int:
     p_diff.add_argument("--base-ref", type=str, help="Base git reference")
     p_diff.add_argument("--domain", action="append", help="Contract domain filter")
     p_diff.add_argument("--json", action="store_true", help="Emit JSON output")
+    p_diff.add_argument(
+        "--allow-dirty",
+        action="store_true",
+        help="Allow dirty non-contract working-tree files while still blocking dirty protected contract paths",
+    )
 
     args = parser.parse_args(argv)
     if not args.command:

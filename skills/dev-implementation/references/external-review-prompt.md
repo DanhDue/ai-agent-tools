@@ -68,6 +68,7 @@ Verdict: PASS
 
 Rules for Severity & Verdict:
 - Use `Critical` for a defect that breaks the epic's goal, `Important` for one that must be fixed before merge, and `Minor` for anything else.
+- **Immutable Epic Artefacts (Read-Only Spec Context)**: Stage 2/3 epic artefacts under `.devtool/epic/<epic_dir>/` (such as `task_*.md`, `handoff.md`, `manual_smoke_checklist.md`, `<epic_dir>.md`, `bdd_scenarios.md`) are read-only specification context for code review — do NOT emit `Minor` prose or formatting findings against them (report only code/test defects that violate them).
 - **Exhaustive Per-File Pass (Anti-Drip-Feed Rule)**: In Round 1 (full-scope review), report ALL `Critical` and `Important` defects within each inspected file in the same round; never hold back or drip-feed findings on untouched lines of the same file across later delta rounds.
 - Output `Verdict: CHANGES REQUIRED` if and only if there is at least one `Critical` or `Important` finding.
 - If there are no findings (or only `Minor` findings), you MUST output `Verdict: PASS`.

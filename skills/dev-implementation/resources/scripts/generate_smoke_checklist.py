@@ -17,9 +17,133 @@ from _epic_docs import resolve_epic_doc
 URL_REGEX = re.compile(r"https?://[^\s)`'\"]+")
 COMMAND_REGEX = re.compile(r"`([^`]+)`")
 CLI_ENTRYPOINT_REGEX = re.compile(
-    r"\b(?:python3?|npx|npm|cargo|pytest|mypy|ruff|git)\s+[^\s,;`]+|\bd3nexus:[a-zA-Z0-9_-]+|\b[a-zA-Z0-9_-]+-quality-check\b",
+    r"\b(?:python3?|npx|npm|cargo|pytest|mypy|ruff|git|uv|bash|sh)\s+[^\s,;`]+|\bd3nexus:[a-zA-Z0-9_-]+|\b[a-zA-Z0-9_-]+-quality-check\b",
     re.IGNORECASE,
 )
+BROWSER_UI_CUE_REGEX = re.compile(
+    r"\b(?:playwright|browser|viewport|preview|modal|dom|page|clicks?|clicked|clicking|renders?|rendered|rendering)\b|\.html?\b",
+    re.IGNORECASE,
+)
+CLI_FIRST_TOKEN_REGEX = re.compile(r"^(?:\./)?[a-z][a-z0-9._/-]*$")
+KNOWN_CLI_EXECUTABLES = frozenset(
+    {
+        "python",
+        "python3",
+        "pytest",
+        "uv",
+        "pip",
+        "pip3",
+        "ruff",
+        "mypy",
+        "npm",
+        "npx",
+        "pnpm",
+        "yarn",
+        "node",
+        "bun",
+        "cargo",
+        "rustc",
+        "go",
+        "git",
+        "gh",
+        "bash",
+        "sh",
+        "zsh",
+        "make",
+        "just",
+        "docker",
+        "curl",
+        "melos",
+        "flutter",
+        "dart",
+        "fvm",
+        "gradle",
+        "gradlew",
+        "swift",
+        "tuist",
+        "xcodebuild",
+        "playwright",
+    }
+)
+NON_EXECUTABLE_EXTENSIONS = (
+    ".css",
+    ".scss",
+    ".less",
+    ".html",
+    ".htm",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".md",
+    ".txt",
+    ".svg",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".webp",
+    ".gif",
+    ".ico",
+    ".xml",
+    ".sql",
+    ".env",
+    ".lock",
+    ".csv",
+    ".js",
+    ".jsx",
+    ".ts",
+    ".tsx",
+    ".astro",
+    ".jinja",
+    ".jinja2",
+)
+
+
+def _extract_first_url(text: str) -> str | None:
+    """Return the first http(s) URL in text with trailing sentence punctuation stripped."""
+    match = URL_REGEX.search(text)
+    if not match:
+        return None
+    return match.group(0).rstrip(".,;:>]")
+
+
+def _is_cli_command_token(token: str) -> bool:
+    """Return True only when a backticked span looks like an executable CLI command."""
+    cleaned = token.strip()
+    if not cleaned:
+        return False
+    if cleaned.startswith(("#", "[", "<", "@", "$", "/")):
+        return False
+    if cleaned.startswith(".") and not cleaned.startswith("./"):
+        return False
+    if CLI_ENTRYPOINT_REGEX.search(cleaned):
+        return True
+
+    parts = cleaned.split()
+    head = parts[0]
+    head_lower = head.lower()
+
+    if len(parts) == 1:
+        if head.startswith("./"):
+            return not head_lower.endswith(NON_EXECUTABLE_EXTENSIONS)
+        return head_lower.endswith(".sh")
+
+    if head_lower.endswith(NON_EXECUTABLE_EXTENSIONS):
+        return False
+    if head.startswith("./"):
+        return True
+    if head in KNOWN_CLI_EXECUTABLES:
+        return True
+    if head_lower.endswith((".sh", ".py")) and CLI_FIRST_TOKEN_REGEX.match(head):
+        return True
+    return bool(
+        CLI_FIRST_TOKEN_REGEX.match(head)
+        and any(
+            part.startswith("--")
+            or (len(part) == 2 and part.startswith("-") and part[1].isalpha())
+            for part in parts[1:]
+        )
+    )
 
 
 def parse_bdd_scenarios(content: str) -> list[dict[str, Any]]:
@@ -67,19 +191,23 @@ def parse_bdd_scenarios(content: str) -> list[dict[str, Any]]:
     return scenarios
 
 
-def extract_target_from_text(text: str) -> str:
-    """Extract a URL, backticked command, or bare CLI tooling entrypoint from text."""
-    url_match = URL_REGEX.search(text)
-    if url_match:
-        return url_match.group(0)
+def extract_target_from_text(text: str, default_web_target: str | None = None) -> str:
+    """Extract a URL, validated backticked CLI command, bare CLI entrypoint, or browser target from text."""
+    url = _extract_first_url(text)
+    if url:
+        return url
 
-    cmd_match = COMMAND_REGEX.search(text)
-    if cmd_match:
-        return f"`{cmd_match.group(1)}`"
+    for cmd_match in COMMAND_REGEX.finditer(text):
+        candidate = cmd_match.group(1)
+        if _is_cli_command_token(candidate):
+            return f"`{candidate}`"
 
     cli_match = CLI_ENTRYPOINT_REGEX.search(text)
     if cli_match:
         return f"`{cli_match.group(0)}`"
+
+    if BROWSER_UI_CUE_REGEX.search(text):
+        return default_web_target or "Web Preview UI"
 
     return "CLI / Workspace Root"
 
@@ -88,6 +216,7 @@ def extract_smoke_steps(
     scenarios: list[dict[str, Any]],
     min_steps: int = 3,
     max_steps: int = 5,
+    default_web_target: str | None = None,
 ) -> list[dict[str, str]]:
     """Extract 3-5 concise, actionable manual smoke steps from primary BDD Happy Paths."""
     happy_paths = [
@@ -99,6 +228,21 @@ def extract_smoke_steps(
     if not happy_paths:
         # Fall back to any scenarios if no explicit HP exists
         happy_paths = scenarios
+
+    resolved_web_target = default_web_target
+    if resolved_web_target is None:
+        for sc in scenarios:
+            probe_parts = [
+                str(sc.get("title", "")),
+                " ".join(sc.get("given", [])),
+                " ".join(sc.get("when", [])),
+                " ".join(sc.get("then", [])),
+                " ".join(sc.get("and", [])),
+            ]
+            found_url = _extract_first_url(" ".join(probe_parts))
+            if found_url:
+                resolved_web_target = found_url
+                break
 
     raw_steps: list[dict[str, str]] = []
 
@@ -118,7 +262,13 @@ def extract_smoke_steps(
 
         # Determine target
         combined = f"{' '.join(sc.get('given', []))} {action}"
-        target = extract_target_from_text(combined)
+        target = extract_target_from_text(
+            combined, default_web_target=resolved_web_target
+        )
+        if target == "CLI / Workspace Root":
+            extra_context = f"{sc.get('title', '')} {' '.join(ands)}"
+            if BROWSER_UI_CUE_REGEX.search(extra_context):
+                target = resolved_web_target or "Web Preview UI"
 
         raw_steps.append(
             {
@@ -206,8 +356,13 @@ def generate_smoke_checklist(
         raise FileNotFoundError(f"BDD scenarios file not found at {source_bdd}")
 
     content = source_bdd.read_text(encoding="utf-8")
+    default_web_target = _extract_first_url(content)
+    if default_web_target is None:
+        hld_doc = resolve_epic_doc(resolved_epic_dir, resolved_epic_dir.name)
+        if hld_doc is not None and hld_doc.is_file():
+            default_web_target = _extract_first_url(hld_doc.read_text(encoding="utf-8"))
     scenarios = parse_bdd_scenarios(content)
-    steps = extract_smoke_steps(scenarios)
+    steps = extract_smoke_steps(scenarios, default_web_target=default_web_target)
 
     rendered = render_smoke_checklist_markdown(resolved_epic_dir.name, steps)
 

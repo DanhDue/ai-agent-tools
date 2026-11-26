@@ -89,8 +89,52 @@ def test_extract_target_from_text() -> None:
     bare_skill = "When Gate 4 invokes d3nexus:web-quality-check with profile epic"
     assert extract_target_from_text(bare_skill) == "`d3nexus:web-quality-check`"
 
-    fallback_text = "Click the primary button"
-    assert extract_target_from_text(fallback_text) == "CLI / Workspace Root"
+    fallback_ui_text = "Click the primary button"
+    assert extract_target_from_text(fallback_ui_text) == "Web Preview UI"
+    assert (
+        extract_target_from_text(
+            fallback_ui_text, default_web_target="http://127.0.0.1:8000"
+        )
+        == "http://127.0.0.1:8000"
+    )
+
+    non_ui_fallback = "Synchronize queued offline records"
+    assert extract_target_from_text(non_ui_fallback) == "CLI / Workspace Root"
+
+
+def test_extract_target_ignores_css_selectors_and_asset_filenames() -> None:
+    """CSS selectors, routes, asset filenames, and single identifiers are not misclassified as CLI commands."""
+    assert (
+        extract_target_from_text(
+            "Playwright clicks `.tts-save-btn` inside `#modal` styled by `style.css` on page `/tts-studio`",
+            default_web_target="http://127.0.0.1:8000",
+        )
+        == "http://127.0.0.1:8000"
+    )
+    assert (
+        extract_target_from_text(
+            "Browser renders `index.html` and verifies `.card` layout"
+        )
+        == "Web Preview UI"
+    )
+    assert (
+        extract_target_from_text(
+            "Check `contract_map.json` status `PASS` with `./scripts/verify.sh`"
+        )
+        == "`./scripts/verify.sh`"
+    )
+    assert (
+        extract_target_from_text("Run `sync_contracts.py diff-check --allow-dirty`")
+        == "`sync_contracts.py diff-check --allow-dirty`"
+    )
+    assert (
+        extract_target_from_text("Run `mytool --check` on workspace")
+        == "`mytool --check`"
+    )
+    assert (
+        extract_target_from_text("Inspect `style.css` and `Recording` state")
+        == "CLI / Workspace Root"
+    )
 
 
 def test_step_count_clamping() -> None:
