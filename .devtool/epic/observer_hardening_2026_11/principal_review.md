@@ -50,3 +50,26 @@ Raw output:
 ```text
 Verdict: CHANGES REQUIRED
 ```
+
+## Round 3
+
+- **Date**: 2026-11-26T15:45:13Z
+- **SHA**: 376f9acdce647f9c97d20329e7c0f50247deb209
+- **Base**: main
+- **CLI**: codex
+- **Model**: gpt-6.1-sol
+- **Thinking**: high
+- **Status**: completed
+- **Verdict**: PASS
+- **Kind**: principal
+- **Scope**: convergence from round 2 (38de8a6)
+- **Raw log**: `build/reviews/observer_hardening_2026_11_principal_round3_376f9ac.raw.log`
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+
+Raw output:
+
+```text
+Verdict: PASS
+```
