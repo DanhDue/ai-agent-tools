@@ -1,6 +1,6 @@
 # Observer Hardening 2026-11 Design Specification
 
-- **Status**: Draft (Awaiting Gate 1 Approval)
+- **Status**: Approved (Gate 1 — 2026-11-26)
 - **PIC**: duvthinh403
 - **Epic Slug**: `observer-hardening-2026-11`
 - **Epic Directory**: `observer_hardening_2026_11`
