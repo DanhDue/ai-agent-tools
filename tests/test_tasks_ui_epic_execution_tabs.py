@@ -198,6 +198,71 @@ def test_tasks_server_execution_state_api_validation(tmp_path: Path) -> None:
         thread.join(timeout=5)
 
 
+def test_remove_worktree_clean_and_preserve_dirty(tmp_path: Path) -> None:
+    """remove_worktree=True safely removes clean worktrees & slots while preserving git branches, epic docs, and dirty worktrees."""
+    repo = _seed_demo_workspace(tmp_path)
+    # Create clean epic worktree + clean slot-1 for handoff_epic
+    clean_wt = repo / ".worktrees" / "handoff_epic"
+    clean_slot = repo / ".worktrees" / "handoff_epic-slot-1"
+    subprocess.run(
+        ["git", "worktree", "add", "-q", "-b", "epic/handoff-epic", str(clean_wt)],
+        cwd=repo,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "worktree", "add", "-q", "--detach", str(clean_slot), "epic/handoff-epic"],
+        cwd=repo,
+        check=True,
+    )
+
+    # Create dirty worktree for stage1_epic
+    dirty_wt = repo / ".worktrees" / "stage1_epic"
+    subprocess.run(
+        ["git", "worktree", "add", "-q", "-b", "epic/stage1-epic", str(dirty_wt)],
+        cwd=repo,
+        check=True,
+    )
+    (dirty_wt / "uncommitted_wip.txt").write_text("WIP code\n", encoding="utf-8")
+
+    # 1. Clean worktree + slot removed on Pending with remove_worktree=True; branch & epic docs preserved
+    res_clean = set_epic_execution_state_for_repo(
+        tmp_path,
+        "ai-agent-tools",
+        "handoff_epic",
+        "pending",
+        reason="Pause to free disk space",
+        remove_worktree=True,
+    )
+    assert res_clean["status"] == "ok"
+    assert len(res_clean["worktree_cleanup"]["removed"]) == 2
+    assert res_clean["worktree_cleanup"]["skipped_dirty"] == []
+    assert not clean_wt.exists()
+    assert not clean_slot.exists()
+    assert (repo / ".devtool" / "epic" / "handoff_epic" / "handoff_epic.md").is_file()
+    branch_check = subprocess.run(
+        ["git", "rev-parse", "--verify", "refs/heads/epic/handoff-epic"],
+        cwd=repo,
+        capture_output=True,
+        check=False,
+    )
+    assert branch_check.returncode == 0
+
+    # 2. Dirty worktree preserved safely on Cancel with remove_worktree=True
+    res_dirty = set_epic_execution_state_for_repo(
+        tmp_path,
+        "ai-agent-tools",
+        "stage1_epic",
+        "cancelled",
+        reason="Shelve epic",
+        remove_worktree=True,
+    )
+    assert res_dirty["status"] == "ok"
+    assert res_dirty["worktree_cleanup"]["removed"] == []
+    assert len(res_dirty["worktree_cleanup"]["skipped_dirty"]) == 1
+    assert dirty_wt.is_dir()
+    assert (dirty_wt / "uncommitted_wip.txt").is_file()
+
+
 def test_e2e_headless_chrome_execution_tabs_modal_and_kanban_filter(
     tmp_path: Path,
 ) -> None:

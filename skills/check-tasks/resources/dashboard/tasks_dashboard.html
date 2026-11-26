@@ -1059,6 +1059,13 @@
             Please enter a reason before confirming.
           </div>
         </div>
+        <label style="display: flex; align-items: flex-start; gap: 8px; padding: 9px 11px; border-radius: 6px; background: #0f131f; border: 1px solid #1e293b; cursor: pointer;">
+          <input type="checkbox" id="epic-state-remove-worktree-checkbox" checked style="margin-top: 2px; accent-color: #38bdf8; cursor: pointer;" />
+          <span style="display: flex; flex-direction: column; gap: 2px;">
+            <strong style="font-size: 12px; color: #e2e8f0;">Remove worktree &amp; worker slots to free disk space</strong>
+            <span style="font-size: 11px; color: #94a3b8; line-height: 1.35;">Keeps epic docs and git branch. Dirty worktrees with uncommitted files are preserved safely.</span>
+          </span>
+        </label>
         <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; padding-top: 10px; border-top: 1px solid #1e293b;">
           <button type="button" onclick="closeEpicStateModal()" class="btn-action-neutral" style="font-size: 12px; padding: 6px 14px; border-radius: 5px;">
             Cancel
@@ -3099,6 +3106,8 @@ Loading evidence data...
           : 'Enter reason for pausing this epic...';
       }
       if (errEl) errEl.style.display = 'none';
+      const removeWtEl = document.getElementById('epic-state-remove-worktree-checkbox');
+      if (removeWtEl) removeWtEl.checked = true;
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.textContent = isCancel ? 'Confirm Cancel' : 'Confirm Pending';
@@ -3127,6 +3136,7 @@ Loading evidence data...
       if (!epicStateModalContext) return;
       const inputEl = document.getElementById('epic-state-reason-input');
       const errEl = document.getElementById('epic-state-reason-error');
+      const removeWtEl = document.getElementById('epic-state-remove-worktree-checkbox');
       const submitBtn = document.getElementById('epic-state-modal-submit-btn');
       const reason = String(inputEl ? inputEl.value : '').trim();
       if (!reason) {
@@ -3134,9 +3144,10 @@ Loading evidence data...
         if (inputEl) inputEl.focus();
         return;
       }
+      const removeWorktree = Boolean(removeWtEl ? removeWtEl.checked : false);
       const { repoName, epicSlug, targetState } = epicStateModalContext;
       if (submitBtn) submitBtn.disabled = true;
-      updateEpicExecutionState(repoName, epicSlug, targetState, reason).then(ok => {
+      updateEpicExecutionState(repoName, epicSlug, targetState, reason, removeWorktree).then(ok => {
         if (ok) {
           closeEpicStateModal();
         } else if (submitBtn) {
@@ -3145,7 +3156,7 @@ Loading evidence data...
       });
     }
 
-    function updateEpicExecutionState(repoName, epicSlug, targetState, reason = '') {
+    function updateEpicExecutionState(repoName, epicSlug, targetState, reason = '', removeWorktree = false) {
       const repo = (currentReposData || []).find(r => r.name === repoName);
       const targetEp = repo?.epics_summary?.epics?.find(e => slugsMatch(e.slug, epicSlug));
       const prevState = targetEp ? (targetEp.execution_state || 'doing') : 'doing';
@@ -3187,7 +3198,13 @@ Loading evidence data...
       return fetch(getApiUrl('/api/epic/execution-state'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ repo: repoName, epic: epicSlug, state: targetState, reason }),
+        body: JSON.stringify({
+          repo: repoName,
+          epic: epicSlug,
+          state: targetState,
+          reason,
+          remove_worktree: Boolean(removeWorktree),
+        }),
       })
         .then(r => r.text().then(text => {
           let data = {};
@@ -3199,8 +3216,17 @@ Loading evidence data...
         .then(({ ok, data }) => {
           if (ok && data.status === 'ok') {
             const label = targetState === 'doing' ? 'Resumed to Doing' : (targetState === 'pending' ? 'Moved to Pending' : 'Moved to Cancelled');
+            const wtInfo = data.worktree_cleanup || {};
+            const removedCount = Array.isArray(wtInfo.removed) ? wtInfo.removed.length : 0;
+            const dirtyCount = Array.isArray(wtInfo.skipped_dirty) ? wtInfo.skipped_dirty.length : 0;
             if (typeof showToast === 'function') {
-              showToast(`✅ Epic ${epicSlug}: ${label}`, 'success');
+              if (dirtyCount > 0) {
+                showToast(`⚠️ Epic ${epicSlug}: ${label} — kept ${dirtyCount} dirty worktree(s) with uncommitted files`, 'warning');
+              } else if (removedCount > 0) {
+                showToast(`✅ Epic ${epicSlug}: ${label} (removed ${removedCount} worktree${removedCount > 1 ? 's' : ''})`, 'success');
+              } else {
+                showToast(`✅ Epic ${epicSlug}: ${label}`, 'success');
+              }
             }
             if (typeof fetchStatus === 'function') fetchStatus();
             return true;

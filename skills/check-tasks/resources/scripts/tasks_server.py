@@ -1409,12 +1409,107 @@ def _is_pic_hld_or_spec(doc: Path, epic_slug: str) -> bool:
     )
 
 
+def _normalize_wt_slug(slug: str) -> str:
+    return re.sub(r"[-_]+", "_", str(slug or "").strip().lower()).strip("_")
+
+
+def _cleanup_epic_worktrees_if_clean(
+    repo_path: Path,
+    epic_slug: str,
+) -> dict[str, Any]:
+    """Safely remove clean epic worktrees (and worker slots) while preserving git branches and dirty worktrees."""
+    result: dict[str, Any] = {"removed": [], "skipped_dirty": [], "errors": []}
+    repo_resolved = repo_path.resolve()
+    allowed_wt_roots = (
+        (repo_resolved / ".worktrees").resolve(),
+        (repo_resolved / "worktrees").resolve(),
+    )
+    norm_slug = _normalize_wt_slug(epic_slug)
+    if not norm_slug:
+        return result
+
+    wt_list_proc = subprocess.run(
+        ["git", "-C", str(repo_resolved), "worktree", "list", "--porcelain"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if wt_list_proc.returncode != 0:
+        return result
+
+    candidates: list[Path] = []
+    for line in wt_list_proc.stdout.splitlines():
+        if not line.startswith("worktree "):
+            continue
+        raw_wt = line[len("worktree ") :].strip()
+        if not raw_wt:
+            continue
+        wt_path = Path(raw_wt).resolve()
+        if wt_path == repo_resolved:
+            continue
+        if not any(wt_path.is_relative_to(wt_root) for wt_root in allowed_wt_roots):
+            continue
+        norm_name = _normalize_wt_slug(wt_path.name)
+        if norm_name == norm_slug or norm_name.startswith(f"{norm_slug}_slot_"):
+            candidates.append(wt_path)
+
+    # Remove ephemeral slot worktrees before the primary epic worktree
+    candidates.sort(
+        key=lambda p: (
+            0 if "_slot_" in _normalize_wt_slug(p.name) else 1,
+            p.name,
+        )
+    )
+
+    for wt_path in candidates:
+        if not wt_path.exists():
+            continue
+        status_proc = subprocess.run(
+            ["git", "-C", str(wt_path), "status", "--porcelain", "-uall"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        dirty_lines = [ln for ln in status_proc.stdout.splitlines() if ln.strip()]
+        if status_proc.returncode != 0 or dirty_lines:
+            result["skipped_dirty"].append(
+                {
+                    "path": str(wt_path),
+                    "dirty_files": len(dirty_lines),
+                }
+            )
+            continue
+
+        rm_proc = subprocess.run(
+            ["git", "-C", str(repo_resolved), "worktree", "remove", str(wt_path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if rm_proc.returncode == 0:
+            result["removed"].append(str(wt_path))
+        else:
+            err_msg = (rm_proc.stderr or rm_proc.stdout or "git worktree remove failed").strip()
+            result["errors"].append({"path": str(wt_path), "error": err_msg})
+
+    if result["removed"]:
+        subprocess.run(
+            ["git", "-C", str(repo_resolved), "worktree", "prune"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    return result
+
+
 def set_epic_execution_state_for_repo(
     workspace_root: Path,
     repo_name: str,
     epic_slug: str,
     state: str,
     reason: str = "",
+    *,
+    remove_worktree: bool = False,
 ) -> dict[str, Any]:
     """Validate and persist an epic's UI execution state (`doing`, `pending`, or `cancelled`)."""
     if not isinstance(epic_slug, str) or not _EPIC_SLUG_RE.fullmatch(epic_slug):
@@ -1449,6 +1544,14 @@ def set_epic_execution_state_for_repo(
     if state_env is None:
         raise RuntimeError("_state_envelope module is unavailable")
 
+    worktree_cleanup: dict[str, Any] = {
+        "removed": [],
+        "skipped_dirty": [],
+        "errors": [],
+    }
+    if remove_worktree and norm_state in ("pending", "cancelled"):
+        worktree_cleanup = _cleanup_epic_worktrees_if_clean(repo_path, epic_slug)
+
     state_env.set_epic_execution_state(
         repo_path,
         epic_slug,
@@ -1461,6 +1564,7 @@ def set_epic_execution_state_for_repo(
         "epic": epic_slug,
         "state": norm_state,
         "reason": clean_reason,
+        "worktree_cleanup": worktree_cleanup,
     }
 
 
@@ -2092,6 +2196,7 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
             epic_slug = payload.get("epic", "")
             state = payload.get("state", "")
             reason = payload.get("reason", "")
+            remove_worktree = bool(payload.get("remove_worktree", False))
 
             if not repo_name or not epic_slug or not state:
                 self._send_json(
@@ -2110,6 +2215,7 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
                     epic_slug,
                     state,
                     reason=reason,
+                    remove_worktree=remove_worktree,
                 )
             except (ValueError, RuntimeError) as exc:
                 self._send_json(400, {"status": "error", "error": str(exc)})
