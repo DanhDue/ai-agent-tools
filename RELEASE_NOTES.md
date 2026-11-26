@@ -1,27 +1,26 @@
-# Release Notes: d3nexus v1.35.1
+# Release Notes: d3nexus v1.35.2
 
 **Release Date:** November 26, 2026  
-**Version:** `1.35.1`  
-**Git Tag:** `v1.35.1`, `d3nexus--v1.35.1`
+**Version:** `1.35.2`  
+**Git Tag:** `v1.35.2`, `d3nexus--v1.35.2`
 
 ---
 
 ## Executive Summary
 
-`v1.35.1` adds safe, clean-only worktree and worker-slot cleanup when moving epics to **Pending** or **Cancelled** in the Tasks UI so developers can reclaim disk space (`node_modules`, `.venv`, `build/`, `target/`, `.dart_tool/`) while keeping epic documentation, git branches, and any dirty worktrees intact.
+`v1.35.2` fixes broken clipboard copy buttons in the Check-Quota **Account Info** modal (Copy Email, Copy CLI Command, and Login CLI Command) both standalone and when embedded inside the Tasks Dashboard iframe.
 
 ---
 
 ## Key Highlights
 
-### Safe Clean-Only Worktree Cleanup (`skills/check-tasks/`)
-- **Confirmation Modal Option**: The Pending / Cancel confirmation dialog now includes a default-checked checkbox: **Remove worktree & worker slots to free disk space** (*keeps epic docs and git branch*).
-- **Zero-Data-Loss Guard**: `_cleanup_epic_worktrees_if_clean()` removes ephemeral worker slots (`-slot-*`) and the main epic worktree strictly when `git status --porcelain -uall` is clean, then runs `git worktree prune`. Dirty worktrees with uncommitted or untracked files are never force-removed and are surfaced via a warning toast.
-- **API Contract**: `POST /api/epic/execution-state` accepts `remove_worktree: boolean` and returns `worktree_cleanup` (`removed`, `skipped_dirty`, `errors`).
+### Reliable Clipboard Copy Across Standalone & Embedded Quota UI (`skills/check-quota/`, `skills/check-tasks/`)
+- **Iframe Permissions**: Added `allow="clipboard-write; clipboard-read"` to `#quota-iframe` in `tasks_dashboard.html` so cross-origin embedded Quota views are not blocked by browser Permissions Policy.
+- **Automatic Fallback**: Unified `copyInfoEmail()`, `copyInfoCliCmd()`, `copyLoginCmd()`, and `copyProfileNameToClipboard()` behind `copyTextToClipboard()` with automatic `textarea` + `document.execCommand("copy")` fallback and clear toast confirmation.
 
 ---
 
 ## Verifications & Quality Gates Passed
 
-- `python3 -m pytest tests/test_tasks_ui_epic_execution_tabs.py -v` (4/4 passed, including clean worktree/slot removal, dirty worktree preservation, and Headless Chrome CDP E2E)
+- `python3 -m pytest tests/test_cqra_quota_ui.py tests/test_rsdh_quota_modal_stack.py -q` (16/16 passed)
 - `bash scripts/verify.sh --quiet` (all structural integrity checks & 90 test suites across 14 parallel workers: PASS)

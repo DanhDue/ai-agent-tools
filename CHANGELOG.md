@@ -8,6 +8,16 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.35.2 — 2026-11-26
+
+Fixes clipboard copy actions in the Check-Quota account info modal (email, CLI command, and login command), including when embedded inside the Tasks Dashboard iframe.
+
+### Fixed
+
+- **Check-Quota Account Info Clipboard Copy (`skills/check-quota/resources/dashboard/quota_dashboard.html`, `skills/check-tasks/resources/dashboard/tasks_dashboard.html`)**:
+  - Adds `allow="clipboard-write; clipboard-read"` to `#quota-iframe` in `tasks_dashboard.html` so cross-port embedded Quota modals can access the Clipboard API.
+  - Introduces a unified `copyTextToClipboard()` helper with automatic `textarea` + `document.execCommand("copy")` fallback and toast feedback for `copyInfoEmail()`, `copyInfoCliCmd()`, `copyLoginCmd()`, and `copyProfileNameToClipboard()`.
+
 ## 1.35.1 — 2026-11-26
 
 Adds safe, clean-only worktree and worker-slot cleanup when moving an epic to **Pending** or **Cancelled** from the Tasks UI to free disk space without risking uncommitted work.
