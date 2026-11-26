@@ -129,6 +129,14 @@ subagent test and quality command to run with
 pointers never shadow the worktree's `src/` and `uv run` never prunes
 shared optional extras.
 
+- **Isolated Multi-Profile Browser Verification Fallback:** when a plan
+  step requests interactive Chrome DevTools (`browser_subagent`) in an
+  isolated multi-profile `HOME` environment, pre-flight check
+  `DevToolsActivePort` first; if absent (`ENOENT`), execute the hermetic
+  Playwright E2E + screenshot gate instead, record
+  `Ruling: Fell back from interactive Chrome DevTools (DevToolsActivePort ENOENT in isolated HOME) to hermetic Playwright E2E + screenshots — <why> — <cost if wrong>`
+  in `<workspace>/progress.md`, and continue without stalling.
+
 Conversation memory does not survive compaction. In real sessions,
 controllers that lost their place have re-dispatched entire completed task
 sequences — the single most expensive failure observed. Track progress in

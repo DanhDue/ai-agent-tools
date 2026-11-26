@@ -32,7 +32,7 @@ review_tier: "full"     # optional: "full" for high-risk/multi-module tasks; omi
    - `Read-only context:` Paths only read, including `(new)` files from upstream tasks.
    - **Surgical `target_files` Anchors**: Under `## Impact Analysis & Blast Radius`, whenever modifying an existing file `> 200` lines, list the exact target symbol plus `(L<start>-L<end>)` line range so Stage 3 implementers use bounded reads.
 5. **Design Rationale & Applicable Skills**:
-   - Web: `browser_subagent`, Node.js `--test` / Vitest, Astro check, Playwright
+   - Web: Playwright (primary hermetic browser gate), Node.js `--test` / Vitest, Astro check, optional `browser_subagent` (with `DevToolsActivePort` pre-flight + Playwright fallback)
    - Python: `python-quality-check`, `pytest`, `ruff`, `mypy`, `import-linter`
    - Rust: `rust-quality-check`, `xtask`, `wasm-pack`
    - Flutter: `flutter-ui-audit`, Mason bricks, `build_runner`
@@ -105,7 +105,7 @@ review_tier: "full"     # optional: "full" for high-risk/multi-module tasks; omi
 | **Flutter** | `fvm flutter test` / `melos test` (`bloc_test`, Mocktail) | `check_module_boundaries.sh`, `check_license_header.sh`, `melos format`, `melos analyze` | `integration_test/` host composition root (`AppRoutes`, `AppEventBus`), `./scripts/testWithCoverage.sh` |
 | **Android** | `./gradlew testDebugUnitTest` (JUnit, MockK, Turbine) | Konsist K1–K10 (`:konsist-test:test`), BCV (`apiCheck`), Detekt, Spotless | Host `:app` + `:shell`, `./scripts/acceptance_check.sh` |
 | **iOS** | `swift test --package-path <Pkg>` | `check_module_boundaries.sh`, `ArchTests`, `swiftlint`, `swiftformat --lint` | `App/` + `Shell/` composition root, `tuist generate --no-open && xcodebuild test` |
-| **Web / FE** | `node --test`, Vitest, Jest | `tsc --noEmit`, framework check (`astro check`), `prettier --check`, `eslint` | `tests/e2e/*.test.ts` + live `browser_subagent` `.webp`/DOM/CSS verification |
+| **Web / FE** | `node --test`, Vitest, Jest | `tsc --noEmit`, framework check (`astro check`), `prettier --check`, `eslint` | Hermetic Playwright E2E + screenshots/DOM/CSS assertions (primary); optional interactive `browser_subagent` with `DevToolsActivePort` pre-flight + Playwright fallback |
 | **Python** | `uv run pytest -q --tb=short --maxfail=3 tests/unit/` | `ruff check`, `ruff format --check`, `mypy --strict`, `lint-imports` | `tests/integration/` & `tests/e2e/` (`uv run pytest -q --tb=short --maxfail=3`) |
 | **Rust** | `cargo test --lib` | `cargo fmt --check`, `cargo clippy -D warnings`, `cargo deny check`, `xtask check-boundaries` | `cargo test --test '*'` / `just acceptance` + `just wasm-test` |
 
@@ -138,7 +138,7 @@ flowchart TD
             FLOW_SCENARIOS["[Tier C - Integration] Scenarios"]
             FLOW_TESTS["Host Integration Flow & E2E Tests<br/>(integration_test, *FlowTest.kt, tests/e2e)"]
             SYS_ASSERT["Assert DI, Navigation Stack, Lifecycle,<br/>Auth Gating Replay, Feature Seams"]
-            BROWSER_VERIFY["Web: Live Browser Verification<br/>(browser_subagent + Video/Screenshots)"]
+            BROWSER_VERIFY["Web: Hermetic Playwright E2E + Screenshots<br/>(optional browser_subagent after DevToolsActivePort pre-flight)"]
             FLOW_TESTS --> SYS_ASSERT --> BROWSER_VERIFY
         end
     end

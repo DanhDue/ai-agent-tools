@@ -9,7 +9,7 @@ description: Use when you have a spec or requirements for a multi-step task, bef
 
 Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
 
-Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well. Crucially, plans must define bite-sized steps that not only cover unit TDD, but also **Integration Test Planning & Boundary Edge Cases** (empty states, errors, timeouts, race conditions). For any Web or UI deliverables, the plan MUST include a dedicated **Live Web Browser Verification** step using `browser_subagent` to verify actual rendering, interaction, and visual correctness before considering the work complete.
+Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well. Crucially, plans must define bite-sized steps that not only cover unit TDD, but also **Integration Test Planning & Boundary Edge Cases** (empty states, errors, timeouts, race conditions). For any Web or UI deliverables, the plan MUST include a dedicated **Browser Verification** step using **hermetic Playwright E2E assertions and screenshot capture** as the primary automated gate (with optional interactive Chrome DevTools via `browser_subagent` pre-flight checked for `DevToolsActivePort` and falling back to Playwright in isolated multi-profile `HOME` environments).
 
 **Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
 
@@ -44,12 +44,12 @@ Unit tests in isolation are necessary but insufficient to guarantee that a featu
 
 3. **Live Web Browser Verification (For Web / UI Deliverables)**:
    - Component unit tests and DOM mocks do not prove that a web page actually renders or behaves correctly in a real browser engine.
-   - Any task that creates or modifies web pages, UI components, styling, or browser interactions MUST include a **Live Browser Verification** step.
+   - Any task that creates or modifies web pages, UI components, styling, or browser interactions MUST include a **Browser Verification** step with **hermetic Playwright E2E assertions and screenshot capture** (running against project-local bundled Chromium independent of host `HOME`) as the primary automated browser gate.
+   - Interactive Chrome DevTools (`browser_subagent`) is an optional visual pass that MUST run a pre-flight check for `DevToolsActivePort` in the active Chrome user data directory and fall back cleanly to hermetic Playwright E2E + screenshots whenever `DevToolsActivePort` is absent (`ENOENT`) in isolated multi-profile `HOME` environments.
    - Specify the exact operational steps:
      1. Build and launch the dev or preview server (e.g. `npm run dev` or `npx --no-install astro preview --port 4324`).
-     2. Dispatch `browser_subagent` to open the target URL, click interactive elements, type input, and assert expected DOM text and states.
-     3. Record browser interaction session as a WebP video artifact and capture screenshot artifacts.
-     4. Verify visual hierarchy, CSS layout, responsiveness, and console logs (zero unexpected errors).
+     2. Run the hermetic Playwright E2E suite (e.g. `npx --no-install playwright test`) to exercise interactive flows, assert DOM text/states and CSS layout geometry, enforce zero unexpected console errors, and capture screenshot artifacts.
+     3. Optional interactive visual pass: pre-flight check `DevToolsActivePort` in the active Chrome user data directory; if present, dispatch `browser_subagent` to inspect visual hierarchy and record a WebP (`.webp`) interaction artifact; if absent, record the fallback to hermetic Playwright E2E + screenshots and proceed without stalling.
 
 4. **100% BDD & Edge Case Traceability**:
    - Every use case and boundary edge case identified in the spec MUST map to an explicit automated test step (unit test step for Tier A, integration test step for Tier C).
@@ -178,13 +178,13 @@ Write & run integration test exercising multi-component flow and boundary edge c
 Run: `npm test tests/integration/test_flow.test.ts` (or `pytest tests/integration/...`)
 Expected: PASS with 100% boundary coverage
 
-- [ ] **Step 6: Live Web Browser Verification (for Web / UI Tasks)**
+- [ ] **Step 6: Browser Verification (for Web / UI Tasks)**
 
-Launch preview/dev server and dispatch `browser_subagent` to verify live behavior:
-1. Open URL `http://localhost:<port>/<route>`
-2. Test user interaction flow, click controls, verify state transitions
-3. Save video recording (`.webp`) and capture screenshot artifact
-4. Assert expected DOM text and zero console exceptions
+Launch the preview/dev server and run the primary hermetic Playwright E2E gate:
+1. Run `npx --no-install playwright test` against `http://localhost:<port>/<route>` (project-local bundled Chromium, independent of host `HOME`)
+2. Assert interactive DOM states, layout geometry, and zero console exceptions
+3. Capture and save screenshot artifacts for the verified views
+4. Optional interactive supplement: pre-flight check `DevToolsActivePort` in the active Chrome user data directory; if present, dispatch `browser_subagent` for an interactive `.webp` visual pass; if absent (`ENOENT` in isolated `HOME`), record the fallback to hermetic Playwright E2E + screenshots and proceed without stalling
 
 - [ ] **Step 7: Commit**
 
@@ -216,7 +216,7 @@ After writing the complete plan, look at the spec with fresh eyes and check the 
 
 **4. Markdown & Diagram lint check:** Does the plan strictly adhere to markdown lint standards (all code blocks tagged with language, no skipped headings, clean formatting)? Do any embedded Mermaid diagrams use modern `flowchart` instead of legacy `graph`, with quoted special-character labels? Do any DOT diagrams follow standard semantic shapes and statement semicolons?
 
-**5. Integration & Edge Case Verification Check:** Does the plan specify tests for boundary edge cases (empty states, errors, race conditions)? If the plan touches Web/UI code, does it mandate Live Browser Verification using `browser_subagent` with visual recording and screenshots?
+**5. Integration & Edge Case Verification Check:** Does the plan specify tests for boundary edge cases (empty states, errors, race conditions)? If the plan touches Web/UI code, does it mandate a hermetic Playwright E2E + screenshot verification gate as primary and include a `DevToolsActivePort` pre-flight with Playwright fallback for any optional interactive `browser_subagent` steps?
 
 If you find issues, fix them inline. No need to re-review — just fix and move on. If you find a spec requirement with no task, add the task.
 

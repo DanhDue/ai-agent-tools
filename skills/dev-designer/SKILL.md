@@ -88,11 +88,12 @@ Append sequentially numbered task files, update Kanban Tasks Breakdown links (an
 
 | Agent Rationalization | Enforced Counter-Rule |
 |---|---|
-| "Node.js unit tests prove this web UI works." | **REJECTED**: Web Tier C requires headless Playwright + Zero-Console-And-Layout-Defect checks. |
+| "Node.js unit tests prove this web UI works." | **REJECTED**: Web Tier C uses **hermetic Playwright E2E + screenshot/layout (`getComputedStyle`, `getBoundingClientRect`) + Zero-Console-Error checks** as the primary automated browser gate (independent of host `HOME`). |
 | "Hardcoding mock data in a stub is enough." | **REJECTED**: Wire-level fixtures from `shared-contracts/` are required. |
 | "Browser console errors are harmless warnings." | **REJECTED**: Zero-Console-Error fails Gate 4 on any uncaught console error. |
 | "No simulator, so a unit test counts as Tier C." | **REJECTED**: Mobile Tier C requires Subcutaneous Testing with real DI/persistence. |
 | "HTML matches the Visual Companion mockup." | **REJECTED**: Web Tier C2 UI tests must assert `getComputedStyle` and `getBoundingClientRect` layout properties against the Visual Companion design. |
+| "Interactive Chrome DevTools failed because `DevToolsActivePort` is missing, so skip browser verification." | **REJECTED**: Interactive Chrome DevTools (`browser_subagent`) requires a `DevToolsActivePort` pre-flight check with Playwright fallback in isolated multi-profile `HOME` setups; run the primary hermetic Playwright E2E + screenshot gate instead. |
 
 **Doubt-Driven Verification Protocol**: **1. CLAIM** (state assertion) -> **2. EXTRACT** (inspect JUnit XML classnames, Playwright traces, mocks) -> **3. DOUBT** (challenge mock/unit shortcuts) -> **4. RECONCILE** (verify against real production code paths).
 
