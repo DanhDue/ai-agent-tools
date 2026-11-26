@@ -878,48 +878,50 @@
       "tierDisplayName": "Google AI Pro",
       "authMethod": "consumer",
       "upgradeText": "You can upgrade to a Google AI Ultra plan to receive higher rate limits.",
-      "upgradeUrl": "https://antigravity.google/g1-upgrade"
+      "upgradeUrl": "https://antigravity.google/g1-upgrade",
+      "remainingCredits": 0,
+      "creditsSummary": "0 AI credits remaining"
     },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-24T17:25:15Z",
-    "resetTimeLocal": "00:25:15",
+    "resetTime": "2026-11-26T06:29:06Z",
+    "resetTimeLocal": "13:29:06",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (00:25:15)",
-      "resetTime": "2026-11-24T17:25:15Z",
-      "resetTimeLocal": "00:25:15",
+      "countdown": "⏱ 4h 59m (13:29:06)",
+      "resetTime": "2026-11-26T06:29:06Z",
+      "resetTimeLocal": "13:29:06",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (00:25:15)",
-      "resetTime": "2026-11-24T17:25:15Z",
+      "countdown": "⏱ --",
+      "resetTime": "1970-01-01T00:00:00Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.999714732170105,
-      "countdown": "⏱ 6d 8h (01/12 03:52)",
+      "fraction": 0.9995626211166382,
+      "countdown": "⏱ 4d 19h (01/12 03:52)",
       "resetTime": "2026-11-30T20:52:27Z",
       "resetTimeLocal": "01/12 03:52",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
-      "fraction": 0.8672356009483337,
-      "countdown": "⏱ 1d 15h (26/11 10:26)",
-      "resetTime": "2026-11-26T03:26:11Z",
+      "fraction": 1,
+      "countdown": "⏱ --",
+      "resetTime": "1970-01-01T00:00:00Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Carbon & Argon Weekly",
-      "fraction": 0.999714732170105,
-      "countdown": "⏱ 6d 8h (01/12 03:52)",
+      "fraction": 0.9995626211166382,
+      "countdown": "⏱ 4d 19h (01/12 03:52)",
       "resetTime": "2026-11-30T20:52:27Z",
       "resetTimeLocal": "01/12 03:52",
       "unavailable": false,
@@ -1201,7 +1203,7 @@
         "Orchestrator"
       ]
     },
-    "modelsFetchedAt": "2026-11-24T06:35:12Z",
+    "modelsFetchedAt": "2026-11-26T01:29:14Z",
     "groupDescSig": "dd013305244febac"
   },
   "buivantrong8901": {
@@ -1241,24 +1243,24 @@
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
-      "fraction": 1.0,
+      "fraction": 1,
       "countdown": "⏱ --",
-      "resetTime": "",
-      "unavailable": true
+      "resetTime": "1970-01-01T00:00:00Z",
+      "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (01/12 19:25)",
-      "resetTime": "2026-12-01T12:25:20Z",
-      "resetTimeLocal": "01/12 19:25",
+      "countdown": "⏱ 6d 23h (03/12 08:29)",
+      "resetTime": "2026-12-03T01:29:07Z",
+      "resetTimeLocal": "03/12 08:29",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (01/12 19:25)",
-      "resetTime": "2026-12-01T12:25:20Z",
+      "countdown": "⏱ --",
+      "resetTime": "1970-01-01T00:00:00Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -1272,6 +1274,10 @@
       "mode": "none"
     },
     "availableModels": [
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
       "gemini-3.8-flash-high",
       "gemini-3.8-flash-medium",
       "gemini-3.8-flash-low",
@@ -1280,6 +1286,38 @@
       "gpt-oss-120b-medium"
     ],
     "modelCatalog": [
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
       {
         "id": "gemini-3.8-flash-high",
         "label": "Gemini 3.8 Flash",
@@ -1331,6 +1369,7 @@
     ],
     "groupModels": {
       "gemini": [
+        "Gemini 4 Hydrogen",
         "Gemini 3.8 Flash"
       ],
       "claude": [
@@ -1350,8 +1389,8 @@
         "FREE"
       ]
     },
-    "modelsFetchedAt": "2026-11-24T05:08:06Z",
-    "groupDescSig": "9dd3ec2fa26eb11d"
+    "modelsFetchedAt": "2026-11-26T01:29:11Z",
+    "groupDescSig": "752b6b5d1f489159"
   },
   "d3molt": {
     "email": "d3moltbot@gmail.com",
@@ -1372,42 +1411,44 @@
       "tierDisplayName": "Google AI Pro",
       "authMethod": "consumer",
       "upgradeText": "You can upgrade to a Google AI Ultra plan to receive higher rate limits.",
-      "upgradeUrl": "https://antigravity.google/g1-upgrade"
+      "upgradeUrl": "https://antigravity.google/g1-upgrade",
+      "remainingCredits": 0,
+      "creditsSummary": "0 AI credits remaining"
     },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-24T17:25:26Z",
-    "resetTimeLocal": "00:25:26",
+    "resetTime": "2026-11-26T06:29:07Z",
+    "resetTimeLocal": "13:29:07",
     "hasArgon": false,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (00:25:26)",
-      "resetTime": "2026-11-24T17:25:26Z",
-      "resetTimeLocal": "00:25:26",
+      "countdown": "⏱ 4h 59m (13:29:07)",
+      "resetTime": "2026-11-26T06:29:07Z",
+      "resetTimeLocal": "13:29:07",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (00:25:26)",
-      "resetTime": "2026-11-24T17:25:26Z",
+      "countdown": "⏱ 4h 59m (13:29:07)",
+      "resetTime": "2026-11-26T06:29:07Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (01/12 19:25)",
-      "resetTime": "2026-12-01T12:25:26Z",
-      "resetTimeLocal": "01/12 19:25",
+      "countdown": "⏱ 6d 23h (03/12 08:29)",
+      "resetTime": "2026-12-03T01:29:07Z",
+      "resetTimeLocal": "03/12 08:29",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (01/12 19:25)",
-      "resetTime": "2026-12-01T12:25:26Z",
+      "countdown": "⏱ 6d 23h (03/12 08:29)",
+      "resetTime": "2026-12-03T01:29:07Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -1421,6 +1462,10 @@
       "mode": "none"
     },
     "availableModels": [
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
       "gemini-3.8-flash-high",
       "gemini-3.8-flash-medium",
       "gemini-3.8-flash-low",
@@ -1429,6 +1474,38 @@
       "gpt-oss-120b-medium"
     ],
     "modelCatalog": [
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
       {
         "id": "gemini-3.8-flash-high",
         "label": "Gemini 3.8 Flash",
@@ -1480,6 +1557,7 @@
     ],
     "groupModels": {
       "gemini": [
+        "Gemini 4 Hydrogen",
         "Gemini 3.8 Flash"
       ],
       "claude": [
@@ -1499,8 +1577,8 @@
         "PRO"
       ]
     },
-    "modelsFetchedAt": "2026-11-24T05:08:07Z",
-    "groupDescSig": "9dd3ec2fa26eb11d"
+    "modelsFetchedAt": "2026-11-26T01:29:15Z",
+    "groupDescSig": "752b6b5d1f489159"
   },
   "daddy": {
     "email": "huem286@gmail.com",
@@ -1527,17 +1605,14 @@
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 0.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": "",
-      "resetTimeLocal": ""
+      "countdown": "⏱ Bị khóa",
+      "unavailable": true
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 0.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": ""
+      "countdown": "⏱ Bị khóa",
+      "unavailable": true
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
@@ -1558,8 +1633,6 @@
       "unavailable": true,
       "tags": true
     },
-    "resetTime": "",
-    "resetTimeLocal": "",
     "capabilities": {
       "tier": "PRO"
     }
@@ -1583,48 +1656,50 @@
       "tierDisplayName": "Google AI Pro",
       "authMethod": "consumer",
       "upgradeText": "You can upgrade to a Google AI Ultra plan to receive higher rate limits.",
-      "upgradeUrl": "https://antigravity.google/g1-upgrade"
+      "upgradeUrl": "https://antigravity.google/g1-upgrade",
+      "remainingCredits": 0,
+      "creditsSummary": "0 AI credits remaining"
     },
     "status": "ACTIVE",
     "isAppeal": false,
-    "isSessionActive": false,
-    "resetTime": "2026-11-24T17:25:32Z",
-    "resetTimeLocal": "00:25:32",
+    "isSessionActive": true,
+    "resetTime": "2026-11-26T06:36:04Z",
+    "resetTimeLocal": "13:36:04",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 1,
-      "countdown": "⏱ 4h 59m (00:25:32)",
-      "resetTime": "2026-11-24T17:25:32Z",
-      "resetTimeLocal": "00:25:32",
+      "fraction": 0.9899333119392395,
+      "countdown": "⏱ 4h 59m (13:36:04)",
+      "resetTime": "2026-11-26T06:36:04Z",
+      "resetTimeLocal": "13:36:04",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
-      "fraction": 1,
-      "countdown": "⏱ --",
-      "resetTime": "",
+      "fraction": 0.9668481945991516,
+      "countdown": "⏱ 4h 59m",
+      "resetTime": "2026-11-26T06:36:24Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.5361579060554504,
-      "countdown": "⏱ 6d 7h (01/12 03:25)",
+      "fraction": 0.5223773717880249,
+      "countdown": "⏱ 4d 18h (01/12 03:25)",
       "resetTime": "2026-11-30T20:25:00Z",
       "resetTimeLocal": "01/12 03:25",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
-      "fraction": 0,
-      "countdown": "⏱ 1d 14h (26/11 09:33)",
-      "resetTime": "2026-11-26T02:33:45Z",
+      "fraction": 0.9834241271018982,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-12-03T01:36:24Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Carbon & Argon Weekly",
-      "fraction": 0.5361579060554504,
-      "countdown": "⏱ 6d 7h (01/12 03:25)",
+      "fraction": 0.5223773717880249,
+      "countdown": "⏱ 4d 18h (01/12 03:25)",
       "resetTime": "2026-11-30T20:25:00Z",
       "resetTimeLocal": "01/12 03:25",
       "unavailable": false,
@@ -1906,7 +1981,7 @@
         "Orchestrator"
       ]
     },
-    "modelsFetchedAt": "2026-11-24T05:08:16Z",
+    "modelsFetchedAt": "2026-11-26T01:36:01Z",
     "groupDescSig": "dd013305244febac"
   },
   "duedd": {
@@ -1928,48 +2003,50 @@
       "tierDisplayName": "Google AI Pro",
       "authMethod": "consumer",
       "upgradeText": "You can upgrade to a Google AI Ultra plan to receive higher rate limits.",
-      "upgradeUrl": "https://antigravity.google/g1-upgrade"
+      "upgradeUrl": "https://antigravity.google/g1-upgrade",
+      "remainingCredits": 0,
+      "creditsSummary": "0 AI credits remaining"
     },
     "status": "ACTIVE",
     "isAppeal": false,
-    "isSessionActive": false,
-    "resetTime": "2026-11-24T17:25:38Z",
-    "resetTimeLocal": "00:25:38",
+    "isSessionActive": true,
+    "resetTime": "2026-11-26T06:37:49Z",
+    "resetTimeLocal": "13:37:49",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 1,
-      "countdown": "⏱ 4h 59m (00:25:38)",
-      "resetTime": "2026-11-24T17:25:38Z",
-      "resetTimeLocal": "00:25:38",
+      "fraction": 0.9993891716003418,
+      "countdown": "⏱ 4h 59m (13:37:49)",
+      "resetTime": "2026-11-26T06:37:49Z",
+      "resetTimeLocal": "13:37:49",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
-      "fraction": 1,
-      "countdown": "⏱ --",
-      "resetTime": "",
+      "fraction": 0.9740838408470154,
+      "countdown": "⏱ 4h 59m",
+      "resetTime": "2026-11-26T06:38:09Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.9996986389160156,
-      "countdown": "⏱ 6d 8h (01/12 04:15)",
+      "fraction": 0.9992325901985168,
+      "countdown": "⏱ 4d 19h (01/12 04:15)",
       "resetTime": "2026-11-30T21:15:30Z",
       "resetTimeLocal": "01/12 04:15",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
-      "fraction": 0,
-      "countdown": "⏱ 1d 15h (26/11 10:27)",
-      "resetTime": "2026-11-26T03:27:29Z",
+      "fraction": 0.9870418906211853,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-12-03T01:38:09Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Carbon & Argon Weekly",
-      "fraction": 0.9996986389160156,
-      "countdown": "⏱ 6d 8h (01/12 04:15)",
+      "fraction": 0.9992325901985168,
+      "countdown": "⏱ 4d 19h (01/12 04:15)",
       "resetTime": "2026-11-30T21:15:30Z",
       "resetTimeLocal": "01/12 04:15",
       "unavailable": false,
@@ -2251,7 +2328,7 @@
         "Orchestrator"
       ]
     },
-    "modelsFetchedAt": "2026-11-24T06:35:37Z",
+    "modelsFetchedAt": "2026-11-26T01:37:44Z",
     "groupDescSig": "dd013305244febac"
   },
   "duvthinh403": {
@@ -2273,48 +2350,50 @@
       "tierDisplayName": "Google AI Pro",
       "authMethod": "consumer",
       "upgradeText": "You can upgrade to a Google AI Ultra plan to receive higher rate limits.",
-      "upgradeUrl": "https://antigravity.google/g1-upgrade"
+      "upgradeUrl": "https://antigravity.google/g1-upgrade",
+      "remainingCredits": 0,
+      "creditsSummary": "0 AI credits remaining"
     },
     "status": "ACTIVE",
     "isAppeal": false,
-    "isSessionActive": true,
-    "resetTime": "2026-11-24T17:25:44Z",
-    "resetTimeLocal": "00:25:44",
+    "isSessionActive": false,
+    "resetTime": "2026-11-26T06:37:20Z",
+    "resetTimeLocal": "13:37:20",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (00:25:44)",
-      "resetTime": "2026-11-24T17:25:44Z",
-      "resetTimeLocal": "00:25:44",
+      "countdown": "⏱ 4h 59m (13:37:20)",
+      "resetTime": "2026-11-26T06:37:20Z",
+      "resetTimeLocal": "13:37:20",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
-      "fraction": 0.5035544037818909,
-      "countdown": "⏱ 11m (19:37:27)",
-      "resetTime": "2026-11-24T12:37:27Z",
+      "fraction": 1,
+      "countdown": "⏱ --",
+      "resetTime": "1970-01-01T00:00:00Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.365682452917099,
-      "countdown": "⏱ 6d 7h (01/12 03:03)",
+      "fraction": 0.3655465245246887,
+      "countdown": "⏱ 4d 18h (01/12 03:03)",
       "resetTime": "2026-11-30T20:03:05Z",
       "resetTimeLocal": "01/12 03:03",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
-      "fraction": 0.31573760509490967,
-      "countdown": "⏱ 1d 13h (26/11 09:25)",
-      "resetTime": "2026-11-26T02:25:19Z",
+      "fraction": 1,
+      "countdown": "⏱ --",
+      "resetTime": "1970-01-01T00:00:00Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Carbon & Argon Weekly",
-      "fraction": 0.365682452917099,
-      "countdown": "⏱ 6d 7h (01/12 03:03)",
+      "fraction": 0.3655465245246887,
+      "countdown": "⏱ 4d 18h (01/12 03:03)",
       "resetTime": "2026-11-30T20:03:05Z",
       "resetTimeLocal": "01/12 03:03",
       "unavailable": false,
@@ -2596,7 +2675,7 @@
         "Orchestrator"
       ]
     },
-    "modelsFetchedAt": "2026-11-24T05:08:19Z",
+    "modelsFetchedAt": "2026-11-26T01:37:27Z",
     "groupDescSig": "dd013305244febac"
   },
   "hau": {
@@ -2618,48 +2697,50 @@
       "tierDisplayName": "Google AI Pro",
       "authMethod": "consumer",
       "upgradeText": "You can upgrade to a Google AI Ultra plan to receive higher rate limits.",
-      "upgradeUrl": "https://antigravity.google/g1-upgrade"
+      "upgradeUrl": "https://antigravity.google/g1-upgrade",
+      "remainingCredits": 0,
+      "creditsSummary": "0 AI credits remaining"
     },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": true,
-    "resetTime": "2026-11-24T16:21:35Z",
-    "resetTimeLocal": "23:21:35",
+    "resetTime": "2026-11-26T09:01:21Z",
+    "resetTimeLocal": "16:01:21",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 0.9899333119392395,
-      "countdown": "⏱ 3h 55m (23:21:35)",
-      "resetTime": "2026-11-24T16:21:35Z",
-      "resetTimeLocal": "23:21:35",
+      "countdown": "⏱ 4h 59m (16:01:21)",
+      "resetTime": "2026-11-26T09:01:21Z",
+      "resetTimeLocal": "16:01:21",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
-      "fraction": 1,
-      "countdown": "⏱ 4h 59m (00:25:56)",
-      "resetTime": "2026-11-24T17:25:56Z",
+      "fraction": 0.9655961990356445,
+      "countdown": "⏱ 4h 59m",
+      "resetTime": "2026-11-26T09:01:36Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.9897276163101196,
-      "countdown": "⏱ 6d 8h (01/12 04:16)",
+      "fraction": 0.9884956479072571,
+      "countdown": "⏱ 4d 17h (01/12 04:16)",
       "resetTime": "2026-11-30T21:16:42Z",
       "resetTimeLocal": "01/12 04:16",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
-      "fraction": 0.7698563933372498,
-      "countdown": "⏱ 1d 15h (26/11 10:36)",
-      "resetTime": "2026-11-26T03:36:05Z",
+      "fraction": 0.9827980995178223,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-12-03T04:01:36Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Carbon & Argon Weekly",
-      "fraction": 0.9897276163101196,
-      "countdown": "⏱ 6d 8h (01/12 04:16)",
+      "fraction": 0.9884956479072571,
+      "countdown": "⏱ 4d 17h (01/12 04:16)",
       "resetTime": "2026-11-30T21:16:42Z",
       "resetTimeLocal": "01/12 04:16",
       "unavailable": false,
@@ -2941,7 +3022,7 @@
         "Orchestrator"
       ]
     },
-    "modelsFetchedAt": "2026-11-24T05:19:24Z",
+    "modelsFetchedAt": "2026-11-26T04:01:17Z",
     "groupDescSig": "dd013305244febac"
   },
   "hoangcongtam690": {
@@ -2981,24 +3062,24 @@
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
-      "fraction": 1.0,
+      "fraction": 1,
       "countdown": "⏱ --",
-      "resetTime": "",
-      "unavailable": true
+      "resetTime": "1970-01-01T00:00:00Z",
+      "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (01/12 19:26)",
-      "resetTime": "2026-12-01T12:26:02Z",
-      "resetTimeLocal": "01/12 19:26",
+      "countdown": "⏱ 6d 23h (03/12 08:29)",
+      "resetTime": "2026-12-03T01:29:22Z",
+      "resetTimeLocal": "03/12 08:29",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (01/12 19:26)",
-      "resetTime": "2026-12-01T12:26:02Z",
+      "countdown": "⏱ --",
+      "resetTime": "1970-01-01T00:00:00Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -3012,6 +3093,10 @@
       "mode": "none"
     },
     "availableModels": [
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
       "gemini-3.8-flash-high",
       "gemini-3.8-flash-medium",
       "gemini-3.8-flash-low",
@@ -3020,6 +3105,38 @@
       "gpt-oss-120b-medium"
     ],
     "modelCatalog": [
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
       {
         "id": "gemini-3.8-flash-high",
         "label": "Gemini 3.8 Flash",
@@ -3071,6 +3188,7 @@
     ],
     "groupModels": {
       "gemini": [
+        "Gemini 4 Hydrogen",
         "Gemini 3.8 Flash"
       ],
       "claude": [
@@ -3090,8 +3208,8 @@
         "FREE"
       ]
     },
-    "modelsFetchedAt": "2026-11-24T05:08:29Z",
-    "groupDescSig": "9dd3ec2fa26eb11d"
+    "modelsFetchedAt": "2026-11-26T01:29:26Z",
+    "groupDescSig": "752b6b5d1f489159"
   },
   "huynhminhtien0510": {
     "email": "huynhminhtien0510@gmail.com",
@@ -3112,48 +3230,50 @@
       "tierDisplayName": "Google AI Pro",
       "authMethod": "consumer",
       "upgradeText": "You can upgrade to a Google AI Ultra plan to receive higher rate limits.",
-      "upgradeUrl": "https://antigravity.google/g1-upgrade"
+      "upgradeUrl": "https://antigravity.google/g1-upgrade",
+      "remainingCredits": 0,
+      "creditsSummary": "0 AI credits remaining"
     },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": true,
-    "resetTime": "2026-11-24T10:18:47Z",
-    "resetTimeLocal": "17:18:47",
+    "resetTime": "2026-11-26T09:02:04Z",
+    "resetTimeLocal": "16:02:04",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.9994649291038513,
-      "countdown": "⏱ 2h 39m (17:18:47)",
-      "resetTime": "2026-11-24T10:18:47Z",
-      "resetTimeLocal": "17:18:47",
+      "fraction": 0.9994519948959351,
+      "countdown": "⏱ 4h 59m (16:02:04)",
+      "resetTime": "2026-11-26T09:02:04Z",
+      "resetTimeLocal": "16:02:04",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
-      "fraction": 0.9656010270118713,
-      "countdown": "⏱ 2h 39m (17:19:04)",
-      "resetTime": "2026-11-24T10:19:04Z",
+      "fraction": 0.9734257459640503,
+      "countdown": "⏱ 4h 59m",
+      "resetTime": "2026-11-26T09:02:19Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.9997334480285645,
-      "countdown": "⏱ 6d 13h (01/12 04:16)",
+      "fraction": 0.6998342275619507,
+      "countdown": "⏱ 4d 17h (01/12 04:16)",
       "resetTime": "2026-11-30T21:16:52Z",
       "resetTimeLocal": "01/12 04:16",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
-      "fraction": 0.90719074010849,
-      "countdown": "⏱ 3d 18h (28/11 09:32)",
+      "fraction": 0.8761876821517944,
+      "countdown": "⏱ 1d 22h",
       "resetTime": "2026-11-28T02:32:06Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Carbon & Argon Weekly",
-      "fraction": 0.9997334480285645,
-      "countdown": "⏱ 6d 13h (01/12 04:16)",
+      "fraction": 0.6998342275619507,
+      "countdown": "⏱ 4d 17h (01/12 04:16)",
       "resetTime": "2026-11-30T21:16:52Z",
       "resetTimeLocal": "01/12 04:16",
       "unavailable": false,
@@ -3435,7 +3555,7 @@
         "Orchestrator"
       ]
     },
-    "modelsFetchedAt": "2026-11-24T07:39:10Z",
+    "modelsFetchedAt": "2026-11-26T04:02:00Z",
     "groupDescSig": "dd013305244febac"
   },
   "khe": {
@@ -3457,42 +3577,44 @@
       "tierDisplayName": "Google AI Pro",
       "authMethod": "consumer",
       "upgradeText": "You can upgrade to a Google AI Ultra plan to receive higher rate limits.",
-      "upgradeUrl": "https://antigravity.google/g1-upgrade"
+      "upgradeUrl": "https://antigravity.google/g1-upgrade",
+      "remainingCredits": 0,
+      "creditsSummary": "0 AI credits remaining"
     },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-24T17:26:14Z",
-    "resetTimeLocal": "00:26:14",
+    "resetTime": "2026-11-26T06:29:33Z",
+    "resetTimeLocal": "13:29:33",
     "hasArgon": false,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (00:26:14)",
-      "resetTime": "2026-11-24T17:26:14Z",
-      "resetTimeLocal": "00:26:14",
+      "countdown": "⏱ 4h 59m (13:29:33)",
+      "resetTime": "2026-11-26T06:29:33Z",
+      "resetTimeLocal": "13:29:33",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (00:26:14)",
-      "resetTime": "2026-11-24T17:26:14Z",
+      "countdown": "⏱ 4h 59m (13:29:33)",
+      "resetTime": "2026-11-26T06:29:33Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (01/12 19:26)",
-      "resetTime": "2026-12-01T12:26:14Z",
-      "resetTimeLocal": "01/12 19:26",
+      "countdown": "⏱ 6d 23h (03/12 08:29)",
+      "resetTime": "2026-12-03T01:29:33Z",
+      "resetTimeLocal": "03/12 08:29",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (01/12 19:26)",
-      "resetTime": "2026-12-01T12:26:14Z",
+      "countdown": "⏱ 6d 23h (03/12 08:29)",
+      "resetTime": "2026-12-03T01:29:33Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -3506,6 +3628,10 @@
       "mode": "none"
     },
     "availableModels": [
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
       "gemini-3.8-flash-high",
       "gemini-3.8-flash-medium",
       "gemini-3.8-flash-low",
@@ -3514,6 +3640,38 @@
       "gpt-oss-120b-medium"
     ],
     "modelCatalog": [
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
       {
         "id": "gemini-3.8-flash-high",
         "label": "Gemini 3.8 Flash",
@@ -3565,6 +3723,7 @@
     ],
     "groupModels": {
       "gemini": [
+        "Gemini 4 Hydrogen",
         "Gemini 3.8 Flash"
       ],
       "claude": [
@@ -3584,8 +3743,8 @@
         "PRO"
       ]
     },
-    "modelsFetchedAt": "2026-11-24T05:08:52Z",
-    "groupDescSig": "9dd3ec2fa26eb11d"
+    "modelsFetchedAt": "2026-11-26T01:29:39Z",
+    "groupDescSig": "752b6b5d1f489159"
   },
   "mau": {
     "email": "mau492974@gmail.com",
@@ -3606,21 +3765,209 @@
       "tierDisplayName": "Google AI Pro",
       "authMethod": "consumer",
       "upgradeText": "You can upgrade to a Google AI Ultra plan to receive higher rate limits.",
+      "upgradeUrl": "https://antigravity.google/g1-upgrade",
+      "remainingCredits": 0,
+      "creditsSummary": "0 AI credits remaining"
+    },
+    "status": "ACTIVE",
+    "isAppeal": false,
+    "isSessionActive": false,
+    "resetTime": "2026-11-26T06:29:37Z",
+    "resetTimeLocal": "13:29:37",
+    "hasArgon": false,
+    "gemini5h": {
+      "name": "Gemini 3.8 / Pro 5H",
+      "fraction": 1,
+      "countdown": "⏱ 4h 59m (13:29:37)",
+      "resetTime": "2026-11-26T06:29:37Z",
+      "resetTimeLocal": "13:29:37",
+      "unavailable": false
+    },
+    "claude5h": {
+      "name": "Claude 5.5 / GPT 5H",
+      "fraction": 1,
+      "countdown": "⏱ 4h 59m (13:29:37)",
+      "resetTime": "2026-11-26T06:29:37Z",
+      "unavailable": false
+    },
+    "geminiWeekly": {
+      "name": "Gemini Weekly",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h (03/12 08:29)",
+      "resetTime": "2026-12-03T01:29:37Z",
+      "resetTimeLocal": "03/12 08:29",
+      "unavailable": false
+    },
+    "claudeWeekly": {
+      "name": "Claude Weekly",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h (03/12 08:29)",
+      "resetTime": "2026-12-03T01:29:37Z",
+      "unavailable": false
+    },
+    "argonWeekly": {
+      "name": "Gemini 4 Argon Weekly",
+      "fraction": 0.0,
+      "countdown": "Unavailable N/A",
+      "resetTime": "",
+      "unavailable": true,
+      "tags": true,
+      "sharedPool": false,
+      "mode": "none"
+    },
+    "availableModels": [
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "claude-sonnet-4-6",
+      "claude-opus-4-6-thinking",
+      "gpt-oss-120b-medium"
+    ],
+    "modelCatalog": [
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-high",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-medium",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "gemini-3.8-flash-low",
+        "label": "Gemini 3.8 Flash",
+        "quotaFamily": "gemini",
+        "tags": [
+          "flash"
+        ]
+      },
+      {
+        "id": "claude-sonnet-4-6",
+        "label": "Claude Sonnet 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "claude-opus-4-6-thinking",
+        "label": "Claude Opus 4.6",
+        "quotaFamily": "claude",
+        "tags": [
+          "claude"
+        ]
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B",
+        "quotaFamily": "claude",
+        "tags": [
+          "gpt"
+        ]
+      }
+    ],
+    "groupModels": {
+      "gemini": [
+        "Gemini 4 Hydrogen",
+        "Gemini 3.8 Flash"
+      ],
+      "claude": [
+        "Claude Sonnet 4.6",
+        "Claude Opus 4.6",
+        "GPT-OSS 120B"
+      ],
+      "argon": []
+    },
+    "capabilities": {
+      "tier": "PRO",
+      "hasCarbon": false,
+      "hasArgon": false,
+      "argonMode": "none",
+      "hasOrchestrator": false,
+      "badges": [
+        "PRO"
+      ]
+    },
+    "modelsFetchedAt": "2026-11-26T01:29:43Z",
+    "groupDescSig": "752b6b5d1f489159"
+  },
+  "molt": {
+    "email": "molt021525@gmail.com",
+    "tier": "FREE",
+    "planLabel": "FREE",
+    "vendorLabel": "GOOGLE",
+    "priority": 20,
+    "accountMeta": {
+      "provider": "antigravity",
+      "vendorLabel": "GOOGLE",
+      "planType": "free",
+      "planLabel": "FREE",
+      "authSource": "antigravity-oauth",
+      "cliCommand": "molt-cli",
+      "configPath": "~/antigravity_homes/molt",
+      "secondaryPath": "~/antigravity_homes/molt/Library/Keychains/molt.keychain-db",
+      "userTier": "free-tier",
+      "tierDisplayName": "Antigravity Starter Quota",
+      "authMethod": "consumer",
+      "upgradeText": "Free users and Google AI Plus users receive the minimum base limits on Antigravity. You can upgrade to Google AI Pro or above to receive higher rate limits.",
       "upgradeUrl": "https://antigravity.google/g1-upgrade"
     },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-24T17:26:20Z",
-    "resetTimeLocal": "00:26:20",
+    "resetTime": "",
+    "resetTimeLocal": "",
     "hasArgon": false,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 1,
-      "countdown": "⏱ 4h 59m (00:26:20)",
-      "resetTime": "2026-11-24T17:26:20Z",
-      "resetTimeLocal": "00:26:20",
-      "unavailable": false
+      "fraction": 1.0,
+      "countdown": "⏱ --",
+      "resetTime": "",
+      "resetTimeLocal": "",
+      "unavailable": true
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
@@ -3632,9 +3979,9 @@
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (01/12 19:26)",
-      "resetTime": "2026-12-01T12:26:20Z",
-      "resetTimeLocal": "01/12 19:26",
+      "countdown": "⏱ 6d 23h (03/12 08:29)",
+      "resetTime": "2026-12-03T01:29:36Z",
+      "resetTimeLocal": "03/12 08:29",
       "unavailable": false
     },
     "claudeWeekly": {
@@ -3655,6 +4002,10 @@
       "mode": "none"
     },
     "availableModels": [
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
       "gemini-3.8-flash-high",
       "gemini-3.8-flash-medium",
       "gemini-3.8-flash-low",
@@ -3663,6 +4014,38 @@
       "gpt-oss-120b-medium"
     ],
     "modelCatalog": [
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
       {
         "id": "gemini-3.8-flash-high",
         "label": "Gemini 3.8 Flash",
@@ -3714,6 +4097,7 @@
     ],
     "groupModels": {
       "gemini": [
+        "Gemini 4 Hydrogen",
         "Gemini 3.8 Flash"
       ],
       "claude": [
@@ -3724,166 +4108,17 @@
       "argon": []
     },
     "capabilities": {
-      "tier": "PRO",
+      "tier": "FREE",
       "hasCarbon": false,
       "hasArgon": false,
       "argonMode": "none",
       "hasOrchestrator": false,
       "badges": [
-        "PRO"
+        "FREE"
       ]
     },
-    "modelsFetchedAt": "2026-11-24T05:08:55Z",
-    "groupDescSig": "9dd3ec2fa26eb11d"
-  },
-  "molt": {
-    "email": "molt021525@gmail.com",
-    "tier": "PRO",
-    "planLabel": "PRO",
-    "vendorLabel": "GOOGLE",
-    "priority": 50,
-    "accountMeta": {
-      "provider": "antigravity",
-      "vendorLabel": "GOOGLE",
-      "planType": "pro",
-      "planLabel": "PRO",
-      "authSource": "antigravity-oauth",
-      "cliCommand": "molt-cli",
-      "configPath": "~/antigravity_homes/molt",
-      "secondaryPath": "~/antigravity_homes/molt/Library/Keychains/molt.keychain-db",
-      "userTier": "g1-pro-tier",
-      "tierDisplayName": "Google AI Pro",
-      "authMethod": "consumer",
-      "upgradeText": "You can upgrade to a Google AI Ultra plan to receive higher rate limits.",
-      "upgradeUrl": "https://antigravity.google/g1-upgrade"
-    },
-    "status": "ACTIVE",
-    "isAppeal": false,
-    "isSessionActive": true,
-    "resetTime": "2026-11-24T08:27:04Z",
-    "resetTimeLocal": "15:27:04",
-    "hasArgon": false,
-    "gemini5h": {
-      "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.8142212629318237,
-      "countdown": "⏱ 2h 12m (15:27:04)",
-      "resetTime": "2026-11-24T08:27:04Z",
-      "resetTimeLocal": "15:27:04",
-      "unavailable": false
-    },
-    "claude5h": {
-      "name": "Claude 5.5 / GPT 5H",
-      "fraction": 1,
-      "countdown": "⏱ 4h 59m",
-      "resetTime": "1970-01-01T00:00:00Z",
-      "unavailable": false
-    },
-    "geminiWeekly": {
-      "name": "Gemini Weekly",
-      "fraction": 0.9493338465690613,
-      "countdown": "⏱ 6d 14h (01/12 03:17)",
-      "resetTime": "2026-11-30T20:17:00Z",
-      "resetTimeLocal": "01/12 03:17",
-      "unavailable": false
-    },
-    "claudeWeekly": {
-      "name": "Claude Weekly",
-      "fraction": 1,
-      "countdown": "⏱ 6d 20h",
-      "resetTime": "1970-01-01T00:00:00Z",
-      "unavailable": false
-    },
-    "argonWeekly": {
-      "name": "Gemini 4 Argon Weekly",
-      "fraction": 0.0,
-      "countdown": "Unavailable N/A",
-      "resetTime": "",
-      "unavailable": true,
-      "tags": true,
-      "sharedPool": false,
-      "mode": "none"
-    },
-    "availableModels": [
-      "gemini-3.8-flash-high",
-      "gemini-3.8-flash-medium",
-      "gemini-3.8-flash-low",
-      "claude-sonnet-4-6",
-      "claude-opus-4-6-thinking",
-      "gpt-oss-120b-medium"
-    ],
-    "modelCatalog": [
-      {
-        "id": "gemini-3.8-flash-high",
-        "label": "Gemini 3.8 Flash",
-        "quotaFamily": "gemini",
-        "tags": [
-          "flash"
-        ]
-      },
-      {
-        "id": "gemini-3.8-flash-medium",
-        "label": "Gemini 3.8 Flash",
-        "quotaFamily": "gemini",
-        "tags": [
-          "flash"
-        ]
-      },
-      {
-        "id": "gemini-3.8-flash-low",
-        "label": "Gemini 3.8 Flash",
-        "quotaFamily": "gemini",
-        "tags": [
-          "flash"
-        ]
-      },
-      {
-        "id": "claude-sonnet-4-6",
-        "label": "Claude Sonnet 4.6",
-        "quotaFamily": "claude",
-        "tags": [
-          "claude"
-        ]
-      },
-      {
-        "id": "claude-opus-4-6-thinking",
-        "label": "Claude Opus 4.6",
-        "quotaFamily": "claude",
-        "tags": [
-          "claude"
-        ]
-      },
-      {
-        "id": "gpt-oss-120b-medium",
-        "label": "GPT-OSS 120B",
-        "quotaFamily": "claude",
-        "tags": [
-          "gpt"
-        ]
-      }
-    ],
-    "groupModels": {
-      "gemini": [
-        "Gemini 3.8 Flash"
-      ],
-      "claude": [
-        "Claude Sonnet 4.6",
-        "Claude Opus 4.6",
-        "GPT-OSS 120B"
-      ],
-      "argon": []
-    },
-    "capabilities": {
-      "tier": "PRO",
-      "hasCarbon": false,
-      "hasArgon": false,
-      "argonMode": "none",
-      "hasOrchestrator": false,
-      "badges": [
-        "PRO"
-      ]
-    },
-    "modelsFetchedAt": "2026-11-24T05:09:02Z",
-    "groupDescSig": "9dd3ec2fa26eb11d"
+    "modelsFetchedAt": "2026-11-26T01:29:40Z",
+    "groupDescSig": "752b6b5d1f489159"
   },
   "mommy": {
     "email": "daominhhue91@gmail.com",
@@ -3904,42 +4139,44 @@
       "tierDisplayName": "Google AI Pro",
       "authMethod": "consumer",
       "upgradeText": "You can upgrade to a Google AI Ultra plan to receive higher rate limits.",
-      "upgradeUrl": "https://antigravity.google/g1-upgrade"
+      "upgradeUrl": "https://antigravity.google/g1-upgrade",
+      "remainingCredits": 0,
+      "creditsSummary": "0 AI credits remaining"
     },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "",
-    "resetTimeLocal": "",
+    "resetTime": "2026-11-26T06:29:42Z",
+    "resetTimeLocal": "13:29:42",
     "hasArgon": false,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ --",
-      "resetTime": "",
-      "resetTimeLocal": "",
+      "countdown": "⏱ 4h 59m (13:29:42)",
+      "resetTime": "2026-11-26T06:29:42Z",
+      "resetTimeLocal": "13:29:42",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ --",
-      "resetTime": "",
+      "countdown": "⏱ 4h 59m (13:29:42)",
+      "resetTime": "2026-11-26T06:29:42Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ --",
-      "resetTime": "",
-      "resetTimeLocal": "",
+      "countdown": "⏱ 6d 23h (03/12 08:29)",
+      "resetTime": "2026-12-03T01:29:42Z",
+      "resetTimeLocal": "03/12 08:29",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ --",
-      "resetTime": "",
+      "countdown": "⏱ 6d 23h (03/12 08:29)",
+      "resetTime": "2026-12-03T01:29:42Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -3953,6 +4190,10 @@
       "mode": "none"
     },
     "availableModels": [
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
       "gemini-3.8-flash-high",
       "gemini-3.8-flash-medium",
       "gemini-3.8-flash-low",
@@ -3961,6 +4202,38 @@
       "gpt-oss-120b-medium"
     ],
     "modelCatalog": [
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
       {
         "id": "gemini-3.8-flash-high",
         "label": "Gemini 3.8 Flash",
@@ -4012,6 +4285,7 @@
     ],
     "groupModels": {
       "gemini": [
+        "Gemini 4 Hydrogen",
         "Gemini 3.8 Flash"
       ],
       "claude": [
@@ -4031,8 +4305,8 @@
         "PRO"
       ]
     },
-    "modelsFetchedAt": "2026-11-24T05:09:05Z",
-    "groupDescSig": "9dd3ec2fa26eb11d"
+    "modelsFetchedAt": "2026-11-26T01:29:49Z",
+    "groupDescSig": "752b6b5d1f489159"
   },
   "ngocanh000690": {
     "email": "ngocanh000690@gmail.com",
@@ -4056,32 +4330,26 @@
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": "",
-      "resetTimeLocal": ""
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": ""
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": "",
-      "resetTimeLocal": ""
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": ""
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
@@ -4090,8 +4358,6 @@
       "unavailable": true,
       "tags": true
     },
-    "resetTime": "",
-    "resetTimeLocal": "",
     "capabilities": {
       "tier": "PRO"
     }
@@ -4133,24 +4399,24 @@
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
-      "fraction": 1.0,
+      "fraction": 1,
       "countdown": "⏱ --",
-      "resetTime": "",
-      "unavailable": true
+      "resetTime": "1970-01-01T00:00:00Z",
+      "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (01/12 19:26)",
-      "resetTime": "2026-12-01T12:26:26Z",
-      "resetTimeLocal": "01/12 19:26",
+      "countdown": "⏱ 6d 23h (03/12 08:32)",
+      "resetTime": "2026-12-03T01:32:26Z",
+      "resetTimeLocal": "03/12 08:32",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (01/12 19:26)",
-      "resetTime": "2026-12-01T12:26:26Z",
+      "countdown": "⏱ --",
+      "resetTime": "1970-01-01T00:00:00Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -4164,6 +4430,10 @@
       "mode": "none"
     },
     "availableModels": [
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
       "gemini-3.8-flash-high",
       "gemini-3.8-flash-medium",
       "gemini-3.8-flash-low",
@@ -4172,6 +4442,38 @@
       "gpt-oss-120b-medium"
     ],
     "modelCatalog": [
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
       {
         "id": "gemini-3.8-flash-high",
         "label": "Gemini 3.8 Flash",
@@ -4223,6 +4525,7 @@
     ],
     "groupModels": {
       "gemini": [
+        "Gemini 4 Hydrogen",
         "Gemini 3.8 Flash"
       ],
       "claude": [
@@ -4242,8 +4545,8 @@
         "FREE"
       ]
     },
-    "modelsFetchedAt": "2026-11-24T05:09:10Z",
-    "groupDescSig": "9dd3ec2fa26eb11d"
+    "modelsFetchedAt": "2026-11-26T01:32:30Z",
+    "groupDescSig": "752b6b5d1f489159"
   },
   "nguyenthilan89012": {
     "email": "nguyenthilan89012@gmail.com",
@@ -4267,32 +4570,26 @@
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": "",
-      "resetTimeLocal": ""
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": ""
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": "",
-      "resetTimeLocal": ""
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": ""
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
@@ -4301,8 +4598,6 @@
       "unavailable": true,
       "tags": true
     },
-    "resetTime": "",
-    "resetTimeLocal": "",
     "capabilities": {
       "tier": "PRO"
     }
@@ -4326,42 +4621,44 @@
       "tierDisplayName": "Google AI Pro",
       "authMethod": "consumer",
       "upgradeText": "You can upgrade to a Google AI Ultra plan to receive higher rate limits.",
-      "upgradeUrl": "https://antigravity.google/g1-upgrade"
+      "upgradeUrl": "https://antigravity.google/g1-upgrade",
+      "remainingCredits": 0,
+      "creditsSummary": "0 AI credits remaining"
     },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-24T17:26:32Z",
-    "resetTimeLocal": "00:26:32",
+    "resetTime": "2026-11-26T06:35:16Z",
+    "resetTimeLocal": "13:35:16",
     "hasArgon": false,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (00:26:32)",
-      "resetTime": "2026-11-24T17:26:32Z",
-      "resetTimeLocal": "00:26:32",
+      "countdown": "⏱ 4h 59m (13:35:16)",
+      "resetTime": "2026-11-26T06:35:16Z",
+      "resetTimeLocal": "13:35:16",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (00:26:32)",
-      "resetTime": "2026-11-24T17:26:32Z",
+      "countdown": "⏱ 4h 59m (13:35:16)",
+      "resetTime": "2026-11-26T06:35:16Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (01/12 19:26)",
-      "resetTime": "2026-12-01T12:26:32Z",
-      "resetTimeLocal": "01/12 19:26",
+      "countdown": "⏱ 6d 23h (03/12 08:35)",
+      "resetTime": "2026-12-03T01:35:16Z",
+      "resetTimeLocal": "03/12 08:35",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (01/12 19:26)",
-      "resetTime": "2026-12-01T12:26:32Z",
+      "countdown": "⏱ 6d 23h (03/12 08:35)",
+      "resetTime": "2026-12-03T01:35:16Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -4375,6 +4672,10 @@
       "mode": "none"
     },
     "availableModels": [
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
       "gemini-3.8-flash-high",
       "gemini-3.8-flash-medium",
       "gemini-3.8-flash-low",
@@ -4383,6 +4684,38 @@
       "gpt-oss-120b-medium"
     ],
     "modelCatalog": [
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
       {
         "id": "gemini-3.8-flash-high",
         "label": "Gemini 3.8 Flash",
@@ -4434,6 +4767,7 @@
     ],
     "groupModels": {
       "gemini": [
+        "Gemini 4 Hydrogen",
         "Gemini 3.8 Flash"
       ],
       "claude": [
@@ -4453,8 +4787,8 @@
         "PRO"
       ]
     },
-    "modelsFetchedAt": "2026-11-24T05:09:17Z",
-    "groupDescSig": "9dd3ec2fa26eb11d"
+    "modelsFetchedAt": "2026-11-26T01:35:22Z",
+    "groupDescSig": "752b6b5d1f489159"
   },
   "phungthuy8901": {
     "email": "phungthuy8901@gmail.com",
@@ -4493,24 +4827,24 @@
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
-      "fraction": 1.0,
+      "fraction": 1,
       "countdown": "⏱ --",
-      "resetTime": "",
-      "unavailable": true
+      "resetTime": "1970-01-01T00:00:00Z",
+      "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ --",
-      "resetTime": "",
-      "resetTimeLocal": "",
+      "countdown": "⏱ 6d 23h (03/12 08:29)",
+      "resetTime": "2026-12-03T01:29:50Z",
+      "resetTimeLocal": "03/12 08:29",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
       "countdown": "⏱ --",
-      "resetTime": "",
+      "resetTime": "1970-01-01T00:00:00Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -4524,6 +4858,10 @@
       "mode": "none"
     },
     "availableModels": [
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
       "gemini-3.8-flash-high",
       "gemini-3.8-flash-medium",
       "gemini-3.8-flash-low",
@@ -4532,6 +4870,38 @@
       "gpt-oss-120b-medium"
     ],
     "modelCatalog": [
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
       {
         "id": "gemini-3.8-flash-high",
         "label": "Gemini 3.8 Flash",
@@ -4583,6 +4953,7 @@
     ],
     "groupModels": {
       "gemini": [
+        "Gemini 4 Hydrogen",
         "Gemini 3.8 Flash"
       ],
       "claude": [
@@ -4602,8 +4973,8 @@
         "FREE"
       ]
     },
-    "modelsFetchedAt": "2026-11-24T05:09:17Z",
-    "groupDescSig": "9dd3ec2fa26eb11d"
+    "modelsFetchedAt": "2026-11-26T01:29:54Z",
+    "groupDescSig": "752b6b5d1f489159"
   },
   "tess": {
     "email": "ldejong322@gmail.com",
@@ -4623,48 +4994,50 @@
       "userTier": "g1-ultra-tier",
       "tierDisplayName": "Google AI Ultra",
       "authMethod": "consumer",
-      "upgradeText": "You are subscribed to the best Google AI plan."
+      "upgradeText": "You are subscribed to the best Google AI plan.",
+      "remainingCredits": 0,
+      "creditsSummary": "0 AI credits remaining"
     },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": true,
-    "resetTime": "2026-11-24T14:27:39Z",
-    "resetTimeLocal": "21:27:39",
+    "resetTime": "2026-11-26T06:11:33Z",
+    "resetTimeLocal": "13:11:33",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.9340105652809143,
-      "countdown": "⏱ 3h 13m (21:27:39)",
-      "resetTime": "2026-11-24T14:27:39Z",
-      "resetTimeLocal": "21:27:39",
+      "fraction": 0.9699899554252625,
+      "countdown": "⏱ 4h 41m (13:11:33)",
+      "resetTime": "2026-11-26T06:11:33Z",
+      "resetTimeLocal": "13:11:33",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
-      "fraction": 0.99648118019104,
-      "countdown": "⏱ 3h 13m (21:27:50)",
-      "resetTime": "2026-11-24T14:27:50Z",
+      "fraction": 1,
+      "countdown": "⏱ --",
+      "resetTime": "1970-01-01T00:00:00Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.9763814210891724,
-      "countdown": "⏱ 6d 22h (01/12 16:27)",
+      "fraction": 0.5511845350265503,
+      "countdown": "⏱ 5d 7h (01/12 16:27)",
       "resetTime": "2026-12-01T09:27:39Z",
       "resetTimeLocal": "01/12 16:27",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
-      "fraction": 0.9982406497001648,
-      "countdown": "⏱ 6d 22h (01/12 16:27)",
-      "resetTime": "2026-12-01T09:27:50Z",
+      "fraction": 1,
+      "countdown": "⏱ --",
+      "resetTime": "1970-01-01T00:00:00Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Carbon & Argon Weekly",
-      "fraction": 0.9763814210891724,
-      "countdown": "⏱ 6d 22h (01/12 16:27)",
+      "fraction": 0.5511845350265503,
+      "countdown": "⏱ 5d 7h (01/12 16:27)",
       "resetTime": "2026-12-01T09:27:39Z",
       "resetTimeLocal": "01/12 16:27",
       "unavailable": false,
@@ -4910,7 +5283,7 @@
         "Orchestrator"
       ]
     },
-    "modelsFetchedAt": "2026-11-24T11:14:27Z",
+    "modelsFetchedAt": "2026-11-26T01:29:59Z",
     "groupDescSig": "ba4744a1a9deb33b"
   },
   "trananh": {
@@ -4932,42 +5305,44 @@
       "tierDisplayName": "Google AI Pro",
       "authMethod": "consumer",
       "upgradeText": "You can upgrade to a Google AI Ultra plan to receive higher rate limits.",
-      "upgradeUrl": "https://antigravity.google/g1-upgrade"
+      "upgradeUrl": "https://antigravity.google/g1-upgrade",
+      "remainingCredits": 0,
+      "creditsSummary": "0 AI credits remaining"
     },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "",
-    "resetTimeLocal": "",
+    "resetTime": "2026-11-26T06:29:57Z",
+    "resetTimeLocal": "13:29:57",
     "hasArgon": false,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ --",
-      "resetTime": "",
-      "resetTimeLocal": "",
+      "countdown": "⏱ 4h 59m (13:29:57)",
+      "resetTime": "2026-11-26T06:29:57Z",
+      "resetTimeLocal": "13:29:57",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ --",
-      "resetTime": "",
+      "countdown": "⏱ 4h 59m (13:29:57)",
+      "resetTime": "2026-11-26T06:29:57Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ --",
-      "resetTime": "",
-      "resetTimeLocal": "",
+      "countdown": "⏱ 6d 23h (03/12 08:29)",
+      "resetTime": "2026-12-03T01:29:57Z",
+      "resetTimeLocal": "03/12 08:29",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ --",
-      "resetTime": "",
+      "countdown": "⏱ 6d 23h (03/12 08:29)",
+      "resetTime": "2026-12-03T01:29:57Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -4981,6 +5356,10 @@
       "mode": "none"
     },
     "availableModels": [
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
       "gemini-3.8-flash-high",
       "gemini-3.8-flash-medium",
       "gemini-3.8-flash-low",
@@ -4989,6 +5368,38 @@
       "gpt-oss-120b-medium"
     ],
     "modelCatalog": [
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
       {
         "id": "gemini-3.8-flash-high",
         "label": "Gemini 3.8 Flash",
@@ -5040,6 +5451,7 @@
     ],
     "groupModels": {
       "gemini": [
+        "Gemini 4 Hydrogen",
         "Gemini 3.8 Flash"
       ],
       "claude": [
@@ -5059,8 +5471,8 @@
         "PRO"
       ]
     },
-    "modelsFetchedAt": "2026-11-24T05:09:28Z",
-    "groupDescSig": "9dd3ec2fa26eb11d"
+    "modelsFetchedAt": "2026-11-26T01:30:03Z",
+    "groupDescSig": "752b6b5d1f489159"
   },
   "waeropiahh": {
     "email": "waeropiahh@gmail.com",
@@ -5084,32 +5496,26 @@
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": "",
-      "resetTimeLocal": ""
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": ""
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": "",
-      "resetTimeLocal": ""
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": ""
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
@@ -5118,8 +5524,6 @@
       "unavailable": true,
       "tags": true
     },
-    "resetTime": "",
-    "resetTimeLocal": "",
     "capabilities": {
       "tier": "PRO"
     }
@@ -5135,10 +5539,10 @@
     "priority": 100,
     "email": "danhdue@gmail.com",
     "status": "ACTIVE",
-    "isSessionActive": false,
-    "resetTime": "",
-    "resetTimeLocal": "",
-    "remainingCountdown": "⏱ 5h 00m (Reset xong)",
+    "isSessionActive": true,
+    "resetTime": "2026-11-26T06:19:59.911668+00:00",
+    "resetTimeLocal": "13:19:59",
+    "remainingCountdown": "⏱ 2h 40m (13:19:59)",
     "hasArgon": true,
     "availableModels": [
       "Claude Opus 4.6",
@@ -5167,13 +5571,13 @@
         "group": "session",
         "kind": "session",
         "scopeLabel": "",
-        "fraction": 1.0,
-        "utilization": 0.0,
-        "countdown": "⏱ 5h 00m (Reset xong)",
-        "resetTime": "",
-        "resetTimeLocal": "",
+        "fraction": 0.78,
+        "utilization": 22.0,
+        "countdown": "⏱ 2h 40m (13:19:59)",
+        "resetTime": "2026-11-26T06:19:59.911668+00:00",
+        "resetTimeLocal": "13:19:59",
         "severity": "normal",
-        "isActive": false,
+        "isActive": true,
         "isLive": true,
         "shareInfo": null,
         "unavailable": false
@@ -5184,13 +5588,13 @@
         "group": "weekly",
         "kind": "weekly_all",
         "scopeLabel": "",
-        "fraction": 0.73,
-        "utilization": 27.0,
-        "countdown": "⏱ 12h 49m (25/11 06:59)",
-        "resetTime": "2026-11-24T23:59:59.549723+00:00",
-        "resetTimeLocal": "25/11 06:59",
+        "fraction": 0.88,
+        "utilization": 12.0,
+        "countdown": "⏱ 5d 20h (02/12 06:59)",
+        "resetTime": "2026-12-01T23:59:59.911685+00:00",
+        "resetTimeLocal": "02/12 06:59",
         "severity": "normal",
-        "isActive": true,
+        "isActive": false,
         "isLive": true,
         "shareInfo": null,
         "unavailable": false
@@ -5198,10 +5602,10 @@
     ],
     "gemini5h": {
       "name": "Claude 5H Session Window",
-      "fraction": 1.0,
-      "countdown": "⏱ 5h 00m (Reset xong)",
-      "resetTime": "",
-      "resetTimeLocal": "",
+      "fraction": 0.78,
+      "countdown": "⏱ 2h 40m (13:19:59)",
+      "resetTime": "2026-11-26T06:19:59.911668+00:00",
+      "resetTimeLocal": "13:19:59",
       "unavailable": false,
       "isLive": true
     },
@@ -5215,10 +5619,10 @@
     },
     "geminiWeekly": {
       "name": "Claude 7D Weekly Remaining",
-      "fraction": 0.73,
-      "countdown": "⏱ 12h 49m (25/11 06:59)",
-      "resetTime": "2026-11-24T23:59:59.549723+00:00",
-      "resetTimeLocal": "25/11 06:59",
+      "fraction": 0.88,
+      "countdown": "⏱ 5d 20h (02/12 06:59)",
+      "resetTime": "2026-12-01T23:59:59.911685+00:00",
+      "resetTimeLocal": "02/12 06:59",
       "unavailable": false
     },
     "claudeWeekly": {
@@ -5251,9 +5655,9 @@
     "email": "danhdue@gmail.com",
     "status": "ACTIVE",
     "isSessionActive": true,
-    "resetTime": "2026-11-24T16:10:35+00:00",
-    "resetTimeLocal": "23:10:35",
-    "remainingCountdown": "⏱ 4h 59m (23:10:35)",
+    "resetTime": "2026-11-26T06:29:13+00:00",
+    "resetTimeLocal": "13:29:13",
+    "remainingCountdown": "⏱ 2h 49m (13:29:13)",
     "hasArgon": true,
     "resetCredits": 1,
     "availableModels": [
@@ -5275,9 +5679,9 @@
     "gemini5h": {
       "name": "Codex 5-Hour Limit",
       "fraction": 0.99,
-      "countdown": "⏱ 4h 59m (23:10:35)",
-      "resetTime": "2026-11-24T16:10:35+00:00",
-      "resetTimeLocal": "23:10:35",
+      "countdown": "⏱ 2h 49m (13:29:13)",
+      "resetTime": "2026-11-26T06:29:13+00:00",
+      "resetTimeLocal": "13:29:13",
       "unavailable": false
     },
     "claude5h": {
@@ -5290,9 +5694,9 @@
     },
     "geminiWeekly": {
       "name": "Codex Weekly Limit",
-      "fraction": 0.99,
-      "countdown": "⏱ 5d 18h (30/11 12:38)",
-      "resetTime": "2026-11-30T05:38:18+00:00",
+      "fraction": 0.76,
+      "countdown": "⏱ 4d 1h (30/11 12:38)",
+      "resetTime": "2026-11-30T05:38:19+00:00",
       "resetTimeLocal": "30/11 12:38",
       "unavailable": false
     },
@@ -5329,7 +5733,7 @@
     "isSessionActive": true,
     "resetTime": "2026-12-01T00:00:00+00:00",
     "resetTimeLocal": "01/12",
-    "remainingCountdown": "⏱ 6d 17h (01/12)",
+    "remainingCountdown": "⏱ 4d 22h (01/12)",
     "hasArgon": false,
     "isCreditOnly": true,
     "availableModels": [
@@ -5356,14 +5760,14 @@
       "limit": 1000.0,
       "remaining": 11.68,
       "fraction": 0.01167999999999995,
-      "countdown": "⏱ 6d 17h (01/12)",
+      "countdown": "⏱ 4d 22h (01/12)",
       "resetDate": "01/12",
       "unavailable": false
     },
     "gemini5h": {
       "name": "Monthly Credits Pool",
       "fraction": 0.01167999999999995,
-      "countdown": "⏱ 6d 17h (01/12)",
+      "countdown": "⏱ 4d 22h (01/12)",
       "resetTime": "2026-12-01T00:00:00+00:00",
       "resetTimeLocal": "01/12",
       "unavailable": false
@@ -5410,24 +5814,24 @@
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
-      "fraction": 1.0,
+      "fraction": 1,
       "countdown": "⏱ --",
-      "resetTime": "",
-      "unavailable": true
+      "resetTime": "1970-01-01T00:00:00Z",
+      "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (01/12 19:26)",
-      "resetTime": "2026-12-01T12:26:08Z",
-      "resetTimeLocal": "01/12 19:26",
+      "countdown": "⏱ 6d 23h (03/12 08:29)",
+      "resetTime": "2026-12-03T01:29:29Z",
+      "resetTimeLocal": "03/12 08:29",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (01/12 19:26)",
-      "resetTime": "2026-12-01T12:26:08Z",
+      "countdown": "⏱ --",
+      "resetTime": "1970-01-01T00:00:00Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -5441,6 +5845,10 @@
       "mode": "none"
     },
     "availableModels": [
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
       "gemini-3.8-flash-high",
       "gemini-3.8-flash-medium",
       "gemini-3.8-flash-low",
@@ -5449,6 +5857,38 @@
       "gpt-oss-120b-medium"
     ],
     "modelCatalog": [
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
       {
         "id": "gemini-3.8-flash-high",
         "label": "Gemini 3.8 Flash",
@@ -5500,6 +5940,7 @@
     ],
     "groupModels": {
       "gemini": [
+        "Gemini 4 Hydrogen",
         "Gemini 3.8 Flash"
       ],
       "claude": [
@@ -5519,8 +5960,8 @@
         "FREE"
       ]
     },
-    "modelsFetchedAt": "2026-11-24T05:08:42Z",
-    "groupDescSig": "9dd3ec2fa26eb11d"
+    "modelsFetchedAt": "2026-11-26T01:29:33Z",
+    "groupDescSig": "752b6b5d1f489159"
   },
   "thau03880": {
     "email": "thau03880@gmail.com",
@@ -5541,20 +5982,22 @@
       "tierDisplayName": "Google AI Pro",
       "authMethod": "consumer",
       "upgradeText": "You can upgrade to a Google AI Ultra plan to receive higher rate limits.",
-      "upgradeUrl": "https://antigravity.google/g1-upgrade"
+      "upgradeUrl": "https://antigravity.google/g1-upgrade",
+      "remainingCredits": 0,
+      "creditsSummary": "0 AI credits remaining"
     },
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-24T17:26:39Z",
-    "resetTimeLocal": "00:26:39",
+    "resetTime": "2026-11-26T06:29:57Z",
+    "resetTimeLocal": "13:29:57",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (00:26:39)",
-      "resetTime": "2026-11-24T17:26:39Z",
-      "resetTimeLocal": "00:26:39",
+      "countdown": "⏱ 4h 59m (13:29:57)",
+      "resetTime": "2026-11-26T06:29:57Z",
+      "resetTimeLocal": "13:29:57",
       "unavailable": false
     },
     "claude5h": {
@@ -5566,8 +6009,8 @@
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.5361579060554504,
-      "countdown": "⏱ 6d 7h (01/12 03:25)",
+      "fraction": 0.5323940515518188,
+      "countdown": "⏱ 4d 18h (01/12 03:25)",
       "resetTime": "2026-11-30T20:25:00Z",
       "resetTimeLocal": "01/12 03:25",
       "unavailable": false
@@ -5581,8 +6024,8 @@
     },
     "argonWeekly": {
       "name": "Gemini 4 Carbon & Argon Weekly",
-      "fraction": 0.5361579060554504,
-      "countdown": "⏱ 6d 7h (01/12 03:25)",
+      "fraction": 0.5323940515518188,
+      "countdown": "⏱ 4d 18h (01/12 03:25)",
       "resetTime": "2026-11-30T20:25:00Z",
       "resetTimeLocal": "01/12 03:25",
       "unavailable": false,
@@ -5864,7 +6307,7 @@
         "Orchestrator"
       ]
     },
-    "modelsFetchedAt": "2026-11-24T05:09:28Z",
+    "modelsFetchedAt": "2026-11-26T01:30:04Z",
     "groupDescSig": "dd013305244febac"
   },
   "Onthiquynh8901": {
@@ -5889,32 +6332,26 @@
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": "",
-      "resetTimeLocal": ""
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": ""
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": "",
-      "resetTimeLocal": ""
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": ""
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
@@ -5923,8 +6360,6 @@
       "unavailable": true,
       "tags": true
     },
-    "resetTime": "",
-    "resetTimeLocal": "",
     "capabilities": {
       "tier": "PRO"
     }
@@ -5966,24 +6401,24 @@
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
-      "fraction": 1.0,
+      "fraction": 1,
       "countdown": "⏱ --",
-      "resetTime": "",
-      "unavailable": true
+      "resetTime": "1970-01-01T00:00:00Z",
+      "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (01/12 19:25)",
-      "resetTime": "2026-12-01T12:25:50Z",
-      "resetTimeLocal": "01/12 19:25",
+      "countdown": "⏱ 6d 23h (03/12 08:29)",
+      "resetTime": "2026-12-03T01:29:19Z",
+      "resetTimeLocal": "03/12 08:29",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (01/12 19:25)",
-      "resetTime": "2026-12-01T12:25:50Z",
+      "countdown": "⏱ --",
+      "resetTime": "1970-01-01T00:00:00Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -5997,6 +6432,10 @@
       "mode": "none"
     },
     "availableModels": [
+      "gemini-4-hydrogen-high",
+      "gemini-4-hydrogen-xhigh",
+      "gemini-4-hydrogen-medium",
+      "gemini-4-hydrogen-low",
       "gemini-3.8-flash-high",
       "gemini-3.8-flash-medium",
       "gemini-3.8-flash-low",
@@ -6005,6 +6444,38 @@
       "gpt-oss-120b-medium"
     ],
     "modelCatalog": [
+      {
+        "id": "gemini-4-hydrogen-high",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-xhigh",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-medium",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
+      {
+        "id": "gemini-4-hydrogen-low",
+        "label": "Gemini 4 Hydrogen",
+        "quotaFamily": "gemini",
+        "tags": [
+          "hydrogen"
+        ]
+      },
       {
         "id": "gemini-3.8-flash-high",
         "label": "Gemini 3.8 Flash",
@@ -6056,6 +6527,7 @@
     ],
     "groupModels": {
       "gemini": [
+        "Gemini 4 Hydrogen",
         "Gemini 3.8 Flash"
       ],
       "claude": [
@@ -6075,8 +6547,8 @@
         "FREE"
       ]
     },
-    "modelsFetchedAt": "2026-11-24T05:08:27Z",
-    "groupDescSig": "9dd3ec2fa26eb11d"
+    "modelsFetchedAt": "2026-11-26T01:29:23Z",
+    "groupDescSig": "752b6b5d1f489159"
   },
   "khainq2000": {
     "email": "khainq2000@gmail.com",
@@ -6100,32 +6572,26 @@
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": "",
-      "resetTimeLocal": ""
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": ""
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": "",
-      "resetTimeLocal": ""
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1.0,
-      "countdown": "⏱ --",
-      "unavailable": true,
-      "resetTime": ""
+      "countdown": "⏱ Auth needed",
+      "unavailable": true
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
@@ -6134,8 +6600,6 @@
       "unavailable": true,
       "tags": true
     },
-    "resetTime": "",
-    "resetTimeLocal": "",
     "capabilities": {
       "tier": "PRO"
     }
