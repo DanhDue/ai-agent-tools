@@ -1,13 +1,13 @@
 ---
 id: "task_03_ohk_python_uv_bootstrap_and_doc_refusal"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "observer-hardening-2026-11"
 dueDate: null
 created: "2026-11-26T22:10:00Z"
-modified: "2026-11-26T22:10:00Z"
-completedAt: null
+modified: "2026-11-26T16:45:17Z"
+completedAt: "2026-11-26T16:45:17Z"
 labels: ["architecture", "python-env", "verification-hygiene"]
 order: "a3"
 review_tier: "full"
@@ -114,10 +114,10 @@ Then the child process inherits "UV_NO_SYNC=0" without being clobbered
 
 ## Definition of Done
 
-- [ ] `bootstrap_worktree.sh` selects `uv sync --all-extras [--group dev]` when `[project.optional-dependencies]` exists and falls back to bare `uv sync` otherwise (V2, V4, V6)
-- [ ] `verify_polyglot_registry.py` sets `UV_NO_SYNC=1` (via `setdefault`) on `uv run` capabilities without clobbering caller overrides (V2, V3, V4, V5, V6)
-- [ ] `check_document.py` splits newline-joined `--changed-files` arguments in `refusal()` and reports accurate flattened counts (V2, V3, V4, V5, V6)
-- [ ] Assigned BDD integration scenarios (`OHK-HP-03`, `OHK-EC-03`, `OHK-FR-02`) pass with JUnit XML evidence (V6)
+- [x] `bootstrap_worktree.sh` selects `uv sync --all-extras [--group dev]` when `[project.optional-dependencies]` exists and falls back to bare `uv sync` otherwise (V2, V4, V6) — exit 0, 6 passed
+- [x] `verify_polyglot_registry.py` sets `UV_NO_SYNC=1` (via `setdefault`) on `uv run` capabilities without clobbering caller overrides (V2, V3, V4, V5, V6) — exit 0, 6 + 28 + 9 passed
+- [x] `check_document.py` splits newline-joined `--changed-files` arguments in `refusal()` and reports accurate flattened counts (V2, V3, V4, V5, V6) — exit 0, 6 + 28 + 9 passed
+- [x] Assigned BDD integration scenarios (`OHK-HP-03`, `OHK-EC-03`, `OHK-FR-02`) pass with JUnit XML evidence (V6) — exit 0, 3/3 covered in build/test-results/task_03.xml
 
 ## Dependencies & Blockers
 

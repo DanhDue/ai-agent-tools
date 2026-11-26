@@ -8,7 +8,7 @@ heartbeats, atomic namespaced quality_active.json telemetry, and signal-safe chi
 from __future__ import annotations
 
 import argparse
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 import concurrent.futures
 import contextlib
 from datetime import datetime, timezone
@@ -878,6 +878,22 @@ def fanout_and_aggregate(
     }
 
 
+def _build_capability_env(
+    substituted_cmd: list[str],
+    base_env: Mapping[str, str] | None = None,
+) -> dict[str, str] | None:
+    """Inject UV_NO_SYNC=1 for `uv run` capabilities while preserving caller overrides."""
+    if (
+        len(substituted_cmd) >= 2
+        and Path(substituted_cmd[0]).name == "uv"
+        and substituted_cmd[1] == "run"
+    ):
+        env = dict(os.environ if base_env is None else base_env)
+        env.setdefault("UV_NO_SYNC", "1")
+        return env
+    return None
+
+
 def _run_capability_subprocess(
     *,
     substituted_cmd: list[str],
@@ -895,6 +911,7 @@ def _run_capability_subprocess(
     poll_slice = min(poll_interval, 0.25)
 
     run_log_file.parent.mkdir(parents=True, exist_ok=True)
+    child_env = _build_capability_env(substituted_cmd)
     proc: subprocess.Popen[Any] | None = None
     unwound = False
     try:
@@ -906,6 +923,7 @@ def _run_capability_subprocess(
                 cwd=str(root),
                 stdout=log_fh,
                 stderr=subprocess.STDOUT,
+                env=child_env,
                 start_new_session=True,
             )
             if not coordinator.register_proc(proc):

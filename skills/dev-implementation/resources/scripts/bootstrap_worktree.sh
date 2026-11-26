@@ -66,6 +66,7 @@ if [ -f "$WORKTREE_PATH/pyproject.toml" ] || [ -f "$WORKTREE_PATH/requirements.t
   echo "Detected Python project in worktree..."
   EXECUTED_CUSTOM_BOOTSTRAP=0
   if [ -f "$WORKTREE_PATH/.agents/quality/python-quality.json" ]; then
+    STATUS=0
     python3 -c "
 import json, subprocess, sys
 manifest_path = '$WORKTREE_PATH/.agents/quality/python-quality.json'
@@ -90,8 +91,7 @@ except subprocess.CalledProcessError as err:
     sys.exit(2)
 except Exception:
     sys.exit(1)
-"
-    STATUS=$?
+" || STATUS=$?
     if [ "$STATUS" -eq 0 ]; then
       EXECUTED_CUSTOM_BOOTSTRAP=1
     elif [ "$STATUS" -eq 2 ]; then
@@ -102,8 +102,39 @@ except Exception:
 
   if [ "$EXECUTED_CUSTOM_BOOTSTRAP" -eq 0 ]; then
     if command -v uv &>/dev/null; then
-      echo "Running uv sync (fast dependency sync)..."
-      (cd "$WORKTREE_PATH" && uv sync)
+      UV_SYNC_ARGS=()
+      if [ -f "$WORKTREE_PATH/pyproject.toml" ] && command -v python3 &>/dev/null; then
+        UV_SYNC_RAW="$(python3 -c '
+import sys
+try:
+    import tomllib
+    with open(sys.argv[1], "rb") as f:
+        data = tomllib.load(f)
+except Exception:
+    sys.exit(0)
+project = data.get("project")
+if isinstance(project, dict):
+    opt_deps = project.get("optional-dependencies")
+    if isinstance(opt_deps, dict) and opt_deps:
+        print("--all-extras")
+dep_groups = data.get("dependency-groups")
+if isinstance(dep_groups, dict) and "dev" in dep_groups:
+    print("--group")
+    print("dev")
+' "$WORKTREE_PATH/pyproject.toml" 2>/dev/null || true)"
+        while IFS= read -r _uv_flag; do
+          if [ -n "$_uv_flag" ]; then
+            UV_SYNC_ARGS+=("$_uv_flag")
+          fi
+        done <<< "$UV_SYNC_RAW"
+      fi
+      if [ "${#UV_SYNC_ARGS[@]}" -gt 0 ]; then
+        echo "Running uv sync ${UV_SYNC_ARGS[*]} (fast dependency sync)..."
+        (cd "$WORKTREE_PATH" && uv sync "${UV_SYNC_ARGS[@]}")
+      else
+        echo "Running uv sync (fast dependency sync)..."
+        (cd "$WORKTREE_PATH" && uv sync)
+      fi
     elif command -v poetry &>/dev/null && [ -f "$WORKTREE_PATH/poetry.lock" ]; then
       echo "Running poetry install..."
       (cd "$WORKTREE_PATH" && poetry install)

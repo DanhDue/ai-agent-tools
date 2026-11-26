@@ -1,0 +1,200 @@
+{
+  "schema": 1,
+  "task": "task_03_ohk_python_uv_bootstrap_and_doc_refusal",
+  "runs": {
+    "red": {
+      "head": "305e2fe97d06e6fe8a9e5b47c7c9d553325b149e",
+      "tree": "b84fa99e59fc7f94f1a28268f1119be7a934e833",
+      "patch_id": "bd2c864a6bf105c785cb54ff263162bcaf2d3b0c",
+      "started": "2026-11-26T16:36:41Z",
+      "finished": "2026-11-26T16:36:41Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ohk_python_env_and_doc_refusal.py::test_ohk_ec_03_newline_joined_refusal",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:36:41Z",
+          "finished": "2026-11-26T16:36:41Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "____________________ test_ohk_ec_03_newline_joined_refusal _____________________",
+            "tests/test_ohk_python_env_and_doc_refusal.py:245: in test_ohk_ec_03_newline_joined_refusal",
+            "    assert res_offender.returncode == 1, (",
+            "E   AssertionError: Expected exit 1, got 0",
+            "E     stdout=  ok   refusal rule: none of 1 changed files ship in the build",
+            "E     ",
+            "E     stderr=",
+            "E   assert 0 == 1",
+            "E    +  where 0 = CompletedProcess(args=['/opt/homebrew/opt/python@3.15/bin/python3.15', '/Users/danhdueexoictif/AllProjects/ai-agent-to...cs/guide.en.md\\n'], returncode=0, stdout='  ok   refusal rule: none of 1 changed files ship in the build\\n', stderr='').returncode",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_ohk_python_env_and_doc_refusal.py::test_ohk_ec_03_newline_joined_refusal",
+            "1 failed in 0.10s"
+          ],
+          "output_sha256": "4dfb1a1b25d08af7a5b678b48adbf55ce17b42a52e61ba4a4b9dbe920677b901"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "305e2fe97d06e6fe8a9e5b47c7c9d553325b149e",
+      "tree": "b5c9550b1282f8c13e67bea4e731399a60e2039c",
+      "patch_id": "b7a5028f0e9e34c36f58c4549c72a161bc78a4b2",
+      "started": "2026-11-26T16:39:51Z",
+      "finished": "2026-11-26T16:40:15Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ohk_python_env_and_doc_refusal.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:39:51Z",
+          "finished": "2026-11-26T16:39:59Z",
+          "output_tail": [
+            "......                                                                   [100%]",
+            "6 passed in 8.60s"
+          ],
+          "output_sha256": "89d905338187dcb982003032b61b1616e56d84340f722da96956964daea26e8d"
+        },
+        {
+          "id": "V3",
+          "phase": "REGRESSION",
+          "command": "python3 -m unittest skills/doc_quality_check/resources/scripts/test_check_document.py skills/quality_check/resources/scripts/test_quality_provider_acceptance.py && python3 -m pytest -q --tb=short --maxfail=3 tests/test_polyglot_gate4.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:39:59Z",
+          "finished": "2026-11-26T16:40:05Z",
+          "output_tail": [
+            "............................",
+            "----------------------------------------------------------------------",
+            "Ran 28 tests in 2.094s",
+            "OK",
+            ".........                                                                [100%]",
+            "9 passed in 3.71s"
+          ],
+          "output_sha256": "abb92a404c400cee59e3ccde5f3ee6fe4c92a217a6113c1acf50a2f157ba142f"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/doc_quality_check/resources/scripts/check_document.py && ruff format --check skills/quality_check/resources/scripts/verify_polyglot_registry.py tests/test_polyglot_gate4.py tests/test_ohk_python_env_and_doc_refusal.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:40:05Z",
+          "finished": "2026-11-26T16:40:05Z",
+          "output_tail": [
+            "All checks passed!",
+            "3 files already formatted"
+          ],
+          "output_sha256": "c6486b51f483249343d4a4bdb91c41be31f0bdc28887b2f4cd4800e174f8bd6b"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py && mypy --ignore-missing-imports --follow-imports=silent skills/doc_quality_check/resources/scripts/check_document.py tests/test_polyglot_gate4.py tests/test_ohk_python_env_and_doc_refusal.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:40:05Z",
+          "finished": "2026-11-26T16:40:06Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files",
+            "Success: no issues found in 3 source files"
+          ],
+          "output_sha256": "44309b3abd9d874ef4bedb7bf2ff13bfbb430037d40474eeb70922876f6e73f6"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ohk_python_env_and_doc_refusal.py --junitxml=build/test-results/task_03.xml",
+          "expect": "exit 0; results build/test-results/task_03.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:40:06Z",
+          "finished": "2026-11-26T16:40:14Z",
+          "output_tail": [
+            "......                                                                   [100%]",
+            "6 passed in 8.19s"
+          ],
+          "output_sha256": "6009185efe2152f8daa3498d8d7a089de8889a62a9ebd5f6dd541a958d926465",
+          "results": {
+            "path": "build/test-results/task_03.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 6,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_ohk_hp_03_bootstrap_extras_and_uv_no_sync",
+                  "classname": "tests.test_ohk_python_env_and_doc_refusal",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ec_03_newline_joined_refusal",
+                  "classname": "tests.test_ohk_python_env_and_doc_refusal",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_fr_02_uv_no_sync_override_and_malformed_pyproject",
+                  "classname": "tests.test_ohk_python_env_and_doc_refusal",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_hp_03_integration",
+                  "classname": "tests.test_ohk_python_env_and_doc_refusal.Test_Ohk_Python_Env_And_Doc_Refusal_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ec_03_integration",
+                  "classname": "tests.test_ohk_python_env_and_doc_refusal.Test_Ohk_Python_Env_And_Doc_Refusal_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_fr_02_integration",
+                  "classname": "tests.test_ohk_python_env_and_doc_refusal.Test_Ohk_Python_Env_And_Doc_Refusal_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/bootstrap_worktree.sh",
+            "skills/doc_quality_check/resources/scripts/check_document.py",
+            "skills/quality_check/resources/scripts/verify_polyglot_registry.py",
+            "tests/test_ohk_python_env_and_doc_refusal.py",
+            "tests/test_polyglot_gate4.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

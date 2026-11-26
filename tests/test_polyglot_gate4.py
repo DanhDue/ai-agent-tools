@@ -574,3 +574,26 @@ def test_tto_fr_02_compact_gate4_failure_tail_25_and_verify_quiet():
         v_lines = [ln for ln in q_fail.stdout.splitlines() if "verify_fail_line_" in ln]
         assert len(v_lines) <= 25
         assert "verify_fail_line_00" not in q_fail.stdout
+
+
+def test_build_capability_env_uv_no_sync():
+    """Verify _build_capability_env sets UV_NO_SYNC=1 for `uv run` without clobbering overrides."""
+    from verify_polyglot_registry import _build_capability_env
+
+    env_default = _build_capability_env(["uv", "run", "pytest"], base_env={"A": "1"})
+    assert env_default == {"A": "1", "UV_NO_SYNC": "1"}
+
+    env_abs = _build_capability_env(
+        ["/usr/local/bin/uv", "run", "mypy", "src"], base_env={"A": "1"}
+    )
+    assert env_abs == {"A": "1", "UV_NO_SYNC": "1"}
+
+    env_override = _build_capability_env(
+        ["uv", "run", "pytest"], base_env={"A": "1", "UV_NO_SYNC": "0"}
+    )
+    assert env_override == {"A": "1", "UV_NO_SYNC": "0"}
+
+    assert _build_capability_env(["uv", "sync"], base_env={"A": "1"}) is None
+    assert (
+        _build_capability_env(["python3", "-m", "pytest"], base_env={"A": "1"}) is None
+    )
