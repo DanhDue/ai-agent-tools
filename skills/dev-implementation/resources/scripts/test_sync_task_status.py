@@ -6,6 +6,7 @@ Run: python3 skills/dev-implementation/resources/scripts/test_sync_task_status.p
 
 from __future__ import annotations
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -19,6 +20,7 @@ from sync_task_status import (
     archive_superpowers_docs,
     board_location,
     board_tally,
+    epic_checkout_roots,
     epic_of,
     expected_epic,
     find_epic_slug,
@@ -1688,6 +1690,166 @@ def test_rewrite_mirror_links_preserves_external_markdown_links() -> None:
         assert "[sibling](../epic/sample/sibling.md)" in rewritten
         assert "[guide](docs/guide.md)" in rewritten
         assert "`[code](test.md)`" in rewritten
+
+
+class WorktreeEpicIsolationTests(unittest.TestCase):
+    def _git_out(self, cwd: Path, *argv: str) -> str:
+        res = subprocess.run(
+            ["git", "-C", str(cwd), *argv],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return res.stdout.strip()
+
+    def _seed_epic(
+        self,
+        root: Path,
+        epic_dir: str,
+        epic_slug: str,
+        task_id: str,
+        task_status: str,
+        epic_status: str = "Queued (backlog)",
+    ) -> None:
+        epic_path = root / ".devtool" / "epic" / epic_dir
+        epic_path.mkdir(parents=True, exist_ok=True)
+        (epic_path / f"{epic_dir}.md").write_text(
+            f"# {epic_slug}\n\n## Meta Data\n- **Epic**: `{epic_slug}`\n"
+            f"- **Status**: {epic_status}\n- **Depends on epic**: none\n",
+            encoding="utf-8",
+        )
+        task_text = (
+            f'---\nid: "{task_id}"\nstatus: "{task_status}"\nepic: "{epic_slug}"\n'
+            'modified: "2026-11-26T00:00:00Z"\ncompletedAt: null\n---\n\n'
+            f"# {task_id}\n\n## Files\n\nAllowed files:\n- `src/{epic_dir}.py`\n"
+        )
+        (epic_path / f"{task_id}.md").write_text(task_text, encoding="utf-8")
+        target_dir = (
+            root / ".devtool" / "features" / "done"
+            if task_status == "done"
+            else root / ".devtool" / "features"
+        )
+        target_dir.mkdir(parents=True, exist_ok=True)
+        (target_dir / f"{task_id}.md").write_text(task_text, encoding="utf-8")
+
+    def test_epic_checkout_roots_excludes_unrelated_current_branch_and_slots(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp).resolve()
+            repo = base / "repo"
+            repo.mkdir()
+            git(repo, "init", "-q", "-b", "develop")
+            git(repo, "config", "user.email", "demo@example.com")
+            git(repo, "config", "user.name", "Demo")
+            (repo / ".gitignore").write_text(
+                ".worktrees/\n.devtool/.memory.lock\n.devtool/assistant_state.md\n"
+                ".devtool/state/\n.devtool/logs/\n",
+                encoding="utf-8",
+            )
+            self._seed_epic(repo, "epic_a", "epic-a", "task_01_a", "backlog")
+            git(repo, "add", "-A")
+            git(repo, "commit", "-q", "-m", "base develop with epic_a")
+
+            wt_a = repo / ".worktrees" / "epic_a"
+            wt_b = repo / ".worktrees" / "epic_b"
+            wt_slot = repo / ".worktrees" / "epic_a-slot-1"
+            wt_iso = repo / ".worktrees" / "iso_only"
+            wt_a.parent.mkdir(parents=True, exist_ok=True)
+            git(repo, "worktree", "add", "-q", "-b", "epic/epic-a", str(wt_a))
+            git(repo, "worktree", "add", "-q", "-b", "epic/epic-b", str(wt_b))
+            git(repo, "worktree", "add", "-q", "-b", "epic/epic-a-slot-1", str(wt_slot))
+            git(repo, "worktree", "add", "-q", "-b", "epic/iso-only", str(wt_iso))
+
+            self._seed_epic(wt_iso, "iso_only", "iso-only", "task_01_iso", "backlog")
+            git(wt_iso, "add", "-A")
+            git(wt_iso, "commit", "-q", "-m", "add iso_only in worktree")
+
+            self._seed_epic(
+                wt_b, "epic_b", "epic-b", "task_01_b", "in-progress", "In Progress"
+            )
+            git(wt_b, "add", "-A")
+            git(wt_b, "commit", "-q", "-m", "add epic_b")
+
+            prev_cwd = Path.cwd()
+            try:
+                # 1. From inside wt_b (on epic/epic-b, inherited epic_a), wt_b and slot are excluded
+                os.chdir(wt_b)
+                roots_from_b = [p.resolve() for p in epic_checkout_roots("epic_a")]
+                self.assertEqual(roots_from_b, [wt_a.resolve()])
+
+                # 2. From inside slot worktree, slot itself is excluded
+                os.chdir(wt_slot)
+                roots_from_slot = [p.resolve() for p in epic_checkout_roots("epic_a")]
+                self.assertEqual(roots_from_slot, [wt_a.resolve()])
+
+                # 3. From primary develop lacking iso_only, matching worktree is promoted to roots[0]
+                os.chdir(repo)
+                roots_iso = [p.resolve() for p in epic_checkout_roots("iso_only")]
+                self.assertEqual(roots_iso[0], wt_iso.resolve())
+            finally:
+                os.chdir(prev_cwd)
+
+            # 4. Invoking promote epic_a and archive-epic epic_a from inside wt_b leaves wt_b clean
+            res_prom = run_py(SYNC, wt_b, "promote", "epic_a")
+            self.assertEqual(res_prom.returncode, 0, res_prom.stderr)
+            self.assertEqual(self._git_out(wt_b, "status", "--porcelain"), "")
+            self.assertIn(
+                'status: "backlog"',
+                (wt_b / ".devtool" / "epic" / "epic_a" / "task_01_a.md").read_text(
+                    encoding="utf-8"
+                ),
+            )
+            self.assertIn(
+                'status: "todo"',
+                (wt_a / ".devtool" / "epic" / "epic_a" / "task_01_a.md").read_text(
+                    encoding="utf-8"
+                ),
+            )
+
+            res_arch = run_py(SYNC, wt_b, "archive-epic", "epic_a")
+            self.assertEqual(res_arch.returncode, 0, res_arch.stderr)
+            self.assertEqual(self._git_out(wt_b, "status", "--porcelain"), "")
+
+    def test_archive_all_done_epics_direct_caller_skips_unrelated_epic_worktree(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp).resolve()
+            repo = base / "repo"
+            repo.mkdir()
+            git(repo, "init", "-q", "-b", "develop")
+            git(repo, "config", "user.email", "demo@example.com")
+            git(repo, "config", "user.name", "Demo")
+            (repo / ".gitignore").write_text(
+                ".worktrees/\n.devtool/.memory.lock\n.devtool/assistant_state.md\n"
+                ".devtool/state/\n.devtool/logs/\n",
+                encoding="utf-8",
+            )
+            self._seed_epic(repo, "epic_a", "epic-a", "task_01_a", "backlog")
+            git(repo, "add", "-A")
+            git(repo, "commit", "-q", "-m", "base develop")
+
+            wt_a = repo / ".worktrees" / "epic_a"
+            wt_b = repo / ".worktrees" / "epic_b"
+            wt_a.parent.mkdir(parents=True, exist_ok=True)
+            git(repo, "worktree", "add", "-q", "-b", "epic/epic-a", str(wt_a))
+            git(repo, "worktree", "add", "-q", "-b", "epic/epic-b", str(wt_b))
+
+            (wt_a / ".devtool" / "features" / "task_01_a.md").unlink()
+            self._seed_epic(
+                wt_a, "epic_a", "epic-a", "task_01_a", "done", "In Progress"
+            )
+
+            archived = archive_all_done_epics([wt_a, wt_b])
+            self.assertEqual(archived, ["epic_a"])
+            self.assertIn(
+                "**Status**: Done",
+                (wt_a / ".devtool" / "epic" / "epic_a" / "epic_a.md").read_text(
+                    encoding="utf-8"
+                ),
+            )
+            self.assertEqual(self._git_out(wt_b, "status", "--porcelain"), "")
 
 
 if __name__ == "__main__":

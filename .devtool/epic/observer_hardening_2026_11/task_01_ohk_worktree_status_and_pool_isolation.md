@@ -1,13 +1,13 @@
 ---
 id: "task_01_ohk_worktree_status_and_pool_isolation"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "observer-hardening-2026-11"
 dueDate: null
 created: "2026-11-26T22:10:00Z"
-modified: "2026-11-26T22:10:00Z"
-completedAt: null
+modified: "2026-11-26T16:11:01Z"
+completedAt: "2026-11-26T16:11:01Z"
 labels: ["architecture", "concurrency", "worktree"]
 order: "a1"
 review_tier: "full"
@@ -131,10 +131,10 @@ And ".worktrees/epic_b" receives zero file writes or deletions
 
 ## Definition of Done
 
-- [ ] `sync_task_status.py promote`, `archive-epic`, and `archive-done` scope strictly to target epic checkouts without dirtying sibling `epic/*` worktrees (V2, V3, V6)
-- [ ] `manage_worker_pool.py finalize_slot` stages cleanly with gitignored `.venv` symlink and preserves tracked `shared-contracts` symlink (V2, V3, V6)
-- [ ] All unit, regression, lint, format, and type checks pass across modified scripts and test suites (V2, V3, V4, V5)
-- [ ] Assigned BDD integration scenarios (`OHK-HP-01`, `OHK-EC-01`, `OHK-ST-01`, `OHK-FR-01`) pass with JUnit XML evidence (V6)
+- [x] `sync_task_status.py promote`, `archive-epic`, and `archive-done` scope strictly to target epic checkouts without dirtying sibling `epic/*` worktrees (V2, V3, V6) — exit 0, 5 pytest + 69 unittest passed
+- [x] `manage_worker_pool.py finalize_slot` stages cleanly with gitignored `.venv` symlink and preserves tracked `shared-contracts` symlink (V2, V3, V6) — exit 0, 5 pytest + 31 regression pytest passed
+- [x] All unit, regression, lint, format, and type checks pass across modified scripts and test suites (V2, V3, V4, V5) — exit 0, ruff + mypy clean
+- [x] Assigned BDD integration scenarios (`OHK-HP-01`, `OHK-EC-01`, `OHK-ST-01`, `OHK-FR-01`) pass with JUnit XML evidence (V6) — exit 0, 4/4 covered, build/test-results/task_01.xml
 
 ## Dependencies & Blockers
 

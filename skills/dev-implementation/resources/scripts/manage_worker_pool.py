@@ -1714,22 +1714,43 @@ def finalize_slot(
                 "merged": False,
             }
 
-    add_specs = [
-        ".",
-        f":!.devtool/epic/{epic_dir}/review_audit_notes*",
-    ]
-    for cdir in CACHE_DIR_CANDIDATES:
-        candidate = slot_path / cdir
-        if candidate.is_symlink():
-            add_specs.append(f":!{cdir}")
-
     subprocess.run(
-        ["git", "add", "-A", "--", *add_specs],
+        ["git", "add", "-A"],
         cwd=slot_path,
         capture_output=True,
         text=True,
         check=True,
     )
+    unstage_paths = [
+        f".devtool/epic/{epic_dir}/review_audit_notes*",
+        *(cdir for cdir in CACHE_DIR_CANDIDATES if (slot_path / cdir).is_symlink()),
+    ]
+    if unstage_paths:
+        if _ref_exists(slot_path, "HEAD"):
+            subprocess.run(
+                ["git", "reset", "-q", "HEAD", "--", *unstage_paths],
+                cwd=slot_path,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+        else:
+            subprocess.run(
+                [
+                    "git",
+                    "rm",
+                    "-r",
+                    "-q",
+                    "--cached",
+                    "--ignore-unmatch",
+                    "--",
+                    *unstage_paths,
+                ],
+                cwd=slot_path,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
     cached_check = subprocess.run(
         ["git", "diff", "--cached", "--quiet"],
         cwd=slot_path,
