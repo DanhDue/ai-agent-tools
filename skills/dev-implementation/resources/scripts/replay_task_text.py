@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import fnmatch
 import os
 import re
 import shlex
@@ -31,6 +32,7 @@ from run_task_checks import (
     run_row,
     validate_pytest_red,
 )
+from task_contract import parse_allowed_files
 
 
 @dataclass(frozen=True)
@@ -249,6 +251,46 @@ def verify_task_edit_anchors(
     return errors
 
 
+def has_uncreated_new_test_targets(
+    root: Path,
+    task_text: str,
+    directives: list[Directive],
+) -> bool:
+    """Return True when Allowed files declares (new) test targets absent from root and directives."""
+    created_paths = {
+        Path(d.path).as_posix()
+        for d in directives
+        if isinstance(d, CreateDirective)
+    }
+    for ap in parse_allowed_files(task_text):
+        if not ap.new or not is_test_file(ap.pattern):
+            continue
+        norm = Path(ap.pattern).as_posix()
+        if any(ch in norm for ch in "*?["):
+            exists_on_disk = any(root.glob(norm))
+            created_by_dir = any(fnmatch.fnmatch(cp, norm) for cp in created_paths)
+        else:
+            exists_on_disk = (root / norm).exists()
+            created_by_dir = norm in created_paths
+        if not exists_on_disk and not created_by_dir:
+            return True
+    return False
+
+
+def _task_skip_reason(
+    root: Path,
+    task_text: str,
+    directives: list[Directive],
+) -> str | None:
+    """Return a skip reason when a contract-based task lacks literal replay directives."""
+    test_directives = [d for d in directives if is_test_file(d.path)]
+    if not test_directives and has_uncreated_new_test_targets(root, task_text, directives):
+        return "no literal test-creation directives for (new) test files"
+    if not directives:
+        return "no literal patch directives"
+    return None
+
+
 def replay_task(
     root: Path,
     task_path: Path,
@@ -260,6 +302,11 @@ def replay_task(
     directives = parse_task_directives(task_text)
     test_directives = [d for d in directives if is_test_file(d.path)]
     prod_directives = [d for d in directives if not is_test_file(d.path)]
+
+    if run_rows:
+        skip_reason = _task_skip_reason(root, task_text, directives)
+        if skip_reason is not None:
+            return 0, [f"SKIP: {task_path.name}: {skip_reason}"]
 
     # 1. Apply test directives
     apply_task_directives(root, test_directives)
@@ -349,12 +396,28 @@ def replay_epic_in_worktree(
 
         task_files = sorted(epic_tasks_dir.glob("task_*.md"))
         errors: list[str] = []
+        replayed = 0
+        skipped = 0
+        skipped_for_new_tests = False
         for task_path in task_files:
             text = task_path.read_text(encoding="utf-8")
+            directives = parse_task_directives(text)
+            skip_reason = _task_skip_reason(worktree_path, text, directives)
+            if skip_reason is not None:
+                skipped += 1
+                if "test-creation" in skip_reason:
+                    skipped_for_new_tests = True
+                continue
+            replayed += 1
             code, msgs = replay_task(worktree_path, task_path, text, run_rows=True, timeout=timeout)
             if code != 0:
                 errors.extend(msgs)
                 return code, errors
+
+        if replayed == 0 and skipped > 0:
+            if skipped_for_new_tests:
+                return 0, ["SKIP: no literal test-creation directives for (new) test files"]
+            return 0, ["SKIP: no literal patch directives in epic tasks"]
 
         return 0, []
 
@@ -383,8 +446,9 @@ def main(argv: list[str] | None = None) -> int:
     text = args.task.read_text(encoding="utf-8")
     try:
         code, msgs = replay_task(root, args.task, text, run_rows=args.run_rows, timeout=args.timeout)
+        stream = sys.stdout if code == 0 else sys.stderr
         for msg in msgs:
-            print(msg, file=sys.stderr)
+            print(msg, file=stream)
         return code
     except ContractError as err:
         print(f"error: {err}", file=sys.stderr)

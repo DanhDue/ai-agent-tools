@@ -1,0 +1,205 @@
+{
+  "schema": 1,
+  "task": "task_02_ohk_revise_reanchor_and_replay_skip",
+  "runs": {
+    "red": {
+      "head": "b0233ae20ea140bcde7c74908da08e45e414daa9",
+      "tree": "235675c6dc792da5b5762735c4cf71960c372750",
+      "patch_id": "d0c363e0b6fd2c8c3a57612f99efe168cf26e937",
+      "started": "2026-11-26T16:17:32Z",
+      "finished": "2026-11-26T16:17:34Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ohk_revise_and_replay.py::test_ohk_hp_02_package_revise_after_rebase",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:17:32Z",
+          "finished": "2026-11-26T16:17:34Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "__________________ test_ohk_hp_02_package_revise_after_rebase __________________",
+            "tests/test_ohk_revise_and_replay.py:153: in test_ohk_hp_02_package_revise_after_rebase",
+            "    assert reanchor_check.returncode == 0, (",
+            "E   AssertionError: Expected --reanchoring to pass:",
+            "E     ",
+            "E     usage: check_epic_readiness.py [-h] [--baseline] [--replay] [--post-design]",
+            "E                                    [--replay-prereqs] [--row-timeout ROW_TIMEOUT]",
+            "E                                    [--strict-bilingual]",
+            "E                                    epic_dir",
+            "E     check_epic_readiness.py: error: unrecognized arguments: --reanchoring",
+            "E     ",
+            "E   assert 2 == 0",
+            "E    +  where 2 = CompletedProcess(args=['/opt/homebrew/opt/python@3.15/bin/python3.15', '-B', '/Users/danhdueexoictif/AllProjects/ai-ag...al]\\n                               epic_dir\\ncheck_epic_readiness.py: error: unrecognized arguments: --reanchoring\\n').returncode",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_ohk_revise_and_replay.py::test_ohk_hp_02_package_revise_after_rebase",
+            "1 failed in 1.70s"
+          ],
+          "output_sha256": "ae184fa5ffc3fbc98a249605c2c944fd93e219c8380303389c57ff2d8eed43b8"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "b0233ae20ea140bcde7c74908da08e45e414daa9",
+      "tree": "47bfe2c6b37bab7c8cf34bdf7b99a2d31d5d484a",
+      "patch_id": "f62aaa443cbe5086c4ed0be7c3719e2b6ca395ab",
+      "started": "2026-11-26T16:25:33Z",
+      "finished": "2026-11-26T16:26:25Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ohk_revise_and_replay.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:25:33Z",
+          "finished": "2026-11-26T16:25:44Z",
+          "output_tail": [
+            "......                                                                   [100%]",
+            "6 passed in 11.19s"
+          ],
+          "output_sha256": "f5fdf385c8ad0b04bab37543e151638210f3b3a741bb536d252f06270f0eb1ff"
+        },
+        {
+          "id": "V3",
+          "phase": "REGRESSION",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_check_epic_readiness.py && python3 -m pytest -q --tb=short --maxfail=3 skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py skills/dev-implementation/resources/scripts/test_replay_and_measure.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:25:44Z",
+          "finished": "2026-11-26T16:26:12Z",
+          "output_tail": [
+            "................",
+            "----------------------------------------------------------------------",
+            "Ran 16 tests in 14.897s",
+            "OK",
+            "..............                                                           [100%]",
+            "14 passed in 12.49s"
+          ],
+          "output_sha256": "b49e7319126ea743fb8d9b0b38cba38880c21df61cb32e323c6c0e6e4cff525b"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/package_epic.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/replay_task_text.py skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py skills/dev-implementation/resources/scripts/test_check_epic_readiness.py && ruff format --check tests/test_ohk_revise_and_replay.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:26:12Z",
+          "finished": "2026-11-26T16:26:12Z",
+          "output_tail": [
+            "All checks passed!",
+            "1 file already formatted"
+          ],
+          "output_sha256": "ce04ce92b16073000b77c97a42c00b98b96305692d9d5ed4dcfa5a9ca9ea62d6"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py && mypy --ignore-missing-imports --follow-imports=silent skills/dev-implementation/resources/scripts/package_epic.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/replay_task_text.py skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py skills/dev-implementation/resources/scripts/test_check_epic_readiness.py tests/test_ohk_revise_and_replay.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:26:12Z",
+          "finished": "2026-11-26T16:26:13Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files",
+            "Success: no issues found in 6 source files"
+          ],
+          "output_sha256": "8ba7b75d3daba630cbb887bc25659bc3e5c5f33a590b13309851d48308d6ca7c"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ohk_revise_and_replay.py --junitxml=build/test-results/task_02.xml",
+          "expect": "exit 0; results build/test-results/task_02.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:26:13Z",
+          "finished": "2026-11-26T16:26:24Z",
+          "output_tail": [
+            "......                                                                   [100%]",
+            "6 passed in 11.66s"
+          ],
+          "output_sha256": "296121b3cb3899a6d80be020864ac647de54bce5aa7e488dd7159be1c5c161ec",
+          "results": {
+            "path": "build/test-results/task_02.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 6,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_ohk_hp_02_package_revise_after_rebase",
+                  "classname": "tests.test_ohk_revise_and_replay",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ec_02_replay_skips_contract_tasks_without_test_directives",
+                  "classname": "tests.test_ohk_revise_and_replay",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_st_02_replay_enforces_strict_red_and_green_on_directive_tasks",
+                  "classname": "tests.test_ohk_revise_and_replay",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_hp_02_integration",
+                  "classname": "tests.test_ohk_revise_and_replay.Test_Ohk_Revise_And_Replay_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ec_02_integration",
+                  "classname": "tests.test_ohk_revise_and_replay.Test_Ohk_Revise_And_Replay_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_st_02_integration",
+                  "classname": "tests.test_ohk_revise_and_replay.Test_Ohk_Revise_And_Replay_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/check_epic_readiness.py",
+            "skills/dev-implementation/resources/scripts/package_epic.py",
+            "skills/dev-implementation/resources/scripts/replay_task_text.py",
+            "skills/dev-implementation/resources/scripts/test_check_epic_readiness.py",
+            "skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py",
+            "tests/test_ohk_revise_and_replay.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

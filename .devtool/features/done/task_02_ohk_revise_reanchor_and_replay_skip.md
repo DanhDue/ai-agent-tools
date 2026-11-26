@@ -1,13 +1,13 @@
 ---
 id: "task_02_ohk_revise_reanchor_and_replay_skip"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "observer-hardening-2026-11"
 dueDate: null
 created: "2026-11-26T22:10:00Z"
-modified: "2026-11-26T22:10:00Z"
-completedAt: null
+modified: "2026-11-26T16:32:42Z"
+completedAt: "2026-11-26T16:32:42Z"
 labels: ["architecture", "readiness", "replay"]
 order: "a2"
 review_tier: "full"
@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 2: Support Post-Rebase `package_epic.py --revise` Re-Anchoring (`--reanchoring`) and Contract-Task `R8 --replay` Self-Skip
 
-Epic: [observer-hardening-2026-11](../epic/observer_hardening_2026_11/observer_hardening_2026_11.md)
+Epic: [observer-hardening-2026-11](../../epic/observer_hardening_2026_11/observer_hardening_2026_11.md)
 
 ## Requirement Analysis
 
@@ -118,10 +118,10 @@ Then R8 reports "R8 FAIL" and exits 1
 
 ## Definition of Done
 
-- [ ] `package_epic.py --revise` passes `--reanchoring` and re-anchors `handoff.md` after rebase while normal `R7` still fails on non-ancestor SHAs (V2, V3, V6)
-- [ ] `check_epic_readiness.py --replay` emits `R8 SKIP` (exit 0) for contract-based `(new)` tasks without test directives and enforces `R8 PASS`/`R8 FAIL` on directive-bearing tasks (V2, V3, V6)
-- [ ] All regression, lint, format, and type checks pass across modified scripts and test suites (V2, V3, V4, V5)
-- [ ] Assigned BDD integration scenarios (`OHK-HP-02`, `OHK-EC-02`, `OHK-ST-02`) pass with JUnit XML evidence (V6)
+- [x] `package_epic.py --revise` passes `--reanchoring` and re-anchors `handoff.md` after rebase while normal `R7` still fails on non-ancestor SHAs (V2, V3, V6) — exit 0, 6 passed
+- [x] `check_epic_readiness.py --replay` emits `R8 SKIP` (exit 0) for contract-based `(new)` tasks without test directives and enforces `R8 PASS`/`R8 FAIL` on directive-bearing tasks (V2, V3, V6) — exit 0, 6 passed
+- [x] All regression, lint, format, and type checks pass across modified scripts and test suites (V2, V3, V4, V5) — exit 0, ruff + mypy + regressions passed
+- [x] Assigned BDD integration scenarios (`OHK-HP-02`, `OHK-EC-02`, `OHK-ST-02`) pass with JUnit XML evidence (V6) — exit 0, 3/3 covered in build/test-results/task_02.xml
 
 ## Dependencies & Blockers
 
@@ -129,7 +129,7 @@ None.
 
 ## References & Rollback
 
-- Spec: [2026-11-26-observer-hardening-design.md](../epic/observer_hardening_2026_11/2026-11-26-observer-hardening-design.md)
-- HLD: [observer_hardening_2026_11.md](../epic/observer_hardening_2026_11/observer_hardening_2026_11.md)
-- BDD: [bdd_scenarios.md](../epic/observer_hardening_2026_11/bdd_scenarios.md)
+- Spec: [2026-11-26-observer-hardening-design.md](../../epic/observer_hardening_2026_11/2026-11-26-observer-hardening-design.md)
+- HLD: [observer_hardening_2026_11.md](../../epic/observer_hardening_2026_11/observer_hardening_2026_11.md)
+- BDD: [bdd_scenarios.md](../../epic/observer_hardening_2026_11/bdd_scenarios.md)
 - Rollback: Revert this task's commit on `epic/observer-hardening-2026-11`.
