@@ -26,3 +26,27 @@ Raw output:
 ```text
 Verdict: CHANGES REQUIRED
 ```
+
+## Round 2
+
+- **Date**: 2026-11-26T15:35:58Z
+- **SHA**: 38de8a6a608a0c771135e48d3f41c9ec892c91f1
+- **Base**: main
+- **CLI**: codex
+- **Model**: gpt-6.1-sol
+- **Thinking**: high
+- **Status**: completed
+- **Verdict**: CHANGES REQUIRED
+- **Kind**: principal
+- **Scope**: delta from round 1 (9883d69)
+- **Raw log**: `build/reviews/observer_hardening_2026_11_principal_round2_38de8a6.raw.log`
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Important | .devtool/epic/observer_hardening_2026_11/task_04_ohk_web_ui_audit_subdir_and_hotfix.md:117 (Decisions Already Made) | [INCOMPLETE_FIX] Direct-link selection still misses unchanged pages inheriting CSS through a layout. When `layout.html` links the modified stylesheet, the fallback does not run and `page.html` extending that layout is omitted. A read-only probe returned zero findings with these targets versus one `active-card` orphan with dependent-template coverage. Source: `skills/web-quality-check/resources/scripts/audit_ui_state_and_styles.py:294` collects stylesheet definitions globally; line 328 restricts template inspection. This leaves Round 1 #2 unresolved against HLD Invariant 5. Proposed: require transitive template coverage, or scan all non-excluded templates whenever CSS changes; add an inherited-layout regression to OHK-EC-04. |  |
+
+Raw output:
+
+```text
+Verdict: CHANGES REQUIRED
+```
