@@ -116,7 +116,7 @@ if [ -f pnpm-lock.yaml ] && command -v pnpm &>/dev/null; then pnpm install; elif
 # Rust
 if [ -f Cargo.toml ]; then cargo check --workspace; fi
 
-# Python (prefer uv when uv.lock or uv CLI is present)
+# Python (prefer uv when uv.lock or uv CLI is present; bootstrap_worktree.sh passes --all-extras when declared)
 if [ -f pyproject.toml ] && command -v uv &>/dev/null; then uv sync; elif [ -f poetry.lock ] && command -v poetry &>/dev/null; then poetry install; elif [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
 # Go
@@ -126,6 +126,8 @@ if [ -f go.mod ]; then go mod download; fi
 REPO_ROOT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
 for f in .env .env.local; do [ -f "$REPO_ROOT/$f" ] && [ ! -f "$f" ] && cp "$REPO_ROOT/$f" "$f"; done
 ```
+
+**Shared `.venv` Symlink Isolation (Python):** Whenever a linked worktree reuses a symlinked parent `.venv` instead of provisioning an isolated venv via `uv sync --all-extras`, export `UV_NO_SYNC=1 PYTHONPATH="$WORKTREE_ROOT/src"` for every test, lint, and type-check invocation so mutable editable `.pth` pointers never import from the parent checkout's `src/` and `uv run` never mutates or prunes the shared `.venv`.
 
 ## Step 3: Verify Clean Baseline
 

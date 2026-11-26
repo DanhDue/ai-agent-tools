@@ -381,6 +381,8 @@ def package_epic(
     readiness_cmd = [sys.executable, str(READINESS_SCRIPT)]
     if stage3_post_design:
         readiness_cmd.append("--post-design")
+    if revise:
+        readiness_cmd.append("--reanchoring")
     readiness_cmd.append(epic_dir)
     readiness_proc = subprocess.run(
         readiness_cmd,

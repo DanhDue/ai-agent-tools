@@ -50,6 +50,7 @@ Execute commands declared in `capabilities` for the target profile:
    - For governance and contract capabilities (`contracts`, `contracts_<domain>`, and `contract_diff`): exit code `0` records `PASS`, exit code `2` (or JSON `"status": "BLOCKED"`) records `BLOCKED`, and any other nonzero exit code (such as `1`) records `FAIL`.
    - For all other capabilities: nonzero exit code records `FAIL`.
 5. If a command succeeds (zero exit code): record check status as `PASS`.
+6. **Preserving `uv` Optional Extras**: Worktrees bootstrapped via `bootstrap_worktree.sh` install `[project.optional-dependencies]` with `uv sync --all-extras` (and `--group dev` when declared). When executing `uv run` capabilities, `verify_polyglot_registry.py` defaults `UV_NO_SYNC=1` in the child process environment (respecting any explicit caller override) so read-only Gate 4 runs never silently prune optional extras from `.venv`.
 
 Independent commands (e.g. `format`, `lint`, `type_check`, `test`) may run concurrently.
 

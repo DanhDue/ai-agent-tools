@@ -497,10 +497,10 @@ def test_tto_hp_08_end_to_end_pipeline() -> None:
             ".devtool/epic/demo_epic/task_01_feature.md >/dev/null\n"
             f'"{sys.executable}" -c \'\n'
             "from pathlib import Path\n"
-            "for rel in (\".devtool/epic/demo_epic/task_01_feature.md\", \".devtool/features/task_01_feature.md\"):\n"
+            'for rel in (".devtool/epic/demo_epic/task_01_feature.md", ".devtool/features/task_01_feature.md"):\n'
             "    p = Path(rel)\n"
             "    if p.is_file():\n"
-            "        p.write_text(p.read_text(encoding=\"utf-8\").replace(\"- [ ] \", \"- [x] \"), encoding=\"utf-8\")\n"
+            '        p.write_text(p.read_text(encoding="utf-8").replace("- [ ] ", "- [x] "), encoding="utf-8")\n'
             "'\n"
             'echo "Modified: src/feature.py"\n'
             'echo "Tests: 1 passed"\n',

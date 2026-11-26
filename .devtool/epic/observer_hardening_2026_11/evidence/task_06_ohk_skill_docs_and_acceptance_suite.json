@@ -1,0 +1,364 @@
+{
+  "schema": 1,
+  "task": "task_06_ohk_skill_docs_and_acceptance_suite",
+  "runs": {
+    "red": {
+      "head": "04b7a0d4309753aff54a000df4957b3beca5de2f",
+      "tree": "3302260cc89b816dbc36d80a30b6d70a37f31200",
+      "patch_id": "f4e14076c36e6ff9f067ad236e3df55db651a632",
+      "started": "2026-11-26T17:41:15Z",
+      "finished": "2026-11-26T17:41:15Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ohk_docs_and_acceptance.py::test_ohk_hp_06_skill_contracts_and_directives",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T17:41:15Z",
+          "finished": "2026-11-26T17:41:15Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "________________ test_ohk_hp_06_skill_contracts_and_directives _________________",
+            "tests/test_ohk_docs_and_acceptance.py:128: in test_ohk_hp_06_skill_contracts_and_directives",
+            "    assert \".superpowers/brainstorm/\" in dev_brainstorm",
+            "E   assert '.superpowers/brainstorm/' in '---\\nname: dev-brainstorming\\ndescription: \"Turns an idea for code work into an approved design spec through collabor...y agree to the companion, read the detailed guide before proceeding:\\n`skills/dev-brainstorming/visual-companion.md`\\n'",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_ohk_docs_and_acceptance.py::test_ohk_hp_06_skill_contracts_and_directives",
+            "1 failed in 0.04s"
+          ],
+          "output_sha256": "6fb2832aea8fe93cf4bd1bafdbc0902e8335c27892fa0236fd07050e0389635d"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "04b7a0d4309753aff54a000df4957b3beca5de2f",
+      "tree": "674c87774fb33d379eb9b74db00ef0b5a9923a77",
+      "patch_id": "cd50b7ccc68333cb45d1e6377af7530a30846880",
+      "started": "2026-11-26T17:49:33Z",
+      "finished": "2026-11-26T17:53:11Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ohk_docs_and_acceptance.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T17:49:33Z",
+          "finished": "2026-11-26T17:51:04Z",
+          "output_tail": [
+            "......                                                                   [100%]",
+            "6 passed in 90.82s (0:01:30)"
+          ],
+          "output_sha256": "7e8a19186800e88adf656565872f8df84f63a51d0a946b5c6d3ddaf9fcdb3993"
+        },
+        {
+          "id": "V3",
+          "phase": "REGRESSION",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_tto_docs_and_slimming.py tests/test_fpg_governance_text.py tests/test_fpg_english_only_text.py tests/test_trc_reviewer_briefs_and_governance.py && python3 scripts/test_lifecycle_document_contract.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T17:51:04Z",
+          "finished": "2026-11-26T17:51:06Z",
+          "output_tail": [
+            "..................................................                       [100%]",
+            "50 passed in 1.61s",
+            "......................",
+            "----------------------------------------------------------------------",
+            "Ran 22 tests in 0.005s",
+            "OK"
+          ],
+          "output_sha256": "d0d31497ee84fec29577899426fe46f47d4c213c487cf4d079b2a8e44dedd24b"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py && ruff format --check tests/test_ohk_docs_and_acceptance.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T17:51:06Z",
+          "finished": "2026-11-26T17:51:06Z",
+          "output_tail": [
+            "All checks passed!",
+            "1 file already formatted"
+          ],
+          "output_sha256": "ce04ce92b16073000b77c97a42c00b98b96305692d9d5ed4dcfa5a9ca9ea62d6"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py && mypy --ignore-missing-imports --follow-imports=silent tests/test_ohk_docs_and_acceptance.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T17:51:06Z",
+          "finished": "2026-11-26T17:51:06Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files",
+            "Success: no issues found in 1 source file"
+          ],
+          "output_sha256": "3093aa6c998bfbee60b0ac0ac5a93a0b8b8c32442e01bb5f1a07d160a0edb631"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ohk_worktree_and_pool.py tests/test_ohk_revise_and_replay.py tests/test_ohk_python_env_and_doc_refusal.py tests/test_ohk_web_ui_audit.py tests/test_ohk_cmr_and_contracts.py tests/test_ohk_docs_and_acceptance.py --junitxml=build/test-results/ohk_acceptance.xml",
+          "expect": "exit 0; results build/test-results/ohk_acceptance.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T17:51:06Z",
+          "finished": "2026-11-26T17:53:11Z",
+          "output_tail": [
+            "..........................................                               [100%]",
+            "42 passed in 124.32s (0:02:04)"
+          ],
+          "output_sha256": "418ad1cce8d1863921fcc161b0bafac85ca0660c00ddeaa6b65de6625f4b0c28",
+          "results": {
+            "path": "build/test-results/ohk_acceptance.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 37,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_ohk_hp_01_promote_in_isolated_worktree",
+                  "classname": "tests.test_ohk_worktree_and_pool",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_hp_01_promote_in_isolated_worktree_integration",
+                  "classname": "tests.test_ohk_worktree_and_pool.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ec_01_finalize_slot_gitignored_venv_and_shared_contracts_symlink",
+                  "classname": "tests.test_ohk_worktree_and_pool.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_st_01_archive_done_and_promote_isolate_sibling_epic_worktrees",
+                  "classname": "tests.test_ohk_worktree_and_pool.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_fr_01_archive_epic_from_primary_skips_sibling_epic_worktrees",
+                  "classname": "tests.test_ohk_worktree_and_pool.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_hp_02_package_revise_after_rebase",
+                  "classname": "tests.test_ohk_revise_and_replay",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ec_02_replay_skips_contract_tasks_without_test_directives",
+                  "classname": "tests.test_ohk_revise_and_replay",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_st_02_replay_enforces_strict_red_and_green_on_directive_tasks",
+                  "classname": "tests.test_ohk_revise_and_replay",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_hp_02_integration",
+                  "classname": "tests.test_ohk_revise_and_replay.Test_Ohk_Revise_And_Replay_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ec_02_integration",
+                  "classname": "tests.test_ohk_revise_and_replay.Test_Ohk_Revise_And_Replay_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_st_02_integration",
+                  "classname": "tests.test_ohk_revise_and_replay.Test_Ohk_Revise_And_Replay_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_hp_03_bootstrap_extras_and_uv_no_sync",
+                  "classname": "tests.test_ohk_python_env_and_doc_refusal",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ec_03_newline_joined_refusal",
+                  "classname": "tests.test_ohk_python_env_and_doc_refusal",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_fr_02_uv_no_sync_override_and_malformed_pyproject",
+                  "classname": "tests.test_ohk_python_env_and_doc_refusal",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_hp_03_integration",
+                  "classname": "tests.test_ohk_python_env_and_doc_refusal.Test_Ohk_Python_Env_And_Doc_Refusal_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ec_03_integration",
+                  "classname": "tests.test_ohk_python_env_and_doc_refusal.Test_Ohk_Python_Env_And_Doc_Refusal_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_fr_02_integration",
+                  "classname": "tests.test_ohk_python_env_and_doc_refusal.Test_Ohk_Python_Env_And_Doc_Refusal_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_hp_04_subdir_base_and_uncommitted_merge",
+                  "classname": "tests.test_ohk_web_ui_audit",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ec_04_excludes_base_orphans_and_css_removal_on_layout_children",
+                  "classname": "tests.test_ohk_web_ui_audit",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ar_01_non_ui_and_excluded_html_return_not_applicable",
+                  "classname": "tests.test_ohk_web_ui_audit",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_hp_04_integration",
+                  "classname": "tests.test_ohk_web_ui_audit.Test_Ohk_Web_Ui_Audit_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ec_04_integration",
+                  "classname": "tests.test_ohk_web_ui_audit.Test_Ohk_Web_Ui_Audit_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ar_01_integration",
+                  "classname": "tests.test_ohk_web_ui_audit.Test_Ohk_Web_Ui_Audit_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_hp_05_cmr_auto_defers_epic_doc_minors",
+                  "classname": "tests.test_ohk_cmr_and_contracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ec_05_smoke_generator_ignores_css_selectors_and_infers_web_url",
+                  "classname": "tests.test_ohk_cmr_and_contracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_st_03_delta_context_honors_deferred_and_blocks_source_or_important",
+                  "classname": "tests.test_ohk_cmr_and_contracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_fr_03_sync_contracts_diff_check_allow_dirty_and_protected_guards",
+                  "classname": "tests.test_ohk_cmr_and_contracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_hp_05_integration",
+                  "classname": "tests.test_ohk_cmr_and_contracts.Test_Ohk_Cmr_And_Contracts_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ec_05_integration",
+                  "classname": "tests.test_ohk_cmr_and_contracts.Test_Ohk_Cmr_And_Contracts_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_st_03_integration",
+                  "classname": "tests.test_ohk_cmr_and_contracts.Test_Ohk_Cmr_And_Contracts_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_fr_03_integration",
+                  "classname": "tests.test_ohk_cmr_and_contracts.Test_Ohk_Cmr_And_Contracts_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_hp_06_skill_contracts_and_directives",
+                  "classname": "tests.test_ohk_docs_and_acceptance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ar_02_subagent_waiting_merge_hygiene",
+                  "classname": "tests.test_ohk_docs_and_acceptance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ar_03_verify_sh_passes",
+                  "classname": "tests.test_ohk_docs_and_acceptance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_hp_06_integration",
+                  "classname": "tests.test_ohk_docs_and_acceptance.Test_Ohk_Docs_And_Acceptance_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ar_02_integration",
+                  "classname": "tests.test_ohk_docs_and_acceptance.Test_Ohk_Docs_And_Acceptance_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ar_03_integration",
+                  "classname": "tests.test_ohk_docs_and_acceptance.Test_Ohk_Docs_And_Acceptance_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/verify.sh",
+            "skills/cross-model-review/SKILL.md",
+            "skills/cross-model-review/references/review-triage.md",
+            "skills/dev-brainstorming/SKILL.md",
+            "skills/dev-brainstorming/visual-companion.md",
+            "skills/dev-designer/SKILL.md",
+            "skills/dev-designer/references/task-template-examples.md",
+            "skills/dev-designer/references/verification-rows.md",
+            "skills/dev-implementation/SKILL.md",
+            "skills/dev-lifecycle/references/orchestration-roles.md",
+            "skills/doc-designer/SKILL.md",
+            "skills/doc_quality_check/SKILL.md",
+            "skills/python-quality-check/SKILL.md",
+            "skills/python-quality-check/references/python-capability-contract.md",
+            "skills/subagent-driven-development/SKILL.md",
+            "skills/sync-shared-contracts/SKILL.md",
+            "skills/using-git-worktrees/SKILL.md",
+            "skills/writing-plans/SKILL.md",
+            "tests/test_ohk_docs_and_acceptance.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

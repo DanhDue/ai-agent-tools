@@ -1574,6 +1574,82 @@ X-Correlation-ID: uuid
         report3 = json.loads(stdout_buf3.getvalue())
         self.assertEqual(report3["status"], "BLOCKED")
 
+    def test_diff_check_allow_dirty_scoped_protected_guards(self) -> None:
+        """diff-check --allow-dirty permits dirty non-contract files while blocking dirty protected contract paths."""
+        from sync_contracts import _extract_porcelain_paths, _is_protected_contract_path
+
+        # Unit coverage for porcelain path extraction (including leading spaces, quotes, renames)
+        parsed = _extract_porcelain_paths(
+            " M .agents/contract_sync.json\n"
+            "R  .agents/contract_map.json -> .agents/contract_map.bak\n"
+            "?? \"shared-contracts/lyrics-sync/api_contract.md\"\n"
+            " M src/preview/ui.js\n"
+        )
+        self.assertEqual(
+            parsed,
+            [
+                ".agents/contract_sync.json",
+                ".agents/contract_map.json",
+                ".agents/contract_map.bak",
+                "shared-contracts/lyrics-sync/api_contract.md",
+                "src/preview/ui.js",
+            ],
+        )
+        self.assertTrue(_is_protected_contract_path("shared-contracts"))
+        self.assertTrue(_is_protected_contract_path("shared-contracts/lyrics-sync/api_contract.md"))
+        self.assertTrue(_is_protected_contract_path(".agents/contract_map.json"))
+        self.assertTrue(_is_protected_contract_path(".agents/contract_sync.json"))
+        self.assertFalse(_is_protected_contract_path("src/preview/ui.js"))
+
+        # Hub integration: dirty non-contract passes with --allow-dirty, dirty shared-contracts/<domain>/ blocks
+        self._init_git_repo(self.repo_root, "develop")
+        hub_domain = self.repo_root / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(hub_domain, "lyrics-sync")
+        agents_dir = self.repo_root / ".agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        (agents_dir / "contract_map.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "base_ref": "develop",
+                    "domains": {"lyrics-sync": {"paths": ["src/api/**"]}},
+                    "waivers": [],
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        ui_file = self.repo_root / "src" / "preview" / "ui.js"
+        ui_file.parent.mkdir(parents=True, exist_ok=True)
+        ui_file.write_text("export const x = 1;\n", encoding="utf-8")
+        self._commit_all(self.repo_root, "Hub baseline")
+
+        # Dirty non-contract tracked file: default BLOCKED, --allow-dirty PASS
+        ui_file.write_text("export const x = 2;\n", encoding="utf-8")
+        out_default = io.StringIO()
+        with patch("sys.stdout", out_default):
+            code_default = main(["diff-check", "--repo-root", str(self.repo_root), "--json"])
+        self.assertEqual(code_default, 2)
+        self.assertEqual(json.loads(out_default.getvalue())["status"], "BLOCKED")
+
+        out_allow = io.StringIO()
+        with patch("sys.stdout", out_allow):
+            code_allow = main(["diff-check", "--repo-root", str(self.repo_root), "--allow-dirty", "--json"])
+        self.assertEqual(code_allow, 0)
+        self.assertEqual(json.loads(out_allow.getvalue())["status"], "PASS")
+
+        # Dirty file inside shared-contracts/ -> BLOCKED even with --allow-dirty
+        api_md = hub_domain / "api_contract.md"
+        api_orig = api_md.read_text(encoding="utf-8")
+        api_md.write_text(api_orig + "\n<!-- dirty -->\n", encoding="utf-8")
+        out_dirty_sc = io.StringIO()
+        with patch("sys.stdout", out_dirty_sc):
+            code_dirty_sc = main(["diff-check", "--repo-root", str(self.repo_root), "--allow-dirty", "--json"])
+        self.assertEqual(code_dirty_sc, 2)
+        report_sc = json.loads(out_dirty_sc.getvalue())
+        self.assertEqual(report_sc["status"], "BLOCKED")
+        self.assertTrue(any("shared-contracts/lyrics-sync/api_contract.md" in b for b in report_sc["blockers"]))
+
 
 if __name__ == "__main__":
     unittest.main()

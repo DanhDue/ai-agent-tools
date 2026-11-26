@@ -28,7 +28,7 @@ review_tier: "full"     # optional: "full" for high-risk/multi-module tasks; omi
 2. **Epic Reference**: `Epic: [<epic_name>](../epic/<epic_name>/<epic_name>.md)`
 3. **Requirement Analysis**: Context, boundaries, and acceptance constraints for this single task.
 4. **Files**:
-   - `Allowed files:` Exact paths or globs (`*`, `?`, `**`) this task may create `(new)`, edit, or delete (no bare directories; omit `.devtool/` status/mirror/evidence files except explicit protected paths).
+   - `Allowed files:` Exact paths or globs (`*`, `?`, `**`) this task may create `(new)`, edit, or delete (no bare directories; omit `.devtool/` status/mirror/evidence files except explicit protected paths). Whenever a task modifies shared `.css` or `.js` assets, grep every referencing `*.html`, `*.astro`, `*.jinja`, and `*.jinja2` template and add all of them to the same task's `Allowed files` so `?v=` cache-bust updates commit atomically.
    - `Read-only context:` Paths only read, including `(new)` files from upstream tasks.
    - **Surgical `target_files` Anchors**: Under `## Impact Analysis & Blast Radius`, whenever modifying an existing file `> 200` lines, list the exact target symbol plus `(L<start>-L<end>)` line range so Stage 3 implementers use bounded reads.
 5. **Design Rationale & Applicable Skills**:
@@ -177,7 +177,7 @@ flowchart TD
 
 Required sections for `.devtool/epic/<epic_name>/<epic_name>.md` (English-only; a legacy `.en.md` name is accepted):
 1. **Table of Contents**: Links every `##` heading.
-2. **Meta Data**: Epic name, Status, `- **PIC**: <profile_account_id>`, Target Release, Platform, `- **Depends on epic**: <list or none>`, `Source Spec` link (when derived from `dev-brainstorming`).
+2. **Meta Data**: Epic name, Status, `- **PIC**: <profile_account_id>`, Target Release, Platform, `- **Depends on epic**: <list or none>`, `Source Spec` link (when derived from `dev-brainstorming`), and `Approved Visual Companions` linking `assets/*.html` whenever Stage 1 persisted approved HTML mockups into `.devtool/epic/<epic_name>/assets/`.
 3. **Background**: Problem statement and goals.
 4. **Goals & Non-Goals**: Scope fence.
 5. **Architecture, Feature Map & Technical Design ("Prompt to Maintain")**:
@@ -188,7 +188,7 @@ Required sections for `.devtool/epic/<epic_name>/<epic_name>.md` (English-only; 
 6. **Shared Contract Impact**: `None — self-contained feature` or schema/field/protocol rules + compatibility plan.
 7. **BDD Suite Reference**: Links `.devtool/epic/<epic_name>/bdd_scenarios.md` (do not inline raw Gherkin in the HLD).
 8. **Rollout Strategy & Mitigation**: Phased rollout and rollback plan.
-9. **Kanban Tasks Breakdown**: Links to task files.
+9. **Kanban Tasks Breakdown**: Format planned filenames as inline code spans (`` `task_01_<name>.md` ``) in Step 1 before Gate 2 creates task files so `check_document.py` passes, then upgrade them to relative Markdown links (`[Task 01](task_01_<name>.md)`) in Step 2 right after writing task files.
 10. **Spec Errata**: `[SE-NN]` entries, each with its section reference and the decision taken.
 
 ### Diagram & Markdown Lint Rules

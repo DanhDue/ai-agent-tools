@@ -1,0 +1,227 @@
+{
+  "schema": 1,
+  "task": "task_05_ohk_cmr_deferred_smoke_and_contracts_dirty",
+  "runs": {
+    "red": {
+      "head": "abf6a7cf08e91cf397b3eccc6cec96d2cfc07387",
+      "tree": "adda8c65b7f25db6a0f71bc99789ef34ee7c7b84",
+      "patch_id": "8235408e69dd6bf0c04fd8257eb49a0b8f5ee45f",
+      "started": "2026-11-26T17:22:45Z",
+      "finished": "2026-11-26T17:22:46Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ohk_cmr_and_contracts.py::test_ohk_hp_05_cmr_auto_defers_epic_doc_minors",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T17:22:45Z",
+          "finished": "2026-11-26T17:22:46Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "________________ test_ohk_hp_05_cmr_auto_defers_epic_doc_minors ________________",
+            "tests/test_ohk_cmr_and_contracts.py:123: in test_ohk_hp_05_cmr_auto_defers_epic_doc_minors",
+            "    assert \".devtool/epic/\" in prompt_text",
+            "E   AssertionError: assert '.devtool/epic/' in '# External Review Prompt\\n\\nYou are an independent reviewer of a finished epic. You are strictly read-only: do not mo...r` findings), you MUST output `Verdict: PASS`.\\n- A review with no finding still ends with its `Verdict: PASS` line.\\n'",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_ohk_cmr_and_contracts.py::test_ohk_hp_05_cmr_auto_defers_epic_doc_minors",
+            "1 failed in 0.04s"
+          ],
+          "output_sha256": "cb5635fb8a42cef738b6bf38d833d21d792d874241e89407439101c84ad1542d"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "abf6a7cf08e91cf397b3eccc6cec96d2cfc07387",
+      "tree": "8922302a871ef7f6aad6741dc5306230c1371608",
+      "patch_id": "64c452bcdeb5f59db3bb9fee3dc6b8643dad96aa",
+      "started": "2026-11-26T17:31:27Z",
+      "finished": "2026-11-26T17:32:37Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ohk_cmr_and_contracts.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T17:31:27Z",
+          "finished": "2026-11-26T17:31:31Z",
+          "output_tail": [
+            "........                                                                 [100%]",
+            "8 passed in 3.62s"
+          ],
+          "output_sha256": "97a71b5d66ba7ce55cf53e6e69fd8f211e692e029e6cc195997dc3aab988a7e5"
+        },
+        {
+          "id": "V3",
+          "phase": "REGRESSION",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py && python3 -m pytest -q --tb=short --maxfail=3 tests/test_smoke_checklist_generator.py tests/test_tto_external_review.py tests/test_cqra_external_review_proposed.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T17:31:31Z",
+          "finished": "2026-11-26T17:32:32Z",
+          "output_tail": [
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Domain 'lyrics-sync' status: INITIAL_SYNC (watermark absent)",
+            "Snapshot ID: sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Contract Version: 1.2.0",
+            "Unsynced files: api_contract.md, architecture_and_flow.md, gaps_and_rfcs.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Requirements brief written to /private/tmp/ag_hau/tmp_8g0z_c3/brief.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Requirements brief written to /private/tmp/ag_hau/tmp_8g0z_c3/repeat_brief.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Domain 'lyrics-sync' status: IN_SYNC",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:3edd9bf7390404e1f590a303a4cce9f6af47f51468211e19cb33b9008490b3e0",
+            "Domain 'lyrics-sync' status: IN_SYNC",
+            "Requirements brief written to /private/tmp/ag_hau/tmphcbzfxq4/brief_refreshed.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:f477d182af7660569063045cd0d83f828d8c4e8cdf638fa8f7cfe55f11932f7a",
+            "Domain 'lyrics-sync' status: IN_SYNC",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'nexus' -> sha256:a408ca396e08787d30287053fc3b2cb24b3168f83dba93d4e3224ecdba09bed6",
+            "Domain 'nexus' scoped check for ['GAP-03']: IN_SYNC",
+            "Domain 'nexus' status: DRIFT_DETECTED",
+            "Pending RFCs: GAP-01, GAP-02",
+            "Watermark acknowledged for domain 'nexus' -> sha256:a408ca396e08787d30287053fc3b2cb24b3168f83dba93d4e3224ecdba09bed6",
+            "Domain 'nexus' status: IN_SYNC",
+            ".........................                                                [100%]",
+            "25 passed in 8.07s"
+          ],
+          "output_sha256": "e187ae6ce3d4cb836a6eb075958664e516e5c9ec49a635abb9295414c0a88e19"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py skills/sync-shared-contracts/resources/scripts/sync_contracts.py skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py && ruff format --check skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_smoke_checklist_generator.py tests/test_ohk_cmr_and_contracts.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T17:32:32Z",
+          "finished": "2026-11-26T17:32:32Z",
+          "output_tail": [
+            "All checks passed!",
+            "3 files already formatted"
+          ],
+          "output_sha256": "c6486b51f483249343d4a4bdb91c41be31f0bdc28887b2f4cd4800e174f8bd6b"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py && mypy --ignore-missing-imports --follow-imports=silent skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py skills/sync-shared-contracts/resources/scripts/sync_contracts.py skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py tests/test_smoke_checklist_generator.py tests/test_ohk_cmr_and_contracts.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T17:32:32Z",
+          "finished": "2026-11-26T17:32:33Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files",
+            "Success: no issues found in 6 source files"
+          ],
+          "output_sha256": "8ba7b75d3daba630cbb887bc25659bc3e5c5f33a590b13309851d48308d6ca7c"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ohk_cmr_and_contracts.py --junitxml=build/test-results/task_05.xml",
+          "expect": "exit 0; results build/test-results/task_05.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T17:32:33Z",
+          "finished": "2026-11-26T17:32:36Z",
+          "output_tail": [
+            "........                                                                 [100%]",
+            "8 passed in 3.04s"
+          ],
+          "output_sha256": "0ada2f5be2fec1d33e7de48eeb2c35d5b28217fabe8e7b3929e6227ac257e9f1",
+          "results": {
+            "path": "build/test-results/task_05.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 8,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_ohk_hp_05_cmr_auto_defers_epic_doc_minors",
+                  "classname": "tests.test_ohk_cmr_and_contracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ec_05_smoke_generator_ignores_css_selectors_and_infers_web_url",
+                  "classname": "tests.test_ohk_cmr_and_contracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_st_03_delta_context_honors_deferred_and_blocks_source_or_important",
+                  "classname": "tests.test_ohk_cmr_and_contracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_fr_03_sync_contracts_diff_check_allow_dirty_and_protected_guards",
+                  "classname": "tests.test_ohk_cmr_and_contracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_hp_05_integration",
+                  "classname": "tests.test_ohk_cmr_and_contracts.Test_Ohk_Cmr_And_Contracts_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ec_05_integration",
+                  "classname": "tests.test_ohk_cmr_and_contracts.Test_Ohk_Cmr_And_Contracts_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_st_03_integration",
+                  "classname": "tests.test_ohk_cmr_and_contracts.Test_Ohk_Cmr_And_Contracts_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_fr_03_integration",
+                  "classname": "tests.test_ohk_cmr_and_contracts.Test_Ohk_Cmr_And_Contracts_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/references/external-review-prompt.md",
+            "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py",
+            "skills/dev-implementation/resources/scripts/run_external_review.py",
+            "skills/dev-implementation/resources/scripts/test_run_external_review.py",
+            "skills/sync-shared-contracts/resources/scripts/sync_contracts.py",
+            "skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py",
+            "tests/test_ohk_cmr_and_contracts.py",
+            "tests/test_smoke_checklist_generator.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

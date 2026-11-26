@@ -12,7 +12,7 @@ Every cross-model review round (Claude CLI, Codex CLI, Kiro CLI, Antigravity CLI
 4. Fill `## Top 3 Highest-Risk Findings (Executive Report)` (`Design Anchor`, `Proposed action`) and each `## Findings` row:
    - **Assessment**: `Valid`, `Debatable`, `False positive`, or `Not shown`.
    - **Evidence**: exact `file:line` and HLD/Task contract reference checked.
-   - **Proposed action**: `fix` (anchored to approved design), `dismiss: <reason>`, or `none` (non-blocking `Minor`).
+   - **Proposed action**: `fix` (anchored to approved design), `dismiss: <reason>`, `deferred: out-of-scope epic doc (§4.4)` (sole machine-recordable non-action terminal decision for `Minor` code-review findings targeting immutable `.devtool/epic/<epic_dir>/` files; never valid for `Critical`/`Important` blockers or ordinary source files), or `none` (non-blocking `Minor`).
 5. Inspect `## Round Comparison` and `## Since Round <n>` (`check the fix` marks re-reported items for re-inspection).
 6. Replace Next Steps with concrete Fix commits, recorded decisions, and confirmation round status.
 7. Evaluate `## Auto-Triage Gate` and begin output with the standardized 4-bullet header block:
@@ -39,12 +39,12 @@ Every cross-model review round (Claude CLI, Codex CLI, Kiro CLI, Antigravity CLI
 ## 4 Anti-Fix-Loop Prompt Strategies (`run_external_review.py`)
 
 1. **Exhaustive Per-File Round 1 Pass**: Report all `Critical`/`Important` defects per inspected file in Round 1 (anti-drip-feed).
-2. **Universal Anti-Ping-Pong Guardrail (Round >= 2)**: Injects `### Cross-Provider Handoff & Anti-Ping-Pong Guardrail`; reviewers honor prior `fixed in <sha>` and `dismissed:` rulings unless an objective runtime bug or HLD violation exists.
+2. **Universal Anti-Ping-Pong Guardrail (Round >= 2)**: Injects `### Cross-Provider Handoff & Anti-Ping-Pong Guardrail`; reviewers honor prior `fixed in <sha>`, `dismissed:`, and `deferred:` rulings unless an objective runtime bug or HLD violation exists.
 3. **Previously Fixed Locations Registry (`Verify-Then-Close`)**: Closes verified prior `fixed in <sha>` locations silently (`PASS`) without proposing alternative refactors.
 4. **Diff-Hunk Isolation on Fixed Files**: Restricts re-reports on previously fixed files strictly to `[INCOMPLETE_FIX]` or `[NEW_REGRESSION]` within `prev_sha..sha` diff hunks.
 
 ## After the developer decides
 
 - Commit each fix as `[<EPIC_NAME>] Fix <what>`.
-- Record Decision cells in `review_results.md` verbatim (`fixed in <sha>` or developer-supplied `dismissed: <reason>`) and commit `[<EPIC_NAME>] Record review decisions for round <n>`.
+- Record Decision cells in `review_results.md` verbatim (`fixed in <sha>`, developer-supplied `dismissed: <reason>`, or `deferred: out-of-scope epic doc (§4.4)` strictly for `Minor` code-review findings on immutable `.devtool/epic/` files) and commit `[<EPIC_NAME>] Record review decisions for round <n>`.
 - Validate intermediate rounds with **scoped tests only**; run Phase 4 / Gate 4 in full only at final convergence, then present Stage 4 Finish Decision.

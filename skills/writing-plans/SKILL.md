@@ -46,7 +46,7 @@ Unit tests in isolation are necessary but insufficient to guarantee that a featu
    - Component unit tests and DOM mocks do not prove that a web page actually renders or behaves correctly in a real browser engine.
    - Any task that creates or modifies web pages, UI components, styling, or browser interactions MUST include a **Live Browser Verification** step.
    - Specify the exact operational steps:
-     1. Build and launch the dev or preview server (e.g. `npm run dev` or `npx astro preview --port 4324`).
+     1. Build and launch the dev or preview server (e.g. `npm run dev` or `npx --no-install astro preview --port 4324`).
      2. Dispatch `browser_subagent` to open the target URL, click interactive elements, type input, and assert expected DOM text and states.
      3. Record browser interaction session as a WebP video artifact and capture screenshot artifacts.
      4. Verify visual hierarchy, CSS layout, responsiveness, and console logs (zero unexpected errors).
@@ -54,6 +54,10 @@ Unit tests in isolation are necessary but insufficient to guarantee that a featu
 4. **100% BDD & Edge Case Traceability**:
    - Every use case and boundary edge case identified in the spec MUST map to an explicit automated test step (unit test step for Tier A, integration test step for Tier C).
    - Never write an edge case requirement without an accompanying executable test step.
+
+5. **Quality-Manifest Verification Commands & No Bare `npx`**:
+   - Inspect `.agents/quality/*-quality.json` (when present) and copy the repository's canonical `type_check` and `lint` commands verbatim into plan verification steps instead of inventing ad-hoc commands.
+   - Never write bare `npx <bin>` in plan steps or verification commands (bare `npx` can hang on interactive install prompts in headless subagents) — always pass `npx --no-install <bin>` (or explicit `npx --yes --package <pkg> <bin>` when a non-interactive install is intentionally required).
 
 ## Reviewing a Written Plan
 
@@ -168,9 +172,9 @@ def function(input):
 Run: `pytest tests/path/test.py::test_name -v`
 Expected: PASS
 
-- [ ] **Step 5: Integration & Edge Case Test (if touching workflows/data/APIs)**
+- [ ] **Step 5: Integration, Edge Case & Static Quality Checks (if touching workflows/data/APIs)**
 
-Write & run integration test exercising multi-component flow and boundary edge cases (empty payload, timeout, error fallback):
+Write & run integration test exercising multi-component flow and boundary edge cases (empty payload, timeout, error fallback), plus the canonical `type_check` and `lint` commands copied verbatim from `.agents/quality/*-quality.json` (never bare `npx <bin>` — use `npx --no-install` or explicit `npx --yes --package <pkg>`):
 Run: `npm test tests/integration/test_flow.test.ts` (or `pytest tests/integration/...`)
 Expected: PASS with 100% boundary coverage
 

@@ -332,6 +332,58 @@ def test_tto_handoff_and_revise_exclude_vi_md_from_read_first(tmp_path: Path) ->
     assert "4. `.devtool/epic/demo_epic/principal_review.md`" in m_rev.group(1)
 
 
+def test_package_epic_revise_passes_reanchoring_after_rebase(tmp_path: Path) -> None:
+    """package_epic.py --revise passes --reanchoring and succeeds when rebase rewrites Design commit."""
+    from unittest import mock
+    import package_epic as pe
+
+    init_git_repo(tmp_path)
+    base_branch = git_cmd(tmp_path, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+    git_cmd(tmp_path, "checkout", "-b", "epic/demo-epic")
+    epic_path = setup_valid_epic(tmp_path, "demo_epic")
+    git_cmd(tmp_path, "add", ".")
+    git_cmd(tmp_path, "commit", "-m", "Add sample epic")
+    old_sha = git_cmd(tmp_path, "rev-parse", "--short", "HEAD").stdout.strip()
+
+    captured_cmds: list[list[str]] = []
+    real_run = subprocess.run
+
+    def spy_run(cmd: list[str], *args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        if isinstance(cmd, list) and str(pe.READINESS_SCRIPT) in cmd:
+            captured_cmds.append(list(cmd))
+        return real_run(cmd, *args, **kwargs)  # type: ignore[call-overload]
+
+    with mock.patch.object(pe.subprocess, "run", side_effect=spy_run):
+        pe.package_epic(tmp_path, "demo_epic")
+
+    assert len(captured_cmds) == 1
+    assert "--reanchoring" not in captured_cmds[0]
+
+    git_cmd(tmp_path, "add", ".")
+    git_cmd(tmp_path, "commit", "-m", "Commit packaged handoff")
+
+    # Advance base branch and rebase epic branch so old_sha is no longer an ancestor
+    git_cmd(tmp_path, "checkout", base_branch)
+    (tmp_path / "base_only.txt").write_text("base advance\n", encoding="utf-8")
+    git_cmd(tmp_path, "add", "base_only.txt")
+    git_cmd(tmp_path, "commit", "-m", "Advance base")
+
+    git_cmd(tmp_path, "checkout", "epic/demo-epic")
+    git_cmd(tmp_path, "rebase", base_branch)
+    new_sha = git_cmd(tmp_path, "rev-parse", "--short", "HEAD").stdout.strip()
+    assert new_sha != old_sha
+
+    captured_cmds.clear()
+    with mock.patch.object(pe.subprocess, "run", side_effect=spy_run):
+        pe.package_epic(tmp_path, "demo_epic", revise=True, reason="Rebased onto base")
+
+    assert len(captured_cmds) == 1
+    assert "--reanchoring" in captured_cmds[0]
+    revised = (epic_path / "handoff.md").read_text(encoding="utf-8")
+    assert f"- **Design commit**: `{new_sha}`" in revised
+    assert f"(`{old_sha}` -> `{new_sha}`)" in revised
+
+
 class Test_Integration:
     """[Tier C - Integration] Test suite with integration runner provenance."""
 

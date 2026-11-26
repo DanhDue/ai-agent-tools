@@ -89,8 +89,109 @@ def test_extract_target_from_text() -> None:
     bare_skill = "When Gate 4 invokes d3nexus:web-quality-check with profile epic"
     assert extract_target_from_text(bare_skill) == "`d3nexus:web-quality-check`"
 
-    fallback_text = "Click the primary button"
-    assert extract_target_from_text(fallback_text) == "CLI / Workspace Root"
+    fallback_ui_text = "Click the primary button"
+    assert extract_target_from_text(fallback_ui_text) == "Web Preview UI"
+    assert (
+        extract_target_from_text(
+            fallback_ui_text, default_web_target="http://127.0.0.1:8000"
+        )
+        == "http://127.0.0.1:8000"
+    )
+
+    non_ui_fallback = "Synchronize queued offline records"
+    assert extract_target_from_text(non_ui_fallback) == "CLI / Workspace Root"
+
+
+def test_extract_target_ignores_css_selectors_and_asset_filenames() -> None:
+    """CSS selectors, routes, asset filenames, and single identifiers are not misclassified as CLI commands."""
+    assert (
+        extract_target_from_text(
+            "Playwright clicks `.tts-save-btn` inside `#modal` styled by `style.css` on page `/tts-studio`",
+            default_web_target="http://127.0.0.1:8000",
+        )
+        == "http://127.0.0.1:8000"
+    )
+    assert (
+        extract_target_from_text(
+            "Browser renders `index.html` and verifies `.card` layout"
+        )
+        == "Web Preview UI"
+    )
+    assert (
+        extract_target_from_text(
+            "Check `contract_map.json` status `PASS` with `./scripts/verify.sh`"
+        )
+        == "`./scripts/verify.sh`"
+    )
+    assert (
+        extract_target_from_text("Run `sync_contracts.py diff-check --allow-dirty`")
+        == "`sync_contracts.py diff-check --allow-dirty`"
+    )
+    assert (
+        extract_target_from_text("Run `mytool --check` on workspace")
+        == "`mytool --check`"
+    )
+    assert (
+        extract_target_from_text("Inspect `style.css` and `Recording` state")
+        == "CLI / Workspace Root"
+    )
+
+
+def test_extract_target_rejects_prose_phrases_and_preserves_real_cli_and_browser_targets() -> (
+    None
+):
+    """Plain prose phrases like 'a git repository', 'Python repository', and 'bash script' never match as CLI targets."""
+    assert (
+        extract_target_from_text(
+            "Given a git repository with a primary checkout on develop"
+        )
+        == "CLI / Workspace Root"
+    )
+    assert (
+        extract_target_from_text(
+            "Given a Python repository worktree whose pyproject.toml declares extras"
+        )
+        == "CLI / Workspace Root"
+    )
+    assert (
+        extract_target_from_text(
+            "Verify the bash script logic and git branch diff against main"
+        )
+        == "CLI / Workspace Root"
+    )
+    assert (
+        extract_target_from_text(
+            "Inspect `git repository`, `Python repository`, and `bash script` notes"
+        )
+        == "CLI / Workspace Root"
+    )
+    assert (
+        extract_target_from_text(
+            "Given a git repository when Playwright clicks the preview button",
+            default_web_target="http://127.0.0.1:8000",
+        )
+        == "http://127.0.0.1:8000"
+    )
+    assert (
+        extract_target_from_text(
+            "Given a git repository when sync_task_status.py executes "
+            '"sync_task_status.py promote iso_epic"'
+        )
+        == "`sync_task_status.py promote iso_epic`"
+    )
+    assert (
+        extract_target_from_text("When python3 scripts/foo.py runs")
+        == "`python3 scripts/foo.py`"
+    )
+    assert extract_target_from_text("Run git status in worktree") == "`git status`"
+    assert (
+        extract_target_from_text("Run bash scripts/verify.sh before commit")
+        == "`bash scripts/verify.sh`"
+    )
+    assert (
+        extract_target_from_text("Run uv run pytest in workspace") == "`uv run pytest`"
+    )
+    assert extract_target_from_text("Run pytest -q on tests") == "`pytest -q`"
 
 
 def test_step_count_clamping() -> None:

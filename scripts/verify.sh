@@ -466,6 +466,14 @@ SUITES = [
     ("22", "pytest",   "tests/test_check_tasks_kanban_and_telemetry_fixes.py", 35, False),
     ("22", "pytest",   "tests/test_check_quota_dynamic_provider_tiers.py", 45, False),
     ("22", "pytest",   "tests/test_tasks_ui_epic_execution_tabs.py", 35, False),
+
+    # 23. Observer Hardening 2026-11 suites
+    ("23", "pytest",   "tests/test_ohk_worktree_and_pool.py", 20, False),
+    ("23", "pytest",   "tests/test_ohk_revise_and_replay.py", 20, False),
+    ("23", "pytest",   "tests/test_ohk_python_env_and_doc_refusal.py", 15, False),
+    ("23", "pytest",   "tests/test_ohk_web_ui_audit.py", 15, False),
+    ("23", "pytest",   "tests/test_ohk_cmr_and_contracts.py", 20, False),
+    ("23", "pytest",   "tests/test_ohk_docs_and_acceptance.py", 10, True),
 ]
 
 active_suites = [

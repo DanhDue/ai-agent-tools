@@ -1,0 +1,194 @@
+{
+  "schema": 1,
+  "task": "task_01_ohk_worktree_status_and_pool_isolation",
+  "runs": {
+    "red": {
+      "head": "5e71be020563b57d52ccbdce597ed39ce0a9ec50",
+      "tree": "37865abd528acbada413548301f9a36e68e4faff",
+      "patch_id": "0bbf6c7572c5f3a87151aa9f29e95c475c146851",
+      "started": "2026-11-26T15:56:38Z",
+      "finished": "2026-11-26T15:56:39Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ohk_worktree_and_pool.py::test_ohk_hp_01_promote_in_isolated_worktree",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T15:56:38Z",
+          "finished": "2026-11-26T15:56:39Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "_________________ test_ohk_hp_01_promote_in_isolated_worktree __________________",
+            "tests/test_ohk_worktree_and_pool.py:202: in test_ohk_hp_01_promote_in_isolated_worktree",
+            "    assert res.returncode == 0, f\"stderr={res.stderr}\\nstdout={res.stdout}\"",
+            "E   AssertionError: stderr=error: HLD overview not found for 'iso_epic'",
+            "E     ",
+            "E     stdout=",
+            "E   assert 1 == 0",
+            "E    +  where 1 = CompletedProcess(args=['/opt/homebrew/opt/python@3.15/bin/python3.15', '-B', '/Users/danhdueexoictif/AllProjects/ai-ag...k_status.py', 'promote', 'iso_epic'], returncode=1, stdout='', stderr=\"error: HLD overview not found for 'iso_epic'\\n\").returncode",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_ohk_worktree_and_pool.py::test_ohk_hp_01_promote_in_isolated_worktree",
+            "1 failed in 0.36s"
+          ],
+          "output_sha256": "c597872a1cf4fdbd1e642fa7eb4ae27cc1796bee5619dbacfccf5fc98c4ac5f8"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "5e71be020563b57d52ccbdce597ed39ce0a9ec50",
+      "tree": "7f93cee681638aa97cb79d503b7cdea9ac59c8f9",
+      "patch_id": "4ca5cf7a6655a292c964f3a336cb79dec6d1fd0a",
+      "started": "2026-11-26T16:03:47Z",
+      "finished": "2026-11-26T16:04:39Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ohk_worktree_and_pool.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:03:47Z",
+          "finished": "2026-11-26T16:03:50Z",
+          "output_tail": [
+            ".....                                                                    [100%]",
+            "5 passed in 2.69s"
+          ],
+          "output_sha256": "c6d2d09aadae7ecfaf3f8f9b383bf8d22df969790554265e31331c8bd9f7c2e9"
+        },
+        {
+          "id": "V3",
+          "phase": "REGRESSION",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_sync_task_status.py && python3 -m pytest -q --tb=short --maxfail=3 skills/dev-implementation/resources/scripts/test_manage_worker_pool.py skills/dev-implementation/resources/scripts/test_concurrent_epic_backlog.py tests/test_trc_worker_pool_triage.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:03:50Z",
+          "finished": "2026-11-26T16:04:35Z",
+          "output_tail": [
+            ".....................................................................",
+            "----------------------------------------------------------------------",
+            "Ran 69 tests in 11.586s",
+            "OK",
+            "...............................                                          [100%]",
+            "31 passed in 33.10s"
+          ],
+          "output_sha256": "a79767ca5a17526240699b243de07add51ae82e397e2624bd22d1b49d9c5aca3"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/sync_task_status.py skills/dev-implementation/resources/scripts/test_sync_task_status.py skills/dev-implementation/resources/scripts/manage_worker_pool.py skills/dev-implementation/resources/scripts/test_manage_worker_pool.py && ruff format --check tests/test_ohk_worktree_and_pool.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:04:35Z",
+          "finished": "2026-11-26T16:04:35Z",
+          "output_tail": [
+            "All checks passed!",
+            "1 file already formatted"
+          ],
+          "output_sha256": "ce04ce92b16073000b77c97a42c00b98b96305692d9d5ed4dcfa5a9ca9ea62d6"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py && mypy --ignore-missing-imports --follow-imports=silent skills/dev-implementation/resources/scripts/sync_task_status.py skills/dev-implementation/resources/scripts/test_sync_task_status.py skills/dev-implementation/resources/scripts/manage_worker_pool.py skills/dev-implementation/resources/scripts/test_manage_worker_pool.py tests/test_ohk_worktree_and_pool.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:04:35Z",
+          "finished": "2026-11-26T16:04:35Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files",
+            "Success: no issues found in 5 source files"
+          ],
+          "output_sha256": "d99c6f245f84dac3ff5cd31d8ceb46378a6e6f6ba61244f8ed444475ec2a9f41"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ohk_worktree_and_pool.py --junitxml=build/test-results/task_01.xml",
+          "expect": "exit 0; results build/test-results/task_01.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:04:35Z",
+          "finished": "2026-11-26T16:04:38Z",
+          "output_tail": [
+            ".....                                                                    [100%]",
+            "5 passed in 2.69s"
+          ],
+          "output_sha256": "c6d2d09aadae7ecfaf3f8f9b383bf8d22df969790554265e31331c8bd9f7c2e9",
+          "results": {
+            "path": "build/test-results/task_01.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 5,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_ohk_hp_01_promote_in_isolated_worktree",
+                  "classname": "tests.test_ohk_worktree_and_pool",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_hp_01_promote_in_isolated_worktree_integration",
+                  "classname": "tests.test_ohk_worktree_and_pool.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ec_01_finalize_slot_gitignored_venv_and_shared_contracts_symlink",
+                  "classname": "tests.test_ohk_worktree_and_pool.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_st_01_archive_done_and_promote_isolate_sibling_epic_worktrees",
+                  "classname": "tests.test_ohk_worktree_and_pool.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_fr_01_archive_epic_from_primary_skips_sibling_epic_worktrees",
+                  "classname": "tests.test_ohk_worktree_and_pool.Test_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/manage_worker_pool.py",
+            "skills/dev-implementation/resources/scripts/sync_task_status.py",
+            "skills/dev-implementation/resources/scripts/test_manage_worker_pool.py",
+            "skills/dev-implementation/resources/scripts/test_sync_task_status.py",
+            "tests/test_ohk_worktree_and_pool.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

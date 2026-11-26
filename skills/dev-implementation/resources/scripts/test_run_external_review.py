@@ -1505,6 +1505,128 @@ class TestReviewConfigAndHeader(ReviewCase):
         self.assertIn("#### Round 1 (claude /", prompt_r3)
         self.assertIn("dismissed: matches approved HLD", prompt_r3)
 
+    def test_immutable_epic_doc_minor_auto_defer_and_se05_boundaries(self) -> None:
+        """Code review auto-defers immutable .devtool/epic/ Minor rows while keeping source/principal/Important strict."""
+        from run_external_review import (
+            DEFERRED_EPIC_DOC_DECISION,
+            _is_immutable_epic_doc_location,
+            auto_triage_section,
+        )
+
+        # Helper path matching & exclusions
+        self.assertTrue(
+            _is_immutable_epic_doc_location(".devtool/epic/demo/task_01.md:12", "demo")
+        )
+        self.assertTrue(
+            _is_immutable_epic_doc_location(
+                "`./.devtool/epic/demo/manual_smoke_checklist.md`", "demo"
+            )
+        )
+        self.assertFalse(
+            _is_immutable_epic_doc_location(
+                ".devtool/epic/demo/review_results.md:5", "demo"
+            )
+        )
+        self.assertFalse(
+            _is_immutable_epic_doc_location(
+                ".devtool/epic/demo/principal_review.md:5", "demo"
+            )
+        )
+        self.assertFalse(
+            _is_immutable_epic_doc_location(".devtool/epic/other/task_01.md:5", "demo")
+        )
+        self.assertFalse(
+            _is_immutable_epic_doc_location(
+                ".devtool/epic/demo/../../src/app.py", "demo"
+            )
+        )
+        self.assertFalse(_is_immutable_epic_doc_location(".devtool/epic/demo/", "demo"))
+        self.assertFalse(_is_immutable_epic_doc_location("src/app.py:10", "demo"))
+
+        # Mixed epic-doc minor + source minor -> AUTO_PASS_FINAL_MINOR_SWEEP (noting deferred count)
+        mixed_rows = [
+            ["1", "Minor", ".devtool/epic/demo/task_01.md:10", "prose nit", ""],
+            ["2", "Minor", "src/a.py:4", "unused var", ""],
+        ]
+        mixed_gate = "\n".join(
+            auto_triage_section(1, [(1, [])], mixed_rows, kind="code", epic_dir="demo")
+        )
+        self.assertIn("AUTO_PASS_FINAL_MINOR_SWEEP", mixed_gate)
+        self.assertIn("1 out-of-scope `.devtool/epic/` Minor item(s) auto-deferred", mixed_gate)
+
+        # All epic-doc minors (empty or canonical token) -> AUTO_PASS_CLEAN
+        epic_only_rows = [
+            ["1", "Minor", ".devtool/epic/demo/task_01.md:10", "prose nit", ""],
+            [
+                "2",
+                "Minor",
+                ".devtool/epic/demo/handoff.md:2",
+                "spacing",
+                DEFERRED_EPIC_DOC_DECISION,
+            ],
+        ]
+        clean_gate = "\n".join(
+            auto_triage_section(
+                1, [(1, [])], epic_only_rows, kind="code", epic_dir="demo"
+            )
+        )
+        self.assertIn("- **Action**: AUTO_PASS_CLEAN", clean_gate)
+        self.assertIn(DEFERRED_EPIC_DOC_DECISION, clean_gate)
+
+        # [SE-05] Non-canonical deferred on epic doc OR arbitrary deferred on source -> AUTO_PASS_FINAL_MINOR_SWEEP
+        arb_epic_rows = [
+            [
+                "1",
+                "Minor",
+                ".devtool/epic/demo/task_01.md:10",
+                "prose nit",
+                "deferred: arbitrary",
+            ]
+        ]
+        arb_epic_gate = "\n".join(
+            auto_triage_section(
+                1, [(1, [])], arb_epic_rows, kind="code", epic_dir="demo"
+            )
+        )
+        self.assertIn("AUTO_PASS_FINAL_MINOR_SWEEP", arb_epic_gate)
+
+        arb_src_rows = [
+            ["1", "Minor", "src/app.py:4", "magic number", "deferred: arbitrary"]
+        ]
+        arb_src_gate = "\n".join(
+            auto_triage_section(
+                1, [(1, [])], arb_src_rows, kind="code", epic_dir="demo"
+            )
+        )
+        self.assertIn("AUTO_PASS_FINAL_MINOR_SWEEP", arb_src_gate)
+
+        # Principal review on .devtool/epic/ Minor MUST stay actionable (not auto-deferred)
+        principal_gate = "\n".join(
+            auto_triage_section(
+                1, [(1, [])], epic_only_rows, kind="principal", epic_dir="demo"
+            )
+        )
+        self.assertIn("AUTO_PASS_FINAL_MINOR_SWEEP", principal_gate)
+
+        # Critical/Important with deferred decision MUST fail check()
+        self.results.write_text(
+            "# Cross-Model Review: demo\n\n"
+            "## Round 1\n\n- **SHA**: 1111111\n- **CLI**: codex\n- **Model**: gpt-6.1-sol\n"
+            "- **Thinking**: high\n- **Status**: completed\n- **Verdict**: CHANGES REQUIRED\n\n"
+            "| # | Severity | Location | Problem | Decision |\n"
+            "|---|----------|----------|---------|----------|\n"
+            f"| 1 | Critical | .devtool/epic/demo/task_01.md:3 | broken check | {DEFERRED_EPIC_DOC_DECISION} |\n"
+            f"| 2 | Important | src/a.py:9 | missing guard | {DEFERRED_EPIC_DOC_DECISION} |\n\n"
+            "Raw output:\n\n```text\nVerdict: CHANGES REQUIRED\n```\n",
+            encoding="utf-8",
+        )
+        chk_out = io.StringIO()
+        with contextlib.redirect_stdout(chk_out):
+            chk_code = main(["check", "--epic-dir", "demo"])
+        self.assertEqual(chk_code, 1)
+        self.assertIn("undecided: #1 Critical", chk_out.getvalue())
+        self.assertIn("undecided: #2 Important", chk_out.getvalue())
+
 
 if __name__ == '__main__':
     unittest.main()

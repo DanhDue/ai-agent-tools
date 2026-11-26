@@ -214,9 +214,19 @@ def heading_structure(path: pathlib.Path) -> list[int]:
             if (match := re.match(r"^(#{1,6})\s+", line))]
 
 
-def refusal(changed: list) -> list:
-    offenders = []
-    for f in changed:
+def _flatten_changed(changed: list[str]) -> list[str]:
+    flattened: list[str] = []
+    for entry in changed:
+        for line in entry.splitlines():
+            stripped = line.strip()
+            if stripped:
+                flattened.append(stripped)
+    return flattened
+
+
+def refusal(changed: list[str]) -> list[str]:
+    offenders: list[str] = []
+    for f in _flatten_changed(changed):
         p = pathlib.PurePosixPath(f)
         if SHIPPED_EXCEPTIONS.search(str(p)):
             continue
@@ -236,14 +246,15 @@ def main() -> int:
     args = ap.parse_args()
 
     if args.changed_files is not None:
-        offenders = refusal(args.changed_files)
+        flattened = _flatten_changed(args.changed_files)
+        offenders = refusal(flattened)
         if offenders:
             print("  ABORT this is development work, not a document work item:")
             for f in offenders:
                 print(f"    ships in the build: {f}")
             print("  Route it through dev-lifecycle. Kind: document cannot verify it.")
             return 1
-        print(f"  ok   refusal rule: none of {len(args.changed_files)} changed files ship in the build")
+        print(f"  ok   refusal rule: none of {len(flattened)} changed files ship in the build")
         return 0
 
     if not args.files:

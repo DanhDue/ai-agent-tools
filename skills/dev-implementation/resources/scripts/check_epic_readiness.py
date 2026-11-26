@@ -37,7 +37,7 @@ LINTER_PATH = SCRIPTS_DIR.parents[2] / "doc_quality_check" / "resources" / "scri
 @dataclass(frozen=True)
 class Finding:
     check: str     # "R1" ... "R8", "R5b", "R7b"
-    severity: str  # "FAIL" or "WARN"
+    severity: str  # "FAIL", "WARN", "SKIP", or "NOTE"
     message: str
 
 
@@ -55,6 +55,7 @@ class Context:
     replay: bool = False
     strict_bilingual: bool = False
     post_design: bool = False
+    reanchoring: bool = False
 
 
 def parse_integration_test_roots(hld_text: str) -> list[str]:
@@ -73,6 +74,7 @@ def load_context(
     row_timeout: int = 600,
     replay: bool = False,
     strict_bilingual: bool = False,
+    reanchoring: bool = False,
 ) -> Context:
     epic_path = root / ".devtool" / "epic" / epic_dir
     hld_path = resolve_epic_doc(epic_path, epic_dir)
@@ -105,6 +107,7 @@ def load_context(
         row_timeout=row_timeout,
         replay=replay,
         strict_bilingual=strict_bilingual,
+        reanchoring=reanchoring,
     )
 
 
@@ -688,7 +691,7 @@ def check_metadata(ctx: Context) -> list[Finding]:
         )
         if design_commit_match:
             design_commit = design_commit_match.group(1).strip()
-            if design_commit != "uncommitted":
+            if design_commit != "uncommitted" and not ctx.reanchoring:
                 check_ancestor = subprocess.run(
                     ["git", "merge-base", "--is-ancestor", design_commit, "HEAD"],
                     check=False,
@@ -746,6 +749,26 @@ def check_baseline(ctx: Context) -> list[Finding]:
             if replay_code != 0:
                 for msg in msgs:
                     findings.append(Finding("R8", "FAIL", msg))
+            elif msgs and all(msg.startswith("SKIP:") for msg in msgs):
+                all_skipped_sentinels = {
+                    "SKIP: no literal test-creation directives for (new) test files",
+                    "SKIP: no literal patch directives in epic tasks",
+                }
+                all_skipped = (
+                    any(msg in all_skipped_sentinels for msg in msgs)
+                    or len(msgs) >= len(ctx.tasks)
+                )
+                for msg in msgs:
+                    if all_skipped:
+                        reason = msg[len("SKIP:"):].strip()
+                        formatted = (
+                            f"({reason})"
+                            if msg in all_skipped_sentinels or not reason.startswith("task_")
+                            else reason
+                        )
+                        findings.append(Finding("R8", "SKIP", formatted))
+                    else:
+                        findings.append(Finding("R8", "NOTE", msg))
 
     if not ctx.baseline:
         return findings
@@ -758,7 +781,8 @@ def check_baseline(ctx: Context) -> list[Finding]:
         text=True,
     )
     if status_proc.stdout.strip():
-        return [Finding("R8", "WARN", "baseline skipped: dirty tree")]
+        findings.append(Finding("R8", "WARN", "baseline skipped: dirty tree"))
+        return findings
 
     new_paths: set[str] = set()
     for t_text in ctx.tasks.values():
@@ -817,6 +841,7 @@ def run_checks(
     replay: bool = False,
     strict_bilingual: bool | None = None,
     post_design: bool | None = None,
+    reanchoring: bool | None = None,
 ) -> list[Finding]:
     active_ctx = Context(
         root=ctx.root,
@@ -831,6 +856,7 @@ def run_checks(
         replay=replay or ctx.replay,
         strict_bilingual=ctx.strict_bilingual if strict_bilingual is None else strict_bilingual,
         post_design=ctx.post_design if post_design is None else post_design,
+        reanchoring=ctx.reanchoring if reanchoring is None else reanchoring,
     )
     findings: list[Finding] = []
     for _check_id, check_fn in CHECKS:
@@ -865,10 +891,12 @@ def render_report(ctx: Context, findings: list[Finding]) -> str:
     else:
         r8_findings = by_check.get("R8", [])
         has_fail = any(f.severity == "FAIL" for f in r8_findings)
-        if not has_fail and not any(f.severity == "WARN" for f in r8_findings):
+        has_warn = any(f.severity == "WARN" for f in r8_findings)
+        has_skip = any(f.severity == "SKIP" for f in r8_findings)
+        if not has_fail and not has_warn and not has_skip:
             lines.append("R8 PASS")
         for f in r8_findings:
-            lines.append(f"{f.check} {f.severity} {f.message}")
+            lines.append(f"{f.check} {f.severity} {f.message}".rstrip())
 
     fail_count = sum(1 for f in findings if f.severity == "FAIL")
     warn_count = sum(1 for f in findings if f.severity == "WARN")
@@ -954,6 +982,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Allow already-existing (new) artifacts owned by done/review/in-progress tasks during Stage 3 revision",
     )
     parser.add_argument(
+        "--reanchoring",
+        action="store_true",
+        help="Skip R7 Design commit ancestor check while package_epic.py --revise re-anchors handoff.md",
+    )
+    parser.add_argument(
         "--replay-prereqs",
         action="store_true",
         help="Replay unfinished prerequisite epics in topological order before replaying epic",
@@ -1013,6 +1046,7 @@ def main(argv: list[str] | None = None) -> int:
         row_timeout=args.row_timeout,
         replay=args.replay,
         strict_bilingual=args.strict_bilingual,
+        reanchoring=args.reanchoring,
     )
     findings = run_checks(
         ctx,
@@ -1021,6 +1055,7 @@ def main(argv: list[str] | None = None) -> int:
         replay=args.replay,
         strict_bilingual=args.strict_bilingual,
         post_design=args.post_design,
+        reanchoring=args.reanchoring,
     )
     report = render_report(ctx, findings)
     print(report)

@@ -71,13 +71,15 @@ Report: Gradle writes JUnit XML under `build/test-results/<task>/`. Name that di
 
 ## Web
 
+When `.agents/quality/*-quality.json` exists, copy its canonical `type_check` and `lint` commands verbatim instead of inventing ad-hoc `npx` calls. Never use bare `npx <bin>` (it can hang on interactive install prompts in headless subagents) — always pass `npx --no-install <bin>` (or explicit `npx --yes --package <pkg> <bin>` when a non-interactive install is intentionally required).
+
 | ID | Phase | Command | Expect | Needs |
 |----|-------|---------|--------|-------|
-| V1 | RED | `npx vitest run src/cart/discount-guard.test.ts` | exit 1; contains "FAIL" | — |
-| V2 | GREEN | `npx vitest run src/cart/discount-guard.test.ts` | exit 0; contains "passed" | — |
-| V3 | REGRESSION | `npx vitest run src/cart/store.test.ts src/checkout/summary.test.ts` | exit 0; contains "passed" | — |
-| V4 | TIER-B | `npx eslint src/cart/store.ts src/cart/discount-guard.test.ts src/cart/store.test.ts && npx tsc --noEmit` | exit 0 | — |
-| V5 | TIER-C | `PLAYWRIGHT_JUNIT_OUTPUT_FILE=build/test-results/e2e.xml npx playwright test tests/e2e/cart.spec.ts --reporter=junit` | exit 0; results build/test-results/e2e.xml | — |
+| V1 | RED | `npx --no-install vitest run src/cart/discount-guard.test.ts` | exit 1; contains "FAIL" | — |
+| V2 | GREEN | `npx --no-install vitest run src/cart/discount-guard.test.ts` | exit 0; contains "passed" | — |
+| V3 | REGRESSION | `npx --no-install vitest run src/cart/store.test.ts src/checkout/summary.test.ts` | exit 0; contains "passed" | — |
+| V4 | TIER-B | `npx --no-install eslint src/cart/store.ts src/cart/discount-guard.test.ts src/cart/store.test.ts && npx --no-install tsc --noEmit` | exit 0 | — |
+| V5 | TIER-C | `PLAYWRIGHT_JUNIT_OUTPUT_FILE=build/test-results/e2e.xml npx --no-install playwright test tests/e2e/cart.spec.ts --reporter=junit` | exit 0; results build/test-results/e2e.xml | — |
 
 Report: choose the reporter that writes JUnit XML.
 

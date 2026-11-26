@@ -66,6 +66,8 @@ DEFAULT_PROGRAMMER_MODEL = "gemini-4-hydrogen-xhigh"
 DEFAULT_PROGRAMMER_THINKING = "xhigh"
 PROVIDER_PRIORITY: tuple[str, ...] = ("claude", "codex", "kiro", "agy")
 MAX_REVIEW_ROUNDS = 3
+DEFERRED_EPIC_DOC_DECISION = "deferred: out-of-scope epic doc (§4.4)"
+IMMUTABLE_EPIC_DOC_EXCLUDES = frozenset({"review_results.md", "principal_review.md"})
 QUOTA_THRESHOLDS: dict[str, float] = {
     "5h_min_fraction": 0.15,
     "7d_min_fraction": 0.02,
@@ -1587,7 +1589,7 @@ def delta_round_context(
         f"- **Previous Reviewer**: `{prev_cli}` (`{prev_model}`) at `{prev_sha[:7]}`\n"
         f"- **Current Reviewer**: `{curr_cli}` (`{curr_model}`) at `{sha[:7]}`\n"
         f"- **Shared Context Continuity & Anti-Ping-Pong Rule**: {provider_note}"
-        "Strictly honor all `dismissed: <rationale>` decisions and `fixed in <sha>` resolutions recorded in the "
+        "Strictly honor all `dismissed: <rationale>` / `deferred: <rationale>` decisions and `fixed in <sha>` resolutions recorded in the "
         "Shared Context Ledger below. Do NOT ask to revert or rewrite a prior round's accepted fix (zero solution ping-pong) "
         "unless it introduces an objective runtime defect or violates a frozen contract in the approved HLD / "
         "`bdd_scenarios.md` (legacy `bdd_scenarios.en.md`) / `Decisions Already Made`.\n\n"
@@ -1639,7 +1641,7 @@ def delta_round_context(
         "do NOT report pre-existing issues on untouched functions or lines outside the `prev_sha..sha` diff hunks. You may only "
         "report a finding on a previously fixed file if (a) `[INCOMPLETE_FIX]` the original defect remains unresolved, or "
         "(b) `[NEW_REGRESSION]` the modified lines in `prev_sha..sha` directly introduce a new Critical/Important bug.\n"
-        "4. Do not re-raise a finding marked `dismissed:` unless the source contradicts its rationale.\n"
+        "4. Do not re-raise a finding marked `dismissed:` or `deferred:` unless the source contradicts its rationale.\n"
         "5. The revision diff below is the primary scope: review the new and edited text/code, and every artefact "
         "or source symbol that text/code references or must stay consistent with (P1, P2, P5, P7). Read an "
         "unchanged file only to verify such a reference.\n"
@@ -2113,6 +2115,38 @@ def path_of(location: str) -> str:
     return location.split(":", 1)[0].strip().strip("`")
 
 
+def _is_immutable_epic_doc_location(
+    location: str, epic_dir: str | None = None
+) -> bool:
+    """Return True when location points to an immutable epic artefact under .devtool/epic/."""
+    raw = path_of(location).replace("\\", "/").strip()
+    while raw.startswith("./"):
+        raw = raw[2:]
+    if not raw or raw.endswith("/"):
+        return False
+    if ".." in Path(raw).parts:
+        return False
+    clean_epic = epic_dir.strip("/") if epic_dir else ""
+    prefix = f".devtool/epic/{clean_epic}/" if clean_epic else ".devtool/epic/"
+    if not raw.startswith(prefix):
+        return False
+    name = Path(raw).name
+    return bool(name) and name not in IMMUTABLE_EPIC_DOC_EXCLUDES
+
+
+def _is_auto_deferred_epic_minor(
+    cells: list[str], kind: str = "code", epic_dir: str | None = None
+) -> bool:
+    """Return True strictly for code-review Minor rows targeting immutable .devtool/epic/ docs."""
+    if kind != "code" or len(cells) < 5 or cells[1] != "Minor":
+        return False
+    decision = cells[4].strip()
+    return _is_immutable_epic_doc_location(cells[2], epic_dir) and decision in (
+        "",
+        DEFERRED_EPIC_DOC_DECISION,
+    )
+
+
 def annotate(finding: tuple[str, str, str], shown: str) -> tuple[str, str, str]:
     """Mark a blocking finding whose location path the reviewer was never shown; its severity stays."""
     sev, loc, problem = finding
@@ -2463,7 +2497,13 @@ def _triage_problem_and_action(raw_problem: str) -> tuple[str, str]:
     )
 
 
-def top_risk_findings_section(latest: list[list[str]], limit: int = 3) -> list[str]:
+def top_risk_findings_section(
+    latest: list[list[str]],
+    limit: int = 3,
+    *,
+    kind: str = "code",
+    epic_dir: str | None = None,
+) -> list[str]:
     """Filter and rank the Top 3 highest-risk findings for executive reporting and design-anchored fixing."""
     if not latest:
         return [
@@ -2485,6 +2525,12 @@ def top_risk_findings_section(latest: list[list[str]], limit: int = 3) -> list[s
     ]
     for rank, cells in enumerate(ranked, 1):
         problem_cell, action_cell = _triage_problem_and_action(cells[3])
+        if (
+            kind == "code"
+            and cells[1] == "Minor"
+            and _is_immutable_epic_doc_location(cells[2], epic_dir)
+        ):
+            action_cell = cell(DEFERRED_EPIC_DOC_DECISION)
         lines.append(
             f"| #{rank} | {cells[0]} | {cells[1]} | {cell(cells[2])} | {problem_cell} | ? | {action_cell} |"
         )
@@ -2496,12 +2542,24 @@ def auto_triage_section(
     rounds: list[tuple[int, list[str]]],
     latest: list[list[str]],
     max_rounds: int = MAX_REVIEW_ROUNDS,
+    kind: str = "code",
+    epic_dir: str | None = None,
 ) -> list[str]:
     """Severity-Tiered Auto-Triage Gate & Circuit Breaker evaluation for the latest round."""
     blocking_rows = [cells for cells in latest if cells[1] in BLOCKING]
     critical_rows = [cells for cells in latest if cells[1] == "Critical"]
     important_rows = [cells for cells in latest if cells[1] == "Important"]
     minor_rows = [cells for cells in latest if cells[1] == "Minor"]
+    auto_deferred_minors = [
+        cells
+        for cells in minor_rows
+        if _is_auto_deferred_epic_minor(cells, kind=kind, epic_dir=epic_dir)
+    ]
+    actionable_minors = [
+        cells
+        for cells in minor_rows
+        if not _is_auto_deferred_epic_minor(cells, kind=kind, epic_dir=epic_dir)
+    ]
     contract_conflict_rows = [
         cells for cells in blocking_rows if is_shared_contract_conflict(cells)
     ]
@@ -2518,14 +2576,27 @@ def auto_triage_section(
                 fix_loop_paths.append(p)
 
     if not blocking_rows:
-        action = "AUTO_PASS_FINAL_MINOR_SWEEP" if minor_rows else "AUTO_PASS_CLEAN"
-        reason = (
-            f"0 Critical and 0 Important findings ({len(minor_rows)} Minor). "
-            "Fix valid Minor items once (strictly anchored to approved HLD/BDD/Task contracts), run local quality gate green, "
-            "and finish stage immediately without calling external reviewer again."
-            if minor_rows
-            else "0 findings. Stage review passed cleanly."
-        )
+        if actionable_minors:
+            action = "AUTO_PASS_FINAL_MINOR_SWEEP"
+            deferred_note = (
+                f" ({len(auto_deferred_minors)} out-of-scope `.devtool/epic/` Minor item(s) auto-deferred under §4.4)"
+                if auto_deferred_minors
+                else ""
+            )
+            reason = (
+                f"0 Critical and 0 Important findings ({len(actionable_minors)} Minor){deferred_note}. "
+                "Fix valid Minor items once (strictly anchored to approved HLD/BDD/Task contracts), run local quality gate green, "
+                "and finish stage immediately without calling external reviewer again."
+            )
+        else:
+            action = "AUTO_PASS_CLEAN"
+            reason = (
+                f"0 Critical, 0 Important, and 0 actionable Minor findings "
+                f"({len(auto_deferred_minors)} out-of-scope `.devtool/epic/` Minor finding(s) auto-deferred as "
+                f"`{DEFERRED_EPIC_DOC_DECISION}` under §4.4). Stage review passed cleanly."
+                if auto_deferred_minors
+                else "0 findings. Stage review passed cleanly."
+            )
     elif contract_conflict_rows:
         ids = ", ".join(f"#{r[0]}" for r in contract_conflict_rows)
         action = "CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)"
@@ -2575,7 +2646,8 @@ def auto_triage_section(
 def triage(args: argparse.Namespace) -> int:
     """Print the latest round as a skeleton to fill, verify and present before any action on its findings."""
     root = Path(git_run(Path.cwd(), "rev-parse", "--show-toplevel").decode().strip())
-    name, _ = review_file(getattr(args, "kind", "code"))
+    kind = getattr(args, "kind", "code")
+    name, _ = review_file(kind)
     path = root / ".devtool" / "epic" / args.epic_dir / name
     rounds = rounds_in(path.read_text(encoding="utf-8")) if path.exists() else []
     if not rounds:
@@ -2600,7 +2672,9 @@ def triage(args: argparse.Namespace) -> int:
     out = [
         *header,
         "",
-        *top_risk_findings_section(latest, limit=3),
+        *top_risk_findings_section(
+            latest, limit=3, kind=kind, epic_dir=args.epic_dir
+        ),
         "",
         "## Passes",
         "",
@@ -2618,6 +2692,12 @@ def triage(args: argparse.Namespace) -> int:
         triage_rows = []
         for cells in latest:
             problem_cell, action_cell = _triage_problem_and_action(cells[3])
+            if (
+                kind == "code"
+                and cells[1] == "Minor"
+                and _is_immutable_epic_doc_location(cells[2], args.epic_dir)
+            ):
+                action_cell = cell(DEFERRED_EPIC_DOC_DECISION)
             triage_rows.append(
                 f"| {cells[0]} | {cells[1]} | {cell(cells[2])} | {problem_cell} | ? | ? | {action_cell} |"
             )
@@ -2645,9 +2725,13 @@ def triage(args: argparse.Namespace) -> int:
         ]
     else:
         out += ["## Since the Previous Round", "", "No earlier round."]
-    kind = getattr(args, "kind", "code")
     triage_lines = auto_triage_section(
-        number, rounds, latest, getattr(args, "max_rounds", MAX_REVIEW_ROUNDS)
+        number,
+        rounds,
+        latest,
+        getattr(args, "max_rounds", MAX_REVIEW_ROUNDS),
+        kind=kind,
+        epic_dir=args.epic_dir,
     )
     out += ["", *triage_lines]
     action_val = ""

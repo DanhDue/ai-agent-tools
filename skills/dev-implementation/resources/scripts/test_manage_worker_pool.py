@@ -14,6 +14,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).parent))
 from manage_worker_pool import (
+    finalize_slot,
     get_slot_branch,
     get_slot_path,
     link_shared_caches,
@@ -305,6 +306,123 @@ class GitWorkerPoolLifecycleTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             sync_slot(self.repo, self.epic_dir, self.epic_slug, slot=1, status="invalid")
+
+    def test_finalize_slot_handles_cache_symlinks_and_preserves_tracked_audit_and_contracts(
+        self,
+    ) -> None:
+        # Track shared-contracts symlink and an existing review_audit_notes.jsonl;
+        # gitignore .venv while keeping node_modules unignored to cover both symlink paths.
+        (self.main_wt / ".gitignore").write_text(
+            ".venv\n.venv/\n.worktrees/\n.devtool/state/\n.devtool/logs/\n",
+            encoding="utf-8",
+        )
+        contracts_target = Path(self.tmp_dir) / "contracts_hub"
+        contracts_target.mkdir()
+        (contracts_target / "api_contract.md").write_text("# Contract\n", encoding="utf-8")
+        (self.main_wt / "shared-contracts").symlink_to(contracts_target)
+
+        epic_root = self.main_wt / ".devtool" / "epic" / self.epic_dir
+        features_dir = self.main_wt / ".devtool" / "features"
+        epic_root.mkdir(parents=True, exist_ok=True)
+        features_dir.mkdir(parents=True, exist_ok=True)
+        tracked_audit = epic_root / "review_audit_notes.jsonl"
+        tracked_audit.write_text('{"task_id": "task_00_prior"}\n', encoding="utf-8")
+        (epic_root / f"{self.epic_dir}.md").write_text(
+            f"# {self.epic_dir}\n\nIntegration test roots: tests\n", encoding="utf-8"
+        )
+        (epic_root / "bdd_scenarios.md").write_text(
+            "```gherkin\nScenario: [SC-01] Demo\n```\n", encoding="utf-8"
+        )
+        task_id = "task_01_stage"
+        task_md = (
+            f'---\nid: "{task_id}"\nstatus: "in-progress"\nepic: "{self.epic_slug}"\n'
+            'completedAt: null\nmodified: "2026-11-26T00:00:00Z"\n---\n\n'
+            f"# {task_id}\n\nCovers: SC-01\n\n## Verification\n\n"
+            "| ID | Phase | Command | Expect | Needs |\n|---|---|---|---|---|\n"
+            "| V1 | GREEN | `true` | exit 0 | — |\n"
+        )
+        (epic_root / f"{task_id}.md").write_text(task_md, encoding="utf-8")
+        (features_dir / f"{task_id}.md").write_text(task_md, encoding="utf-8")
+        (self.main_wt / "tests").mkdir(exist_ok=True)
+        (self.main_wt / "tests" / f"test_{task_id}.py").write_text(
+            "# Covers SC-01\ndef test_ok():\n    assert True\n", encoding="utf-8"
+        )
+        scripts_stub = self.main_wt / "skills" / "dev-implementation" / "resources" / "scripts"
+        scripts_stub.mkdir(parents=True, exist_ok=True)
+        (scripts_stub / "run_task_checks.py").write_text(
+            "import sys\nprint('done gate: PASS')\nsys.exit(0)\n", encoding="utf-8"
+        )
+        (scripts_stub / "check_bdd_traceability.py").write_text(
+            "import sys\nprint('PASS')\nsys.exit(0)\n", encoding="utf-8"
+        )
+        (scripts_stub / "sync_task_status.py").write_text(
+            "import sys\nsys.exit(0)\n", encoding="utf-8"
+        )
+        subprocess.run(["git", "add", "-A"], cwd=self.main_wt, check=True)
+        subprocess.run(
+            ["git", "commit", "-q", "-m", "Seed tracked symlinks and audit log"],
+            cwd=self.main_wt,
+            check=True,
+        )
+
+        # Create cache directories in main_wt so init_slots symlinks both into slot 1
+        (self.main_wt / ".venv" / "bin").mkdir(parents=True)
+        (self.main_wt / "node_modules" / "pkg").mkdir(parents=True)
+        init_slots(self.repo, self.epic_dir, self.epic_slug, pool_size=1)
+
+        slot1 = get_slot_path(self.repo, self.epic_dir, 1)
+        self.assertTrue((slot1 / ".venv").is_symlink())
+        self.assertTrue((slot1 / "node_modules").is_symlink())
+        self.assertTrue((slot1 / "shared-contracts").is_symlink())
+
+        # Make a code edit, mutate tracked audit log, and add an untracked audit file
+        (slot1 / "feature.py").write_text("RESULT = 1\n", encoding="utf-8")
+        (slot1 / ".devtool" / "epic" / self.epic_dir / "review_audit_notes.jsonl").write_text(
+            '{"stale": true}\n', encoding="utf-8"
+        )
+        (
+            slot1 / ".devtool" / "epic" / self.epic_dir / "review_audit_notes_extra.jsonl"
+        ).write_text('{"extra": true}\n', encoding="utf-8")
+
+        report = finalize_slot(
+            self.repo,
+            self.epic_dir,
+            self.epic_slug,
+            1,
+            task_id,
+            mode="pass1-approved",
+        )
+        self.assertTrue(report.get("ok"), report)
+        self.assertTrue(report.get("merged"), report)
+
+        committed = subprocess.run(
+            ["git", "show", "--pretty=format:", "--name-only", "HEAD"],
+            cwd=self.main_wt,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.splitlines()
+        self.assertIn("feature.py", committed)
+        self.assertNotIn(".venv", committed)
+        self.assertNotIn("node_modules", committed)
+        self.assertFalse(any("review_audit_notes" in item for item in committed))
+
+        # Tracked review_audit_notes.jsonl is preserved unmodified, not deleted
+        self.assertEqual(
+            tracked_audit.read_text(encoding="utf-8"),
+            '{"task_id": "task_00_prior"}\n',
+        )
+        sc_tree = subprocess.run(
+            ["git", "ls-tree", "HEAD", "shared-contracts"],
+            cwd=self.main_wt,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        self.assertTrue(sc_tree.startswith("120000 "), sc_tree)
+        self.assertTrue((slot1 / ".venv").is_symlink())
+        self.assertTrue((slot1 / "node_modules").is_symlink())
+        self.assertTrue((slot1 / "shared-contracts").is_symlink())
 
 
 if __name__ == "__main__":

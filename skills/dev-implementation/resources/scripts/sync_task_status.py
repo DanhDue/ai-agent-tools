@@ -257,11 +257,77 @@ def checkout_roots() -> list[Path]:
     return [p for p in parse_worktree_list(result.stdout) if not _is_slot_worktree(p)]
 
 
-def epic_checkout_roots(epic_dir: str) -> list[Path]:
-    """Return the current checkout root plus every worktree on branch refs/heads/epic/<epic_slug>.
+def _epic_branch_refs(slug_or_dir: str) -> set[str]:
+    """Return refs/heads/epic/* variants matching an epic slug or directory name."""
+    clean = sanitize_slug(slug_or_dir) or slug_or_dir
+    variants = {
+        slug_or_dir,
+        slug_or_dir.replace("_", "-"),
+        slug_or_dir.replace("-", "_"),
+        clean,
+        clean.replace("_", "-"),
+        clean.replace("-", "_"),
+    }
+    return {f"refs/heads/epic/{variant}" for variant in variants if variant}
 
-    Current checkout is always first. Other worktrees are included only if their branch
-    matches this epic's slug.
+
+def _branch_belongs_to_other_epic(
+    branch: str | None, target_branches: set[str]
+) -> bool:
+    """Return True if branch is a refs/heads/epic/* ref outside target_branches."""
+    return bool(
+        branch
+        and branch.startswith("refs/heads/epic/")
+        and branch not in target_branches
+    )
+
+
+def _checkout_branch(root: Path) -> str | None:
+    """Return full symbolic branch ref (e.g. refs/heads/epic/foo) for root, or None."""
+    if not (root / ".git").exists():
+        return None
+    res = subprocess.run(
+        ["git", "-C", str(root), "symbolic-ref", "-q", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if res.returncode == 0 and res.stdout.strip():
+        return res.stdout.strip()
+    return None
+
+
+def _resolve_slug_for_candidates(
+    candidates: Sequence[tuple[Path, str | None]],
+    epic_dir: str,
+) -> str:
+    """Resolve epic slug from eligible non-slot checkouts without trusting unrelated epic/* branches."""
+    initial_branches = _epic_branch_refs(epic_dir)
+    for path, branch in candidates:
+        if not (branch and branch.startswith("refs/heads/epic/")):
+            continue
+        candidate_slug = find_epic_slug(path, epic_dir)
+        if candidate_slug and branch in (
+            initial_branches | _epic_branch_refs(candidate_slug)
+        ):
+            return candidate_slug
+
+    for path, branch in candidates:
+        if branch and branch.startswith("refs/heads/epic/"):
+            continue
+        candidate_slug = find_epic_slug(path, epic_dir)
+        if candidate_slug:
+            return candidate_slug
+
+    return sanitize_slug(epic_dir) or epic_dir
+
+
+def epic_checkout_roots(epic_dir: str) -> list[Path]:
+    """Return eligible non-slot checkouts owned by this epic, with an epic-holding root first.
+
+    Filters EVERY candidate checkout (including current_root) by slot exclusion and
+    branch ownership: any checkout on an unrelated `refs/heads/epic/<other>` branch is
+    strictly excluded even when it inherited `.devtool/epic/<epic_dir>/` from base.
     """
     top = subprocess.run(
         ["git", "rev-parse", "--show-toplevel"],
@@ -270,6 +336,7 @@ def epic_checkout_roots(epic_dir: str) -> list[Path]:
         check=True,
     )
     current_root = Path(top.stdout.strip())
+    current_resolved = current_root.resolve()
 
     wt_result = subprocess.run(
         ["git", "worktree", "list", "--porcelain"],
@@ -278,23 +345,64 @@ def epic_checkout_roots(epic_dir: str) -> list[Path]:
         check=True,
     )
     entries = parse_worktree_branches(wt_result.stdout)
+    non_slot_entries = [
+        (path, branch) for path, branch in entries if not _is_slot_worktree(path)
+    ]
 
-    slug = find_epic_slug(current_root, epic_dir) or epic_dir
-    target_branches = {
-        f"refs/heads/epic/{slug}",
-        f"refs/heads/epic/{slug.replace('_', '-')}",
-        f"refs/heads/epic/{slug.replace('-', '_')}",
-    }
-
-    roots: list[Path] = [current_root]
-    seen = {current_root.resolve()}
-
+    current_branch: str | None = None
     for path, branch in entries:
+        if path.resolve() == current_resolved:
+            current_branch = branch
+            break
+    if current_branch is None:
+        current_branch = _checkout_branch(current_root)
+
+    ordered_for_slug = sorted(
+        non_slot_entries,
+        key=lambda item: 0 if item[0].resolve() == current_resolved else 1,
+    )
+    slug = _resolve_slug_for_candidates(ordered_for_slug, epic_dir)
+    target_branches = _epic_branch_refs(epic_dir) | _epic_branch_refs(slug)
+
+    current_eligible = not _is_slot_worktree(
+        current_root
+    ) and not _branch_belongs_to_other_epic(current_branch, target_branches)
+
+    matching_worktrees: list[Path] = []
+    seen: set[Path] = set()
+    if current_eligible:
+        seen.add(current_resolved)
+    for path, branch in non_slot_entries:
         if branch in target_branches:
             resolved = path.resolve()
             if resolved not in seen:
                 seen.add(resolved)
-                roots.append(path)
+                matching_worktrees.append(path)
+
+    current_has_epic = (current_root / ".devtool" / "epic" / epic_dir).is_dir()
+    matching_with_epic = [
+        path
+        for path in matching_worktrees
+        if (path / ".devtool" / "epic" / epic_dir).is_dir()
+    ]
+    matching_without_epic = [
+        path
+        for path in matching_worktrees
+        if not (path / ".devtool" / "epic" / epic_dir).is_dir()
+    ]
+
+    roots: list[Path] = []
+    if current_eligible and (
+        current_branch in target_branches or current_has_epic or not matching_with_epic
+    ):
+        roots.append(current_root)
+        roots.extend(matching_with_epic)
+        roots.extend(matching_without_epic)
+    else:
+        roots.extend(matching_with_epic)
+        roots.extend(matching_without_epic)
+        if current_eligible:
+            roots.append(current_root)
 
     return roots
 
@@ -848,10 +956,15 @@ def archive_epic_tasks(
 
     for root in roots:
         dest_dir = root / ".devtool" / "epic" / epic_dir
-        dest_dir.mkdir(parents=True, exist_ok=True)
         epic_slug = find_epic_slug(root, epic_dir)
+        target_slug = epic_slug or sanitize_slug(epic_dir) or epic_dir
+        target_slugs = {
+            target_slug,
+            target_slug.replace("-", "_"),
+            target_slug.replace("_", "-"),
+        }
 
-        # 1. Relocate task files from features and features/done
+        matching_tasks: list[Path] = []
         for fdir in (
             root / ".devtool" / "features",
             root / ".devtool" / "features" / "done",
@@ -860,32 +973,35 @@ def archive_epic_tasks(
                 continue
             for task_file in task_files_in(fdir):
                 file_epic = epic_of(task_file)
-                target_slug = epic_slug or sanitize_slug(epic_dir) or epic_dir
-                target_slugs = {
-                    target_slug,
-                    target_slug.replace("-", "_"),
-                    target_slug.replace("_", "-"),
-                }
                 if file_epic and file_epic not in target_slugs:
                     continue
-                dest_file = dest_dir / task_file.name
-                if dest_file.exists():
-                    mirror_fm = parse_frontmatter(task_file.read_text(encoding="utf-8"))
-                    canonical_text = dest_file.read_text(encoding="utf-8")
-                    for field in ("status", "modified", "completedAt"):
-                        if field in mirror_fm:
-                            canonical_text = set_frontmatter_field(
-                                canonical_text, field, str(mirror_fm[field])
-                            )
-                    canonical_text = fix_task_markdown_links(canonical_text, epic_dir)
-                    dest_file.write_text(canonical_text, encoding="utf-8")
-                else:
-                    content = task_file.read_text(encoding="utf-8")
-                    content = fix_task_markdown_links(content, epic_dir)
-                    dest_file.write_text(content, encoding="utf-8")
-                archived.append(dest_file)
-                task_file.unlink()
-                cleaned.append(task_file)
+                matching_tasks.append(task_file)
+
+        if not dest_dir.is_dir() and not matching_tasks:
+            continue
+
+        dest_dir.mkdir(parents=True, exist_ok=True)
+
+        # 1. Relocate task files from features and features/done
+        for task_file in matching_tasks:
+            dest_file = dest_dir / task_file.name
+            if dest_file.exists():
+                mirror_fm = parse_frontmatter(task_file.read_text(encoding="utf-8"))
+                canonical_text = dest_file.read_text(encoding="utf-8")
+                for field in ("status", "modified", "completedAt"):
+                    if field in mirror_fm:
+                        canonical_text = set_frontmatter_field(
+                            canonical_text, field, str(mirror_fm[field])
+                        )
+                canonical_text = fix_task_markdown_links(canonical_text, epic_dir)
+                dest_file.write_text(canonical_text, encoding="utf-8")
+            else:
+                content = task_file.read_text(encoding="utf-8")
+                content = fix_task_markdown_links(content, epic_dir)
+                dest_file.write_text(content, encoding="utf-8")
+            archived.append(dest_file)
+            task_file.unlink()
+            cleaned.append(task_file)
 
         # 2. Ensure existing tasks in dest_dir have clean links
         for task_file in task_files_in(dest_dir):
@@ -989,6 +1105,37 @@ def sync_epic(
     return matched, written
 
 
+def _discover_done_epics(root: Path) -> set[str]:
+    """Return epic directories referenced by completed tasks in root/.devtool/features/done/."""
+    discovered: set[str] = set()
+    done_dir = root / ".devtool" / "features" / "done"
+    if not done_dir.is_dir():
+        return discovered
+    for task_file in task_files_in(done_dir):
+        slug = epic_of(task_file)
+        if slug:
+            epic_dir = find_epic_dir_for_slug(root, slug)
+            if epic_dir:
+                discovered.add(epic_dir)
+    return discovered
+
+
+def _filter_roots_for_epic(roots: Sequence[Path], epic_dir: str) -> list[Path]:
+    """Filter candidate roots for epic_dir, skipping slots and unrelated refs/heads/epic/* checkouts."""
+    root_branches = [
+        (root, _checkout_branch(root))
+        for root in roots
+        if not _is_slot_worktree(root)
+    ]
+    slug = _resolve_slug_for_candidates(root_branches, epic_dir)
+    target_branches = _epic_branch_refs(epic_dir) | _epic_branch_refs(slug)
+    return [
+        root
+        for root, branch in root_branches
+        if not _branch_belongs_to_other_epic(branch, target_branches)
+    ]
+
+
 def archive_all_done_epics(roots: list[Path]) -> list[str]:
     """Find all completed tasks in .devtool/features/done/ and archive them into their epics.
 
@@ -996,19 +1143,16 @@ def archive_all_done_epics(roots: list[Path]) -> list[str]:
     """
     epics_to_archive: set[str] = set()
     for root in roots:
-        done_dir = root / ".devtool" / "features" / "done"
-        if not done_dir.is_dir():
+        if _is_slot_worktree(root):
             continue
-        for task_file in task_files_in(done_dir):
-            slug = epic_of(task_file)
-            if slug:
-                epic_dir = find_epic_dir_for_slug(root, slug)
-                if epic_dir:
-                    epics_to_archive.add(epic_dir)
+        epics_to_archive.update(_discover_done_epics(root))
 
     archived_dirs: list[str] = []
     for epic_dir in sorted(epics_to_archive):
-        sync_epic(roots, epic_dir, "Done")
+        scoped_roots = _filter_roots_for_epic(roots, epic_dir)
+        if not scoped_roots:
+            continue
+        sync_epic(scoped_roots, epic_dir, "Done")
         archived_dirs.append(epic_dir)
 
     return archived_dirs
@@ -1654,7 +1798,7 @@ def main() -> None:
         )
 
     elif args.command == "archive-epic":
-        roots = checkout_roots()
+        roots = epic_checkout_roots(args.epic_dir)
         archived, cleaned = archive_epic_tasks(roots, args.epic_dir)
         print(
             f"Archived {len(archived)} tasks into .devtool/epic/{args.epic_dir} "
@@ -1662,8 +1806,18 @@ def main() -> None:
         )
 
     elif args.command == "archive-done":
-        roots = checkout_roots()
-        done_epics = archive_all_done_epics(roots)
+        git_root = _current_checkout_root()
+        current_root = git_root or Path.cwd()
+        done_epics: list[str] = []
+        for epic_dir in sorted(_discover_done_epics(current_root)):
+            target_roots = (
+                epic_checkout_roots(epic_dir)
+                if git_root is not None
+                else [current_root]
+            )
+            if target_roots:
+                sync_epic(target_roots, epic_dir, "Done")
+                done_epics.append(epic_dir)
         if done_epics:
             print(
                 f"Archived {len(done_epics)} epic(s) into .devtool/epic/: {', '.join(done_epics)}"
@@ -1719,7 +1873,7 @@ def main() -> None:
             print("0 conflicts — safe for concurrent execution")
 
     elif args.command == "promote":
-        roots = checkout_roots()
+        roots = epic_checkout_roots(args.epic_dir)
         promoted, blockers = promote_epic_tasks(roots, args.epic_dir, force=args.force)
         if blockers:
             for b in blockers:

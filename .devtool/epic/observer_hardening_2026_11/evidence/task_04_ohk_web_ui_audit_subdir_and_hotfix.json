@@ -1,0 +1,188 @@
+{
+  "schema": 1,
+  "task": "task_04_ohk_web_ui_audit_subdir_and_hotfix",
+  "runs": {
+    "red": {
+      "head": "eae8362ac4cbfa08c1ddf398697f2cfd5bfcf881",
+      "tree": "1bdbf8006a693883159e185430d3d910a9e7814b",
+      "patch_id": "e99356ae3c8e8df06a2a3c5b4bc8005001d87b4b",
+      "started": "2026-11-26T16:50:11Z",
+      "finished": "2026-11-26T16:50:12Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ohk_web_ui_audit.py::test_ohk_hp_04_subdir_base_and_uncommitted_merge",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:50:11Z",
+          "finished": "2026-11-26T16:50:11Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "_______________ test_ohk_hp_04_subdir_base_and_uncommitted_merge _______________",
+            "tests/test_ohk_web_ui_audit.py:112: in test_ohk_hp_04_subdir_base_and_uncommitted_merge",
+            "    assert base_search is not None",
+            "E   assert None is not None",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_ohk_web_ui_audit.py::test_ohk_hp_04_subdir_base_and_uncommitted_merge",
+            "1 failed in 0.17s"
+          ],
+          "output_sha256": "2457a7133816eea9c0e10fe8e4134076053909aa101d26e33a29d7e666fd752f"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "eae8362ac4cbfa08c1ddf398697f2cfd5bfcf881",
+      "tree": "1236fe8b0339bfeba5d7d46c62b79be34007202d",
+      "patch_id": "1baf2c02910904a82d36c2224e7950e8841b4d68",
+      "started": "2026-11-26T16:53:32Z",
+      "finished": "2026-11-26T16:53:41Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ohk_web_ui_audit.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:53:32Z",
+          "finished": "2026-11-26T16:53:35Z",
+          "output_tail": [
+            "...........                                                              [100%]",
+            "11 passed in 3.35s"
+          ],
+          "output_sha256": "04622e74b19720a83094e8c30e0404a80978f2af2dcbb85ee035356c4f9d285c"
+        },
+        {
+          "id": "V3",
+          "phase": "REGRESSION",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_audit_ui_state_and_styles.py tests/test_web_quality_provider.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:53:35Z",
+          "finished": "2026-11-26T16:53:36Z",
+          "output_tail": [
+            "..................                                                       [100%]",
+            "18 passed in 0.79s"
+          ],
+          "output_sha256": "35940d7ff3bea5f1081f8c0e25fdd3e53a9f6fdbdd142a3e19166cfb8410d9fb"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py && ruff format --check skills/web-quality-check/resources/scripts/audit_ui_state_and_styles.py tests/test_audit_ui_state_and_styles.py tests/test_ohk_web_ui_audit.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:53:36Z",
+          "finished": "2026-11-26T16:53:36Z",
+          "output_tail": [
+            "All checks passed!",
+            "3 files already formatted"
+          ],
+          "output_sha256": "c6486b51f483249343d4a4bdb91c41be31f0bdc28887b2f4cd4800e174f8bd6b"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py && mypy --ignore-missing-imports --follow-imports=silent skills/web-quality-check/resources/scripts/audit_ui_state_and_styles.py tests/test_audit_ui_state_and_styles.py tests/test_ohk_web_ui_audit.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:53:36Z",
+          "finished": "2026-11-26T16:53:37Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files",
+            "Success: no issues found in 3 source files"
+          ],
+          "output_sha256": "44309b3abd9d874ef4bedb7bf2ff13bfbb430037d40474eeb70922876f6e73f6"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_ohk_web_ui_audit.py --junitxml=build/test-results/task_04.xml",
+          "expect": "exit 0; results build/test-results/task_04.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-26T16:53:37Z",
+          "finished": "2026-11-26T16:53:41Z",
+          "output_tail": [
+            "...........                                                              [100%]",
+            "11 passed in 3.61s"
+          ],
+          "output_sha256": "4e89e80e677adf4abc6344ac609b697dd1cd33d2f774957dcaa2079c619c1516",
+          "results": {
+            "path": "build/test-results/task_04.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 6,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_ohk_hp_04_subdir_base_and_uncommitted_merge",
+                  "classname": "tests.test_ohk_web_ui_audit",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ec_04_excludes_base_orphans_and_css_removal_on_layout_children",
+                  "classname": "tests.test_ohk_web_ui_audit",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ar_01_non_ui_and_excluded_html_return_not_applicable",
+                  "classname": "tests.test_ohk_web_ui_audit",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_hp_04_integration",
+                  "classname": "tests.test_ohk_web_ui_audit.Test_Ohk_Web_Ui_Audit_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ec_04_integration",
+                  "classname": "tests.test_ohk_web_ui_audit.Test_Ohk_Web_Ui_Audit_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ohk_ar_01_integration",
+                  "classname": "tests.test_ohk_web_ui_audit.Test_Ohk_Web_Ui_Audit_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/web-quality-check/resources/scripts/audit_ui_state_and_styles.py",
+            "tests/test_ohk_web_ui_audit.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

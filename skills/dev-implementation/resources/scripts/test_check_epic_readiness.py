@@ -920,6 +920,141 @@ class ReadinessGroundingTest(unittest.TestCase):
         self.assertIn("R7 PASS", stdout_after)
         self.assertEqual(stderr_after.count("warning: --strict-bilingual is deprecated and ignored"), 1)
 
+    def test_r7_reanchoring_skips_only_ancestor_check(self) -> None:
+        """--reanchoring skips only git merge-base --is-ancestor while preserving other R7 checks."""
+        epic_dir = self.root / ".devtool" / "epic" / "demo_epic"
+        hld_path = epic_dir / "demo_epic.en.md"
+        hld_path.write_text(
+            hld_path.read_text(encoding="utf-8").replace(
+                "- **Status**: Planned", "- **Status**: Packaged (2026-11-26)"
+            ),
+            encoding="utf-8",
+        )
+        handoff_path = epic_dir / "handoff.md"
+        valid_handoff = (
+            "# Handoff\n\n"
+            "## Table of Contents\n\n"
+            "- [Summary](#summary)\n\n"
+            "## Summary\n\n"
+            "- **Design commit**: `deadbeef`\n"
+        )
+        handoff_path.write_text(valid_handoff, encoding="utf-8")
+
+        # Normal mode fails R7 on non-ancestor Design commit
+        code_norm, stdout_norm, _ = self.run_check("demo_epic")
+        self.assertEqual(code_norm, 1, stdout_norm)
+        self.assertIn("R7 FAIL", stdout_norm)
+        self.assertIn("is not an ancestor of HEAD", stdout_norm)
+
+        # --reanchoring skips the ancestor check and passes R7
+        code_reanchor, stdout_reanchor, _ = self.run_check("demo_epic", "--reanchoring")
+        self.assertEqual(code_reanchor, 0, stdout_reanchor)
+        self.assertIn("R7 PASS", stdout_reanchor)
+
+        # --reanchoring still fails if 'Design commit' line is missing
+        handoff_path.write_text(
+            "# Handoff\n\n"
+            "## Table of Contents\n\n"
+            "- [Summary](#summary)\n\n"
+            "## Summary\n\n"
+            "- **Packaged**: 2026-11-26\n",
+            encoding="utf-8",
+        )
+        code_missing, stdout_missing, _ = self.run_check("demo_epic", "--reanchoring")
+        self.assertEqual(code_missing, 1, stdout_missing)
+        self.assertIn("missing 'Design commit' line", stdout_missing)
+
+        # --reanchoring still fails if HLD status is incompatible with handoff.md
+        handoff_path.write_text(valid_handoff, encoding="utf-8")
+        hld_path.write_text(
+            hld_path.read_text(encoding="utf-8").replace(
+                "- **Status**: Packaged (2026-11-26)", "- **Status**: Planned"
+            ),
+            encoding="utf-8",
+        )
+        code_status, stdout_status, _ = self.run_check("demo_epic", "--reanchoring")
+        self.assertEqual(code_status, 1, stdout_status)
+        self.assertIn("handoff.md exists but Status is", stdout_status)
+
+    def test_r8_replay_skips_uncreated_new_test_targets(self) -> None:
+        """has_uncreated_new_test_targets and --replay emit R8 SKIP for contract-based (new) tasks."""
+        import replay_task_text as rtt
+
+        contract_text = (
+            "## Files\n\n"
+            "Allowed files:\n"
+            "- `tool.py`\n"
+            "- `tests/test_future.py` (new)\n"
+        )
+        self.assertTrue(rtt.has_uncreated_new_test_targets(self.root, contract_text, []))
+        self.assertFalse(
+            rtt.has_uncreated_new_test_targets(
+                self.root,
+                contract_text,
+                [rtt.CreateDirective(path="tests/test_future.py", content="def test_x(): pass\n")],
+            )
+        )
+        non_test_new = "## Files\n\nAllowed files:\n- `src/helper.py` (new)\n"
+        self.assertFalse(rtt.has_uncreated_new_test_targets(self.root, non_test_new, []))
+
+        glob_test_text = "## Files\n\nAllowed files:\n- `tests/test_unit_*.py` (new)\n"
+        self.assertTrue(rtt.has_uncreated_new_test_targets(self.root, glob_test_text, []))
+        self.assertFalse(
+            rtt.has_uncreated_new_test_targets(
+                self.root,
+                glob_test_text,
+                [rtt.CreateDirective(path="tests/test_unit_a.py", content="pass\n")],
+            )
+        )
+
+        # Convert demo_epic tasks to contract-based (new) test targets without directives
+        for task_name, test_rel in (
+            ("task_1.md", "tests/test_demo_one.py"),
+            ("task_2.md", "tests/test_demo_two.py"),
+        ):
+            def _make_contract(text: str, rel: str = test_rel) -> str:
+                text = text.replace(
+                    "Allowed files:\n- `tool.py`\n",
+                    f"Allowed files:\n- `tool.py`\n- `{rel}` (new)\n",
+                )
+                text = text.replace(
+                    "`python3 tool.py red`",
+                    f"`python3 -m pytest -q {rel}`",
+                )
+                text = text.replace(
+                    "`python3 tool.py red2`",
+                    f"`python3 -m pytest -q {rel}`",
+                )
+                text = text.replace(
+                    "`ruff check tool.py`",
+                    f"`ruff check tool.py {rel}`",
+                )
+                text = text.replace(
+                    "`mypy tool.py`",
+                    f"`mypy tool.py {rel}`",
+                )
+                return text
+
+            self.update_task_both(task_name, _make_contract)
+
+        git_cmd(self.root, "add", "-A")
+        git_cmd(self.root, "commit", "-m", "commit contract tasks", "-q")
+
+        # Standalone replay_task returns clean SKIP diagnostic
+        t1_path = self.root / ".devtool" / "epic" / "demo_epic" / "task_1.md"
+        t1_code, t1_msgs = rtt.replay_task(
+            self.root, t1_path, t1_path.read_text(encoding="utf-8"), run_rows=True
+        )
+        self.assertEqual(t1_code, 0)
+        self.assertTrue(any(m.startswith("SKIP:") for m in t1_msgs), t1_msgs)
+
+        # check_epic_readiness.py --replay exits 0 with R8 SKIP
+        code, stdout, stderr = self.run_check("demo_epic", "--replay")
+        self.assertEqual(code, 0, f"stdout:\n{stdout}\nstderr:\n{stderr}")
+        self.assertIn("R8 SKIP (no literal test-creation directives for (new) test files)", stdout)
+        self.assertNotIn("R8 PASS", stdout)
+        self.assertNotIn("R8 FAIL", stdout)
+
 
 class Test_Check_Epic_Readiness_Integration(unittest.TestCase):
     def test_EVI_HP_03_live_integration_provenance(self) -> None:

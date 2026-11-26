@@ -91,7 +91,7 @@ spec's risks section and continue.
 
 Once the spec is approved (and has passed self-review), decide which skill picks it up next:
 
-- **Invoke `dev-designer`** when the approved spec describes epic-scale work: multiple independent components/services, a design that will need Kanban task breakdown and architecture/use-case/sequence diagrams, or the user explicitly called it an "epic" or large feature. Before invoking, relocate the spec file from `docs/superpowers/specs/` into `.devtool/epic/<epic_name>/` (creating the directory if `dev-designer` hasn't run for this epic yet), fix any relative links inside the moved file, then pass its path as input — this keeps the spec, the HLD, and the task files for one epic all in the same directory instead of split across `docs/` and `.devtool/`.
+- **Invoke `dev-designer`** when the approved spec describes epic-scale work: multiple independent components/services, a design that will need Kanban task breakdown and architecture/use-case/sequence diagrams, or the user explicitly called it an "epic" or large feature. Before invoking, relocate the spec file from `docs/superpowers/specs/` into `.devtool/epic/<epic_name>/` (creating the directory if `dev-designer` hasn't run for this epic yet), copy any approved Visual Companion HTML mockups from `.superpowers/brainstorm/` into `.devtool/epic/<epic_name>/assets/` and link them under `Approved Visual Companions` in the spec, fix any relative links inside the moved file, then pass its path as input — this keeps the spec, approved mockup assets, HLD, and task files for one epic all in the same directory instead of split across `docs/`, `.superpowers/`, and `.devtool/`.
 - **Invoke `writing-plans`** (as before) for everything else — a single-component feature, bugfix, or small enough scope that one implementation plan covers it without a separate HLD.
 
 The deliverable decides, not the amount of writing involved. **If the work changes a file that ships in the build, it is code**, however much prose it also produces.
@@ -264,3 +264,5 @@ A question about a UI topic is not automatically a visual question. "What does p
 
 If they agree to the companion, read the detailed guide before proceeding:
 `skills/dev-brainstorming/visual-companion.md`
+
+**Persisting approved mockups:** At Stage 1 handoff for an epic, copy the final approved HTML mockup files from `.superpowers/brainstorm/` into `.devtool/epic/<epic_dir>/assets/` and link them under `Approved Visual Companions` in the approved design spec (never leave approved mockups only in `.superpowers/brainstorm/`).
