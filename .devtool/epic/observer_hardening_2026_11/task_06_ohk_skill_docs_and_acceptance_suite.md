@@ -36,7 +36,7 @@ Apply all skill and reference documentation updates required by Clusters 1–4, 
 7. **`#12` `deferred: out-of-scope epic doc (§4.4)` Docs**:
    - `skills/cross-model-review/SKILL.md`, `skills/cross-model-review/references/review-triage.md`, `skills/dev-lifecycle/references/orchestration-roles.md` (§4.4): document the machine-recorded `deferred: out-of-scope epic doc (§4.4)` decision token for `Minor` code-review findings on immutable `.devtool/epic/` files.
 8. **`#13` `sync_contracts.py diff-check --allow-dirty` Docs**:
-   - `skills/sync-shared-contracts/SKILL.md`, `skills/dev-designer/SKILL.md`: document `--allow-dirty` for uncommitted `review_tier: "full"` Tier C task tests while preserving strict default clean-tree enforcement at Gate 4.
+   - `skills/sync-shared-contracts/SKILL.md`, `skills/dev-designer/SKILL.md`: document `--allow-dirty` (guarding `shared-contracts`, `.agents/contract_map.json`, and `.agents/contract_sync.json`) for uncommitted `review_tier: "full"` Tier C task tests while preserving strict default clean-tree enforcement at Gate 4.
 9. **`#15` Shared `.venv` Symlink `PYTHONPATH` + `UV_NO_SYNC=1` Guidance**:
    - `skills/using-git-worktrees/SKILL.md` (Step 2), `skills/subagent-driven-development/SKILL.md`, `skills/dev-implementation/SKILL.md`: require `UV_NO_SYNC=1 PYTHONPATH="$WORKTREE_ROOT/src"` whenever reusing a symlinked parent `.venv`.
 10. **`#16` Quality-Manifest Commands, Ban Bare `npx`, and Non-Overlapping 180s Timer**:

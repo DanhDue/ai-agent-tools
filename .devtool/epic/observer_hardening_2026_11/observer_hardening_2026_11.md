@@ -99,16 +99,16 @@ flowchart TD
 
 ### Core Invariants and Config Knobs
 
-1. **Worktree Boundary Invariant**: `sync_task_status.py` commands scoped to an epic (`epic`, `promote`, `archive-epic`, `archive-done`) never mutate sibling `.worktrees/<other_epic>` checkouts checked out on unrelated `refs/heads/epic/*` branches.
+1. **Worktree Boundary Invariant**: `sync_task_status.py` commands scoped to an epic (`epic`, `promote`, `archive-epic`, `archive-done`) filter every candidate checkout (including `current_root`) by slot exclusion and branch ownership, never mutating sibling `.worktrees/<other_epic>` checkouts checked out on unrelated `refs/heads/epic/*` branches even when those branches inherited the target epic directory from `develop`.
 2. **Staging Non-Destruction Invariant**: `manage_worker_pool.py finalize_slot` never passes gitignored cache paths as negative `:!` pathspecs to `git add`, never deletes symlinks on disk, and never unstages tracked symlinks such as `shared-contracts`.
 3. **Python Extras Preservation Invariant**: `bootstrap_worktree.sh` installs `[project.optional-dependencies]` (`--all-extras`) and `[dependency-groups].dev` (`--group dev`) when present; `verify_polyglot_registry.py` sets `UV_NO_SYNC=1` (via `setdefault`) on `uv run` capability subprocesses.
 4. **Defensive Shell Parsing Invariant**: `check_document.py refusal()` flattens embedded `\r\n`/`\n` inside every `--changed-files` argument regardless of shell word-splitting settings.
-5. **Subdirectory Git Resolution Invariant**: `audit_ui_state_and_styles.py` always invokes `git show {base_ref}:./{norm_rel}` relative to `cwd=repo_root` and unions committed plus working-tree/staged/untracked diffs.
+5. **Subdirectory Git Resolution and CSS Regression Invariant**: `audit_ui_state_and_styles.py` strips only exact `./` prefixes (preserving dot-prefixed components like `.well-known/` and rejecting `..`), invokes `git show {base_ref}:./{norm_rel}` relative to `cwd=repo_root`, unions committed plus working-tree/staged/untracked diffs, expands Invariant 2 to dependent templates whenever `.css` files change, and evaluates baseline stylesheet definitions before suppressing pre-existing orphaned classes.
 6. **Non-Weakening Gate Invariants**:
    - `check_epic_readiness.py` skips `R7` ancestor checks only under explicit `--reanchoring` (invoked by `package_epic.py --revise`).
    - `replay_task_text.py` skips `R8` only when zero literal test-creation directives exist for `(new)` test files; directive-bearing tasks remain strictly replayed.
-   - `run_external_review.py` permits `deferred: out-of-scope epic doc (§4.4)` strictly for `Minor` findings on immutable `.devtool/epic/` paths in code reviews; `Critical`/`Important` blockers in `check()` still require `fixed in ` or `dismissed: `.
-   - `sync_contracts.py diff-check` keeps strict clean-tree `BLOCKED (2)` as the default; `--allow-dirty` still returns `BLOCKED (2)` whenever `shared-contracts` or `.agents/contract_map.json` has tracked modifications.
+   - `run_external_review.py` permits `deferred: out-of-scope epic doc (§4.4)` strictly for `Minor` findings whose location satisfies `_is_immutable_epic_doc_location()` in code reviews (ordinary source findings with arbitrary `deferred:` markers stay actionable); `Critical`/`Important` blockers in `check()` still require `fixed in ` or `dismissed: `.
+   - `sync_contracts.py diff-check` keeps strict clean-tree `BLOCKED (2)` as the default; `--allow-dirty` still returns `BLOCKED (2)` whenever `shared-contracts`, `.agents/contract_map.json`, or `.agents/contract_sync.json` (tracked or untracked) is dirty.
 
 ### Extension and Troubleshooting Guide
 
@@ -156,4 +156,8 @@ Canonical adversarial BDD specification (20 scenarios across `HP`, `EC`, `ST`, `
 
 ## Spec Errata
 
-No errata recorded yet.
+- **[SE-01] Core Invariants §1 and Task 01**: Filter EVERY checkout candidate including `current_root` by branch ownership (`refs/heads/epic/<other>` excluded even when inheriting `.devtool/epic/<epic_dir>/`) and slot exclusion inside `epic_checkout_roots()`.
+- **[SE-02] Core Invariants §5 and Task 04**: Expand Invariant 2 (`audit_orphaned_classes_and_styles`) to include dependent templates whenever any `.css` stylesheet changes, and verify baseline stylesheet class definitions from `base_ref` before suppressing pre-existing `orphaned_class` findings.
+- **[SE-03] Core Invariants §5 and Task 04**: Strip only exact leading `./` segments in `_get_base_file_content()` (never `.lstrip("./")`), preserving dot-prefixed directories like `.well-known/` and rejecting `..` parent traversal.
+- **[SE-04] Core Invariants §6, Spec §4.3, Task 05, and Task 06**: Include `.agents/contract_sync.json` (both tracked and untracked) alongside `shared-contracts` and `.agents/contract_map.json` in `sync_contracts.py diff-check --allow-dirty`'s protected dirty-path guard.
+- **[SE-05] Core Invariants §6 and Task 05**: Require `_is_immutable_epic_doc_location()` (and exact canonical `DEFERRED_EPIC_DOC_DECISION` when a decision cell is present) before auto-deferring Minor findings into `AUTO_PASS_CLEAN`; ordinary source findings carrying `deferred: arbitrary` stay actionable (`AUTO_PASS_FINAL_MINOR_SWEEP`).

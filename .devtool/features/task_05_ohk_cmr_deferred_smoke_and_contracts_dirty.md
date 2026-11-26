@@ -34,7 +34,7 @@ Implement observations `#12` and `#13` in their owning scripts and review prompt
 2. **Observation `#13` (`sync_contracts.py diff-check --allow-dirty`)**:
    - Add `--allow-dirty` to the `diff-check` subparser in `sync_contracts.py`.
    - Preserve strict default `BLOCKED (2)` whenever `--allow-dirty` is omitted and `git status --porcelain --untracked-files=no` is non-empty.
-   - When `--allow-dirty` is passed, parse dirty tracked paths: if ANY path is `shared-contracts`, starts with `shared-contracts/`, or equals `.agents/contract_map.json`, STILL return `BLOCKED (2)` naming those protected dirty paths; otherwise proceed with auditing committed `merge_base..HEAD`.
+   - When `--allow-dirty` is passed, parse dirty paths (tracked + protected untracked): if ANY path is `shared-contracts`, starts with `shared-contracts/`, equals `.agents/contract_map.json`, or equals `.agents/contract_sync.json`, STILL return `BLOCKED (2)` naming those protected dirty paths; otherwise proceed with auditing committed `merge_base..HEAD`.
 
 ## Files
 
@@ -88,22 +88,24 @@ When "generate_smoke_checklist.py" extracts smoke steps
 Then the step target is not "`.tts-save-btn`" and not "CLI / Workspace Root"
 And the step target resolves to "http://127.0.0.1:8000"
 
-Scenario: [OHK-ST-03] [Tier C - Integration] Delta review context honors deferred epic-doc tokens across rounds while blocking deferred on Critical or Important
+Scenario: [OHK-ST-03] [Tier C - Integration] Delta review context honors deferred epic-doc tokens while blocking deferred on Important or source-file findings
 Given Round 1 in "review_results.md" records a Minor finding on ".devtool/epic/sample/task_01.md" with decision "deferred: out-of-scope epic doc (§4.4)"
 When "delta_round_context" constructs the Round 2 prompt block
 Then rule 4 explicitly instructs the reviewer not to re-raise findings marked "dismissed:" or "deferred:"
+When Round 1 instead marks a Minor finding on "src/app.py" with "deferred: arbitrary"
+Then "run_external_review.py triage --epic-dir sample" still emits "AUTO_PASS_FINAL_MINOR_SWEEP" rather than "AUTO_PASS_CLEAN"
 When Round 1 instead marks an Important finding with "deferred: out-of-scope epic doc (§4.4)"
 Then "run_external_review.py check --epic-dir sample" exits 1 reporting that Important finding as undecided
 
-Scenario: [OHK-FR-03] [Tier C - Integration] sync_contracts.py diff-check enforces clean tree by default and guards protected paths under --allow-dirty
-Given a satellite repository with valid ".agents/contract_map.json" and "shared-contracts" symlink
+Scenario: [OHK-FR-03] [Tier C - Integration] sync_contracts.py diff-check enforces clean tree by default and guards protected contract paths under --allow-dirty
+Given a satellite repository with valid ".agents/contract_map.json", ".agents/contract_sync.json", and "shared-contracts" symlink
 And an uncommitted tracked modification exists in "src/preview/ui.js"
 When "sync_contracts.py diff-check --base-ref main" runs without "--allow-dirty"
 Then it exits 2 with status "BLOCKED"
-When "sync_contracts.py diff-check --base-ref main --allow-dirty" runs while "shared-contracts" and ".agents/contract_map.json" are clean
+When "sync_contracts.py diff-check --base-ref main --allow-dirty" runs while "shared-contracts", ".agents/contract_map.json", and ".agents/contract_sync.json" are clean
 Then it audits committed "merge_base..HEAD" and exits 0 with status "PASS"
-When ".agents/contract_map.json" itself has an uncommitted tracked modification and "--allow-dirty" is passed
-Then it still exits 2 with status "BLOCKED" naming ".agents/contract_map.json"
+When ".agents/contract_map.json" or ".agents/contract_sync.json" has an uncommitted modification (tracked or untracked) and "--allow-dirty" is passed
+Then it still exits 2 with status "BLOCKED" naming the dirty protected path so an uncommitted acknowledgement cannot satisfy a committed source delta
 ```
 
 ## Verification
@@ -131,20 +133,20 @@ Then it still exits 2 with status "BLOCKED" naming ".agents/contract_map.json"
   - **New contract**:
     - Define `DEFERRED_EPIC_DOC_DECISION = "deferred: out-of-scope epic doc (§4.4)"`.
     - Add `_is_immutable_epic_doc_location(location: str, epic_dir: str | None = None) -> bool` returning True when normalized `path_of(location)` starts with `.devtool/epic/` (or `.devtool/epic/{epic_dir}/`) and basename is not `review_results.md` or `principal_review.md`.
-    - Add optional `kind: str = "code"` and `epic_dir: str | None = None` parameters to `auto_triage_section()` (defaults preserve all existing caller signatures). When `kind == "code"`, treat a `Minor` row as auto-deferred if `cells[4].strip().startswith("deferred:")` or `_is_immutable_epic_doc_location(cells[2], epic_dir)`. Emit `AUTO_PASS_CLEAN` when `not blocking_rows` and zero actionable `Minor` rows remain.
+    - Add optional `kind: str = "code"` and `epic_dir: str | None = None` parameters to `auto_triage_section()` (defaults preserve all existing caller signatures). When `kind == "code"`, treat a `Minor` row as auto-deferred STRICTLY when `_is_immutable_epic_doc_location(cells[2], epic_dir)` is `True` AND (`cells[4].strip() == ""` or `cells[4].strip() == DEFERRED_EPIC_DOC_DECISION`). Ordinary source-file findings carrying an arbitrary `deferred:` decision MUST remain actionable and emit `AUTO_PASS_FINAL_MINOR_SWEEP`. Emit `AUTO_PASS_CLEAN` only when `not blocking_rows` and zero actionable `Minor` rows remain.
     - In `triage()`: pass `kind=kind, epic_dir=args.epic_dir` into `auto_triage_section()`, and for `kind == "code"` Minor rows matching `_is_immutable_epic_doc_location()`, set `action_cell = DEFERRED_EPIC_DOC_DECISION`.
     - In `delta_round_context()`: update rule 4 and Anti-Ping-Pong guidance to honor both `dismissed:` and `deferred:` decisions.
     - In `check()`: keep `cells[1] in BLOCKING and not cells[4].startswith(("fixed in ", "dismissed: "))` unchanged so `deferred:` NEVER bypasses `Critical`/`Important` findings.
 - **Source (`generate_smoke_checklist.py:70-150`, `180-223`)**: `extract_target_from_text(text)` accepts any backticked token and falls back to `"CLI / Workspace Root"`.
   - **New contract**: Add optional `default_web_target: str | None = None` parameter to `extract_target_from_text()` and `extract_smoke_steps()`. Accept backticked tokens as commands only when they look like shell/CLI commands (matching known CLI executables, `./` scripts, `--flags`, or multi-word commands — rejecting CSS selectors `.foo`/`#bar`, routes `/foo`, single identifiers, or `.css`/`.html`/`.json` filenames). Detect browser/Playwright/UI keywords (`playwright`, `browser`, `viewport`, `preview`, `modal`, `dom`, `page`, `click`, `render`, `.html`) and return `default_web_target or "Web Preview UI"`. In `generate_smoke_checklist()`, extract any first `http(s)://` URL from `bdd_scenarios.md` (or HLD `<epic_dir>.md`) as `default_web_target` for browser scenarios.
-- **Source (`sync_contracts.py:1242-1254`, `1730-1735`)**: `cmd_diff_check()` fails with exit `2` (`BLOCKED`) on any non-empty `git status --porcelain --untracked-files=no`.
-  - **New contract**: Add `--allow-dirty` flag to `p_diff`. When `getattr(args, "allow_dirty", False)` is True, extract the path from each porcelain status line (`line[3:].strip()`, handling rename `old -> new` by checking both sides). If any dirty path equals `shared-contracts`, starts with `shared-contracts/`, or equals `.agents/contract_map.json`, return `emit_blocked([...])` (exit 2); otherwise continue auditing `merge_base..HEAD`.
+- **Source (`sync_contracts.py:1242-1254`, `1579-1627`, `1730-1735`)**: `cmd_diff_check()` fails with exit `2` (`BLOCKED`) on any non-empty `git status --porcelain --untracked-files=no`, and later reads `.agents/contract_sync.json` from the working tree.
+  - **New contract**: Add `--allow-dirty` flag to `p_diff`. When `getattr(args, "allow_dirty", False)` is True, inspect both tracked dirty lines (`git status --porcelain --untracked-files=no`) AND untracked/modified protected metadata (`git status --porcelain -- shared-contracts .agents/contract_map.json .agents/contract_sync.json`), extracting paths cleanly (`line[3:].strip()`, checking both sides of `old -> new` renames). If ANY dirty path equals `shared-contracts`, starts with `shared-contracts/`, equals `.agents/contract_map.json`, or equals `.agents/contract_sync.json`, return `emit_blocked([...])` (exit 2) so an uncommitted acknowledgement cannot satisfy a committed source delta; otherwise continue auditing `merge_base..HEAD`.
 
 ## Definition of Done
 
 - [ ] `external-review-prompt.md` and `run_external_review.py` exclude/auto-defer `.devtool/epic/` Minor rows to `AUTO_PASS_CLEAN` while preserving strict `check()` on `Critical`/`Important` (V2, V3, V6)
 - [ ] `generate_smoke_checklist.py` ignores backticked CSS selectors and infers web URL / `"Web Preview UI"` for browser/Playwright BDD scenarios (V2, V3, V4, V5, V6)
-- [ ] `sync_contracts.py diff-check` preserves strict default clean-tree `BLOCKED` and supports scoped `--allow-dirty` guarding `shared-contracts` and `.agents/contract_map.json` (V2, V3, V4, V5, V6)
+- [ ] `sync_contracts.py diff-check` preserves strict default clean-tree `BLOCKED` and supports scoped `--allow-dirty` guarding `shared-contracts`, `.agents/contract_map.json`, and `.agents/contract_sync.json` (V2, V3, V4, V5, V6)
 - [ ] Assigned BDD integration scenarios (`OHK-HP-05`, `OHK-EC-05`, `OHK-ST-03`, `OHK-FR-03`) pass with JUnit XML evidence (V6)
 
 ## Dependencies & Blockers

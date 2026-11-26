@@ -49,6 +49,7 @@ Read-only context:
 
 - **Target Files & Symbols**:
   - `skills/web-quality-check/resources/scripts/audit_ui_state_and_styles.py`: `get_git_diff_files` (L83-L156), `_is_excluded` (L158-L169), `_get_base_file_content` (L171-L185), `run_all_ui_reviews` (L600-L651).
+  - `tests/test_audit_ui_state_and_styles.py`: UI audit regression tests (L1-L280).
 - **Downstream Callers**: `tests/test_audit_ui_state_and_styles.py`, `tests/test_web_quality_provider.py`.
 - **Target Coverage**: 100% of modified branches in `audit_ui_state_and_styles.py`.
 
@@ -59,20 +60,25 @@ Covers: OHK-HP-04, OHK-EC-04, OHK-AR-01
 ```gherkin
 Scenario: [OHK-HP-04] [Tier C - Integration] Subdirectory UI audit resolves base templates and merges uncommitted template edits
 Given a git repository whose web preview lives in subdirectory "src/app/preview"
-And commit HEAD modifies "src/app/preview/static/style.css" while base ref "main" holds "static/search.html" with "style.css?v=1"
-And the working tree has an uncommitted edit bumping "src/app/preview/static/search.html" to "style.css?v=2"
+And commit HEAD modifies "src/app/preview/static/style.css" while base ref "main" holds "static/search.html" with "style.css?v=1" and ".well-known/portal.html" with "style.css?v=1"
+And the working tree has an uncommitted edit bumping "src/app/preview/static/search.html" to "style.css?v=2" and ".well-known/portal.html" to "style.css?v=2"
 When "audit_ui_state_and_styles.py --project-root src/app/preview --base-ref main --json" executes
-Then "_get_base_file_content" resolves "main:./static/search.html" cleanly
-And "get_git_diff_files" includes both "static/style.css" and uncommitted "static/search.html"
+Then "_get_base_file_content" resolves both "main:./static/search.html" and "main:./.well-known/portal.html" cleanly without stripping leading dots and rejects "../outside.html"
+And "get_git_diff_files" includes "static/style.css", uncommitted "static/search.html", and uncommitted ".well-known/portal.html"
 And the JSON report returns status "PASS" with 0 cache_bust findings
+When ".well-known/portal.html" is modified without bumping "?v=1"
+Then "audit_ui_state_and_styles.py --project-root src/app/preview --base-ref main --json" returns status "FAIL" with a "cache_bust" finding on ".well-known/portal.html"
 
-Scenario: [OHK-EC-04] [Tier C - Integration] UI auditor excludes build and framework directories and ignores pre-existing base-ref findings
+Scenario: [OHK-EC-04] [Tier C - Integration] UI auditor excludes build directories, ignores pre-existing base-ref orphans, and catches CSS-only class removals
 Given a web project containing compiled HTML with orphaned classes inside "dist/", ".astro/", ".devtool/", "docs/", "target/", and "tests/"
-And an existing page "src/page.html" already had orphaned class "legacy-unmapped" at base ref "main" and only received a text edit on HEAD
+And an existing page "src/page.html" already had orphaned class "legacy-unmapped" plus styled class "active-card" defined in "src/style.css" at base ref "main"
+And HEAD edits only text on "src/page.html" without touching "src/style.css"
 When "audit_ui_state_and_styles.py --base-ref main --json" executes
 Then files under "dist/", ".astro/", ".devtool/", "docs/", "target/", and "tests/" produce zero findings
 And pre-existing "legacy-unmapped" on "src/page.html" is filtered out so status is "PASS"
-And adding a brand-new undefined class "new-orphan-cls" on "src/page.html" returns status "FAIL" with category "orphaned_class"
+When HEAD instead modifies only "src/style.css" to delete ".active-card" while leaving "src/page.html" untouched
+Then "audit_ui_state_and_styles.py --base-ref main --json" returns status "FAIL" with an "orphaned_class" finding for "active-card" on "src/page.html"
+And adding a brand-new undefined class "new-orphan-cls" on "src/page.html" also returns status "FAIL" with category "orphaned_class"
 
 Scenario: [OHK-AR-01] [Tier C - Integration] Non-UI changes return NOT_APPLICABLE when only excluded paths contain HTML or CSS
 Given a git branch diff against "main" that modifies "src/backend.py" and compiled "dist/index.html" with zero non-excluded UI source edits
@@ -102,11 +108,15 @@ Then status is "NOT_APPLICABLE" with reason code "scope_unmodified" and "ui_modi
 ## Decisions Already Made
 
 - **Source (`audit_ui_state_and_styles.py:171-185`)**: `_get_base_file_content` runs `["git", "show", f"{base_ref}:{rel_path}"]` with `cwd=str(repo_root)`.
-  - **New contract**: Normalize `norm_rel = Path(rel_path).as_posix().lstrip("./")` and run `["git", "show", f"{base_ref}:./{norm_rel}"]` with `cwd=str(repo_root)`.
+  - **New contract**: Normalize `rel_path` to POSIX form (`raw_posix = Path(rel_path).as_posix()`) by stripping ONLY exact leading `./` segments (`while norm_rel.startswith("./"): norm_rel = norm_rel[2:]`), never `.lstrip("./")` so dot-prefixed directories like `.well-known/portal.html` stay intact. Reject empty paths, absolute paths, or any path containing `..` parent-traversal parts (returning `None`). Invoke `["git", "show", f"{base_ref}:./{norm_rel}"]` with `cwd=str(repo_root)`.
 - **Source (`audit_ui_state_and_styles.py:83-156`)**: `get_git_diff_files` returns immediately when 3-dot `base_ref...HEAD` is non-empty, omitting uncommitted edits.
   - **New contract**: Union ordered unique lines from: (1) `git diff --name-only {base_ref}...HEAD` (falling back to 2-dot `git diff --name-only {base_ref}` if 3-dot returns non-zero), (2) `git diff --name-only HEAD`, (3) `git diff --name-only --cached`, and (4) `git ls-files --others --exclude-standard`, normalized relative to `repo_root`.
-- **Source (`audit_ui_state_and_styles.py:158-169`, `600-651`)**: `_is_excluded` excludes only 4 dirs; `run_all_ui_reviews` runs Invariants 2–4 with `target_files=None`.
-  - **New contract**: Exclude `("node_modules", "build", ".worktrees", ".git", "dist", ".astro", ".devtool", "docs", "target", "tests")`. When `_git_base_ref_exists(root, base_ref)` is True: compute `ui_modified` excluding `_is_excluded`; short-circuit `NOT_APPLICABLE` if `modified_files` non-empty and `ui_modified` empty; when `ui_modified` is non-empty pass `target_files=ui_modified` to Invariants 2, 3, and 4 and filter out pre-existing base-ref findings (precomputing `base_unstyled_by_file` once per file). When `modified_files` is empty (e.g. non-git temp dir or clean checkout with zero diff against `base_ref`), pass `target_files=None` so existing full-directory unit tests in `test_audit_ui_state_and_styles.py` keep passing unchanged!
+- **Source (`audit_ui_state_and_styles.py:158-169`, `286-391`, `600-651`)**: `_is_excluded` excludes only 4 dirs; `run_all_ui_reviews` runs Invariants 2–4 with `target_files=None`.
+  - **New contract**: Exclude `("node_modules", "build", ".worktrees", ".git", "dist", ".astro", ".devtool", "docs", "target", "tests")`. When `_git_base_ref_exists(root, base_ref)` is True: compute `ui_modified` excluding `_is_excluded`; short-circuit `NOT_APPLICABLE` if `modified_files` non-empty and `ui_modified` empty; when `ui_modified` is non-empty:
+    - For Invariants 3 and 4, pass `target_files=ui_modified`.
+    - For Invariant 2 (`audit_orphaned_classes_and_styles`), build `inv2_targets`: start from `ui_modified`, and whenever any `.css` file appears in `ui_modified`, also include non-excluded template files (`*.html`, `*.astro`, `*.jinja`, `*.jinja2`, `*.jsx`, `*.tsx`) referencing the modified stylesheet (or all non-excluded templates when CSS changed without explicit `<link>` match, so CSS-only class removals never go undetected in unchanged templates).
+    - Filter out pre-existing base-ref findings in Invariants 2, 3, and 4 using `_get_base_file_content(root, base_ref, rel_f)`: for `orphaned_class`, compute baseline stylesheet + component `<style>` class definitions at `base_ref` (`base_defined_classes`, collected via `_get_base_file_content` across stylesheets/components) and suppress `(rel_f, cls)` ONLY when `cls` was ALREADY referenced in `base_contents[rel_f]` AND was ALREADY undefined (`cls not in base_defined_classes`) at `base_ref` — ensuring deleting `.active-card` from `style.css` is NEVER suppressed as pre-existing! Precompute `base_unstyled_by_file` once per file rather than per finding.
+    - When `modified_files` is empty (non-git temp dir or clean checkout with zero diff against `base_ref`), pass `target_files=None` so existing full-directory unit tests in `test_audit_ui_state_and_styles.py` keep passing unchanged.
 
 ## Definition of Done
 

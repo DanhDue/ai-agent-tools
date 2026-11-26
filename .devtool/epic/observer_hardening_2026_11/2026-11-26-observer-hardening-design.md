@@ -91,9 +91,8 @@ flowchart TD
 #### 1.1 `sync_task_status.py` Epic-Scoped Worktree Resolution (`#7`, `#14` Part 1)
 - **File**: `skills/dev-implementation/resources/scripts/sync_task_status.py`
 - **`epic_checkout_roots(epic_dir: str) -> list[Path]`**:
-  - Exclude any slot worktree (`_is_slot_worktree(path)`).
-  - Resolve `slug` from `current_root` first; if `.devtool/epic/<epic_dir>/` does not exist in `current_root`, inspect matched non-slot worktrees to discover the checkout holding `.devtool/epic/<epic_dir>/`.
-  - Guarantee `roots[0]` is the authoritative checkout that actually contains `.devtool/epic/<epic_dir>/` (preferring `current_root` when it contains the epic dir, otherwise promoting the matching epic worktree to index 0).
+  - Filter EVERY candidate checkout (including `current_root`) by slot exclusion (`not _is_slot_worktree(path)`) and branch ownership: exclude any checkout currently on an unrelated `refs/heads/epic/<other>` branch whose slug does not match `epic_dir` (even if that branch inherited `.devtool/epic/<epic_dir>/` from `develop`).
+  - Resolve `slug` from non-excluded checkouts holding `.devtool/epic/<epic_dir>/`, preferring an eligible `current_root` when it owns the epic branch (or is on a non-epic base branch holding the epic dir) and otherwise promoting the matching `refs/heads/epic/<slug>` worktree to `roots[0]`.
 - **`main()` — `promote`**:
   - Replace `roots = checkout_roots()` with `roots = epic_checkout_roots(args.epic_dir)`.
 - **`main()` — `archive-epic`**:
@@ -171,14 +170,14 @@ flowchart TD
 #### 3.3 `audit_ui_state_and_styles.py` Subdirectory Fix, Uncommitted Diff Merge, Folded Live Hotfix, and Multi-Template Scope (`#8` + Live Hotfix)
 - **Files**: `skills/web-quality-check/resources/scripts/audit_ui_state_and_styles.py`, `skills/dev-designer/SKILL.md`, `skills/dev-designer/references/task-template-examples.md`
 - **`_get_base_file_content(repo_root: Path, base_ref: str, rel_path: str) -> str | None`**:
-  - Normalize `rel_path` to POSIX relative form (`Path(rel_path).as_posix().lstrip("./")`) and invoke `git show f"{base_ref}:./{norm_rel}"` with `cwd=str(repo_root)` so subdirectory `--project-root` lookups resolve relative to `cwd` rather than git top-level.
+  - Normalize `rel_path` to POSIX form by stripping only exact leading `./` segments (`while norm_rel.startswith("./"): norm_rel = norm_rel[2:]`), preserving dot-prefixed path components (such as `.well-known/index.html`) and rejecting parent traversal (`..` parts), then invoke `git show f"{base_ref}:./{norm_rel}"` with `cwd=str(repo_root)` so subdirectory `--project-root` lookups resolve relative to `cwd` rather than git top-level.
 - **`get_git_diff_files(repo_root: Path, base_ref: str = "main") -> list[str]`**:
   - Collect and merge (preserving order, deduplicating) committed changes (`git diff --name-only {base_ref}...HEAD`), unstaged tracked working-tree changes (`git diff --name-only HEAD`), staged changes (`git diff --name-only --cached`), and non-ignored untracked files (`git ls-files --others --exclude-standard`), normalizing all paths relative to `repo_root`. Fall back cleanly to 2-dot `git diff --name-only {base_ref}` when 3-dot fails.
 - **Folded Live Plugin Hotfix (cleanly integrated with tests)**:
   - Expand `_is_excluded(p, repo_root)` to exclude: `node_modules`, `build`, `.worktrees`, `.git`, `dist`, `.astro`, `.devtool`, `docs`, `target`, `tests`.
   - In `run_all_ui_reviews()`: filter `ui_modified` with `not _is_excluded(root / f, root)`.
-  - Pass `target_files=ui_modified` to Invariants 2, 3, and 4 when `_git_base_ref_exists(root, base_ref)` is `True` (preserving full-tree scan when `ui_modified is None` outside git / without valid `base_ref`).
-  - Filter out pre-existing base-ref findings in Invariants 2/3/4 using `_get_base_file_content(root, base_ref, rel_f)` (which now works reliably under subdirectory `--project-root`), caching per-file base `unstyled_default` messages once per file rather than recomputing inside the finding loop.
+  - Pass `target_files=ui_modified` to Invariants 3 and 4 when `_git_base_ref_exists(root, base_ref)` is `True`; for Invariant 2 (`audit_orphaned_classes_and_styles`), expand `inv2_targets` beyond `ui_modified` to include any non-excluded template (`*.html`, `*.astro`, `*.jinja`, `*.jinja2`, `*.jsx`, `*.tsx`) affected by a modified `.css` stylesheet in `ui_modified` so removing a CSS class catches newly orphaned classes in unchanged templates.
+  - Filter out pre-existing base-ref findings in Invariants 2/3/4 using `_get_base_file_content(root, base_ref, rel_f)` (which now works reliably under subdirectory `--project-root` and dot-prefixed directories). For `orphaned_class`, suppress a class only when it was ALREADY orphaned at `base_ref` (evaluated against baseline stylesheet class definitions fetched from `base_ref`, never suppressing a class that existed in baseline CSS and was deleted in HEAD), and cache per-file base `unstyled_default` messages once per file rather than recomputing inside the finding loop.
 - **`dev-designer/SKILL.md` & `task-template-examples.md`**:
   - Add a pre-packaging rule under `Allowed files`: whenever a task modifies shared `.css` or `.js` assets, grep every referencing `*.html`, `*.astro`, `*.jinja`, and `*.jinja2` template and include all of them in the same task's `Allowed files` so `?v=` cache-bust updates commit atomically.
 
@@ -203,7 +202,7 @@ flowchart TD
   - Define canonical constant `DEFERRED_EPIC_DOC_DECISION = "deferred: out-of-scope epic doc (§4.4)"` and helper `_is_immutable_epic_doc_location(location: str, epic_dir: str | None = None) -> bool` matching paths under `.devtool/epic/` (excluding `review_results.md` / `principal_review.md`).
   - In `delta_round_context()`: extend Anti-Ping-Pong rule 4 to honor `deferred:` decisions alongside `dismissed:` (`Do not re-raise a finding marked dismissed: or deferred: unless the source contradicts its rationale.`).
   - In `check()`: keep `BLOCKING` (`Critical`/`Important`) strictly requiring `fixed in ` or `dismissed: ` — `deferred:` NEVER closes a `Critical` or `Important` blocker.
-  - In `auto_triage_section()` (when `kind == "code"`): partition `minor_rows` into actionable minors vs out-of-scope immutable `.devtool/epic/` minors (or minors already carrying `deferred: `). When `blocking_rows` is empty and zero actionable minors remain, emit `AUTO_PASS_CLEAN` with a clear directive note that out-of-scope `.devtool/epic/` Minor rows are closed as `deferred: out-of-scope epic doc (§4.4)` under §4.4, instead of emitting `AUTO_PASS_FINAL_MINOR_SWEEP`.
+  - In `auto_triage_section()` (when `kind == "code"`): partition `minor_rows` into actionable minors vs auto-deferred rows strictly where `_is_immutable_epic_doc_location(cells[2], epic_dir)` is `True` (and any decision cell, if already populated, equals the exact canonical `DEFERRED_EPIC_DOC_DECISION` token). Ordinary source-file findings carrying an arbitrary `deferred:` string MUST remain actionable and continue triggering `AUTO_PASS_FINAL_MINOR_SWEEP`. When `blocking_rows` is empty and zero actionable minors remain, emit `AUTO_PASS_CLEAN` with a clear directive note that out-of-scope `.devtool/epic/` Minor rows are closed as `deferred: out-of-scope epic doc (§4.4)` under §4.4, instead of emitting `AUTO_PASS_FINAL_MINOR_SWEEP`.
   - In `triage()`: for `kind == "code"`, pre-fill `Proposed action` with `deferred: out-of-scope epic doc (§4.4)` on `Minor` rows whose location matches `_is_immutable_epic_doc_location()`.
 - **Skill docs (`cross-model-review/SKILL.md`, `review-triage.md`, `orchestration-roles.md` §4.4)**:
   - Document `deferred: out-of-scope epic doc (§4.4)` as the sole machine-recordable non-action terminal decision for `Minor` code-review findings targeting immutable `.devtool/epic/<epic_dir>/` files.
@@ -220,7 +219,7 @@ flowchart TD
 - Add `--allow-dirty` (`action="store_true"`) to the `diff-check` subparser in `sync_contracts.py`.
 - In `cmd_diff_check(args)`:
   - Default (`--allow-dirty` unset): unchanged — any tracked modification from `git status --porcelain --untracked-files=no` returns `BLOCKED` (exit `2`).
-  - When `--allow-dirty` is set: inspect every dirty tracked path returned by `git status --porcelain --untracked-files=no`. If any path is `shared-contracts`, starts with `shared-contracts/`, or equals `.agents/contract_map.json`, STILL return `BLOCKED` (exit `2`) naming the protected dirty path(s). Otherwise, proceed with the committed `merge_base..HEAD` contract diff audit.
+  - When `--allow-dirty` is set: inspect every dirty path (both tracked and untracked for protected metadata files via `git status --porcelain -- shared-contracts .agents/contract_map.json .agents/contract_sync.json` plus tracked modifications). If any dirty path is `shared-contracts`, starts with `shared-contracts/`, equals `.agents/contract_map.json`, or equals `.agents/contract_sync.json`, STILL return `BLOCKED` (exit `2`) naming the protected dirty path(s) so an uncommitted acknowledgement cannot falsely satisfy a committed source delta. Otherwise, proceed with the committed `merge_base..HEAD` contract diff audit.
 - Document `--allow-dirty` in `sync-shared-contracts/SKILL.md` and `dev-designer/SKILL.md` for Tier C governance tests running inside uncommitted `review_tier: "full"` worker slots, explicitly stating Gate 4 / release must continue omitting `--allow-dirty`.
 
 ## Testing and Verification Plan

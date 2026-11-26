@@ -37,12 +37,14 @@ Then the child process receives "UV_NO_SYNC=1" in its environment
 
 Scenario: [OHK-HP-04] [Tier C - Integration] Subdirectory UI audit resolves base templates and merges uncommitted template edits
 Given a git repository whose web preview lives in subdirectory "src/app/preview"
-And commit HEAD modifies "src/app/preview/static/style.css" while base ref "main" holds "static/search.html" with "style.css?v=1"
-And the working tree has an uncommitted edit bumping "src/app/preview/static/search.html" to "style.css?v=2"
+And commit HEAD modifies "src/app/preview/static/style.css" while base ref "main" holds "static/search.html" with "style.css?v=1" and ".well-known/portal.html" with "style.css?v=1"
+And the working tree has an uncommitted edit bumping "src/app/preview/static/search.html" to "style.css?v=2" and ".well-known/portal.html" to "style.css?v=2"
 When "audit_ui_state_and_styles.py --project-root src/app/preview --base-ref main --json" executes
-Then "_get_base_file_content" resolves "main:./static/search.html" cleanly
-And "get_git_diff_files" includes both "static/style.css" and uncommitted "static/search.html"
+Then "_get_base_file_content" resolves both "main:./static/search.html" and "main:./.well-known/portal.html" cleanly without stripping leading dots and rejects "../outside.html"
+And "get_git_diff_files" includes "static/style.css", uncommitted "static/search.html", and uncommitted ".well-known/portal.html"
 And the JSON report returns status "PASS" with 0 cache_bust findings
+When ".well-known/portal.html" is modified without bumping "?v=1"
+Then "audit_ui_state_and_styles.py --project-root src/app/preview --base-ref main --json" returns status "FAIL" with a "cache_bust" finding on ".well-known/portal.html"
 
 Scenario: [OHK-HP-05] [Tier C - Integration] Cross-Model Review auto-defers immutable epic doc Minor findings and smoke generator infers browser targets
 Given a completed code-review round in "review_results.md" with 0 Critical, 0 Important, and 2 Minor findings targeting ".devtool/epic/<epic_dir>/task_01.md" and ".devtool/epic/<epic_dir>/manual_smoke_checklist.md"
@@ -83,13 +85,16 @@ Then it exits 1 and reports "ships in the build: src/app.py"
 When "--changed-files" receives a newline-joined string of three documentation files "docs/a.md\ndocs/b.md\nCHANGELOG.md"
 Then it exits 0 and reports "none of 3 changed files ship in the build"
 
-Scenario: [OHK-EC-04] [Tier C - Integration] UI auditor excludes build and framework directories and ignores pre-existing base-ref findings
+Scenario: [OHK-EC-04] [Tier C - Integration] UI auditor excludes build directories, ignores pre-existing base-ref orphans, and catches CSS-only class removals
 Given a web project containing compiled HTML with orphaned classes inside "dist/", ".astro/", ".devtool/", "docs/", "target/", and "tests/"
-And an existing page "src/page.html" already had orphaned class "legacy-unmapped" at base ref "main" and only received a text edit on HEAD
+And an existing page "src/page.html" already had orphaned class "legacy-unmapped" plus styled class "active-card" defined in "src/style.css" at base ref "main"
+And HEAD edits only text on "src/page.html" without touching "src/style.css"
 When "audit_ui_state_and_styles.py --base-ref main --json" executes
 Then files under "dist/", ".astro/", ".devtool/", "docs/", "target/", and "tests/" produce zero findings
 And pre-existing "legacy-unmapped" on "src/page.html" is filtered out so status is "PASS"
-And adding a brand-new undefined class "new-orphan-cls" on "src/page.html" returns status "FAIL" with category "orphaned_class"
+When HEAD instead modifies only "src/style.css" to delete ".active-card" while leaving "src/page.html" untouched
+Then "audit_ui_state_and_styles.py --base-ref main --json" returns status "FAIL" with an "orphaned_class" finding for "active-card" on "src/page.html"
+And adding a brand-new undefined class "new-orphan-cls" on "src/page.html" also returns status "FAIL" with category "orphaned_class"
 
 Scenario: [OHK-EC-05] [Tier C - Integration] Smoke checklist generator ignores CSS selector backticks and infers web target from HLD or BDD URL
 Given a BDD Happy Path scenario mentioning Playwright clicking backticked selector "`.tts-save-btn`" on page "/tts-studio" with no CLI command
@@ -102,12 +107,14 @@ And the step target resolves to "http://127.0.0.1:8000"
 ## 3. State Transition Scenarios (ST)
 
 ```gherkin
-Scenario: [OHK-ST-01] [Tier C - Integration] Archiving Epic A never dirties concurrent sibling Epic B worktree
-Given a git repository with primary checkout on develop, worktree ".worktrees/epic_a" on branch "epic/epic-a", and sibling worktree ".worktrees/epic_b" on branch "epic/epic-b"
+Scenario: [OHK-ST-01] [Tier C - Integration] Archiving or promoting Epic A never dirties concurrent sibling Epic B worktree even with inherited Epic A files
+Given a git repository with primary checkout on develop, worktree ".worktrees/epic_a" on branch "epic/epic-a", and sibling worktree ".worktrees/epic_b" on branch "epic/epic-b" that inherited ".devtool/epic/epic_a/" from develop
 And Epic A has completed tasks in ".worktrees/epic_a/.devtool/features/done/" while Epic B has clean tracked ".devtool/" tasks inside ".worktrees/epic_b"
 When "sync_task_status.py archive-done" executes inside ".worktrees/epic_a"
 Then Epic A tasks archive into ".worktrees/epic_a/.devtool/epic/epic_a/" and Epic A HLD status becomes "Done"
 And "git -C .worktrees/epic_b status --porcelain" remains completely empty
+When "sync_task_status.py promote epic_a" is invoked from inside ".worktrees/epic_b"
+Then "epic_checkout_roots" excludes ".worktrees/epic_b" because its branch is "refs/heads/epic/epic-b" and leaves ".worktrees/epic_b" completely clean
 
 Scenario: [OHK-ST-02] [Tier C - Integration] Replay engine still enforces strict RED and GREEN checks on directive-bearing tasks
 Given an epic task embedding literal "Create tests/test_sample_replay.py:" and "Create src_replay_mod.py:" directives
@@ -116,10 +123,12 @@ Then R8 reports "R8 PASS" and exits 0
 When the embedded implementation directive breaks the GREEN test
 Then R8 reports "R8 FAIL" and exits 1
 
-Scenario: [OHK-ST-03] [Tier C - Integration] Delta review context honors deferred epic-doc tokens across rounds while blocking deferred on Critical or Important
+Scenario: [OHK-ST-03] [Tier C - Integration] Delta review context honors deferred epic-doc tokens while blocking deferred on Important or source-file findings
 Given Round 1 in "review_results.md" records a Minor finding on ".devtool/epic/sample/task_01.md" with decision "deferred: out-of-scope epic doc (§4.4)"
 When "delta_round_context" constructs the Round 2 prompt block
 Then rule 4 explicitly instructs the reviewer not to re-raise findings marked "dismissed:" or "deferred:"
+When Round 1 instead marks a Minor finding on "src/app.py" with "deferred: arbitrary"
+Then "run_external_review.py triage --epic-dir sample" still emits "AUTO_PASS_FINAL_MINOR_SWEEP" rather than "AUTO_PASS_CLEAN"
 When Round 1 instead marks an Important finding with "deferred: out-of-scope epic doc (§4.4)"
 Then "run_external_review.py check --epic-dir sample" exits 1 reporting that Important finding as undecided
 ```
@@ -160,13 +169,13 @@ Then it invokes bare "uv sync" without "--all-extras"
 When verify_polyglot_registry.py runs a "uv run" capability while caller environment explicitly sets "UV_NO_SYNC=0"
 Then the child process inherits "UV_NO_SYNC=0" without being clobbered
 
-Scenario: [OHK-FR-03] [Tier C - Integration] sync_contracts.py diff-check enforces clean tree by default and guards protected paths under --allow-dirty
-Given a satellite repository with valid ".agents/contract_map.json" and "shared-contracts" symlink
+Scenario: [OHK-FR-03] [Tier C - Integration] sync_contracts.py diff-check enforces clean tree by default and guards protected contract paths under --allow-dirty
+Given a satellite repository with valid ".agents/contract_map.json", ".agents/contract_sync.json", and "shared-contracts" symlink
 And an uncommitted tracked modification exists in "src/preview/ui.js"
 When "sync_contracts.py diff-check --base-ref main" runs without "--allow-dirty"
 Then it exits 2 with status "BLOCKED"
-When "sync_contracts.py diff-check --base-ref main --allow-dirty" runs while "shared-contracts" and ".agents/contract_map.json" are clean
+When "sync_contracts.py diff-check --base-ref main --allow-dirty" runs while "shared-contracts", ".agents/contract_map.json", and ".agents/contract_sync.json" are clean
 Then it audits committed "merge_base..HEAD" and exits 0 with status "PASS"
-When ".agents/contract_map.json" itself has an uncommitted tracked modification and "--allow-dirty" is passed
-Then it still exits 2 with status "BLOCKED" naming ".agents/contract_map.json"
+When ".agents/contract_map.json" or ".agents/contract_sync.json" has an uncommitted modification (tracked or untracked) and "--allow-dirty" is passed
+Then it still exits 2 with status "BLOCKED" naming the dirty protected path so an uncommitted acknowledgement cannot satisfy a committed source delta
 ```

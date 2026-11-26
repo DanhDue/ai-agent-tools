@@ -81,12 +81,14 @@ When "manage_worker_pool.py finalize-slot" executes on that slot
 Then git staging succeeds with exit 0 without triggering ".venv is ignored by .gitignore"
 And the created slot commit includes the code edit, excludes ".venv" and "review_audit_notes*", and preserves the tracked "shared-contracts" symlink intact
 
-Scenario: [OHK-ST-01] [Tier C - Integration] Archiving Epic A never dirties concurrent sibling Epic B worktree
-Given a git repository with primary checkout on develop, worktree ".worktrees/epic_a" on branch "epic/epic-a", and sibling worktree ".worktrees/epic_b" on branch "epic/epic-b"
+Scenario: [OHK-ST-01] [Tier C - Integration] Archiving or promoting Epic A never dirties concurrent sibling Epic B worktree even with inherited Epic A files
+Given a git repository with primary checkout on develop, worktree ".worktrees/epic_a" on branch "epic/epic-a", and sibling worktree ".worktrees/epic_b" on branch "epic/epic-b" that inherited ".devtool/epic/epic_a/" from develop
 And Epic A has completed tasks in ".worktrees/epic_a/.devtool/features/done/" while Epic B has clean tracked ".devtool/" tasks inside ".worktrees/epic_b"
 When "sync_task_status.py archive-done" executes inside ".worktrees/epic_a"
 Then Epic A tasks archive into ".worktrees/epic_a/.devtool/epic/epic_a/" and Epic A HLD status becomes "Done"
 And "git -C .worktrees/epic_b status --porcelain" remains completely empty
+When "sync_task_status.py promote epic_a" is invoked from inside ".worktrees/epic_b"
+Then "epic_checkout_roots" excludes ".worktrees/epic_b" because its branch is "refs/heads/epic/epic-b" and leaves ".worktrees/epic_b" completely clean
 
 Scenario: [OHK-FR-01] [Tier C - Integration] archive-epic called for Epic A skips unrelated Epic B worktrees even when run from primary checkout
 Given a repository where primary checkout on develop has Epic A done tasks while sibling ".worktrees/epic_b" is active on "epic/epic-b"
@@ -116,8 +118,8 @@ And ".worktrees/epic_b" receives zero file writes or deletions
 
 ## Decisions Already Made
 
-- **Source (`sync_task_status.py:260-300`)**: `epic_checkout_roots(epic_dir: str) -> list[Path]` currently puts `current_root` first and appends worktrees whose branch matches `refs/heads/epic/<slug>` (underscore/hyphen variants).
-  - **New contract**: Exclude `_is_slot_worktree(path)` from candidate entries; if `(current_root / ".devtool" / "epic" / epic_dir).is_dir()` is False, scan non-slot worktrees to discover the epic slug and promote the first matching worktree holding `.devtool/epic/<epic_dir>` to `roots[0]`.
+- **Source (`sync_task_status.py:260-300`)**: `epic_checkout_roots(epic_dir: str) -> list[Path]` currently retains `current_root` unconditionally at index 0 and appends worktrees whose branch matches `refs/heads/epic/<slug>` (underscore/hyphen variants).
+  - **New contract**: Filter EVERY candidate checkout from `git worktree list --porcelain` — including `current_root` — by slot exclusion (`not _is_slot_worktree(path)`) AND branch ownership: a checkout whose branch starts with `refs/heads/epic/` and does NOT match `target_branches` for `epic_dir`'s slug is strictly excluded even when it inherited `.devtool/epic/<epic_dir>/` from `develop`. Resolve `slug` from eligible checkouts containing `.devtool/epic/<epic_dir>/` (checking matching `refs/heads/epic/*` worktrees first when `current_root` is on an unrelated `epic/*` branch). Order returned roots so an eligible checkout containing `.devtool/epic/<epic_dir>/` is at `roots[0]` (preferring eligible `current_root` when it owns the epic branch or is on a non-epic branch holding the epic dir, else promoting the matching `refs/heads/epic/<slug>` worktree to index 0). Add a regression test invoking `sync_task_status.py promote epic_a` and `archive-epic epic_a` from inside `.worktrees/epic_b` (on `refs/heads/epic/epic-b`) when `.worktrees/epic_b` inherited `.devtool/epic/epic_a/` from `develop`.
 - **Source (`sync_task_status.py:1656-1673`, `1721-1732`)**: `archive-epic`, `archive-done`, and `promote` currently call `checkout_roots()`.
   - **New contract**:
     - `promote`: `roots = epic_checkout_roots(args.epic_dir)`.
