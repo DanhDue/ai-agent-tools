@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WEB_SCRIPTS_DIR = REPO_ROOT / "skills" / "web-quality-check" / "resources" / "scripts"
@@ -278,3 +281,103 @@ def test_scope_unmodified_returns_not_applicable_when_only_backend_files_changed
     assert res["status"] == "NOT_APPLICABLE"
     assert res["not_applicable_reason"]["code"] == "scope_unmodified"
     assert res["total_findings"] == 0, f"Expected 0 findings, got: {res['findings']}"
+
+
+@pytest.mark.parametrize(
+    ("filename", "css_body"),
+    [
+        (
+            "static/style.css",
+            ".icon { background-size: 14px 14px; }\n"
+            ".panel { border-radius: 10px 10px 0 0; }\n"
+            ".arrow { border-color: #fff transparent transparent; }\n"
+            ".grid { grid-template-columns: 1fr 1fr; }\n",
+        ),
+        (
+            "styles/theme.scss",
+            "$pad: 12px;\n.box { margin: 12px 12px; padding: 8px 8px 4px 4px; }\n",
+        ),
+        (
+            "styles/UPPER.CSS",
+            ".btn { border-radius: 10px 10px 0 0; background-size: 16px 16px; }\n",
+        ),
+    ],
+)
+def test_stylesheet_shorthands_skip_duplicate_text_when_target_files_passed(
+    tmp_path: Path, filename: str, css_body: str
+) -> None:
+    """#17: Multi-axis CSS/SCSS shorthands must not trigger duplicate_text false positives."""
+    css_file = tmp_path / filename
+    css_file.parent.mkdir(parents=True, exist_ok=True)
+    css_file.write_text(css_body, encoding="utf-8")
+
+    findings = audit_text_truncation_and_overflow(tmp_path, target_files=[filename])
+    dup_findings = [f for f in findings if f["category"] == "duplicate_text"]
+    assert dup_findings == [], f"Unexpected CSS duplicate_text findings: {dup_findings}"
+
+
+def test_stylesheet_still_checks_left_clip_while_html_checks_duplicate_text(
+    tmp_path: Path,
+) -> None:
+    """#17: Stylesheets retain LEFT_CLIP_PATTERN; templates retain DUPLICATE_PHRASE_PATTERN."""
+    css_file = tmp_path / "static" / "layout.css"
+    css_file.parent.mkdir(parents=True, exist_ok=True)
+    css_file.write_text(
+        ".row { display: flex; justify-content: flex-end; text-overflow: ellipsis; "
+        "border-radius: 10px 10px 0 0; }\n",
+        encoding="utf-8",
+    )
+    html_file = tmp_path / "templates" / "view.html"
+    html_file.parent.mkdir(parents=True, exist_ok=True)
+    html_file.write_text("<h2>Status Status</h2>\n", encoding="utf-8")
+
+    findings = audit_text_truncation_and_overflow(
+        tmp_path, target_files=["static/layout.css", "templates/view.html"]
+    )
+    css_findings = [f for f in findings if f["file"] == "static/layout.css"]
+    html_findings = [f for f in findings if f["file"] == "templates/view.html"]
+
+    assert [f["category"] for f in css_findings] == ["text_clipping"]
+    assert [f["category"] for f in html_findings] == ["duplicate_text"]
+
+
+def test_run_all_ui_reviews_modified_css_shorthand_passes_end_to_end(
+    tmp_path: Path,
+) -> None:
+    """#17 integration: Modifying a .css file with multi-axis shorthands passes run_all_ui_reviews()."""
+    repo = tmp_path / "web_repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=repo, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "t@example.com"], cwd=repo, check=True
+    )
+    subprocess.run(["git", "config", "user.name", "Tester"], cwd=repo, check=True)
+
+    (repo / "static").mkdir()
+    (repo / "static" / "style.css").write_text(
+        ".box { color: #fff; }\n", encoding="utf-8"
+    )
+    (repo / "index.html").write_text(
+        '<!DOCTYPE html><html><head><link rel="stylesheet" href="static/style.css?v=1"></head>'
+        '<body><div class="box">Hello</div></body></html>\n',
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "base"], cwd=repo, check=True)
+
+    subprocess.run(["git", "checkout", "-q", "-b", "feat"], cwd=repo, check=True)
+    (repo / "static" / "style.css").write_text(
+        ".box { color: #fff; background-size: 14px 14px; border-radius: 10px 10px 0 0; }\n",
+        encoding="utf-8",
+    )
+    (repo / "index.html").write_text(
+        '<!DOCTYPE html><html><head><link rel="stylesheet" href="static/style.css?v=2"></head>'
+        '<body><div class="box">Hello</div></body></html>\n',
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "css shorthand"], cwd=repo, check=True)
+
+    res = run_all_ui_reviews(repo_root=repo, base_ref="main")
+    assert res["status"] == "PASS", f"Expected PASS, got {res}"
+    assert res["findings"] == []
