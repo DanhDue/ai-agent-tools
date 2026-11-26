@@ -429,6 +429,10 @@ class TestReviewSkillContracts(unittest.TestCase):
         lc_skill = (ROOT / "skills/dev-lifecycle/SKILL.md").read_text(encoding="utf-8")
         red_flags = lc_skill.split("## Red Flags", 1)[1].split("\n## ", 1)[0]
         self.assertIn("Acting on a Principal Review finding before verifying against source/Spec and running triage", red_flags)
+        self.assertIn("never re-prompt during `/principal-review`", lc_skill)
+        self.assertIn("Honor Gate 2 Unified Confirmation — Zero Re-Prompt", lc_pr_ref)
+        self.assertIn("do NOT pause or ask for confirmation again", pr_skill)
+        self.assertIn("do NOT pause for confirmation or ask the user to approve applying the edits", doc_triage)
 
     def test_srs_hp_06_review_skills_expose_contract_and_frontmatter(self) -> None:
         """[SRS-HP-06] Document contracts enforce new review skills exposure."""

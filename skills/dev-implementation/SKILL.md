@@ -119,9 +119,9 @@ Rows 4 and 5 only. **MANDATORY: read [references/entry-point-and-resume.md](refe
      --hld "$HLD" \
      --tasks .devtool/epic/<epic_dir>/task_*.md
    ```
-   Do not create worktree until both checks exit 0 and developer has confirmed the order.
+   Do not create worktree until both checks exit 0. In AUTO MODE (`Triển khai (tự động)`), proceed directly to worktree bootstrap without pausing for execution-order confirmation.
 
-#### Phase 1 (continued) — Worktree Bootstrap, once the order is confirmed
+#### Phase 1 (continued) — Worktree Bootstrap (Automated Gate 3)
 
 4. Bring local `develop` up to date with upstream, then create one worktree for whole epic (`d3nexus:using-git-worktrees`):
    ```bash
@@ -303,25 +303,28 @@ python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run \
   --epic-dir <epic_dir> --base <base_ref> --auto-quota
 ```
 3. Commit `review_results.md` (`[EPIC_NAME] Record cross-model review round N`), run `python3 "$SKILL_DIR"/resources/scripts/run_external_review.py triage --epic-dir <epic_dir>`, and inspect `## Auto-Triage Gate`:
-   - **`AUTO_PASS_CLEAN` / `AUTO_PASS_FINAL_MINOR_SWEEP` / `AUTO_FIX_ELIGIBLE`**: The Orchestrator routes by risk: low risk -> Role 2.3 `review-fixer` `fast-track`; high risk (any `Critical`, escalation marker, or the same Gate 4 check failing twice) -> Role 2.1 `fix-planner` (`--mode read-only`), whose `fix_plan_round<N>.md` is `PLANNED` (`review-fixer` runs `apply-plan`) or `ESCALATE` (`--pending-decision`, stop for Role 1.0). The fixer runs **Tier 1 scoped tests only** (`uv run pytest <changed_test_files> -n auto --timeout=30 -q --tb=short`), commits `[<EPIC_NAME>] Fix <what>`, records `fixed in <sha>` in `review_results.md`, and returns the `review-fixer` summary; the Orchestrator checks `git diff --name-only <pre_sha>..HEAD` for out-of-scope paths. On convergence a fresh `gate4-verifier` runs full Gate 4. Details: [orchestration-roles.md](../dev-lifecycle/references/orchestration-roles.md#4-independent-verification).
+   - **`AUTO_PASS_CLEAN` / `AUTO_PASS_FINAL_MINOR_SWEEP` / `AUTO_FIX_ELIGIBLE`**: In AUTO MODE (Gate 2 `Triển khai (tự động)` or `lifecycle_runner.py`), **never pause for developer confirmation between rounds**; the Orchestrator routes by risk: low risk -> Role 2.3 `review-fixer` `fast-track`; high risk (any `Critical`, escalation marker, or the same Gate 4 check failing twice) -> Role 2.1 `fix-planner` (`--mode read-only`), whose `fix_plan_round<N>.md` is `PLANNED` (`review-fixer` runs `apply-plan`) or `ESCALATE` (`--pending-decision`, stop for Role 1.0). The fixer runs **Tier 1 scoped tests only** (`uv run pytest <changed_test_files> -n auto --timeout=30 -q --tb=short`), commits `[<EPIC_NAME>] Fix <what>`, records `fixed in <sha>` in `review_results.md`, and returns the `review-fixer` summary; the Orchestrator checks `git diff --name-only <pre_sha>..HEAD` for out-of-scope paths. On convergence a fresh `gate4-verifier` runs full Gate 4. Details: [orchestration-roles.md](../dev-lifecycle/references/orchestration-roles.md#4-independent-verification).
    - **`CIRCUIT_BREAKER_HALT`**: Halts cleanly via `--pending-decision` on `CRITICAL_CONFLICT`, `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or Critical findings surviving Round 3.
 4. Once `/cross-model-review` completes (converged with 0 Critical findings) and Gate 4 passes on the latest candidate SHA:
    - Present the synthesized `## Top 3 Highest-Risk Findings (Executive Report)`.
    - Advance directly to **Phase 4.1 (Stage 4: Developer Kanban Review & Finish Decision — Gate 5)**.
 
-### Phase 4.1 — Developer Kanban Review & Finish Decision (🛑 MANDATORY STOP & WAIT — Gate 5)
+### Phase 4.1 — Unified Gate 5 Sign-Off & Stage 4 Finish Choice (🛑 SINGLE FINAL STOP & WAIT)
 
 Once `/cross-model-review` has converged, `@quality_check` reports 🟢 LGTM on candidate SHA, and all tasks completed:
-1. **Preserve Kanban Visibility**: All completed `task_*.md` files MUST remain in `.devtool/features/done/`.
-2. **Present Executive Summary**: Output summary containing epic slug, worktree path, completed tasks, `@quality_check` verdict, BDD matrix, audit disclosure sections (Evidence, Protected paths, Commits outside tasks, Gate 5 items), and synthesized Executive Review Findings.
-3. 🛑 **MANDATORY STOP & WAIT**: Record Choice A decision (`python3 scripts/resume_context.py --pending-decision "Gate 5 Kanban review and Stage 4 finish" --decision-kind gate_5 --epic <epic_slug>`) and stop calling tools immediately:
-   > "Epic `<epic_slug>` tasks complete, `@quality_check` **🟢 LGTM**, Cross-model review converged; tasks remain in `.devtool/features/done/`. Review and reply to proceed with Stage 4 Finish."
-4. **Wait for Gate 5 Confirmation**: Only proceed to Phase 5 after explicit approval (then record `--gate 5`, which clears the pending decision automatically).
+1. **Preserve Kanban Visibility**: All completed `task_*.md` files MUST remain in `.devtool/features/done/` until the user chooses Merge or Push & PR.
+2. **Present Executive Summary**: Output summary containing epic slug, worktree path, completed tasks, `@quality_check` verdict, BDD matrix, audit disclosure sections (Evidence, Protected paths, Commits outside tasks, Gate 5 items), and synthesized `## Top 3 Highest-Risk Findings (Executive Report)`.
+3. 🛑 **SINGLE FINAL STOP & WAIT (Gate 5 + `/finishing-a-development-branch` Menu Combined)**: Record Choice A decision (`python3 scripts/resume_context.py --pending-decision "Gate 5 Kanban review and Stage 4 finish option" --decision-kind gate_5 --epic <epic_slug>`) and stop calling tools immediately — present Gate 5 status **together with** the Stage 4 integration options in **one** prompt (do NOT ask a separate "reply to proceed" confirmation before showing the Finish options):
+   > "Epic `<epic_slug>` tasks complete, `@quality_check` **🟢 LGTM**, Cross-model review converged; tasks remain in `.devtool/features/done/`. Choose how to finish (Gate 5 sign-off + Stage 4 integration):
+   > 1. Merge back to `<base-branch>` locally
+   > 2. Push and create a Pull Request
+   > 3. Keep the branch as-is (I'll handle it later)"
+4. **Execute Chosen Option**: Once the user picks Option 1, 2, or 3, record `--gate 5` (clears the pending decision automatically) and proceed directly to Phase 5 **without re-presenting Step 4 of `finishing-a-development-branch`**.
 
 ### Phase 5 — Branch Finishing
 
-Only after user explicitly approves Gate 5:
-1. Invoke `d3nexus:finishing-a-development-branch` on epic branch (base = `develop`).
+Only after user picks their Finish option in Phase 4.1:
+1. Invoke `d3nexus:finishing-a-development-branch` on epic branch (base = `develop`), proceeding directly to Step 5 for the user's chosen option (skipping duplicate Step 4 menu).
    Pre-Finish Archival Hook executes automatically:
    ```bash
    python3 skills/dev-implementation/resources/scripts/sync_task_status.py archive-done

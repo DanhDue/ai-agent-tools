@@ -3272,6 +3272,13 @@ def main() -> None:
             active_epic,
             decision_id=(args.decision_id.strip() if args.decision_id else None),
         )
+        _state_envelope.update_epic_heartbeat(
+            target_root,
+            active_epic,
+            stage=args.status.strip() or "In progress: Resumed AUTO MODE",
+            sub_step="resumed",
+            last_event=args.next.strip() or "Human confirmed — resumed AUTO MODE",
+        )
         print(f"Cleared pending decision for epic '{active_epic}'")
         return
 

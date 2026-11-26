@@ -39,7 +39,7 @@ Never create loose native plans (`implementation_plan.md`, Composer/Cascade/Code
    - **Option 1 (Recommended) — `Triển khai (tự động)`**: `/principal-review` -> `package_epic.py` -> Gate 3 -> `dev-implementation` (`--parallel`) -> Gate 4 -> `/cross-model-review`, pausing only on Circuit Breakers, `ESCALATE`, model/quota stops or Gate 5. Stage 3 runs in this session as Role 2.2 (`orchestrator`).
    - **Option 2 — `Dừng lại`**: Stops after packaging, printing `--emit-prompt implement`.
 2. **Cross-Model Review**: When tasks finish (after Gate 4 passes, Cross-model review must return to a full Gate 4 run), run `/cross-model-review` (`run_external_review.py run --epic-dir <epic_dir> --auto-quota --base <ref>`) with no Review Choice prompt.
-3. **Stage 4 Finish & Gate 5**: After convergence and Gate 4 PASS on the latest SHA, record `--pending-decision`, stop, and ask the Human Architect for the merge strategy. Never auto-merge or auto-push.
+3. **Stage 4 Finish & Gate 5**: After convergence + Gate 4 PASS on latest SHA, record `--pending-decision`, stop ONCE with the unified Gate 5 report + Finish options (never double-prompt). Never auto-merge or auto-push.
 
 ## 6. Auto-Triage Gate, 3-Round Funnel & Remediation Protocol
 
@@ -48,7 +48,7 @@ External reviews use `max_rounds = 3` and Auto-Triage; details: [governance-chec
 - **`AUTO_PASS_CLEAN` / `AUTO_PASS_FINAL_MINOR_SWEEP`**: verify against source + Spec/HLD, fix valid `Minor` items once.
 - **`AUTO_FIX_ELIGIBLE`** (Rounds 1–2):
   - **Stage 2 `/principal-review` (BOTH Interactive Mode and Autonomous `/dev-lifecycle` Mode)**: run `run_external_review.py triage --kind principal --epic-dir <epic_dir>` and verify findings against source + Spec/HLD. If every blocker is `Valid` with no halt trigger, Role 2.1 revises, runs `check_epic_readiness.py <epic_dir>`, and starts Round `N+1`.
-  - **Stage 3 `/cross-model-review` Autonomous Mode**: low risk (all `Valid`, no escalation marker, or a Gate 4 check's first failure): Role 2.3 `review-fixer` `fast-track`. High risk (any `Critical`, escalation marker, or the same check failing twice): Role 2.1 `fix-planner` returns `plan_markdown`; `PLANNED` -> `review-fixer` `apply-plan`; `ESCALATE` -> `--pending-decision`, stop for Role 1.0.
+  - **Stage 3 `/cross-model-review` AUTO MODE** (Gate 2 `Triển khai (tự động)` or runner; zero pause between rounds): low risk (all `Valid`, no escalation marker, or a Gate 4 check's first failure): Role 2.3 `review-fixer` `fast-track`. High risk (any `Critical`, escalation marker, or the same check failing twice): Role 2.1 `fix-planner` returns `plan_markdown`; `PLANNED` -> `review-fixer` `apply-plan`; `ESCALATE` -> `--pending-decision`, stop for Role 1.0.
 - **Halt criteria (`CIRCUIT_BREAKER_HALT`)**: `CRITICAL_CONFLICT`, `Debatable`/`Not shown`, `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, `MAX_ROUNDS_CRITICAL_REMAINING`.
 
 ## 7. Multi-Repo Boundaries, Symlink Isolation & Contract Governance

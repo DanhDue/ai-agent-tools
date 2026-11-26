@@ -2559,7 +2559,7 @@ def auto_triage_section(
         reason = (
             f"Round {number}/{max_rounds} has {len(blocking_rows)} Critical/Important finding(s) and no Fix Loop or shared-contract conflict. "
             "Verify against source and approved design (Spec, HLD, bdd_scenarios.md / legacy bdd_scenarios.en.md, Decisions Already Made): "
-            "if Valid (and zero CRITICAL_CONFLICT or Debatable trade-offs), auto-record decisions, "
+            "if Valid (and zero CRITICAL_CONFLICT or Debatable trade-offs), do NOT pause for confirmation — auto-record decisions, "
             "revise docs in Role 2.1 AI Architect & Reviewer (or fix code in Role 2.3 Programmer), run local quality gate, "
             "and advance to next review round."
         )
@@ -2829,6 +2829,7 @@ def _emit_review_heartbeat(
             event_msg = f"{kind_label} Round {eff_round}/{eff_max}: {phase}"
 
         rev_dict["label"] = sub_detail
+        extra_dirs = _state_envelope.resolve_shared_devtool_dirs(root)
         _state_envelope.update_epic_heartbeat(
             root,
             epic_dir,
@@ -2837,7 +2838,20 @@ def _emit_review_heartbeat(
             sub_step_detail=sub_detail,
             review_state=rev_dict,
             last_event=event_msg,
+            extra_devtool_dirs=extra_dirs,
         )
+        is_active_phase = phase in ("reviewing", "fixing", "verifying", "converged") or (
+            phase == "triage" and not str(action or "").startswith("CIRCUIT_BREAKER_HALT")
+        )
+        if is_active_phase:
+            _state_envelope.clear_pending_decision(
+                root, epic_dir, extra_devtool_dirs=extra_dirs
+            )
+            alt_slug = epic_dir.replace("_", "-")
+            if alt_slug != epic_dir:
+                _state_envelope.clear_pending_decision(
+                    root, alt_slug, extra_devtool_dirs=extra_dirs
+                )
     except Exception:  # noqa: BLE001
         return
 

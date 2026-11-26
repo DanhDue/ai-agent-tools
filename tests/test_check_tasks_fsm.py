@@ -296,6 +296,56 @@ class TestCheckTasksFSM_Integration(unittest.TestCase):
         assert active_ep is not None
         self.assertTrue(active_ep.get("is_action_required"))
 
+    def test_active_heartbeat_and_quality_clear_human_action_immediately(self) -> None:
+        """When Gate 2 is approved and AUTO execution resumes (heartbeat or quality_check), is_human_action_required is immediately False."""
+        scripts_dir = Path(__file__).resolve().parent.parent / "scripts"
+        if str(scripts_dir) not in sys.path:
+            sys.path.insert(0, str(scripts_dir))
+        import _state_envelope  # type: ignore[import-not-found]
+
+        epic_name = "auto_resume_epic"
+        self._init_gate_ledger(
+            [
+                {"epic": epic_name, "gate": 1, "approved": "Spec approved"},
+                {"epic": epic_name, "gate": 2, "approved": "HLD approved"},
+            ]
+        )
+        epic_dir = self.repo_path / ".devtool" / "epic" / epic_name
+        epic_dir.mkdir(parents=True, exist_ok=True)
+        (epic_dir / "handoff.md").write_text("# Handoff\n", encoding="utf-8")
+
+        # Baseline without active heartbeat: still prompts for handoff choice
+        dec_waiting = derive_lifecycle_state(self.repo_path, epic_name)
+        self.assertTrue(dec_waiting.is_human_action_required)
+
+        # Once human confirms and heartbeat records resumed AUTO MODE, alert clears immediately
+        _state_envelope.update_epic_heartbeat(
+            self.repo_path,
+            epic_name,
+            stage="In progress: Stage 3",
+            sub_step="resumed",
+            last_event="Human confirmed — resumed AUTO MODE",
+        )
+        dec_resumed = derive_lifecycle_state(self.repo_path, epic_name)
+        self.assertFalse(dec_resumed.is_human_action_required)
+
+        # If an explicit pending_decision is recorded later (e.g. high-risk escalation), it still takes precedence
+        _state_envelope.record_pending_decision(
+            self.repo_path,
+            epic_name,
+            "Resolve CRITICAL_CONFLICT",
+            kind="blocker",
+            stage="Stage 2 (Principal Review)",
+        )
+        dec_blocked = derive_lifecycle_state(self.repo_path, epic_name)
+        self.assertTrue(dec_blocked.is_human_action_required)
+        self.assertIn("CRITICAL_CONFLICT", dec_blocked.prompt)
+
+        # Clearing pending_decision restores non-paused AUTO execution immediately
+        _state_envelope.clear_pending_decision(self.repo_path, epic_name)
+        dec_cleared = derive_lifecycle_state(self.repo_path, epic_name)
+        self.assertFalse(dec_cleared.is_human_action_required)
+
 
 if __name__ == "__main__":
     unittest.main()

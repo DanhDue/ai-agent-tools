@@ -1304,6 +1304,16 @@ class LifecycleRunner:
 
         if self.state.active_stage == StageName.AWAITING_PRINCIPAL_CONFIRMATION.value:
             if confirm_fixes:
+                with contextlib.suppress(Exception):
+                    env = _state_envelope()
+                    env.clear_pending_decision(self.root, self.epic_slug)
+                    env.update_epic_heartbeat(
+                        self.root,
+                        self.epic_slug,
+                        stage="In progress: Principal Review",
+                        sub_step="resumed",
+                        last_event="Human confirmed fixes — resumed AUTO MODE",
+                    )
                 self.state.active_stage = StageName.PRINCIPAL_REVIEW.value
                 self.save_state()
                 ok = self.step_principal_review()

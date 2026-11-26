@@ -4,20 +4,24 @@ Principal Review is a cross-model review of an epic's architecture and task desi
 
 ## Procedure
 
-1. **End of Stage 2 — Provider/Model Priority Choice (No Packaging Yet)**:
+1. **End of Stage 2 — Gate 2 Unified Confirmation (Provider/Model Priority & Execution Mode, No Packaging Yet)**:
    Once Gate 2 passes (write `python3 scripts/resume_context.py --checkpoint gate2_tasks_locked --epic <epic_slug>` right after recording it) and readiness checks (`check_epic_readiness.py <epic_dir>`) succeed (design docs & tasks committed when `auto_commit: true`, Gate 2 recorded, and `resume_context.py --state --epic <epic_slug> --status "Stage 2: Ready for Principal Review"` saved), do **NOT** run `package_epic.py` or create `handoff.md` yet.
-   Read `.devtool/review_config.json` (auto-seeded from `DEFAULT_REVIEW_CONFIG` with `provider_priority: ["claude", "codex", "kiro", "agy"]` and `max_rounds: 3`), display each provider's configured `model` and `thinking_level` (`Claude CLI`, `Codex CLI`, `Kiro CLI`, `Antigravity CLI`), stop calling tools, and ask the developer for the **provider/model priority order** for `/principal-review`:
+   Read `.devtool/review_config.json` (auto-seeded from `DEFAULT_REVIEW_CONFIG` with `provider_priority: ["claude", "codex", "kiro", "agy"]` and `max_rounds: 3`), display each provider's configured `model` and `thinking_level` (`Claude CLI`, `Codex CLI`, `Kiro CLI`, `Antigravity CLI`), stop calling tools, and ask the developer ONCE for both the **provider/model priority order** and the **execution mode**:
 
-   > Gate 2 passed and Stage 2 design is saved (`/save-context`). What provider/model priority order should `/principal-review` use?
+   > Gate 2 passed and Stage 2 design is saved (`/save-context`). Confirm the provider/model priority order for reviews (`/principal-review` and `/cross-model-review`) and execution mode:
    > - **Default priority**: `Claude -> Codex -> Kiro -> Argon` (showing configured models/thinking levels from `.devtool/review_config.json`).
    > - **Custom priority / model override**: e.g., `Codex -> Claude -> Kiro -> Argon` or a specific `--cli <provider> --model <model>`.
+   > - 1. **Triển khai (tự động)** (Recommended) — run `/principal-review` (zero-pause across rounds unless halted) -> package `handoff.md` -> automatically enter Stage 3 (`d3nexus:dev-implementation`, automated Gate 3 & TDD) -> `/cross-model-review` without pausing again.
+   > - 2. **Dừng lại** — run `/principal-review` -> package `handoff.md` -> Dừng lại ở đây để tôi lấy prompt cho một AI Agents khác triển khai.
+
+   State in the prompt that option 1 continues Stage 3 in this session, so Role 2.2 Orchestrator runs on this session's model, and name the configured `orchestrator` binding (`python3 scripts/dev_config.py status`). When the two differ, note that option 2 allows opening a new session on the `orchestrator` model with the printed prompt.
 
    Add the recommendation when it applies:
    - When the epic was designed by a different or fast model (judged from the HLD's `Author` line or the developer's word), cross-model review is strongly recommended before committing to implementation. Recommend using each CLI's strongest reasoning model (for Antigravity CLI: `agy --model "Gemini 4 Argon (Medium)"`; for Kiro CLI: `claude-opus-5.5` or `gpt-5.6-sol`).
-   - Never choose for the developer. Always wait for explicit priority/model confirmation.
+   - Never choose for the developer. Always wait for explicit priority/model and execution mode confirmation at Gate 2.
 
-2. **Automatic `/principal-review` Invocation**:
-   As soon as the developer confirms or provides the provider/model priority order, persist any custom priority/model override in `.devtool/review_config.json` (or pass `--provider-priority <list>` / `--cli <provider> --model <model>`), and **automatically invoke `d3nexus:principal-review`**.
+2. **Automatic `/principal-review` Invocation (Immediate Confirmation Clear)**:
+   As soon as the developer confirms or provides the provider/model priority order, **immediately** clear the Gate 2 confirmation alert on the Tasks UI (`python3 scripts/resume_context.py --state --epic <epic_slug> --status "In progress: Principal Review"`), persist any custom priority/model override in `.devtool/review_config.json` (or pass `--provider-priority <list>` / `--cli <provider> --model <model>`), and **automatically invoke `d3nexus:principal-review`**.
 
 3. **Run Principal Review & Auto-Convergence Loop (Max 3 Rounds, No Mid-Loop Packaging)**:
    Round 1 runs Full Scope; Round 2 runs Delta Verification; Round 3 runs Blocker-Only Convergence Mode:
@@ -33,7 +37,7 @@ Principal Review is a cross-model review of an epic's architecture and task desi
      ```bash
      python3 "$SKILL_DIR"/resources/scripts/run_external_review.py triage --kind principal --epic-dir <epic_dir>
      ```
-     Verify every finding against source at the round's SHA and approved Spec/HLD per [document-triage.md](../../principal-review/references/document-triage.md). In **both** interactive and autonomous modes, auto-apply verified `Valid` fixes as Role 2.1 (inline or a `principal-reviser` subagent on the `ai_architect_reviewer` binding) and advance cleanly to Round `N+1` without pausing — stop calling tools and escalate to the Human Architect **only** on `CRITICAL_CONFLICT`, `Debatable` trade-offs, `CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)`, `CIRCUIT_BREAKER_HALT (FIX_LOOP)`, or `CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)`.
+     Verify every finding against source at the round's SHA and approved Spec/HLD per [document-triage.md](../../principal-review/references/document-triage.md). In **both** interactive and autonomous modes, once all findings verify as `Valid` (or objective `False positive`) with zero halt triggers, **do NOT pause or ask the developer to confirm applying the fixes or advancing to Round `N+1`** — immediately auto-apply verified `Valid` fixes as Role 2.1 (inline or a `principal-reviser` subagent on the `ai_architect_reviewer` binding) and advance cleanly to Round `N+1` without pausing. Stop calling tools and escalate to the Human Architect **only** on `CRITICAL_CONFLICT`, `Debatable` trade-offs, `CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)`, `CIRCUIT_BREAKER_HALT (FIX_LOOP)`, or `CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)`.
    - If the round produces revisions (`AUTO_FIX_ELIGIBLE`, `AUTO_PASS_FINAL_*` sweep, or escalated fixes confirmed by the developer):
      - Commit the document revisions first:
        ```bash
@@ -58,18 +62,12 @@ Principal Review is a cross-model review of an epic's architecture and task desi
      python3 scripts/resume_context.py --emit-prompt implement --epic <epic_slug>
      ```
 
-5. **Post-Package Launch Decision (`Triển khai (tự động)` vs `Dừng lại`)**:
-   Stop calling tools and present the two options with the printed implementation prompt above:
-   > `/principal-review` passed and `<epic_slug>` is packaged (`handoff.md`). How do you want to proceed?
-   > 1. **Triển khai (tự động)** — automatically enter Stage 3 (`d3nexus:dev-implementation`, automated Gate 3 & TDD).
-   > 2. **Dừng lại** — Dừng lại ở đây để tôi lấy prompt cho một AI Agents khác triển khai.
-
-   State in the prompt that option 1 continues Stage 3 in this session, so Role 2.2 Orchestrator runs on this session's model, and name the configured `orchestrator` binding (`python3 scripts/dev_config.py status`). When the two differ, recommend option 2 and a new session opened on the `orchestrator` model with the printed prompt.
-
-   - If the developer picks **1. Triển khai (tự động)**:
-     Verify `python3 "$SKILL_DIR"/resources/scripts/run_external_review.py check --kind principal --epic-dir <epic_dir>` exits 0 and confirm via `git log -1 --format=%s -- .devtool/epic/<epic_dir>` that no un-packaged epic commit landed after `[<EPIC_NAME>] Package epic for handoff` (re-run `package_epic.py <epic_dir> --revise` if needed), then **automatically invoke `d3nexus:dev-implementation`**.
-   - If the developer picks **2. Dừng lại** (or anything else):
-     Stop cleanly here; keep the printed implementation prompt and `handoff.md` path for another AI Agent.
+5. **Post-Package Transition (Honor Gate 2 Unified Confirmation — Zero Re-Prompt)**:
+   - **If `1. Triển khai (tự động)` was already selected at Gate 2 Unified Confirmation**: **do NOT pause or ask for confirmation again.** Immediately verify `python3 "$SKILL_DIR"/resources/scripts/run_external_review.py check --kind principal --epic-dir <epic_dir>` exits 0 and confirm via `git log -1 --format=%s -- .devtool/epic/<epic_dir>` that no un-packaged epic commit landed after `[<EPIC_NAME>] Package epic for handoff` (re-run `package_epic.py <epic_dir> --revise` if needed), then **automatically invoke `d3nexus:dev-implementation`**.
+   - **If `2. Dừng lại` was selected at Gate 2 Unified Confirmation**: stop cleanly here; keep the printed implementation prompt and `handoff.md` path for another AI Agent.
+   - **Only when `/principal-review` was invoked standalone** (outside Gate 2 Unified Confirmation, with no execution mode chosen yet): stop calling tools and present the two options with the printed implementation prompt above (naming the configured `orchestrator` binding from `python3 scripts/dev_config.py status`):
+     - `1. **Triển khai (tự động)**` — automatically enter Stage 3 (`d3nexus:dev-implementation`, automated Gate 3 & TDD).
+     - `2. **Dừng lại**` — Dừng lại ở đây để tôi lấy prompt cho một AI Agents khác triển khai.
 
 ## Guidelines and References
 

@@ -337,13 +337,21 @@ def _emit_pool_heartbeat(
     epic_slug: str,
     **kwargs: Any,
 ) -> None:
+    clear_pending = bool(kwargs.pop("clear_pending", False))
     if _STATE_ENVELOPE is not None:
+        extra_dirs = _STATE_ENVELOPE.resolve_shared_devtool_dirs(root)
         _STATE_ENVELOPE.update_epic_heartbeat(
             repo_root,
             epic_slug,
-            extra_devtool_dirs=_STATE_ENVELOPE.resolve_shared_devtool_dirs(root),
+            extra_devtool_dirs=extra_dirs,
             **kwargs,
         )
+        if clear_pending:
+            _STATE_ENVELOPE.clear_pending_decision(
+                repo_root,
+                epic_slug,
+                extra_devtool_dirs=extra_dirs,
+            )
         return
 
     with _devtool_memory_lock(repo_root):
@@ -767,6 +775,7 @@ def init_slots(
         active_wave=active_wave,
         slot_updates=slot_updates,
         last_event=f"Initialized {pool_size} worker slots",
+        clear_pending=True,
     )
     return created_paths
 
@@ -933,6 +942,7 @@ def sync_slot(
             active_tasks=sorted(working_tasks),
             slot_updates={slot_key: slot_entry},
             last_event=last_event,
+            clear_pending=normalized_status in ("working", "review"),
         )
     return True
 

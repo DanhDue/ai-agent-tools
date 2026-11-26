@@ -70,7 +70,7 @@ Invoked on-demand to review a feature branch, pull request diff, or specific com
 
 ## The Triage & Fix Loop (Orchestrator + Role 2.1 / Role 2.3 Subagents)
 
-Follow [review-triage.md](references/review-triage.md) and the role matrix in [orchestration-roles.md](../dev-lifecycle/references/orchestration-roles.md). In autonomous mode, `lifecycle_runner.py` runs the same loop (`_can_fast_track_code_findings` -> `_apply_code_fixes`, else `_draft_fix_plan` dispatching the Role 2.1 `fix-planner`). Before each fix round run `python3 scripts/dev_config.py quota-check`; exit `2` means write `--checkpoint quota_low`, record a `quota` pending decision, and stop.
+Follow [review-triage.md](references/review-triage.md) and the role matrix in [orchestration-roles.md](../dev-lifecycle/references/orchestration-roles.md). In AUTO MODE (both `lifecycle_runner.py` AND interactive sessions where Gate 2 chose **Triển khai (tự động)**), run the risk-routed loop with **zero confirmation pauses between rounds** (`_can_fast_track_code_findings` -> `_apply_code_fixes`, else `_draft_fix_plan` dispatching the Role 2.1 `fix-planner`; halt ONLY on `ESCALATE`, `CIRCUIT_BREAKER_HALT`, or model/quota stops). Before each fix round run `python3 scripts/dev_config.py quota-check`; exit `2` means write `--checkpoint quota_low`, record a `quota` pending decision, and stop.
 
 1. **Run & Triage (Role 2.2 Orchestrator)**:
    - Run `run_external_review.py run` and `triage`, commit `review_results.md`, and inspect `## Auto-Triage Gate`:
@@ -99,7 +99,7 @@ Follow [review-triage.md](references/review-triage.md) and the role matrix in [o
 
 3. **Final Convergence Gate & Stage 4 Handoff**:
    - Once Cross-Model Review converges (`AUTO_PASS_CLEAN`, `AUTO_PASS_FINAL_MINOR_SWEEP`, or `AUTO_PASS_FINAL_SWEEP` with 0 Critical findings), the Orchestrator dispatches a **fresh `gate4-verifier`** (not the round's fixer) to run **full Gate 4 machine acceptance** (full regression suite, `tests/e2e/`, `audit_epic.py`, and `@quality_check --profile epic`) on the latest candidate SHA. It accepts `PASS` only when `candidate_sha == git rev-parse HEAD`, the tree is clean, and the `@quality_check` report is bound to that SHA.
-   - Once Gate 4 is green on candidate SHA, the Orchestrator records `python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 4: Awaiting Finish"` and `python3 scripts/resume_context.py --pending-decision "Review Gate 5 executive report and choose Finish strategy" --decision-kind gate_5 --epic <epic_slug>`, emits `python3 scripts/resume_context.py --emit-prompt finish --epic <epic_slug>`, renders `## Top 3 Highest-Risk Findings (Executive Report)`, and stops calling tools for Gate 5 Sign-off.
+   - Once Gate 4 is green on candidate SHA, the Orchestrator records `python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 4: Awaiting Finish"` and `python3 scripts/resume_context.py --pending-decision "Review Gate 5 executive report and choose Finish strategy" --decision-kind gate_5 --epic <epic_slug>`, emits `python3 scripts/resume_context.py --emit-prompt finish --epic <epic_slug>`, renders `## Top 3 Highest-Risk Findings (Executive Report)`, and stops calling tools ONCE with the unified Gate 5 + `/finishing-a-development-branch` Finish menu (`1. Merge locally`, `2. Push & PR`, `3. Keep as-is`).
 
 ## ⚡ Remediation Loop & Test Execution Protocol (Hard Constraints)
 

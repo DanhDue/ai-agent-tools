@@ -21,7 +21,7 @@ The orchestrator for epic-scale work. It owns **sequence and gates only** — ea
 Lifecycle diagrams: [lifecycles.en.md](../../docs/lifecycles.en.md). Runtime sequence:
 
 1. **Stage 1 (Inception & Spec)**: `dev-brainstorming` -> Gate 1 approval -> Route to `dev-designer` (epic) or `writing-plans` (non-epic).
-2. **Stage 2 (Architecture & Tasks)**: `dev-designer` (Role 2.1) -> Gate 2 approval (`--checkpoint gate2_tasks_locked`) -> Provider priority prompt -> `/principal-review` (Max 3 rounds; Role 2.1 `principal-reviser` revises docs) -> Post-review Package (`package_epic.py`) & print implement prompt -> Choice (**Triển khai (tự động)** vs **Dừng lại**).
+2. **Stage 2 (Architecture & Tasks)**: `dev-designer` (Role 2.1) -> Gate 2 Unified Confirmation (`--checkpoint gate2_tasks_locked`, provider priority + **Triển khai (tự động)** vs **Dừng lại**) -> `/principal-review` (max 3 rounds, zero-pause on `Valid`) -> `package_epic.py` & implement prompt -> auto-enter Stage 3 if **Triển khai (tự động)** (else stop).
 3. **Stage 3 (Automated Execution & Audit)**: Role 2.2 Orchestrator coordinates only -> `dev-implementation` -> Automated Gate 3 (wave order & 2-slot pool) -> dispatches Role 2.3 Programmer subagents (`dev_config.py dispatch`; default `gemini-4-hydrogen-xhigh`) for `task-implementer`, `review-fixer` and fresh `gate4-verifier`, plus Role 2.1 `task-reviewer` and `fix-planner` (`/cross-model-review`, max 3 rounds) -> full Gate 4 convergence.
 4. **Stage 4 (Finish Decision, Integration & Archival)**: Prompt Human Architect for Finish Decision & Gate 5 Sign-off -> `finishing-a-development-branch` -> Archive tasks into `.devtool/epic/<slug>/`, rebase, verify by tier (`Test All` once), `--no-ff` or squash merge, explicit Git push confirmation.
 
@@ -29,8 +29,7 @@ Lifecycle diagrams: [lifecycles.en.md](../../docs/lifecycles.en.md). Runtime seq
 - **Orchestrator boundary (Role 2.2, Stage 3)**: never read/edit `src/` or `tests/`, never edit task Verification tables / DoD / `Allowed files`, never run tests, linters, type checkers, `run_task_checks.py` or `verify-tier` in the main session. Delegate TDD tasks, fixes and Gate 4 to Role 2.3 subagents and reviews/fix plans to Role 2.1 subagents on their `dev_config.py resolve` bindings (never `Model="flash"`), verifying claims independently. Matrix: [orchestration-roles.md](references/orchestration-roles.md).
 - No automatic model fallback or retry (checkpoint `model_unavailable`, stop). Run `dev_config.py quota-check` before Stage 3, each wave and fix round; exit `2` stops.
 - Never create `implementation_plan.md`; specs live in `docs/superpowers/specs/` or `.devtool/epic/<epic_dir>/`.
-- Package (`package_epic.py`) only after `/principal-review` converges, then ask **Triển khai (tự động)** vs **Dừng lại**.
-- In **Triển khai (tự động)**, Gate 3, worktree bootstrap, and Gate 4 -> Cross-model review run automatically; Finish belongs in Stage 4 (Gate 5).
+- Package (`package_epic.py`) only after `/principal-review` converges. Under Gate 2 **Triển khai (tự động)**, never re-prompt during `/principal-review` (`Valid` findings) or after packaging — run `d3nexus:dev-implementation`, Gate 3, worktree bootstrap, and Gate 4 -> Cross-model review automatically; Finish stays at Stage 4 (Gate 5).
 </HARD-GATE>
 
 ## Document Contract
@@ -85,10 +84,10 @@ For hands-off execution, `lifecycle_runner.py` drives Stage 2 and Stage 3:
 
 Follow [references/principal-review.md](references/principal-review.md) across Stage 2 -> Principal Review -> Packaging -> Stage 3:
 
-- **Gate 2 Unified Confirmation (Tasks & AUTO MODE):** After Gate 2 and `check_epic_readiness.py <epic_dir>` pass, save Gate 2 & state (`--status "Stage 2: Ready for Principal Review"`, `--checkpoint gate2_tasks_locked`), read `.devtool/review_config.json`, stop calling tools, and present the **provider/model priority** order for reviews (`/principal-review` and `/cross-model-review`):
-  1. **(Recommended) Phê duyệt & Chạy AUTO MODE xuyên suốt (Triển khai (tự động)):** Run `/principal-review` -> package `handoff.md` -> enter `/dev-implementation` (2-slot pool) -> `/cross-model-review` without pausing; Stage 3 runs on this session's model (name the `orchestrator` binding). Halts ONLY on Circuit Breakers, `ESCALATE`, model/quota stops or Gate 5 (Finish/Merge).
-  2. **Phê duyệt & Handoff Mode (Dừng lại):** Run `/principal-review` -> package `handoff.md` -> stop cleanly (new session on the `orchestrator` model).
-- **Automatic `/principal-review`:** Once confirmed, invoke `d3nexus:principal-review` (`--auto-quota` / `--provider-priority` / `--cli`, max 3 rounds; intermediate rounds run `check_epic_readiness.py`, never `package_epic.py`).
+- **Gate 2 Unified Confirmation (Tasks & AUTO MODE):** After Gate 2 and `check_epic_readiness.py <epic_dir>` pass, save Gate 2 & state (`--status "Stage 2: Ready for Principal Review"`, `--checkpoint gate2_tasks_locked`), read `.devtool/review_config.json`, stop calling tools, and present the **provider/model priority** order:
+  1. **(Recommended) Phê duyệt & Chạy AUTO MODE xuyên suốt (Triển khai (tự động)):** Run `/principal-review` -> `handoff.md` -> `/dev-implementation` (2-slot pool) -> `/cross-model-review` without pausing; Stage 3 runs on this session's model (name the `orchestrator` binding). Halts ONLY on Circuit Breakers, `ESCALATE`, model/quota stops, or Gate 5.
+  2. **Phê duyệt & Handoff Mode (Dừng lại):** Run `/principal-review` -> `handoff.md` -> stop cleanly (new session on the `orchestrator` model).
+- **Automatic `/principal-review` (Zero-Pause):** Run `d3nexus:principal-review` (`--auto-quota` / `--provider-priority` / `--cli`, max 3 rounds; mid-loop runs `check_epic_readiness.py`, never `package_epic.py`). Auto-fix `Valid` findings without pausing; halt only on the five halt triggers.
 - **End-of-Review Packaging:** On convergence, run `python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir> [--revise --reason "<reason>"]` (omit `--revise` when `handoff.md` is absent):
 1. **Preflight:** `python3 "$SCRIPTS"/check_epic_readiness.py <epic_dir>` (runs `check_task_contract.py --design`). First line prints task count.
 2. Copy `references/handoff-template.md` to `.devtool/epic/<epic_dir>/handoff.md` (`<N>` is the task count the preflight printed) and lint via `python3 "$CHECK_DOC" --require-toc .devtool/epic/<epic_dir>/handoff.md`.
@@ -100,7 +99,7 @@ Follow [references/principal-review.md](references/principal-review.md) across S
    ```
    If previously queued, use `"Packaged (queued behind <epic>)"` in Open Notes. Commit `[<EPIC_NAME>] Package epic for handoff` (`auto_commit: true`).
 4. Run `/save-context` (`--state --epic <epic_slug> --status "Stage 2: Packaged & Ready"`), print `handoff.md` path and **`python3 scripts/resume_context.py --emit-prompt implement --epic <epic_slug>`**.
-5. When **Triển khai (tự động)** was selected at Gate 2, invoke `d3nexus:dev-implementation` without pausing; if **Dừng lại**, stop cleanly.
+5. If Gate 2 chose **Triển khai (tự động)**, invoke `d3nexus:dev-implementation` without pausing; if **Dừng lại**, stop.
 
 ### Stage 3 — Isolated Execution → `dev-implementation`
 
@@ -161,7 +160,7 @@ Never advance on a partial pass or re-run isolated checks.
 - Skipping `dev-brainstorming` because scope seems clear, or skipping Stage 2 on an approved epic-scale spec.
 - Merging sub-project specs into one epic, or redoing design when task files exist (use Updating an Existing Epic).
 - Creating a worktree before resolving the dependency DAG (recreating an existing epic worktree in Resume Procedure is allowed).
-- Running `package_epic.py` before `/principal-review` completes, packaging without preflight, or invoking `dev-implementation` without presenting the post-package Handoff Choice (**Triển khai (tự động)** vs **Dừng lại**).
+- Running `package_epic.py` before `/principal-review` completes, packaging without preflight, or re-prompting during `/principal-review` (`Valid` findings) or after packaging when Gate 2 chose **Triển khai (tự động)**.
 - Merging to `develop` without Gate 4 🟢 or manually instead of `integrate_branch.py land`; pushing without explicit permission.
 - Granting Gate 4 without a passing traceability check on the same SHA, or without a passing `audit_epic.py`; reusing a Gate 4 PASS after review rounds, finding decisions, or Fix commits change SHA.
 - Marking `status: "done"` (or `completedAt`) with any `- [ ]` in `## Definition of Done`, omitting `REGRESSION` or full `Allowed files` `TIER-B` coverage, or ticking checkboxes/evidence by hand without `run_task_checks.py`.
@@ -169,7 +168,7 @@ Never advance on a partial pass or re-run isolated checks.
 - Prompting developer for intermediate Review Choice or Gate 3 confirmation pauses, or advancing to Stage 4 (Finish) without Cross-Model Review convergence and Gate 5 sign-off.
 - Launching `agy`, `ag_run` or `<profile>-cli` from an agent shell instead of `dev_config.py dispatch`.
 - Prohibited: picking the review CLI for the developer instead of prompting for Claude CLI, Codex CLI, or Antigravity CLI, or picking the Ollama model instead of running `ollama list` and asking.
-- Acting on review findings before presenting the triage from `run_external_review.py triage` (verify every finding against live source and approved Spec/HLD).
+- Acting on review findings before presenting the triage from `run_external_review.py triage` (verify against source & Spec/HLD; visibility log only, never a pause on `Valid` `/principal-review` findings).
 - Acting on a Principal Review finding before verifying against source/Spec and running triage (once verified as `Valid` with zero halt triggers, auto-fix and advance without pausing).
 - Writing `dismissed` decisions in `review_results.md` without explicit developer words.
 - Starting a task while integration with `develop` is failing.

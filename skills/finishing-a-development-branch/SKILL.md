@@ -46,8 +46,8 @@ flowchart TD
 
 ## Step 1: Verify Readiness / Tests
 
-- **In-Lifecycle Epic Mode (entering from `dev-lifecycle` / `dev-implementation` after Gate 4 `🟢 LGTM` & Gate 5 sign-off)**:
-  - Do **not** redundantly run the full repository test suite (`Test All`) here before archiving tasks and rebasing onto `<base-branch>`. Verify that Gate 4 (`audit_epic.py` + Blast-Radius `Integration results:` + `@quality_check` with `profile: "epic"`) already passed on `HEAD` (or verify `python3 scripts/resume_context.py --check-gate 4 --epic <epic_slug>`), then proceed directly to Step 2. The single full-repository **Level 3 `Test All`** run executes **once** in Step 5 (`Update onto Base`, Step 4 `verify-tier`) on the exact post-archival, post-rebase tree right before `integrate_branch.py land`.
+- **In-Lifecycle Epic Mode (entering from `dev-lifecycle` / `dev-implementation` after Gate 4 `🟢 LGTM` & unified Gate 5 + Finish choice)**:
+  - Do **not** redundantly run the full repository test suite (`Test All`) here before archiving tasks and rebasing onto `<base-branch>`. Verify that Gate 4 (`audit_epic.py` + Blast-Radius `Integration results:` + `@quality_check` with `profile: "epic"`) already passed on `HEAD` (or verify `python3 scripts/resume_context.py --check-gate 4 --epic <epic_slug>`), then proceed directly to Step 2. If the user already selected Option 1, 2, or 3 in `dev-implementation` Phase 4.1's unified Gate 5 + Finish prompt, skip Step 4 (never re-present the menu) and execute their choice in Step 5. The single full-repository **Level 3 `Test All`** run executes **once** in Step 5 (`Update onto Base`, Step 4 `verify-tier`) on the exact post-archival, post-rebase tree right before `integrate_branch.py land`.
 - **Standalone / Non-Epic Branch Mode**:
   - Run the project's test suite (`npm test` / `cargo test` / `pytest` / `go test ./...`).
   - **If tests fail**, report the failures and stop — the menu comes after a green suite:
