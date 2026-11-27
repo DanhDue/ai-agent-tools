@@ -31,6 +31,7 @@ Load the project capability manifest `.agents/quality/ios-quality.json` from the
 python3 skills/ios-quality-check/resources/scripts/validate_ios_quality.py .agents/quality/ios-quality.json --profile "<profile>"
 ```
 
+- Emits a compact 1-line `PASS:` summary by default (`--verbose` / `--json` opt-in). Supports all 4 profiles (`pr`, `epic`, `scheduled`, `release`; `pr`/`epic` required for legacy v1), unified capabilities (`anti_stub`, `security`, `security_deps`, `pr_diff_audit`, `workspace_audit`, `pr_impact`, `workspace_impact`, `license`), dual-floor `coverage` (`min_package_coverage`, `exclude_package_floor`, `min_diff_coverage`, `diff_base` via `{skills_dir}/quality_check/resources/scripts/check_diff_coverage.py`), `standards_catalog` (`.agents/quality/standards_catalog.json`), `extensions`, `task_tier_b`, and `triage_surfaces` (plus `pool_mounts` in `check_quality.json`).
 - If `.agents/quality/ios-quality.json` is missing or invalid: emit status `BLOCKED`.
 - If the requested profile is not configured: emit status `BLOCKED`.
 - For profile `epic`: if `architecture`, `boundaries`, `test`, or `coverage` capabilities are missing: emit status `BLOCKED`.
@@ -83,4 +84,6 @@ Return the result document to the orchestrator.
 
 - [Capability Schema](resources/schemas/ios-quality.schema.json): Machine-readable JSON Schema for iOS capability manifests.
 - [Capability Validator](resources/scripts/validate_ios_quality.py): Script and CLI validator for iOS capability files.
+- [Shared Manifest Helper](../quality_check/resources/scripts/_provider_manifest_common.py): Shared additive v1 validator and compact CLI output helper.
+- [Portable Diff-Coverage Engine](../quality_check/resources/scripts/check_diff_coverage.py): Multi-format dual-floor and hunk diff-coverage verifier.
 - [Valid Fixture](resources/fixtures/valid_ios_quality.json): Reference valid capability configuration fixture modeled on `ios_digital_wallet`.

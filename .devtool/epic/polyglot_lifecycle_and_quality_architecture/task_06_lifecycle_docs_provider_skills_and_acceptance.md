@@ -1,13 +1,13 @@
 ---
 id: "task_06_lifecycle_docs_provider_skills_and_acceptance"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "polyglot_lifecycle_and_quality_architecture"
 dueDate: null
 created: "2026-11-27T09:18:00+07:00"
-modified: "2026-11-27T09:18:00+07:00"
-completedAt: null
+modified: "2026-11-27T04:16:35Z"
+completedAt: "2026-11-27T04:16:35Z"
 labels: ["docs", "skills", "verify", "acceptance"]
 order: "a06"
 review_tier: "full"
@@ -132,12 +132,12 @@ And dev-designer/references/verification-rows.md preserves "-q --tb=short --maxf
 
 ## Definition of Done
 
-- [ ] Lifecycle docs (`dev-designer`, `dev-implementation`) standardize 6-stack commands and `Tier C1` vs `Tier C2` within word/byte caps (V2, V3, V5)
-- [ ] `quality_check`, `setup_quality_check`, and all 6 `*-quality-check/SKILL.md` files document additive v1 capabilities, compact CLI output, and link every new script/schema (V2, V5)
-- [ ] All 6 new test suites are registered in `scripts/verify.sh` (`SUITES`) (V2, V5)
-- [ ] All documentation, governance, and polyglot task regression suites pass without regressions (V3)
-- [ ] `ruff check`, `ruff format --check`, and `mypy` pass on `tests/test_plq_end_to_end_acceptance.py` (V4)
-- [ ] Fresh JUnit XML report written to `build/test-results/task_06.xml` containing all 3 assigned scenario IDs (V5)
+- [x] Lifecycle docs (`dev-designer`, `dev-implementation`) standardize 6-stack commands and `Tier C1` vs `Tier C2` within word/byte caps (V2, V3, V5) — exit 0, `dev-implementation/SKILL.md` 4183 words <= 4500, `dev-designer/SKILL.md` 18120 bytes <= 22528, 13 docs 0 findings
+- [x] `quality_check`, `setup_quality_check`, and all 6 `*-quality-check/SKILL.md` files document additive v1 capabilities, compact CLI output, and link every new script/schema (V2, V5) — exit 0, `PLQ-HP-06` and `PLQ-AR-05` passed, `pkill -9 java` removed
+- [x] All 6 new test suites are registered in `scripts/verify.sh` (`SUITES`) (V2, V5) — exit 0, Section 25 registered and verified via `verify.sh --full`
+- [x] All documentation, governance, and polyglot task regression suites pass without regressions (V3) — exit 0, V3 regression passed including `verify.sh --full`
+- [x] `ruff check`, `ruff format --check`, and `mypy` pass on `tests/test_plq_end_to_end_acceptance.py` (V4) — exit 0
+- [x] Fresh JUnit XML report written to `build/test-results/task_06.xml` containing all 3 assigned scenario IDs (V5) — exit 0, 3/3 covered (`PLQ-HP-06`, `PLQ-ST-05`, `PLQ-AR-05`) PASS
 
 ## Dependencies & Blockers
 

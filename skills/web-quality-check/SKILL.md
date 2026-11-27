@@ -42,6 +42,7 @@ Load the project capability manifest `.agents/quality/web-quality.json` from the
 python3 skills/web-quality-check/resources/scripts/validate_web_quality.py .agents/quality/web-quality.json --profile "<profile>"
 ```
 
+- Emits a compact 1-line `PASS:` summary by default (`--verbose` / `--json` opt-in). Supports all 4 profiles (`pr`, `epic`, `scheduled`, `release`; `pr`/`epic` required for legacy v1), unified capabilities (`anti_stub`, `security`, `security_deps`, `pr_diff_audit`, `workspace_audit`, `pr_impact`, `workspace_impact`, `license`), dual-floor `coverage` (`min_package_coverage`, `exclude_package_floor`, `min_diff_coverage`, `diff_base` via `{skills_dir}/quality_check/resources/scripts/check_diff_coverage.py`), `standards_catalog` (`.agents/quality/standards_catalog.json`), `extensions`, `task_tier_b`, and `triage_surfaces` (plus `pool_mounts` in `check_quality.json`).
 - If `.agents/quality/web-quality.json` is missing or invalid: emit status `BLOCKED`.
 - If the requested profile is not configured: emit status `BLOCKED`.
 - For profile `pr`: if `type_check`, `lint`, or `test_unit` is missing: emit status `BLOCKED`.
@@ -99,4 +100,7 @@ Return the result document to the orchestrator.
 ## References and Resources
 
 - [Provider Result Contract](../quality_check/references/provider-result-contract.md): Shared schema specification for quality provider results.
+- [Capability Schema](resources/schemas/web-quality.schema.json): Machine-readable draft 2020-12 JSON Schema for Web capability manifests.
 - [Capability Validator](resources/scripts/validate_web_quality.py): Script and CLI validator for Web capability configuration files.
+- [Shared Manifest Helper](../quality_check/resources/scripts/_provider_manifest_common.py): Shared additive v1 validator and compact CLI output helper.
+- [Portable Diff-Coverage Engine](../quality_check/resources/scripts/check_diff_coverage.py): Multi-format dual-floor and hunk diff-coverage verifier.

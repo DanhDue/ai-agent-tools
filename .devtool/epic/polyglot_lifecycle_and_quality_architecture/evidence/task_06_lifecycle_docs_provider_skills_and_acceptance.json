@@ -1,0 +1,188 @@
+{
+  "schema": 1,
+  "task": "task_06_lifecycle_docs_provider_skills_and_acceptance",
+  "runs": {
+    "red": {
+      "head": "e14dcb2872ab58d248939052d7e482fbf52a0b08",
+      "tree": "9f49019d6a40b53ea9b993148e7f88ec7dec5de7",
+      "patch_id": "fc7f8dd9cc0ea5c22667ae0e70ee56ef54c7b938",
+      "started": "2026-11-27T04:02:27Z",
+      "finished": "2026-11-27T04:02:28Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_plq_end_to_end_acceptance.py::test_plq_hp_06_docs_caps_reachability_and_verify_registration",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T04:02:27Z",
+          "finished": "2026-11-27T04:02:27Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "________ test_plq_hp_06_docs_caps_reachability_and_verify_registration _________",
+            "tests/test_plq_end_to_end_acceptance.py:219: in test_plq_hp_06_docs_caps_reachability_and_verify_registration",
+            "    assert \"uv run pytest\" not in dev_impl, (",
+            "E   AssertionError: skills/dev-implementation/SKILL.md must replace hardcoded 'uv run pytest' with pointer to worker-execution-rules.md",
+            "E   assert 'uv run pytest' not in '---\\nname: ...n secrets.\\n'",
+            "E     ",
+            "E     'uv run pytest' is contained here:",
+            "E        only** (`uv run pytest <changed_test_files> -n auto --timeout=30 -q --tb=short`), commits `[<EPIC_NAME>] Fix <what>`, records `fixed in <sha>` in `review_results.md`, and returns the `review-fixer` summary; the Orchestrator checks `git diff --name-only <pre_sha>..HEAD` for out-of-scope paths. On convergence a fresh `gate4-verifier` runs full Gate 4. Details: [orchestration-roles.md](../dev-lifecycle/references/orchestration-roles.md#4-independent-verification).",
+            "E     ?           +++++++++++++",
+            "E          - **`CIRCUIT_BREAKER_HALT`**: Halts cleanly via `--pendin...",
+            "E     ",
+            "E     ...Full output truncated, use '-vv' to show",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_plq_end_to_end_acceptance.py::test_plq_hp_06_docs_caps_reachability_and_verify_registration",
+            "1 failed in 0.04s"
+          ],
+          "output_sha256": "0087289395755afe0e551034885e6b9f24048b84ccd80c14c554f90cb6f0121c"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "e14dcb2872ab58d248939052d7e482fbf52a0b08",
+      "tree": "d12b59c72cddc0f4a54bda25e3faa1cfcad294aa",
+      "patch_id": "fbf91965951aff0521602623c68736e4c57cb711",
+      "started": "2026-11-27T04:10:07Z",
+      "finished": "2026-11-27T04:12:22Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_plq_end_to_end_acceptance.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T04:10:07Z",
+          "finished": "2026-11-27T04:10:11Z",
+          "output_tail": [
+            "....                                                                     [100%]",
+            "4 passed in 4.07s"
+          ],
+          "output_sha256": "02e1ee95044da002c5174d3355eb1fb316130ac3ec98d6eccb2023b44ab979e7"
+        },
+        {
+          "id": "V3",
+          "phase": "REGRESSION",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_tto_docs_and_slimming.py tests/test_fpg_governance_text.py tests/test_fpg_english_only_text.py scripts/test_verifiable_handoff_text.py tests/test_ohk_docs_and_acceptance.py tests/test_ohk2_skill_docs.py tests/test_stack_lifecycle_registry.py tests/test_check_diff_coverage.py tests/test_plq_quality_contracts_and_scaffolder.py tests/test_plq_task_contract_polyglot.py tests/test_plq_worker_pool_polyglot.py && python3 scripts/test_lifecycle_document_contract.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T04:10:11Z",
+          "finished": "2026-11-27T04:12:17Z",
+          "output_tail": [
+            "........................................................................ [ 67%]",
+            "...................................                                      [100%]",
+            "107 passed in 125.57s (0:02:05)",
+            "......................",
+            "----------------------------------------------------------------------",
+            "Ran 22 tests in 0.004s",
+            "OK"
+          ],
+          "output_sha256": "ab6bbcd695b9751eefe570af7f78b2d51b424cc66eeb466e387f91326b0a6e18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_plq_end_to_end_acceptance.py && ruff format --check tests/test_plq_end_to_end_acceptance.py && mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_plq_end_to_end_acceptance.py --ignore-missing-imports --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T04:12:17Z",
+          "finished": "2026-11-27T04:12:17Z",
+          "output_tail": [
+            "All checks passed!",
+            "1 file already formatted",
+            "Success: no issues found in 8 source files"
+          ],
+          "output_sha256": "379171c29cfca9fda9d57cf76c90e17cec05d2416de7587eeb7d76a1713689f5"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_plq_end_to_end_acceptance.py --junitxml=build/test-results/task_06.xml",
+          "expect": "exit 0; results build/test-results/task_06.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T04:12:17Z",
+          "finished": "2026-11-27T04:12:21Z",
+          "output_tail": [
+            "....                                                                     [100%]",
+            "4 passed in 4.03s"
+          ],
+          "output_sha256": "7dbc80e45ffdfc775ae182fd9fb80c0ab0f0718656606955a9be18485e73238d",
+          "results": {
+            "path": "build/test-results/task_06.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 4,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_plq_hp_06_docs_caps_reachability_and_verify_registration",
+                  "classname": "tests.test_plq_end_to_end_acceptance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_hp_06_integration",
+                  "classname": "tests.test_plq_end_to_end_acceptance.TestPLQEndToEndAcceptance_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_st_05_end_to_end_polyglot_lifecycle_pipeline",
+                  "classname": "tests.test_plq_end_to_end_acceptance.TestPLQEndToEndAcceptance_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_ar_05_docs_frontmatter_namespace_and_markdown_lint",
+                  "classname": "tests.test_plq_end_to_end_acceptance.TestPLQEndToEndAcceptance_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/verify.sh",
+            "skills/android-quality-check/SKILL.md",
+            "skills/dev-designer/SKILL.md",
+            "skills/dev-designer/references/verification-row-grammar.md",
+            "skills/dev-designer/references/verification-rows.md",
+            "skills/dev-implementation/SKILL.md",
+            "skills/dev-implementation/references/worker-execution-rules.md",
+            "skills/flutter-quality-check/SKILL.md",
+            "skills/ios-quality-check/SKILL.md",
+            "skills/python-quality-check/SKILL.md",
+            "skills/quality_check/SKILL.md",
+            "skills/rust-quality-check/SKILL.md",
+            "skills/setup_quality_check/SKILL.md",
+            "skills/web-quality-check/SKILL.md",
+            "tests/test_plq_end_to_end_acceptance.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

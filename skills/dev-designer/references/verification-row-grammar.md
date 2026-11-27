@@ -79,7 +79,7 @@ When task contracts or BDD scenarios embed code blocks, task mirrors or HLD sect
 
 - **Supported phases**: `RED`, `MEASURE`, `GREEN`, `REGRESSION`, `TIER-B`, `TIER-C`.
 - **Mandatory regression coverage**: A task's `Verification` table must never run only a newly created unit test file when existing production modules are touched. Include at least one `REGRESSION` row (or expand `GREEN`/`TIER-C`) running the full test suite of the touched module and every test listed under *Downstream Callers* in `## Impact Analysis & Blast Radius`.
-- **Full `Allowed files` `TIER-B` coverage**: Static lint/format (`ruff check`, `ruff format --check`) and type-check (`mypy --strict` or equivalent) must cover **all** Python files in `Allowed files` (both production source files and new/modified test files), not just a single source file. Add `lint-imports` (or contract boundary check) when cross-module imports or contracts are touched.
+- **Full `Allowed files` `TIER-B` coverage**: Static lint/format (`ruff check`, `ruff format --check` or stack equivalent via `TierBContractAdapter` in `_stack_lifecycle_registry.py`) and type-check (`mypy --strict` or stack equivalent) must cover **all** source and test files in `Allowed files` for every active touched stack (`python`, `flutter`, `rust`, `web`, `android`, `ios`), not just a single source file. Add `lint-imports` or the stack's boundary/architecture check when cross-module imports, domain layers, or manifests are touched.
 
 ## Rule 8: Definition of Done Checkbox Lock with status: "done"
 
@@ -90,6 +90,7 @@ When task contracts or BDD scenarios embed code blocks, task mirrors or HLD sect
 
 When verification rows execute tracked scripts (such as `scripts/verify.sh` or `python3 scripts/tool.py`), those scripts become implicit protected paths to prevent accidental modification during implementation tasks.
 
-- **Provenance reporting**: `check_task_contract.py` outputs full provenance for each implicit protected path:
-  `Implicit protected paths: scripts/tool.py (task_01:V1), scripts/verify.sh (task_02:V3)`
-- This enables authors and reviewers to identify exactly which task and row established protection over a given file.
+- **Default compact 1-line `PASS` output**: To preserve agent token budgets, `check_task_contract.py` emits exactly one line on `PASS` by default:
+  `Result: 0 problems — PASS`
+- **Opt-in `--verbose` and `--json` provenance**: Pass `--verbose` to print full provenance before the result line (`Implicit protected paths: scripts/tool.py (task_01:V1), scripts/verify.sh (task_02:V3)`), or `--json` for structured output (`status`, `problems`, `warnings`, `implicit_protected_paths`). On `FAIL`, all problems and `Implicit protected paths:` are always expanded automatically.
+- **Canonical `# tier: C2` marker (`TierCTaxonomy`)**: `TIER-C` rows that run heavy E2E/device/simulator/browser suites MUST carry the trailing command comment `# tier: C2` (`#\s*tier:\s*C2\b`, case-insensitive) and declare a non-empty `Needs:` variable documented in HLD `## Verification Environment`. `TierCTaxonomy` hard-fails `# tier: C2` rows missing `Needs:` (and invalid/zero-match HLD `Integration test roots:`), while emitting non-blocking stderr warnings for unlabeled heuristic heavy-runtime commands (`integration_test/`, `connected*AndroidTest`, `xcodebuild test`, `playwright test`).
