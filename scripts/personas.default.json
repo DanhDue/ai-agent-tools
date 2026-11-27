@@ -180,5 +180,40 @@
   },
   "low_quota": {},
   "max_task_review_passes": 2,
-  "max_fix_passes": 1
+  "max_fix_passes": 1,
+  "max_principal_review_passes": 3,
+  "max_cross_model_review_passes": 3,
+  "review": {
+    "provider_priority": ["claude", "codex", "kiro", "agy"],
+    "quota_thresholds": {
+      "5h_min_fraction": 0.15,
+      "7d_min_fraction": 0.02,
+      "kiro_min_fraction": 0.03,
+      "kiro_min_credits": 15.0,
+      "agy_argon_min_fraction": 0.1
+    },
+    "providers": {
+      "claude": {
+        "model": "claude-opus",
+        "effort": "high"
+      },
+      "codex": {
+        "model": "codex-gpt",
+        "effort": "high"
+      },
+      "kiro": {
+        "model": "kiro-opus",
+        "effort": "high"
+      },
+      "agy": {
+        "model": "argon",
+        "effort": "high"
+      },
+      "ollama": {
+        "model": "gemma4:31b-it-qat",
+        "effort": "high",
+        "host": "http://localhost:11434"
+      }
+    }
+  }
 }
