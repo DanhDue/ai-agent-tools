@@ -474,6 +474,10 @@ SUITES = [
     ("23", "pytest",   "tests/test_ohk_web_ui_audit.py", 15, False),
     ("23", "pytest",   "tests/test_ohk_cmr_and_contracts.py", 20, False),
     ("23", "pytest",   "tests/test_ohk_docs_and_acceptance.py", 10, True),
+
+    # 24. Observer Hardening Batch 2 suites
+    ("24", "pytest", "tests/test_ohk2_skill_docs.py", 10, True),
+    ("24", "pytest", "tests/test_check_tasks_standalone_plans.py", 20, False),
 ]
 
 active_suites = [

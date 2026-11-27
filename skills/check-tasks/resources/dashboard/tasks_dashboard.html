@@ -3004,11 +3004,46 @@ Loading evidence data...
       });
     }
 
+    const RECENTLY_COMPLETED_LIMIT = 10;
     const executionTabByRepo = {};
     const executionPanelMinHeightByRepo = {};
     const kanbanExecutionFilterByRepo = {};
     const kanbanPanelMinHeightByRepo = {};
     let epicStateModalContext = null;
+
+    function buildSourceKindBadgeHtml(sourceKind) {
+      const kind = String(sourceKind || 'epic').trim().toLowerCase();
+      let label = 'Epic';
+      let color = '#a855f7';
+      let bg = 'rgba(168, 85, 247, 0.14)';
+      let border = 'rgba(168, 85, 247, 0.35)';
+      if (kind === 'plan') {
+        label = 'Plan';
+        color = '#38bdf8';
+        bg = 'rgba(56, 189, 248, 0.14)';
+        border = 'rgba(56, 189, 248, 0.35)';
+      } else if (kind === 'ledger') {
+        label = 'Ledger';
+        color = '#94a3b8';
+        bg = 'rgba(148, 163, 184, 0.14)';
+        border = 'rgba(148, 163, 184, 0.35)';
+      }
+      const normKind = (kind === 'plan' || kind === 'ledger') ? kind : 'epic';
+      return `<span data-source-kind="${normKind}" style="font-size: 9px; font-weight: 700; color: ${color}; background: ${bg}; border: 1px solid ${border}; padding: 0 5px; border-radius: 3px; line-height: 1.4; flex-shrink: 0; white-space: nowrap;">${label}</span>`;
+    }
+
+    function epicMatchesKanbanTab(repo, slug, tab) {
+      const normTab = (tab === 'pending' || tab === 'cancelled' || tab === 'done') ? tab : 'doing';
+      const ep = (repo?.epics_summary?.epics || []).find(e => slugsMatch(e.slug, slug));
+      const isDone = String(ep?.status || '').trim().toLowerCase() === 'done';
+      if (normTab === 'done') {
+        return isDone;
+      }
+      if (isDone) {
+        return false;
+      }
+      return getEpicExecutionState(repo, slug) === normTab;
+    }
 
     function getEpicExecutionState(repo, slug) {
       const ep = (repo?.epics_summary?.epics || []).find(e => slugsMatch(e.slug, slug));
@@ -3061,12 +3096,12 @@ Loading evidence data...
 
     function setKanbanExecutionFilter(repoName, tab) {
       captureKanbanPanelMinHeight(repoName);
-      const normTab = (tab === 'pending' || tab === 'cancelled') ? tab : 'doing';
+      const normTab = (tab === 'pending' || tab === 'cancelled' || tab === 'done') ? tab : 'doing';
       kanbanExecutionFilterByRepo[repoName] = normTab;
       const repo = (currentReposData || []).find(r => r.name === repoName);
       if (!repo) return;
       const currentFilter = currentKanbanFilter[repoName] || 'all';
-      if (currentFilter !== 'all' && getEpicExecutionState(repo, currentFilter) !== normTab) {
+      if (currentFilter !== 'all' && !epicMatchesKanbanTab(repo, currentFilter, normTab)) {
         currentKanbanFilter[repoName] = 'all';
       }
       const nextEpicFilter = currentKanbanFilter[repoName] || 'all';
@@ -3186,7 +3221,7 @@ Loading evidence data...
         if (kw) {
           const curF = currentKanbanFilter[repoName] || 'all';
           const activeKTab = kanbanExecutionFilterByRepo[repoName] || 'doing';
-          if (curF !== 'all' && getEpicExecutionState(repo, curF) !== activeKTab) {
+          if (curF !== 'all' && !epicMatchesKanbanTab(repo, curF, activeKTab)) {
             currentKanbanFilter[repoName] = 'all';
           }
           const ef = currentKanbanFilter[repoName] || 'all';
@@ -3579,10 +3614,57 @@ Loading evidence data...
     function renderKanbanDashboard(repo, selectedEpicFilter) {
       if (!repo) return '';
       const rawAllTasks = (repo.task_progress && repo.task_progress.tasks) ? repo.task_progress.tasks : [];
+      const rawCompletedTasks = (repo.task_progress && Array.isArray(repo.task_progress.completed_tasks))
+        ? repo.task_progress.completed_tasks
+        : [];
       const activeExecFilter = kanbanExecutionFilterByRepo[repo.name] || 'doing';
+      const isDoneTab = activeExecFilter === 'done';
 
-      // Restrict Kanban tasks to epics matching the selected execution tab (Doing / Pending / Cancelled)
-      const allTasks = rawAllTasks.filter(t => getEpicExecutionState(repo, t.epic || '') === activeExecFilter);
+      let totalDoneCount = 0;
+      let recentDoneEpics = [];
+      let allTasks = [];
+
+      if (isDoneTab) {
+        const allDoneEpics = (repo.epics_summary && Array.isArray(repo.epics_summary.epics) ? repo.epics_summary.epics : [])
+          .filter(e => String(e.status || '').trim().toLowerCase() === 'done')
+          .slice()
+          .sort((a, b) => {
+            const diff = Number(b.mtime || 0) - Number(a.mtime || 0);
+            if (diff !== 0) return diff;
+            return String(a.slug || '').localeCompare(String(b.slug || ''));
+          });
+        totalDoneCount = allDoneEpics.length;
+        recentDoneEpics = allDoneEpics.slice(0, RECENTLY_COMPLETED_LIMIT);
+        const recentDoneSlugs = recentDoneEpics.map(e => e.slug);
+        allTasks = rawCompletedTasks.filter(t => recentDoneSlugs.some(s => slugsMatch(s, t.epic || '')));
+        recentDoneEpics.forEach(ep => {
+          const hasTasks = allTasks.some(t => slugsMatch(t.epic || '', ep.slug));
+          if (!hasTasks) {
+            const kind = ep.source_kind || 'ledger';
+            allTasks.push({
+              id: 'milestone-' + ep.slug,
+              title: ep.milestone_summary || ep.title || ep.slug,
+              status: 'done',
+              priority: 'low',
+              epic: ep.slug,
+              labels: [kind],
+              time: ep.completed_date || ep.last_updated_human || '',
+              source: kind,
+            });
+          }
+        });
+      } else {
+        // Restrict Kanban tasks to epics matching the selected execution tab (Doing / Pending / Cancelled).
+        // Preserve legacy payload behavior when completed_tasks is absent so done epics in rawAllTasks still render.
+        const hasCompletedTasksField = Boolean(
+          repo.task_progress && Array.isArray(repo.task_progress.completed_tasks)
+        );
+        allTasks = rawAllTasks.filter(t => (
+          hasCompletedTasksField
+            ? epicMatchesKanbanTab(repo, t.epic || '', activeExecFilter)
+            : getEpicExecutionState(repo, t.epic || '') === activeExecFilter
+        ));
+      }
 
       // Filter if specific epic selected
       const filteredTasks = (!selectedEpicFilter || selectedEpicFilter === 'all')
@@ -3611,75 +3693,102 @@ Loading evidence data...
 
       // Extract unique epics for filter and calculate per-epic progress
       const epicsSet = new Set();
-      const epicsProgressMap = new Map();
+      let epicsList = [];
 
-      allTasks.forEach(t => {
-        const rawSlug = t.epic || 'unknown';
-        const existingKey = Array.from(epicsProgressMap.keys()).find(k => slugsMatch(k, rawSlug));
-        const epSlug = existingKey || rawSlug;
-        epicsSet.add(epSlug);
-
-        if (!epicsProgressMap.has(epSlug)) {
-          epicsProgressMap.set(epSlug, {
-            slug: epSlug,
-            title: epSlug,
-            total: 0,
-            done: 0,
+      if (isDoneTab) {
+        epicsList = recentDoneEpics.map(ep => {
+          epicsSet.add(ep.slug);
+          const matchingCompletedCount = rawCompletedTasks.filter(t => slugsMatch(t.epic || '', ep.slug)).length;
+          const taskCount = Math.max(Number(ep.task_count || 0), matchingCompletedCount);
+          return {
+            slug: ep.slug,
+            title: ep.title || ep.milestone_summary || ep.slug,
+            source_kind: ep.source_kind || 'epic',
+            completed_date: ep.completed_date || '',
+            milestone_summary: ep.milestone_summary || '',
+            last_updated_human: ep.last_updated_human || '',
+            total: taskCount,
+            done: taskCount,
             in_progress: 0,
             review: 0,
-          });
-        }
-        const epItem = epicsProgressMap.get(epSlug);
-        epItem.total++;
-        const rawStatus = (t.status || 'backlog').toLowerCase().replace('_', '-');
-        const st = (rawStatus === 'inprogress') ? 'in-progress' : rawStatus;
-        if (st === 'done') epItem.done++;
-        else if (st === 'in-progress') epItem.in_progress++;
-        else if (st === 'review') epItem.review++;
-      });
+            status: 'done',
+          };
+        });
+      } else {
+        const epicsProgressMap = new Map();
 
-      // Enrich epic titles and seed active/in-progress/pending/cancelled epics matching activeExecFilter
-      if (repo.epics_summary && Array.isArray(repo.epics_summary.epics)) {
-        repo.epics_summary.epics.forEach(summaryEp => {
-          if (summaryEp.status === 'done') return;
-          if (getEpicExecutionState(repo, summaryEp.slug) !== activeExecFilter) return;
-          const epPt = summaryEp.pipeline_telemetry || (slugsMatch(repo.active_epic, summaryEp.slug) ? repo.pipeline_telemetry : null) || null;
-          const ptTot = Number(epPt?.total_tasks || epPt?.stages?.[2]?.total_tasks || 0);
-          const ptDone = Number(epPt?.done_tasks || epPt?.stages?.[2]?.done_tasks || 0);
-          const matchedKey = Array.from(epicsProgressMap.keys()).find(k => slugsMatch(k, summaryEp.slug));
-          if (matchedKey) {
-            const item = epicsProgressMap.get(matchedKey);
-            if (summaryEp.title && summaryEp.title !== summaryEp.slug) {
-              item.title = summaryEp.title;
-            }
-            item.total = Math.max(item.total, Number(summaryEp.task_count || 0), ptTot);
-          } else if (
-            activeExecFilter !== 'doing' ||
-            summaryEp.status === 'in_progress' ||
-            slugsMatch(repo.active_epic, summaryEp.slug)
-          ) {
-            epicsSet.add(summaryEp.slug);
-            epicsProgressMap.set(summaryEp.slug, {
-              slug: summaryEp.slug,
-              title: summaryEp.title || summaryEp.slug,
-              total: Math.max(Number(summaryEp.task_count || 0), ptTot),
-              done: ptDone,
+        allTasks.forEach(t => {
+          const rawSlug = t.epic || 'unknown';
+          const existingKey = Array.from(epicsProgressMap.keys()).find(k => slugsMatch(k, rawSlug));
+          const epSlug = existingKey || rawSlug;
+          epicsSet.add(epSlug);
+
+          if (!epicsProgressMap.has(epSlug)) {
+            epicsProgressMap.set(epSlug, {
+              slug: epSlug,
+              title: epSlug,
+              source_kind: (t.source === 'plan' || (Array.isArray(t.labels) && t.labels.includes('plan'))) ? 'plan' : 'epic',
+              total: 0,
+              done: 0,
               in_progress: 0,
               review: 0,
             });
           }
+          const epItem = epicsProgressMap.get(epSlug);
+          epItem.total++;
+          const rawStatus = (t.status || 'backlog').toLowerCase().replace('_', '-');
+          const st = (rawStatus === 'inprogress') ? 'in-progress' : rawStatus;
+          if (st === 'done') epItem.done++;
+          else if (st === 'in-progress') epItem.in_progress++;
+          else if (st === 'review') epItem.review++;
+        });
+
+        // Enrich epic titles and seed active/in-progress/pending/cancelled epics matching activeExecFilter
+        if (repo.epics_summary && Array.isArray(repo.epics_summary.epics)) {
+          repo.epics_summary.epics.forEach(summaryEp => {
+            if (!epicMatchesKanbanTab(repo, summaryEp.slug, activeExecFilter)) return;
+            const epPt = summaryEp.pipeline_telemetry || (slugsMatch(repo.active_epic, summaryEp.slug) ? repo.pipeline_telemetry : null) || null;
+            const ptTot = Number(epPt?.total_tasks || epPt?.stages?.[2]?.total_tasks || 0);
+            const ptDone = Number(epPt?.done_tasks || epPt?.stages?.[2]?.done_tasks || 0);
+            const matchedKey = Array.from(epicsProgressMap.keys()).find(k => slugsMatch(k, summaryEp.slug));
+            if (matchedKey) {
+              const item = epicsProgressMap.get(matchedKey);
+              if (summaryEp.title && summaryEp.title !== summaryEp.slug) {
+                item.title = summaryEp.title;
+              }
+              if (summaryEp.source_kind) {
+                item.source_kind = summaryEp.source_kind;
+              }
+              item.total = Math.max(item.total, Number(summaryEp.task_count || 0), ptTot);
+            } else if (
+              activeExecFilter !== 'doing' ||
+              summaryEp.status === 'in_progress' ||
+              slugsMatch(repo.active_epic, summaryEp.slug)
+            ) {
+              epicsSet.add(summaryEp.slug);
+              epicsProgressMap.set(summaryEp.slug, {
+                slug: summaryEp.slug,
+                title: summaryEp.title || summaryEp.slug,
+                source_kind: summaryEp.source_kind || 'epic',
+                total: Math.max(Number(summaryEp.task_count || 0), ptTot),
+                done: ptDone,
+                in_progress: 0,
+                review: 0,
+              });
+            }
+          });
+        }
+
+        epicsList = Array.from(epicsProgressMap.values()).sort((a, b) => {
+          const aPct = a.total > 0 ? (a.done / a.total) : 0;
+          const bPct = b.total > 0 ? (b.done / b.total) : 0;
+          const aActive = a.in_progress + a.review;
+          const bActive = b.in_progress + b.review;
+          if (aActive !== bActive) return bActive - aActive;
+          if (aPct !== bPct) return bPct - aPct;
+          return b.total - a.total;
         });
       }
-
-      const epicsList = Array.from(epicsProgressMap.values()).sort((a, b) => {
-        const aPct = a.total > 0 ? (a.done / a.total) : 0;
-        const bPct = b.total > 0 ? (b.done / b.total) : 0;
-        const aActive = a.in_progress + a.review;
-        const bActive = b.in_progress + b.review;
-        if (aActive !== bActive) return bActive - aActive;
-        if (aPct !== bPct) return bPct - aPct;
-        return b.total - a.total;
-      });
 
       const epicsProgressHtml = epicsList.map(ep => {
         // Find matching summary epic from repo.epics_summary
@@ -3725,6 +3834,12 @@ Loading evidence data...
 
         const synthPt = synthesizePipelineTelemetry(repo, ep.slug, progState.isPrimaryActive, progState, ep.done, ep.total);
         const kanbanStageSummary = stripStageIndexPrefix(synthPt.active_sub_step_summary || summaryEp?.active_stage || (progState.isPrimaryActive ? repo.active_stage : '') || '');
+        const sidebarBadgeHtml = (isDoneTab || ep.source_kind === 'plan' || ep.source_kind === 'ledger')
+          ? buildSourceKindBadgeHtml(ep.source_kind || summaryEp?.source_kind || 'epic')
+          : '';
+        const tasksMetaText = (isDoneTab && ep.total === 0)
+          ? `Milestone${ep.completed_date ? ' · ' + escapeHtml(ep.completed_date) : (ep.last_updated_human ? ' · ' + escapeHtml(ep.last_updated_human) : '')}`
+          : `${ep.done}/${ep.total} Tasks${ep.total > 0 ? ` (${progState.taskPct}%)` : ''}`;
 
         return `
           <div class="epic-progress-item" 
@@ -3733,10 +3848,11 @@ Loading evidence data...
                style="cursor: pointer; padding: 7px 9px; border-radius: 6px; background: ${isSelected ? 'rgba(56, 189, 248, 0.12)' : '#0d111a'}; border: 1px solid ${isSelected ? '#38bdf8' : (epNeedsConfirm ? '#ef4444' : '#1e2638')}; transition: all 0.15s ease; position: relative;">
             
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; gap: 6px;">
-              <span style="display: inline-flex; align-items: center; gap: 6px; max-width: 140px;">
+              <span style="display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 145px;">
                 <span style="font-size: 11px; font-weight: 600; color: ${isSelected ? '#38bdf8' : '#e2e8f0'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(ep.title || ep.slug)}">
                   ${escapeHtml(ep.slug)}
                 </span>
+                ${sidebarBadgeHtml}
                 ${epNeedsConfirm ? `<span class="tab-notification-badge" style="position: static; display: inline-block; width: 8px; height: 8px; flex-shrink: 0;" title="Epic requires user confirmation / approval"></span>` : ''}
               </span>
               <span style="font-size: 10px; font-weight: 700; color: ${pctColor}; font-family: monospace; white-space: nowrap;">
@@ -3750,7 +3866,7 @@ Loading evidence data...
             </div>
 
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; font-size: 9px; color: #64748b; font-family: monospace;">
-              <span>${ep.done}/${ep.total} Tasks${ep.total > 0 ? ` (${progState.taskPct}%)` : ''}</span>
+              <span>${tasksMetaText}</span>
               <span>${statusText}</span>
             </div>
             ${kanbanStageSummary ? `<div data-telemetry="kanban-epic-stage" style="margin-top: 3px; font-size: 9px; color: #94a3b8; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(kanbanStageSummary)}">${escapeHtml(kanbanStageSummary)}</div>` : ''}
@@ -3762,7 +3878,7 @@ Loading evidence data...
       const uniqueEpics = Array.from(epicsSet);
 
       let epicsFilterOptions = uniqueEpics.map(ep => {
-        const count = allTasks.filter(t => t.epic === ep).length;
+        const count = allTasks.filter(t => slugsMatch(t.epic, ep)).length;
         const isSel = (selectedEpicFilter === ep) ? 'selected' : '';
         return `<option value="${escapeHtml(ep)}" ${isSel}>${escapeHtml(ep)} (${count})</option>`;
       }).join('');
@@ -3801,6 +3917,20 @@ Loading evidence data...
               : 'background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);');
 
             const labels = Array.isArray(t.labels) ? t.labels : [];
+            const isPlanCard = t.source === 'plan' || labels.includes('plan');
+            const isLedgerCard = t.source === 'ledger';
+            const epicLinkRowHtml = isLedgerCard
+              ? `<span style="color: #64748b;">Milestone:</span> <span style="color: #94a3b8; cursor: pointer;" onclick="openEpicsModal('${escapeHtml(repo.name)}')">${escapeHtml(t.epic)}</span>`
+              : (isPlanCard
+                ? `<span style="color: #64748b;">Plan:</span> <span style="color: #60a5fa; text-decoration: underline; cursor: pointer;" onclick="openEpicsModal('${escapeHtml(repo.name)}')">${escapeHtml(t.epic)}</span>`
+                : `<span style="color: #64748b;">Epic:</span> <span style="color: #60a5fa; text-decoration: underline; cursor: pointer;" onclick="openEpicsModal('${escapeHtml(repo.name)}')">[${escapeHtml(t.epic)}](${escapeHtml(t.epic)}.en.md)...</span>`);
+            const sourceBadgeHtml = t.source === 'worktree'
+              ? '<span style="color: #38bdf8;">🌲 Worktree</span>'
+              : (t.source === 'plan'
+                ? '<span style="color: #38bdf8;">📄 Plan</span>'
+                : (t.source === 'ledger'
+                  ? '<span style="color: #94a3b8;">📜 Ledger</span>'
+                  : '<span style="color: #94a3b8;">🏛️ Root</span>'));
 
             return `
               <div class="kanban-task-card" style="box-sizing: border-box; flex-shrink: 0; min-width: 0; overflow: hidden; background: #141824; border: 1px solid #222b3e; ${borderStyle} border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px;">
@@ -3812,8 +3942,7 @@ Loading evidence data...
                 </div>
 
                 <div class="kanban-epic-link-row" style="box-sizing: border-box; flex-shrink: 0; font-size: 11px; color: #94a3b8; line-height: 1.3; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                  <span style="color: #64748b;">Epic:</span> 
-                  <span style="color: #60a5fa; text-decoration: underline; cursor: pointer;" onclick="openEpicsModal('${escapeHtml(repo.name)}')">[${escapeHtml(t.epic)}](${escapeHtml(t.epic)}.en.md)...</span>
+                  ${epicLinkRowHtml}
                 </div>
 
                 <div style="flex-shrink: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; overflow: hidden;">
@@ -3828,7 +3957,7 @@ Loading evidence data...
                 </div>
 
                 <div style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748b; margin-top: 2px;">
-                  <span>${t.source === 'worktree' ? '<span style="color: #38bdf8;">🌲 Worktree</span>' : '<span style="color: #94a3b8;">🏛️ Root</span>'}${t.slot ? ` <span style="background: rgba(56,189,248,0.14); color: #7dd3fc; border: 1px solid rgba(56,189,248,0.3); padding: 0 4px; border-radius: 3px; font-weight: 600;">${escapeHtml(String(t.slot))}</span>` : ''}</span>
+                  <span>${sourceBadgeHtml}${t.slot ? ` <span style="background: rgba(56,189,248,0.14); color: #7dd3fc; border: 1px solid rgba(56,189,248,0.3); padding: 0 4px; border-radius: 3px; font-weight: 600;">${escapeHtml(String(t.slot))}</span>` : ''}</span>
                   <span>${t.status === 'done' ? '<span style="color: #34d399;">✓</span> ' : ''}${escapeHtml(t.time || '')}</span>
                 </div>
               </div>
@@ -3853,6 +3982,10 @@ Loading evidence data...
       }
 
       const kanbanMinH = Math.max(680, Number(kanbanPanelMinHeightByRepo[repo.name] || 0));
+      const sidebarHeadingText = isDoneTab ? 'RECENTLY COMPLETED' : 'EPICS PROGRESS';
+      const sidebarCountText = isDoneTab
+        ? `${recentDoneEpics.length}${totalDoneCount > recentDoneEpics.length ? '/' + totalDoneCount : ''}`
+        : String(epicsList.length);
 
       return `
         <div class="kanban-board-shell" style="display: grid; grid-template-columns: 220px minmax(0, 1fr); min-width: 0; min-height: ${kanbanMinH}px; position: relative; overflow: hidden;">
@@ -3903,18 +4036,19 @@ Loading evidence data...
 
             <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid #1e2638;">
               <div style="font-size: 10px; font-weight: 800; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 6px;">EPIC STATUS</div>
-              <div data-kanban-exec-filter-bar="${escapeHtml(repo.name)}" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px;">
+              <div data-kanban-exec-filter-bar="${escapeHtml(repo.name)}" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px;">
                 ${[
                   { key: 'doing', label: 'Doing', accent: '#38bdf8' },
                   { key: 'pending', label: 'Pending', accent: '#f59e0b' },
                   { key: 'cancelled', label: 'Cancelled', accent: '#ef4444' },
+                  { key: 'done', label: 'Done', accent: '#10b981' },
                 ].map(opt => {
                   const isSel = activeExecFilter === opt.key;
                   return `
                     <button type="button"
                             data-kanban-exec-filter="${opt.key}"
                             onclick="setKanbanExecutionFilter('${escapeHtml(repo.name)}', '${opt.key}')"
-                            style="padding: 4px 2px; border-radius: 4px; font-size: 10px; font-weight: 700; cursor: pointer; border: 1px solid ${isSel ? opt.accent : '#1e2638'}; background: ${isSel ? 'rgba(56, 189, 248, 0.14)' : '#0d111a'}; color: ${isSel ? '#f8fafc' : '#94a3b8'}; text-align: center;">
+                            style="padding: 4px 2px; border-radius: 4px; font-size: 10px; font-weight: 700; cursor: pointer; border: 1px solid ${isSel ? opt.accent : '#1e2638'}; background: ${isSel ? (opt.key === 'done' ? 'rgba(16, 185, 129, 0.14)' : 'rgba(56, 189, 248, 0.14)') : '#0d111a'}; color: ${isSel ? '#f8fafc' : '#94a3b8'}; text-align: center;">
                       ${opt.label}
                     </button>
                   `;
@@ -3925,8 +4059,8 @@ Loading evidence data...
             ${epicsList.length > 0 ? `
             <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid #1e2638; display: flex; flex-direction: column; gap: 8px;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 10px; font-weight: 800; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;">EPICS PROGRESS</span>
-                <span style="font-size: 10px; font-weight: 700; color: #94a3b8; font-family: monospace;">${epicsList.length}</span>
+                <span style="font-size: 10px; font-weight: 800; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;">${sidebarHeadingText}</span>
+                <span style="font-size: 10px; font-weight: 700; color: #94a3b8; font-family: monospace;">${sidebarCountText}</span>
               </div>
               <div style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; padding-right: 2px;" class="custom-scroll">
                 ${epicsProgressHtml}
@@ -3977,6 +4111,10 @@ Loading evidence data...
         ep: (repo.epics_summary?.epics || []).map(e => [
           e.slug,
           e.status,
+          e.source_kind || 'epic',
+          e.completed_date || '',
+          Number(e.mtime || 0),
+          e.milestone_summary || '',
           e.execution_state || 'doing',
           e.execution_state_reason || '',
           Number(e.task_count || 0),
@@ -3987,6 +4125,7 @@ Loading evidence data...
           e.pipeline_telemetry || null,
         ]),
         t: (repo.task_progress?.tasks || []).map(t => [t.id, t.status, t.priority, t.epic, t.title]),
+        ct: (repo.task_progress?.completed_tasks || []).map(t => [t.id, t.status, t.epic, t.title]),
       });
     }
 
@@ -4050,6 +4189,7 @@ Loading evidence data...
         e: sorted.map(e => [
           `${repo.name}:${e.slug}`,
           e.status,
+          e.source_kind || 'epic',
           e.task_count,
           e.pic || '',
           Boolean(e.is_action_required),
@@ -4173,7 +4313,7 @@ Loading evidence data...
             <span style="font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
               <span>📦</span> Epics Overview (${counts.total} Epics)
             </span>
-            <span style="font-size: 11px; color: #64748b; font-family: monospace;">.devtool/epic/</span>
+            <span style="font-size: 11px; color: #64748b; font-family: monospace;">.devtool/epic/ · plans/</span>
           </div>
           <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px;">
             
@@ -4299,6 +4439,7 @@ Loading evidence data...
             <td style="padding: 8px 12px; font-family: monospace; font-weight: 600; color: #f1f5f9;">
               <span style="display: inline-flex; align-items: center; gap: 6px;">
                 <span>${escapeHtml(e.slug)}</span>
+                ${(e.source_kind === 'plan' || e.source_kind === 'ledger') ? buildSourceKindBadgeHtml(e.source_kind) : ''}
                 ${isCur ? '<span style="color: #38bdf8; font-size: 9px;">(Active)</span>' : ''}
                 ${epicHasBlocker ? `<span class="tab-notification-badge" style="position: static; display: inline-block; width: 8px; height: 8px; flex-shrink: 0;" title="Epic requires user confirmation / approval"></span>` : ''}
               </span>

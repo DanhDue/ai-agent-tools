@@ -877,6 +877,10 @@ def audit_text_truncation_and_overflow(
                 }
             )
 
+        # Skip prose duplicate-phrase checks on stylesheets (multi-axis CSS shorthands like 14px 14px)
+        if cf.suffix.lower() in STYLESHEET_EXTENSIONS:
+            continue
+
         # Check headings and titles for consecutive duplicate words/phrases
         lines = content.splitlines()
         for idx, line in enumerate(lines, 1):

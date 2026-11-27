@@ -301,6 +301,7 @@ class TaskProgress:
     task_completion_pct: float = 0.0
     active_task_name: str | None = None
     tasks: list[dict[str, Any]] = field(default_factory=list)
+    completed_tasks: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -743,11 +744,24 @@ def _resolve_canonical_epic_slug(repo_path: Path, candidate: str) -> str:
     return clean
 
 
-def _collect_matching_worktrees(
+def _worktree_matches_slug(
+    candidate_path: Path, target_norm: str, branch_name: str | None = None
+) -> bool:
+    """Return True if worktree directory name or epic/feat branch matches `target_norm`."""
+    if _normalize_slug(_strip_slot_suffix(candidate_path.name)) == target_norm:
+        return True
+    if branch_name:
+        m_br = re.match(r"(?:epic|feat)/([a-zA-Z0-9_\-]+)", branch_name)
+        if m_br:
+            return _normalize_slug(_strip_slot_suffix(m_br.group(1))) == target_norm
+    return False
+
+
+def _collect_matching_worktrees_with_branches(
     repo_path: Path, epic_slug: str | None = None
-) -> list[Path]:
-    """Discover unique non-root worktrees matching `epic_slug` (or all worktrees when None)."""
-    results: list[Path] = []
+) -> list[tuple[Path, str | None]]:
+    """Discover unique non-root worktrees (with git branch if known) matching `epic_slug`."""
+    results: list[tuple[Path, str | None]] = []
     seen: set[Path] = set()
     root_resolved = repo_path.resolve()
     target_norm = _normalize_slug(_strip_slot_suffix(epic_slug)) if epic_slug else None
@@ -758,20 +772,12 @@ def _collect_matching_worktrees(
         resolved = candidate_path.resolve()
         if resolved == root_resolved or resolved in seen:
             return
-        if target_norm is not None:
-            dir_norm = _normalize_slug(_strip_slot_suffix(candidate_path.name))
-            branch_match = False
-            if branch_name:
-                m_br = re.match(r"(?:epic|feat)/([a-zA-Z0-9_\-]+)", branch_name)
-                if m_br:
-                    branch_match = (
-                        _normalize_slug(_strip_slot_suffix(m_br.group(1)))
-                        == target_norm
-                    )
-            if dir_norm != target_norm and not branch_match:
-                return
+        if target_norm is not None and not _worktree_matches_slug(
+            candidate_path, target_norm, branch_name
+        ):
+            return
         seen.add(resolved)
-        results.append(candidate_path)
+        results.append((candidate_path, branch_name))
 
     for wt in scan_worktrees(repo_path):
         _maybe_add(Path(wt.path), wt.branch)
@@ -785,6 +791,18 @@ def _collect_matching_worktrees(
                 _maybe_add(d)
 
     return results
+
+
+def _collect_matching_worktrees(
+    repo_path: Path, epic_slug: str | None = None
+) -> list[Path]:
+    """Discover unique non-root worktrees matching `epic_slug` (or all worktrees when None)."""
+    return [
+        wt_path
+        for wt_path, _ in _collect_matching_worktrees_with_branches(
+            repo_path, epic_slug
+        )
+    ]
 
 
 def _collect_devtool_dirs(
@@ -1256,14 +1274,294 @@ def _is_packaged_epic_promoted(
     return bool(has_active_tasks)
 
 
+_RECENTLY_COMPLETED_LIMIT = 10
+_LEDGER_MILESTONE_RE = re.compile(
+    r"^\s*-\s+\*\*\[(\d{4}-\d{2}-\d{2})\]\s+`?([a-zA-Z0-9_\-]+)`?\*\*:\s*(.+?)\s*$"
+)
+_PLAN_DATE_PREFIX_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})-(.+)$")
+_PLAN_TASK_HEADING_RE = re.compile(r"^###\s+Task\s+(\d+)\s*:\s*(.+?)\s*$")
+_SDD_TASK_COMPLETE_RE = re.compile(r"^Task\s+(\d+)\s*:\s*complete\b", re.IGNORECASE)
+_SDD_TASK_FIX_RE = re.compile(r"^Task\s+(\d+)\s*:\s*fix\s+round\b", re.IGNORECASE)
+
+
+def _parse_project_ledger_milestones(repo_path: Path) -> dict[str, dict[str, Any]]:
+    """Parse `.devtool/PROJECT_LEDGER.md` milestone rows into a dict keyed by normalized slug."""
+    ledger_file = repo_path / ".devtool" / "PROJECT_LEDGER.md"
+    if not ledger_file.is_file():
+        return {}
+
+    milestones: dict[str, dict[str, Any]] = {}
+    with contextlib.suppress(OSError, UnicodeDecodeError):
+        for idx, line in enumerate(
+            ledger_file.read_text(encoding="utf-8").splitlines()
+        ):
+            m = _LEDGER_MILESTONE_RE.match(line)
+            if not m:
+                continue
+            date_str, slug, summary = (
+                m.group(1).strip(),
+                m.group(2).strip(),
+                m.group(3).strip(),
+            )
+            try:
+                dt = datetime.strptime(date_str, "%Y-%m-%d").replace(
+                    tzinfo=timezone.utc
+                )
+            except ValueError:
+                continue
+            epoch = dt.timestamp() + idx * 0.001
+            iso_str = dt.isoformat()
+            norm_slug = _normalize_slug(slug)
+            existing = milestones.get(norm_slug)
+            if existing is None or epoch >= float(existing.get("mtime", 0.0)):
+                milestones[norm_slug] = {
+                    "slug": slug,
+                    "completed_date": date_str,
+                    "milestone_summary": summary,
+                    "mtime": epoch,
+                    "last_updated": iso_str,
+                    "last_updated_human": format_relative_time(iso_str),
+                }
+    return milestones
+
+
+def _parse_sdd_progress(
+    repo_path: Path, plan_stem: str, extra_roots: list[Path]
+) -> tuple[bool, dict[int, str]]:
+    """Parse `.superpowers/sdd/<plan_stem>/progress.md` across worktrees and root repo."""
+    candidates: list[tuple[float, Path]] = []
+    seen_paths: set[Path] = set()
+    for root in [*extra_roots, repo_path]:
+        p = root / ".superpowers" / "sdd" / plan_stem / "progress.md"
+        if p.is_file():
+            with contextlib.suppress(OSError):
+                resolved = p.resolve()
+                if resolved not in seen_paths:
+                    mtime = p.stat().st_mtime
+                    seen_paths.add(resolved)
+                    candidates.append((mtime, p))
+    if not candidates:
+        return False, {}
+
+    best = max(candidates, key=lambda item: item[0])[1]
+    statuses: dict[int, str] = {}
+    with contextlib.suppress(OSError, UnicodeDecodeError):
+        for raw_line in best.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip().lstrip("-*").strip()
+            m_done = _SDD_TASK_COMPLETE_RE.match(line)
+            if m_done:
+                statuses[int(m_done.group(1))] = "done"
+                continue
+            m_fix = _SDD_TASK_FIX_RE.match(line)
+            if m_fix:
+                statuses[int(m_fix.group(1))] = "in-progress"
+    return True, statuses
+
+
+def _discover_standalone_plans(repo_path: Path) -> list[dict[str, Any]]:
+    """Discover standalone plans under `docs/superpowers/plans/` across root and worktrees.
+
+    Strictly excludes dotfiles and `*.vi.md` mirrors (Rule 11).
+    """
+    worktree_entries = _collect_matching_worktrees_with_branches(repo_path, None)
+    worktrees = [wt_path for wt_path, _ in worktree_entries]
+    ledger_milestones = _parse_project_ledger_milestones(repo_path)
+
+    root_candidates: dict[str, tuple[Path, bool, float]] = {}
+    wt_candidates: dict[str, tuple[Path, bool, bool, float, Path]] = {}
+
+    def _scan_plans_dir(
+        root: Path, is_worktree: bool, branch_name: str | None = None
+    ) -> None:
+        plans_dir = root / "docs" / "superpowers" / "plans"
+        if not plans_dir.is_dir():
+            return
+        with contextlib.suppress(OSError):
+            for f in sorted(plans_dir.glob("*.md")):
+                if (
+                    not f.is_file()
+                    or f.name.startswith(".")
+                    or f.name.lower().endswith(".vi.md")
+                ):
+                    continue
+                if f.name.lower().endswith(".en.md"):
+                    plan_stem = f.name[:-6]
+                    is_legacy_en = True
+                else:
+                    plan_stem = f.stem
+                    is_legacy_en = False
+                if not plan_stem:
+                    continue
+                try:
+                    f_mtime = f.stat().st_mtime
+                except OSError:
+                    continue
+                if not is_worktree:
+                    prev = root_candidates.get(plan_stem)
+                    if (
+                        prev is None
+                        or (prev[1] and not is_legacy_en)
+                        or (prev[1] == is_legacy_en and f_mtime > prev[2])
+                    ):
+                        root_candidates[plan_stem] = (f, is_legacy_en, f_mtime)
+                else:
+                    m_stem_date = _PLAN_DATE_PREFIX_RE.match(plan_stem)
+                    norm_stem_slug = _normalize_slug(
+                        m_stem_date.group(2) if m_stem_date else plan_stem
+                    )
+                    wt_matches_slug = _worktree_matches_slug(
+                        root, norm_stem_slug, branch_name
+                    )
+                    cand_rank = (not is_legacy_en, wt_matches_slug, f_mtime)
+                    prev_wt = wt_candidates.get(plan_stem)
+                    if prev_wt is None or cand_rank > (
+                        not prev_wt[1],
+                        prev_wt[2],
+                        prev_wt[3],
+                    ):
+                        wt_candidates[plan_stem] = (
+                            f,
+                            is_legacy_en,
+                            wt_matches_slug,
+                            f_mtime,
+                            root,
+                        )
+
+    _scan_plans_dir(repo_path, False)
+    for wt, wt_branch in worktree_entries:
+        _scan_plans_dir(wt, True, wt_branch)
+
+    selected_by_norm_slug: dict[str, dict[str, Any]] = {}
+    all_stems = sorted(set(root_candidates) | set(wt_candidates))
+    for plan_stem in all_stems:
+        m_date = _PLAN_DATE_PREFIX_RE.match(plan_stem)
+        slug = m_date.group(2) if m_date else plan_stem
+        norm_slug = _normalize_slug(slug)
+
+        root_cand = root_candidates.get(plan_stem)
+        wt_cand = wt_candidates.get(plan_stem)
+
+        chosen_file: Path
+        chosen_mtime: float
+        from_worktree: bool
+
+        if root_cand is None and wt_cand is not None:
+            chosen_file, _, _, chosen_mtime, _ = wt_cand
+            from_worktree = True
+        elif wt_cand is None and root_cand is not None:
+            chosen_file, _, chosen_mtime = root_cand
+            from_worktree = False
+        else:
+            assert root_cand is not None and wt_cand is not None
+            r_file, r_legacy, r_mtime = root_cand
+            w_file, w_legacy, w_matches_slug, w_mtime, _ = wt_cand
+            if r_legacy and not w_legacy:
+                chosen_file, chosen_mtime, from_worktree = w_file, w_mtime, True
+            elif not r_legacy and w_legacy:
+                chosen_file, chosen_mtime, from_worktree = r_file, r_mtime, False
+            else:
+                content_differs = False
+                if w_mtime > r_mtime and not w_matches_slug:
+                    with contextlib.suppress(OSError, UnicodeDecodeError):
+                        content_differs = w_file.read_text(
+                            encoding="utf-8"
+                        ) != r_file.read_text(encoding="utf-8")
+                if (w_matches_slug and w_mtime >= r_mtime) or (
+                    w_mtime > r_mtime and content_differs
+                ):
+                    chosen_file, chosen_mtime, from_worktree = w_file, w_mtime, True
+                else:
+                    chosen_file, chosen_mtime, from_worktree = r_file, r_mtime, False
+
+        content = ""
+        with contextlib.suppress(OSError, UnicodeDecodeError):
+            content = chosen_file.read_text(encoding="utf-8")
+
+        title = slug
+        raw_tasks: list[tuple[int, str]] = []
+        found_title = False
+        for line in content.splitlines():
+            stripped = line.strip()
+            if not found_title and stripped.startswith("# "):
+                raw_title = stripped.lstrip("#").strip()
+                if raw_title.endswith(" Implementation Plan"):
+                    raw_title = raw_title[: -len(" Implementation Plan")].strip()
+                if raw_title:
+                    title = raw_title
+                found_title = True
+                continue
+            m_task = _PLAN_TASK_HEADING_RE.match(stripped)
+            if m_task:
+                raw_tasks.append((int(m_task.group(1)), m_task.group(2).strip()))
+
+        has_sdd_progress, sdd_statuses = _parse_sdd_progress(
+            repo_path, plan_stem, worktrees
+        )
+
+        effective_mtime = chosen_mtime
+        for root in [*worktrees, repo_path]:
+            prog_file = root / ".superpowers" / "sdd" / plan_stem / "progress.md"
+            if prog_file.is_file():
+                with contextlib.suppress(OSError):
+                    effective_mtime = max(effective_mtime, prog_file.stat().st_mtime)
+
+        ledger_entry = ledger_milestones.get(norm_slug)
+        if ledger_entry is not None:
+            effective_mtime = float(ledger_entry["mtime"])
+
+        last_updated_iso = datetime.fromtimestamp(
+            effective_mtime, tz=timezone.utc
+        ).isoformat()
+        last_updated_human = format_relative_time(last_updated_iso)
+
+        tasks = [
+            {
+                "num": t_num,
+                "id": f"task_{t_num:02d}",
+                "title": f"Task {t_num}: {t_title}",
+                "status": sdd_statuses.get(t_num, "todo"),
+            }
+            for t_num, t_title in raw_tasks
+        ]
+
+        try:
+            rel_plan_path = str(chosen_file.relative_to(repo_path))
+        except ValueError:
+            rel_plan_path = str(chosen_file)
+
+        plan_record: dict[str, Any] = {
+            "slug": slug,
+            "plan_stem": plan_stem,
+            "title": title,
+            "plan_path": rel_plan_path,
+            "tasks": tasks,
+            "mtime": effective_mtime,
+            "last_updated": last_updated_iso,
+            "last_updated_human": last_updated_human,
+            "has_sdd_progress": has_sdd_progress,
+            "from_worktree": from_worktree,
+        }
+
+        existing = selected_by_norm_slug.get(norm_slug)
+        if existing is None or (effective_mtime, plan_stem) >= (
+            float(existing["mtime"]),
+            str(existing["plan_stem"]),
+        ):
+            selected_by_norm_slug[norm_slug] = plan_record
+
+    return list(selected_by_norm_slug.values())
+
+
 def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
     """Harvest high-level project epics summary and status breakdown from the root repository."""
     epic_dir = repo_path / ".devtool" / "epic"
     completed_slugs = get_completed_epic_slugs(repo_path)
     abandoned_slugs = get_abandoned_epic_slugs(repo_path)
     all_gates = parse_gate_ledger_entries(repo_path)
+    ledger_milestones = _parse_project_ledger_milestones(repo_path)
 
     epics: list[dict[str, Any]] = []
+    seen_norm_slugs: set[str] = set()
     if epic_dir.is_dir():
         for d in sorted(epic_dir.iterdir()):
             if not d.is_dir() or d.name.startswith("."):
@@ -1276,6 +1574,7 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
                 or (repo_path / ".worktrees" / slug.replace("_", "-")).is_dir()
             )
             norm_slug = _normalize_slug(slug)
+            seen_norm_slugs.add(norm_slug)
             has_gate3_or_more = any(
                 _normalize_slug(str(g.get("epic", ""))) == norm_slug
                 and int(g.get("gate", 0)) >= 3
@@ -1368,23 +1667,103 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
                             max_mtime = max(max_mtime, max(wt_mtimes))
                     break
 
+            ledger_entry = ledger_milestones.get(norm_slug)
+            if status == "done" and ledger_entry is not None:
+                max_mtime = float(ledger_entry["mtime"])
+
             last_updated_dt = datetime.fromtimestamp(max_mtime, tz=timezone.utc)
             last_updated_iso = last_updated_dt.isoformat()
             last_updated_human = format_relative_time(last_updated_iso)
 
-            epics.append(
-                {
-                    "slug": slug,
-                    "title": title,
-                    "status": status,
-                    "has_worktree": has_wt,
-                    "task_count": task_count,
-                    "pic": pic,
-                    "mtime": max_mtime,
-                    "last_updated": last_updated_iso,
-                    "last_updated_human": last_updated_human,
-                }
-            )
+            epic_entry: dict[str, Any] = {
+                "slug": slug,
+                "title": title,
+                "status": status,
+                "source_kind": "epic",
+                "has_worktree": has_wt,
+                "task_count": task_count,
+                "pic": pic,
+                "mtime": max_mtime,
+                "last_updated": last_updated_iso,
+                "last_updated_human": last_updated_human,
+            }
+            if ledger_entry is not None:
+                epic_entry["completed_date"] = ledger_entry["completed_date"]
+                epic_entry["milestone_summary"] = ledger_entry["milestone_summary"]
+            epics.append(epic_entry)
+
+    # Standalone plans under docs/superpowers/plans/ (deduplicated against .devtool/epic/)
+    for plan in _discover_standalone_plans(repo_path):
+        slug = str(plan["slug"])
+        norm_slug = _normalize_slug(slug)
+        if norm_slug in seen_norm_slugs:
+            continue
+        seen_norm_slugs.add(norm_slug)
+
+        ledger_entry = ledger_milestones.get(norm_slug)
+        has_wt = bool(plan["from_worktree"]) or bool(
+            _collect_matching_worktrees(repo_path, slug)
+        )
+        has_state_md = (repo_path / ".devtool" / "state" / f"{slug}.md").is_file()
+        has_sdd_progress = bool(plan["has_sdd_progress"])
+
+        if _is_completed_epic(slug, completed_slugs) or ledger_entry is not None:
+            status = "done"
+        elif _is_completed_epic(slug, abandoned_slugs):
+            status = "abandoned"
+        elif has_wt or has_sdd_progress or has_state_md:
+            status = "in_progress"
+        else:
+            status = "unstarted"
+
+        plan_mtime = (
+            float(ledger_entry["mtime"])
+            if (status == "done" and ledger_entry is not None)
+            else float(plan["mtime"])
+        )
+        plan_iso = datetime.fromtimestamp(plan_mtime, tz=timezone.utc).isoformat()
+        plan_human = format_relative_time(plan_iso)
+
+        plan_entry: dict[str, Any] = {
+            "slug": slug,
+            "title": str(plan["title"]),
+            "status": status,
+            "source_kind": "plan",
+            "plan_path": str(plan["plan_path"]),
+            "has_worktree": has_wt,
+            "task_count": len(plan["tasks"]),
+            "pic": extract_epic_pic(repo_path, slug),
+            "mtime": plan_mtime,
+            "last_updated": plan_iso,
+            "last_updated_human": plan_human,
+        }
+        if ledger_entry is not None:
+            plan_entry["completed_date"] = ledger_entry["completed_date"]
+            plan_entry["milestone_summary"] = ledger_entry["milestone_summary"]
+        epics.append(plan_entry)
+
+    # Ledger-only milestones not represented by an epic dir or standalone plan
+    for norm_slug, lm in ledger_milestones.items():
+        if norm_slug in seen_norm_slugs:
+            continue
+        seen_norm_slugs.add(norm_slug)
+        lm_slug = str(lm["slug"])
+        epics.append(
+            {
+                "slug": lm_slug,
+                "title": str(lm["milestone_summary"] or lm_slug),
+                "status": "done",
+                "source_kind": "ledger",
+                "has_worktree": False,
+                "task_count": 0,
+                "pic": extract_epic_pic(repo_path, lm_slug),
+                "completed_date": str(lm["completed_date"]),
+                "milestone_summary": str(lm["milestone_summary"]),
+                "mtime": float(lm["mtime"]),
+                "last_updated": str(lm["last_updated"]),
+                "last_updated_human": str(lm["last_updated_human"]),
+            }
+        )
 
     # Sort epics: 1. In-progress, 2. Backlog, 3. Done, 4. Abandon
     # Secondary: Last updated mtime descending (newest first)
@@ -1753,6 +2132,45 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
                     }
                 )
 
+    # Standalone plan tasks for active (non-completed, non-abandoned) plans
+    epic_dir_norm_slugs: set[str] = set()
+    if epic_dir.is_dir():
+        with contextlib.suppress(OSError):
+            epic_dir_norm_slugs = {
+                _normalize_slug(d.name)
+                for d in epic_dir.iterdir()
+                if d.is_dir() and not d.name.startswith(".")
+            }
+    discovered_plans = _discover_standalone_plans(repo_path)
+    for plan in discovered_plans:
+        plan_slug = str(plan["slug"])
+        norm_plan_slug = _normalize_slug(plan_slug)
+        if (
+            norm_plan_slug in epic_dir_norm_slugs
+            or _is_completed_epic(plan_slug, completed_slugs)
+            or _is_completed_epic(plan_slug, abandoned_slugs)
+        ):
+            continue
+        plan_source = "worktree" if plan["from_worktree"] else "plan"
+        for pt in plan["tasks"]:
+            task_id = str(pt["id"])
+            seen_key = (norm_plan_slug, task_id)
+            if seen_key in seen_tasks:
+                continue
+            seen_tasks.add(seen_key)
+            all_tasks.append(
+                {
+                    "id": task_id,
+                    "title": str(pt["title"]),
+                    "status": str(pt["status"]),
+                    "priority": "medium",
+                    "epic": plan_slug,
+                    "labels": ["plan"],
+                    "time": str(plan["last_updated_human"]),
+                    "source": plan_source,
+                }
+            )
+
     _apply_heartbeat_slot_statuses(repo_path, all_tasks, completed_slugs)
 
     for t in all_tasks:
@@ -1793,6 +2211,81 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
         pct = min(95.0, round((done / total * 100), 1))
         task_completion_pct = round((done / total * 100.0), 1)
 
+    # Collect completed_tasks for top _RECENTLY_COMPLETED_LIMIT newest completed epics/plans
+    overview = harvest_epics_overview(repo_path)
+    completed_entries = [
+        ep
+        for ep in overview.epics
+        if str(ep.get("status") or "").strip().lower() == "done"
+    ]
+    completed_entries.sort(
+        key=lambda ep: (-float(ep.get("mtime", 0.0)), str(ep.get("slug") or ""))
+    )
+    top_completed = completed_entries[:_RECENTLY_COMPLETED_LIMIT]
+    plans_by_norm = {_normalize_slug(str(p["slug"])): p for p in discovered_plans}
+    completed_tasks: list[dict[str, Any]] = []
+    for ep in top_completed:
+        ep_slug = str(ep.get("slug") or "")
+        source_kind = str(ep.get("source_kind") or "epic")
+        comp_time = str(ep.get("completed_date") or ep.get("last_updated_human") or "")
+        if source_kind == "plan":
+            plan = plans_by_norm.get(_normalize_slug(ep_slug))
+            if plan:
+                for pt in plan["tasks"]:
+                    completed_tasks.append(
+                        {
+                            "id": str(pt["id"]),
+                            "title": str(pt["title"]),
+                            "status": "done",
+                            "priority": "medium",
+                            "epic": ep_slug,
+                            "labels": ["plan"],
+                            "time": comp_time,
+                            "source": "plan",
+                        }
+                    )
+        elif source_kind == "epic":
+            ep_dir = epic_dir / ep_slug
+            if ep_dir.is_dir():
+                for tf in sorted(ep_dir.glob("task_*.md"), key=natural_sort_key):
+                    if tf.name.lower().endswith(".vi.md"):
+                        continue
+                    task_id = tf.stem
+                    with contextlib.suppress(OSError, UnicodeDecodeError):
+                        content = tf.read_text(encoding="utf-8")
+                        fm = parse_frontmatter(content)
+                        title = task_id
+                        for line in content.splitlines():
+                            if line.strip().startswith("# "):
+                                title = line.strip().lstrip("# ").strip()
+                                break
+                        labels = fm.get("labels", [])
+                        if isinstance(labels, str):
+                            try:
+                                labels = json.loads(labels)
+                            except Exception:
+                                labels = [labels]
+                        time_val = (
+                            format_relative_time(
+                                fm.get("completedAt")
+                                or fm.get("modified")
+                                or fm.get("created")
+                            )
+                            or comp_time
+                        )
+                        completed_tasks.append(
+                            {
+                                "id": task_id,
+                                "title": title,
+                                "status": "done",
+                                "priority": fm.get("priority", "medium"),
+                                "epic": ep_slug,
+                                "labels": labels,
+                                "time": time_val,
+                                "source": "root",
+                            }
+                        )
+
     return TaskProgress(
         total_tasks=total,
         done_tasks=done,
@@ -1804,6 +2297,7 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
         task_completion_pct=task_completion_pct,
         active_task_name=active_task,
         tasks=all_tasks,
+        completed_tasks=completed_tasks,
     )
 
 
