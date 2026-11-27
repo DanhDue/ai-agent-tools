@@ -1,13 +1,13 @@
 ---
 id: "task_05_docs_skills_verify_registry_and_acceptance"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "unified_review_config"
 dueDate: null
 created: "2026-11-28T03:12:00+07:00"
-modified: "2026-11-28T03:12:00+07:00"
-completedAt: null
+modified: "2026-11-27T21:42:01Z"
+completedAt: "2026-11-27T21:42:01Z"
 labels: ["architecture", "docs", "verification", "dev-config"]
 order: "a05"
 review_tier: "full"
@@ -119,11 +119,11 @@ And zero ".tmp" files remain in either directory
 
 ## Definition of Done
 
-- [ ] `skills/dev-config/SKILL.md`, `skills/principal-review/SKILL.md`, `skills/cross-model-review/SKILL.md`, `skills/dev-lifecycle/SKILL.md`, `rules/CRITICAL_RULES.md` (`<= 1000` words), and `docs/dev-config-quick-guide.en.md` document `/dev-config limits`, `/dev-config review`, 5-tier precedence, and runtime state isolation cleanly (V2, V3, V4)
-- [ ] All five `tests/test_urc_*.py` suites are registered in `scripts/verify.sh` under section 26 (V2, V5)
-- [ ] All 3 assigned scenarios (`URC-HP-06`, `URC-EC-05`, `URC-FR-04`) pass in `tests/test_urc_end_to_end_acceptance.py` and the combined JUnit XML `build/test-results/unified-review-config.xml` contains all 22 `URC-*` scenarios passing (V2, V5)
-- [ ] `tests/test_tto_docs_and_slimming.py` and all URC suites pass without regressions (V3)
-- [ ] `ruff check`, `ruff format --check`, `mypy`, and `check_document.py --require-toc` pass across all Allowed files (V4)
+- [x] `skills/dev-config/SKILL.md`, `skills/principal-review/SKILL.md`, `skills/cross-model-review/SKILL.md`, `skills/dev-lifecycle/SKILL.md`, `rules/CRITICAL_RULES.md` (`<= 1000` words), and `docs/dev-config-quick-guide.en.md` document `/dev-config limits`, `/dev-config review`, 5-tier precedence, and runtime state isolation cleanly (V2, V3, V4) — exit 0; CRITICAL_RULES.md 986 words / 8158 bytes, dev-lifecycle 2492 words
+- [x] All five `tests/test_urc_*.py` suites are registered in `scripts/verify.sh` under section 26 (V2, V5) — exit 0; 5 URC suites registered under §26
+- [x] All 3 assigned scenarios (`URC-HP-06`, `URC-EC-05`, `URC-FR-04`) pass in `tests/test_urc_end_to_end_acceptance.py` and the combined JUnit XML `build/test-results/unified-review-config.xml` contains all 22 `URC-*` scenarios passing (V2, V5) — exit 0; 22/22 URC scenarios PASS
+- [x] `tests/test_tto_docs_and_slimming.py` and all URC suites pass without regressions (V3) — exit 0; regression suites passed
+- [x] `ruff check`, `ruff format --check`, `mypy`, and `check_document.py --require-toc` pass across all Allowed files (V4) — exit 0; lint, format, type, and ToC checks passed
 
 ## Dependencies & Blockers
 

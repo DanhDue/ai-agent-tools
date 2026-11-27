@@ -1,11 +1,11 @@
 ---
 name: dev-config
-description: Configures layered AI persona model bindings, presets, model catalogue aliases, turn budgets, profile-scoped low-quota mode, the pre-dispatch quota gate, the global agy profile pool, and pooled dispatch via dev_config.py. Use when inspecting or switching persona models, toggling low-quota mode, managing agy profile pools, dispatching pooled tasks, or checking provider quota before lifecycle waves.
+description: Configures layered AI persona model bindings, presets, model catalogue aliases, turn budgets, pass limits, external review settings, profile-scoped low-quota mode, the pre-dispatch quota gate, the global agy profile pool, and pooled dispatch via dev_config.py. Use when inspecting or switching persona models, configuring pass limits or external review priority/providers/thresholds, toggling low-quota mode, managing agy profile pools, dispatching pooled tasks, or checking provider quota before lifecycle waves.
 ---
 
 # dev-config
 
-Manages the four-persona model configuration across kit defaults (`scripts/personas.default.json`), global user settings (`$REAL_HOME/.d3nexus/personas.json`), project overrides (`.agents/config/personas.json`), global `agy` profile pool settings (`$REAL_HOME/.d3nexus/agy_profiles.json` and `agy_profile_leases.json`), and one-off CLI flags. See the human quick-guide at [dev-config-quick-guide.en.md](../../docs/dev-config-quick-guide.en.md).
+Manages four-persona bindings, independent pass limits, and external review settings across five precedence tiers (`scripts/personas.default.json` -> read-only `.devtool/review_config.json` legacy fallback -> `$REAL_HOME/.d3nexus/personas.json` -> `.agents/config/personas.json` -> CLI flags), plus the global `agy` profile pool (`$REAL_HOME/.d3nexus/agy_profiles.json` and `agy_profile_leases.json`) and isolated review runtime state (`.devtool/state/review_runtime.json`). See the human quick-guide at [dev-config-quick-guide.en.md](../../docs/dev-config-quick-guide.en.md).
 
 ## Invocation Mapping
 
@@ -17,10 +17,10 @@ python3 scripts/dev_config.py <args>
 
 | Subcommand | Purpose |
 |---|---|
-| `status [--json]` | Print active preset, persona bindings with source layers, turn budget, low-quota expiry, missing-CLI alerts, and legacy-setting warnings |
+| `status [--json]` | Print active preset, persona bindings with source layers, turn budget, pass limits (`review_limits` and `task_review_limits`), external review config (`review`), low-quota expiry, missing-CLI alerts, and legacy-setting warnings |
 | `models [--persona P] [--json]` (alias `--models`) | List the merged model catalogue, allowed efforts, resolved IDs, `PATH` availability, and current persona users |
 | `models add ALIAS --cli CLI --id ID [--efforts E1,E2\|none] [--quota-pool POOL] [--scope global\|project]` | Add or replace a catalogue alias without editing JSON (`cli` in `agy`, `claude`, `codex`, `kiro`; `--efforts` defaults to `none` for fixed-effort models; optional `quota_pool` in `argonWeekly`, `gemini5h`, `provider`) |
-| `models remove ALIAS [--scope global\|project]` | Remove an alias from that layer (refused while any merged binding or fallback references it) |
+| `models remove ALIAS [--scope global\|project]` | Remove an alias from that layer (refused while any merged persona binding, fallback, or `review.providers.*` entry references it) |
 | `preset NAME [--scope global\|project]` | Set `active_preset` (`default`, `gemini-saver`, `claude-hybrid`, `all-hydrogen`, `codex-kiro`, `all-claude`, `all-codex`); warns when project settings mask a global change |
 | `--provider agy\|claude\|codex [--scope global\|project]` | One-command quick-setup that sets `active_preset` to the provider's mapped preset and prints the resulting bindings; warns per persona if an override or higher layer masks it |
 | `set PERSONA MODEL [EFFORT] [--fallback MODEL] [--scope global\|project]` | Override `ai_architect_reviewer`, `orchestrator`, or `programmer` (positional form; `EFFORT` may be omitted for fixed-effort models with `efforts: ["none"]`) |
@@ -28,7 +28,15 @@ python3 scripts/dev_config.py <args>
 | `reset [PERSONA] [--scope global\|project]` | Clear one or all persona overrides in the target layer |
 | `low-quota on\|off [--for HOURS] [--profile NAME]` (alias `--low-quota`) | Toggle profile-scoped low-quota mode in the global layer (default 5 hours; halves the turn budget) |
 | `checkpoint --turns N [--scope global\|project]` | Set `checkpoint_policy.max_orchestrator_turns_before_checkpoint` (default `8`) |
-| `quota-check [--personas P1,P2] [--json]` | Evaluate each persona's consumed quota pool against `quota_thresholds` (both 5-hour and weekly Gemini windows for `agy`, and dry-run pool check when a pool is configured); exits `0` when sufficient or `quota_unknown`, `2` when insufficient |
+| `limits [--json]` | Display resolved pass limits (`max_task_review_passes`, `max_fix_passes`, `max_principal_review_passes`, `max_cross_model_review_passes`) and source layers |
+| `limits [--task-review N] [--fix N] [--principal-review N] [--cross-model-review N] [--scope global\|project]` | Independently update one or more pass limits in the target layer (warns on `stderr` if project overrides mask a global write) |
+| `limits reset [task\|fix\|principal\|cross-model\|all] [--scope global\|project]` | Clear one or all pass limit overrides in the target layer |
+| `review status [--json]` (or `review`) | Show resolved external review `provider_priority`, provider model/effort/host bindings, `quota_thresholds`, runtime `last_used_provider`, and legacy warnings |
+| `review priority PROVIDER_LIST [--scope global\|project]` | Set shared `review.provider_priority` across `/principal-review` and `/cross-model-review` (comma- or space-separated subset of `claude`, `codex`, `kiro`, `agy`) |
+| `review set PROVIDER --model M [--effort E] [--host URL] [--scope global\|project]` | Configure an external review provider (`claude`, `codex`, `kiro`, `agy`, `ollama`); `--model` accepts a catalogue alias (validated & `{effort}`-expanded) or raw model ID; `--host` applies only to `ollama` |
+| `review thresholds [--5h F] [--7d F] [--kiro-frac F] [--kiro-credits N] [--argon F] [--scope global\|project]` | Update `review.quota_thresholds` used by external review selection, `quota-check`, and `agy` pooled dispatch |
+| `review reset [priority\|providers\|PROVIDER\|thresholds\|all] [--scope global\|project]` | Clear targeted external review overrides in the target layer and prune empty `review` objects |
+| `quota-check [--personas P1,P2] [--json]` | Evaluate each persona's consumed quota pool against resolved `review.quota_thresholds` (both 5-hour and weekly Gemini windows for `agy`, and dry-run pool check when a pool is configured); exits `0` when sufficient or `quota_unknown`, `2` when insufficient |
 | `resolve PERSONA [--format json\|argv] [--mode read-only\|write]` | Print the resolved binding JSON or headless dispatch argv |
 | `profiles list [--json]` | Show configured `agy` pool profiles, live leases, exhaustion resets, and cached quota |
 | `profiles add NAME [--priority N] [--max-concurrent N] [--allow-concurrent-ag-run]` | Add an existing non-symlink `$REAL_HOME/antigravity_homes/NAME` directory to the pool |
@@ -40,7 +48,7 @@ python3 scripts/dev_config.py <args>
 | `profiles discover [--json]` | List the Antigravity profiles you could add to the pool (read-only; fetches no quota and writes nothing) |
 | `dispatch --persona P [--mode write\|read-only] --prompt-file F --cwd D --log L [--epic E] [--task T] [--slot N] [--role orchestrator\|runner] [--wait SECONDS]` | Dispatch a persona task through the `agy` profile pool (or directly for `claude`/`codex`/`kiro`) and print JSON `DispatchResult` |
 
-Default `--scope` is `global` for `preset`, `--provider`, `set`, `reset`, `models add`, `models remove`, and `checkpoint`. Exit codes are `0` (success / sufficient or unknown quota), `1` (validation, usage, `task_failure`, `model_unavailable`, or `preflight_failed`), and `2` (insufficient quota, `no_profile`, or `quota_midrun`).
+Default `--scope` is `global` for `preset`, `--provider`, `set`, `reset`, `models add`, `models remove`, `checkpoint`, mutating `limits`, and mutating `review` subcommands. Exit codes are `0` (success / sufficient or unknown quota), `1` (validation, usage, `task_failure`, `model_unavailable`, or `preflight_failed`), and `2` (insufficient quota, `no_profile`, or `quota_midrun`).
 
 ## Interactive `--models` Flow
 
@@ -104,3 +112,10 @@ python3 scripts/dev_config.py set programmer codex-gpt xhigh        # positional
 - **Launch Safety**: Non-host profiles run via `zsh -ic 'ag_run "$0" cli "$@"'` only after preflight verifies `_ag_link_ok`, `_ag_rel_link`, and `ag_run` are defined; `HOME`, `AGY_PROFILE`, and `TMPDIR` are never exported in the calling process.
 - **Quota Windows & Rotation**: Both Gemini 5-hour (`>= 5h_min_fraction`) and weekly (`> 7d_min_fraction`) windows are checked. On a pre-work quota error (`HEAD` and `git status --porcelain` unchanged, ignoring `.vscode/settings.json`), `dispatch` rotates to the next pool profile; mid-work quota errors return `quota_midrun` (exit `2`) without retrying.
 - **Exhaustion Recovery**: When every profile is exhausted, `dispatch` returns `no_profile` (exit `2`) with an actionable report listing reset times, `/d3nexus:dev-config profiles clear`, and explicit `/d3nexus:dev-config set programmer ...` commands without ever switching models automatically.
+
+## External Review Settings and Pass Limits
+
+- **5-Tier Precedence (per key)**: `CLI flags > project (.agents/config/personas.json) > global ($REAL_HOME/.d3nexus/personas.json) > legacy (.devtool/review_config.json, read-only fallback) > kit defaults (scripts/personas.default.json)`.
+- **Four Independent Pass Limits (`limits`)**: `max_task_review_passes` (default `2`, `>= 1`), `max_fix_passes` (default `1`, `>= 0` so `0` disables fix passes), `max_principal_review_passes` (default `3`, `>= 1`), and `max_cross_model_review_passes` (default `3`, `>= 1`).
+- **Shared Priority & Provider Models (`review`)**: `review.provider_priority` (default `["claude", "codex", "kiro", "agy"]`) is shared by `/principal-review` and `/cross-model-review`. Each `review.providers.<cli>.model` resolves catalogue aliases (enforcing CLI ownership, expanding `{effort}`, and defaulting fixed-effort aliases such as `orchestrator-argon` to `effort: "none"`) or passes raw model IDs and Ollama tags through verbatim (`--host` applies only to `ollama`).
+- **Runtime Isolation & Masking Warnings**: Writing to `--scope global` warns on `stderr` when `.agents/config/personas.json` masks the same limit or review key. Runtime `last_used_provider` state is written atomically to `.devtool/state/review_runtime.json`; `.devtool/review_config.json` is never auto-seeded or overwritten.
