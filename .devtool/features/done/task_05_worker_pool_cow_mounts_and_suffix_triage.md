@@ -1,13 +1,13 @@
 ---
 id: "task_05_worker_pool_cow_mounts_and_suffix_triage"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "polyglot_lifecycle_and_quality_architecture"
 dueDate: null
 created: "2026-11-27T09:18:00+07:00"
-modified: "2026-11-27T09:18:00+07:00"
-completedAt: null
+modified: "2026-11-27T03:44:02Z"
+completedAt: "2026-11-27T03:44:02Z"
 labels: ["dev-implementation", "worker-pool", "polyglot", "triage"]
 order: "a05"
 review_tier: "full"
@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 05: Wire Worker Pool `apfs_cow_tree` Mounts and Suffix-Scoped `triage-fix` into `manage_worker_pool.py`
 
-Epic: [polyglot_lifecycle_and_quality_architecture](../epic/polyglot_lifecycle_and_quality_architecture/polyglot_lifecycle_and_quality_architecture.md)
+Epic: [polyglot_lifecycle_and_quality_architecture](../../epic/polyglot_lifecycle_and_quality_architecture/polyglot_lifecycle_and_quality_architecture.md)
 
 ## Requirement Analysis
 
@@ -122,19 +122,19 @@ And slot 1 contains complete, readable, non-symlink copies of .dart_tool and sec
 
 ## Definition of Done
 
-- [ ] `manage_worker_pool.py` uses `PoolWorkspaceStrategy` (`symlink` vs `apfs_cow_tree` with Linux/non-APFS fallback) and never symlinks `.dart_tool` (V2, V5)
-- [ ] All symlink and `cow_copy` mounts survive `sync_slot` (`git clean -fd`) and are never committed by `finalize_slot` (V2, V5)
-- [ ] `triage_fix_slot` and `_is_test_file` delegate to suffix-scoped `TriageSurfaceRegistry` with manifest override support and zero cross-stack false positives (V2, V3, V5)
-- [ ] Existing `test_manage_worker_pool.py`, `test_trc_worker_pool_triage.py`, and `test_ohk_worktree_and_pool.py` pass without regressions (V3)
-- [ ] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4)
-- [ ] Fresh JUnit XML report written to `build/test-results/task_05.xml` containing all 5 assigned scenario IDs (V5)
+- [x] `manage_worker_pool.py` uses `PoolWorkspaceStrategy` (`symlink` vs `apfs_cow_tree` with Linux/non-APFS fallback) and never symlinks `.dart_tool` (V2, V5) — PASS: PLQ-HP-05, PLQ-FR-05
+- [x] All symlink and `cow_copy` mounts survive `sync_slot` (`git clean -fd`) and are never committed by `finalize_slot` (V2, V5) — PASS: PLQ-ST-03, PLQ-ST-04
+- [x] `triage_fix_slot` and `_is_test_file` delegate to suffix-scoped `TriageSurfaceRegistry` with manifest override support and zero cross-stack false positives (V2, V3, V5) — PASS: PLQ-AR-04 and suffix isolation tests
+- [x] Existing `test_manage_worker_pool.py`, `test_trc_worker_pool_triage.py`, and `test_ohk_worktree_and_pool.py` pass without regressions (V3) — PASS exit 0
+- [x] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4) — PASS exit 0
+- [x] Fresh JUnit XML report written to `build/test-results/task_05.xml` containing all 5 assigned scenario IDs (V5) — PASS: 5/5 covered
 
 ## Dependencies & Blockers
 
-- Blocked by [Task 01](../epic/polyglot_lifecycle_and_quality_architecture/task_01_stack_lifecycle_registry.md) (consumes `_stack_lifecycle_registry.py`).
+- Blocked by [Task 01](../../epic/polyglot_lifecycle_and_quality_architecture/task_01_stack_lifecycle_registry.md) (consumes `_stack_lifecycle_registry.py`).
 - Wave 2 — runs in parallel with Task 04.
 
 ## References & Rollback
 
-- Reference HLD: [polyglot_lifecycle_and_quality_architecture.md](../epic/polyglot_lifecycle_and_quality_architecture/polyglot_lifecycle_and_quality_architecture.md)
+- Reference HLD: [polyglot_lifecycle_and_quality_architecture.md](../../epic/polyglot_lifecycle_and_quality_architecture/polyglot_lifecycle_and_quality_architecture.md)
 - Rollback: Revert edits to `manage_worker_pool.py` and `test_manage_worker_pool.py`; delete `tests/test_plq_worker_pool_polyglot.py`.

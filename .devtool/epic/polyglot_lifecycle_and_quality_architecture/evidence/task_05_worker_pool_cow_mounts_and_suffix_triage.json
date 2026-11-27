@@ -1,0 +1,174 @@
+{
+  "schema": 1,
+  "task": "task_05_worker_pool_cow_mounts_and_suffix_triage",
+  "runs": {
+    "red": {
+      "head": "d4dda4ffdd2a392218bbd73eea32f3ad21130a07",
+      "tree": "c53317659e4debbea8803f7b5c591b4015401478",
+      "patch_id": "2c7431f235827a478a9478b77031f1d6fbf6c0a7",
+      "started": "2026-11-27T03:32:58Z",
+      "finished": "2026-11-27T03:32:58Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_plq_worker_pool_polyglot.py::test_plq_hp_05_worker_pool_symlink_and_cow_mounts",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T03:32:58Z",
+          "finished": "2026-11-27T03:32:58Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "______________ test_plq_hp_05_worker_pool_symlink_and_cow_mounts _______________",
+            "tests/test_plq_worker_pool_polyglot.py:265: in test_plq_hp_05_worker_pool_symlink_and_cow_mounts",
+            "    assert \".dart_tool\" not in manage_worker_pool.CACHE_DIR_CANDIDATES",
+            "E   AssertionError: assert '.dart_tool' not in ['node_modules', '.venv', '.gradle', 'target', '.dart_tool', 'Pods', ...]",
+            "E    +  where ['node_modules', '.venv', '.gradle', 'target', '.dart_tool', 'Pods', ...] = manage_worker_pool.CACHE_DIR_CANDIDATES",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_plq_worker_pool_polyglot.py::test_plq_hp_05_worker_pool_symlink_and_cow_mounts",
+            "1 failed in 0.07s"
+          ],
+          "output_sha256": "91f066d3f62c6d04721c1b570ab7c6b5f2f998d60bcb568e0729dfc15acbd9c1"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "d4dda4ffdd2a392218bbd73eea32f3ad21130a07",
+      "tree": "9c7c58f9d690b08e0051b4d97397f459e1a7a144",
+      "patch_id": "ddf682d4829083c5d31161f2d8c9e0212f6f6c49",
+      "started": "2026-11-27T03:36:06Z",
+      "finished": "2026-11-27T03:39:02Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_plq_worker_pool_polyglot.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T03:36:06Z",
+          "finished": "2026-11-27T03:36:43Z",
+          "output_tail": [
+            "........                                                                 [100%]",
+            "8 passed in 36.44s"
+          ],
+          "output_sha256": "ca093b660939639657ec1afa40629da9f185d3e03e5b433fa5e5877c19736046"
+        },
+        {
+          "id": "V3",
+          "phase": "REGRESSION",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 skills/dev-implementation/resources/scripts/test_manage_worker_pool.py tests/test_trc_worker_pool_triage.py tests/test_ohk_worktree_and_pool.py tests/test_trc_runner_and_acceptance.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T03:36:43Z",
+          "finished": "2026-11-27T03:38:43Z",
+          "output_tail": [
+            "........................................                                 [100%]",
+            "40 passed in 119.59s (0:01:59)"
+          ],
+          "output_sha256": "8b7f988bf6760a13bc9fcfd73a5ebf7bd2b58a44815b6bb0598a303079cb61d9"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/manage_worker_pool.py skills/dev-implementation/resources/scripts/test_manage_worker_pool.py tests/test_plq_worker_pool_polyglot.py && ruff format --check skills/dev-implementation/resources/scripts/manage_worker_pool.py skills/dev-implementation/resources/scripts/test_manage_worker_pool.py tests/test_plq_worker_pool_polyglot.py && mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/manage_worker_pool.py skills/dev-implementation/resources/scripts/test_manage_worker_pool.py tests/test_plq_worker_pool_polyglot.py --ignore-missing-imports --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T03:38:43Z",
+          "finished": "2026-11-27T03:38:43Z",
+          "output_tail": [
+            "All checks passed!",
+            "3 files already formatted",
+            "Success: no issues found in 10 source files"
+          ],
+          "output_sha256": "a055c79c32ba9317c4a57778b5d466ef576d88ec355e7f0818236e93805cb535"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_plq_worker_pool_polyglot.py --junitxml=build/test-results/task_05.xml",
+          "expect": "exit 0; results build/test-results/task_05.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T03:38:43Z",
+          "finished": "2026-11-27T03:39:02Z",
+          "output_tail": [
+            "........                                                                 [100%]",
+            "8 passed in 18.00s"
+          ],
+          "output_sha256": "57bc8da6b5c7deda93db2e0c57507cd1406f2fe15e653daac4416fed539f843b",
+          "results": {
+            "path": "build/test-results/task_05.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 6,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_plq_hp_05_worker_pool_symlink_and_cow_mounts",
+                  "classname": "tests.test_plq_worker_pool_polyglot",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_hp_05_worker_pool_symlink_and_cow_mounts",
+                  "classname": "tests.test_plq_worker_pool_polyglot.TestPlqWorkerPoolPolyglot_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_st_03_repeated_sync_slot_preserves_cow_mounts",
+                  "classname": "tests.test_plq_worker_pool_polyglot.TestPlqWorkerPoolPolyglot_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_st_04_finalize_slot_unstages_ignored_mounts_and_commits_tracked_xcconfig",
+                  "classname": "tests.test_plq_worker_pool_polyglot.TestPlqWorkerPoolPolyglot_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_ar_04_polyglot_is_test_file_and_assertion_weakening",
+                  "classname": "tests.test_plq_worker_pool_polyglot.TestPlqWorkerPoolPolyglot_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_fr_05_apfs_cow_failure_falls_back_to_shutil_copy",
+                  "classname": "tests.test_plq_worker_pool_polyglot.TestPlqWorkerPoolPolyglot_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/manage_worker_pool.py",
+            "skills/dev-implementation/resources/scripts/test_manage_worker_pool.py",
+            "tests/test_plq_worker_pool_polyglot.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}
