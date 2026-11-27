@@ -70,11 +70,12 @@ Given a repository with flutter-quality.json and a task whose Allowed files incl
 When the TIER-B dart format row only names "lib/existing.dart" and omits "lib/new_widget.dart"
 Then TierBContractAdapter reports a missing format coverage problem naming "lib/new_widget.dart"
 
-Scenario: [PLQ-AR-01] [Tier C - Integration] Suffix-scoped TriageSurfaceRegistry never cross-fires patterns across languages
-Given a Dart file containing the text "unsafe fn" and "tokio::spawn", a Rust file containing "MethodChannel" and "DriftDatabase", and a Kotlin file containing "XCTSkip" and "Codable"
+Scenario: [PLQ-AR-01] [Tier C - Integration] Suffix-scoped TriageSurfaceRegistry isolates stack rules while preserving language-neutral baselines
+Given a Dart file containing "unsafe fn" and "tokio::spawn", a Rust file containing "MethodChannel" and "DriftDatabase", a Kotlin file containing "XCTSkip", "Codable", and "private fun helper()", a ".sql" migration containing "ALTER TABLE users ADD COLUMN role TEXT;", and a Dart file declaring "class AuthService {"
 When TriageSurfaceRegistry evaluates each added line by its file suffix
-Then zero surface triggers fire on those cross-language strings
-And matching native-stack edits (Dart MethodChannel, Rust unsafe/sqlx::query, TS fetch(/Worker(, Kotlin RoomDatabase/@Ignore, Swift actor/XCTSkip, Python FastAPI/pytest.mark.skip) each fire their exact corresponding trigger code
+Then zero surface triggers fire on the cross-language strings or Kotlin "private fun helper()"
+And the ".sql" "ALTER TABLE" line fires "DB_OR_PERSISTENCE_CHANGED" and the Dart "class AuthService {" line fires "PUBLIC_SIGNATURE_CHANGED"
+And matching native-stack edits (Dart MethodChannel, Rust unsafe/sqlx::query, TS fetch(/Worker(, Kotlin public fun/RoomDatabase/@Ignore, Swift actor/XCTSkip, Python FastAPI/pytest.mark.skip) each fire their exact corresponding trigger code
 
 Scenario: [PLQ-FR-01] [Tier C - Integration] Path traversal in pool_mounts or malformed regex in triage_surfaces is rejected safely
 Given a check_quality.json containing pool_mounts path "../outside_secret" and a flutter-quality.json containing triage_surfaces signature pattern "[unclosed-regex"
@@ -103,7 +104,8 @@ And TriageSurfaceRegistry skips or surfaces a clear validation error for "[unclo
 
 ## Decisions Already Made
 
-- **New contract (`_stack_lifecycle_registry.py`)**:
+- **New contract (`_stack_lifecycle_registry.py`, Python 3 stdlib only, zero imports from `check_task_contract.py` or `manage_worker_pool.py` to avoid circular imports)**:
+  - Owns a private stdlib `_split_sequential_subcommands(command: str) -> list[list[str]]` helper splitting unconditional `&&` and `;` outside quotes while excluding conditional `||` and `|` tails.
   - 6 built-in stack ids & extensions:
     - `python`: `(".py",)`
     - `flutter`: `(".dart",)`
@@ -111,16 +113,23 @@ And TriageSurfaceRegistry skips or surfaces a clear validation error for "[unclo
     - `web`: `(".ts", ".tsx", ".js", ".mjs", ".astro")`
     - `android`: `(".kt", ".kts")`
     - `ios`: `(".swift",)`
-  - `TriageSurfaceRegistry` suffix regexes (from approved Gate 1 spec):
-    - `.dart`: signature `MethodChannel|EventChannel|@HostApi|@FlutterApi|ffi\.`, api_wire `@RestApi|@GET|@POST|fromJson`, persistence `DriftDatabase|outbox_entries`, concurrency `Isolate\.|Completer<`, test_weakening `skip:\s*(?:true|['"])`.
-    - `.rs`: signature `pub\s+(?:async\s+)?(?:fn|struct|enum|trait)`, api_wire `unsafe\b|extern\s+"C"`, persistence `sqlx::query|SELECT|INSERT\s+INTO`, concurrency `tokio::spawn|Mutex|RwLock`, test_weakening `#\[ignore\b`.
-    - `.ts/.tsx/.js/.mjs/.astro`: signature `export\s+(?:async\s+)?(?:function|class|interface|type)`, api_wire `fetch\(|WebSocket|EventSource`, persistence `indexedDB|localStorage`, concurrency `Worker\(|SharedArrayBuffer`, test_weakening `\.(?:skip|fixme)\(`.
-    - `.kt/.kts`: signature `(?:suspend\s+)?fun\s+|interface\s+`, api_wire `@(?:GET|POST|PUT|DELETE|Entity|Dao)\b|MethodChannel`, persistence `RoomDatabase|SQLiteDatabase`, concurrency `Mutex|CoroutineScope|Dispatchers\.`, test_weakening `@(?:Ignore|Disabled)\b`.
-    - `.swift`: signature `public\s+(?:func|struct|class|protocol|enum|actor)`, api_wire `Codable|URLSession|FlutterMethodChannel`, persistence `@Model|NSManagedObject|sqlite3`, concurrency `\bactor\s+|Task\.detached|NSLock`, test_weakening `XCTSkip|@Test\([^)]*\.disabled`.
-    - `.py`: preserves exact existing `_PUBLIC_SIGNATURE_RES`, `_API_SURFACE_RES`, `_DB_SURFACE_RES`, `_CONCURRENCY_RES`, `_TEST_SKIP_RE` from `manage_worker_pool.py` (`L79-L108`).
+  - `TierBContractAdapter` public API:
+    - `has_provider_manifests(repo_root: Path) -> bool`
+    - `resolve_active_stacks(repo_root: Path, allowed_paths: Sequence[str]) -> list[StackDescriptor]`
+    - `validate_tier_b(repo_root: Path, stem: str, allowed_entries: Sequence[Any], rows: Sequence[Any], *, allow_historical_prefix: bool = False) -> list[tuple[str, str]]` — returns `(where, message)` tuples directly consumable by `Checker.problem(where, text)` for non-Python active stacks plus custom manifests declaring `"extensions"`, leaving Python validation inside `check_task_contract.py::check_python_tier_b`.
+  - `TriageSurfaceRegistry` public API:
+    - `default() -> TriageSurfaceRegistry`, `from_repo(repo_root: Path) -> TriageSurfaceRegistry`, `is_test_file(rel_path: str) -> bool`, `rules_for_path(rel_path: str) -> SurfaceRuleSet | None`, `match_line(rel_path: str, sign: str, line: str) -> set[str]`, `match_test_line(rel_path: str, sign: str, line: str) -> tuple[bool, bool]`.
+    - Language-neutral baseline rules applied to EVERY suffix (including unknown suffixes such as `.sql`): `signature`: `^\s*(?:abstract\s+|final\s+|sealed\s+|open\s+|data\s+)?class\s+[A-Za-z]`; `persistence`: `\b(?:SELECT|INSERT\s+INTO|UPDATE\s+\w+\s+SET|DELETE\s+FROM|CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+TABLE)\b`; `concurrency`: `\b(?:Lock|RLock|Semaphore|Condition|Event)\s*\(`.
+    - Suffix-scoped stack rules layered on top of baseline:
+      - `.dart`: signature `MethodChannel|EventChannel|@HostApi|@FlutterApi|ffi\.`, api_wire `@RestApi|@GET|@POST|fromJson`, persistence `DriftDatabase|outbox_entries`, concurrency `Isolate\.|Completer<`, test_weakening `skip:\s*(?:true|['"])`.
+      - `.rs`: signature `pub\s+(?:async\s+)?(?:fn|struct|enum|trait)`, api_wire `unsafe\b|extern\s+"C"`, persistence `sqlx::query|SELECT|INSERT\s+INTO`, concurrency `tokio::spawn|Mutex|RwLock`, test_weakening `#\[ignore\b`.
+      - `.ts/.tsx/.js/.mjs/.astro`: signature `export\s+(?:async\s+)?(?:function|class|interface|type)`, api_wire `fetch\(|WebSocket|EventSource`, persistence `indexedDB|localStorage`, concurrency `Worker\(|SharedArrayBuffer`, test_weakening `\.(?:skip|fixme)\(`.
+      - `.kt/.kts`: signature `^\s*(?!private\b|protected\b)(?:(?:public|internal|override|open|final|inline|operator|infix|tailrec)\s+)*(?:suspend\s+)?fun\s+|^\s*(?!private\b|protected\b)(?:(?:public|internal|sealed|fun)\s+)*interface\s+` (excludes `private`/`protected` helpers), api_wire `@(?:GET|POST|PUT|DELETE|Entity|Dao)\b|MethodChannel`, persistence `RoomDatabase|SQLiteDatabase`, concurrency `Mutex|CoroutineScope|Dispatchers\.`, test_weakening `@(?:Ignore|Disabled)\b`.
+      - `.swift`: signature `public\s+(?:func|struct|class|protocol|enum|actor)`, api_wire `Codable|URLSession|FlutterMethodChannel`, persistence `@Model|NSManagedObject|sqlite3`, concurrency `\bactor\s+|Task\.detached|NSLock`, test_weakening `XCTSkip|@Test\([^)]*\.disabled`.
+      - `.py`: preserves exact existing `_PUBLIC_SIGNATURE_RES`, `_API_SURFACE_RES`, `_DB_SURFACE_RES`, `_CONCURRENCY_RES`, `_TEST_SKIP_RE` from `manage_worker_pool.py` (`L79-L108`).
   - `triage_surfaces` manifest override is strictly a category-keyed JSON object (`signature | api_wire | persistence | concurrency | test_weakening -> list[str]`) per `[SE-01]`.
-  - `PoolWorkspaceStrategy` defaults: `symlink` = `("target", "node_modules", ".astro", ".venv", ".gradle", ".build", "Pods")`; `cow_copy` = `(".dart_tool", "packages/*/.dart_tool", "features/*/.dart_tool", "bricks/*/hooks/.dart_tool", "secureFiles", "local.properties", "android/local.properties", "*.xcconfig", "ios/Flutter/*.xcconfig", "macos/Flutter/*.xcconfig")`; merges validated `"pool_mounts"` from `.agents/quality/check_quality.json` rejecting `..` or absolute paths escaping `repo_root`.
-  - `TierCTaxonomy` exposes `check_tier_c_rows(rows, active_stacks) -> tuple[list[tuple[str, str]], list[str]]` and `validate_integration_test_roots(repo_root, roots, tracked_files, created_files) -> list[str]`.
+  - `PoolWorkspaceStrategy` defaults: `symlink` = `("target", "node_modules", ".astro", ".venv", ".gradle", ".build", "Pods")`; `cow_copy` = `(".dart_tool", "packages/*/.dart_tool", "features/*/.dart_tool", "bricks/*/hooks/.dart_tool", "secureFiles", "local.properties", "android/local.properties", "*.xcconfig", "ios/Flutter/*.xcconfig", "macos/Flutter/*.xcconfig")`. Every `cow_copy` candidate (built-in or custom `pool_mounts`) MUST be untracked (absent from `git ls-files`) AND gitignored (`git check-ignore -q`), so tracked files like `ios/Flutter/Debug.xcconfig` are NEVER copied or excluded. `get_excluded_relpaths(main_wt, slot_path)` returns ONLY paths actually materialized as active symlink or ignored `cow_copy` mounts. Merges validated `"pool_mounts"` from `.agents/quality/check_quality.json` rejecting `..` or absolute paths escaping `repo_root`.
+  - `TierCTaxonomy` exposes `check_tier_c_rows(stem, rows, active_stacks) -> tuple[list[tuple[str, str]], list[str]]` (hard-failing `TIER-C` rows carrying `#\s*tier:\s*C2\b` in Command with empty `Needs`; warning on heuristic ungated heavy-runtime commands) and `validate_integration_test_roots(repo_root, roots, tracked_files, created_files) -> list[str]` (bare directory root matches when any tracked or created path equals `root.rstrip("/")` or starts with `root.rstrip("/") + "/"`, or matches via glob if `*?[` present).
   - In TDD `RED` (`V1`), `test_plq_hp_01_registry_resolves_six_stacks_and_custom_override` catches `ImportError` and calls `pytest.fail(...)` so `V1` deterministically exits `1` with `FAILED` before `_stack_lifecycle_registry.py` exists.
 
 ## Definition of Done

@@ -92,7 +92,7 @@ Per `polyglot-quality-lifecycle-handoff.md` Section 1 (Invariant 2: **Zero LLM T
 | :--- | :--- | :--- | :--- |
 | `check_diff_coverage.py` | `PASS: coverage=84.2% (floor>=75.0%), diff=91.5% (floor>=80.0%, files=4, lines=65)` (or diff-only variant when `--min-coverage 0`) | Per-package floor breaches, per-file coverage table, and uncovered diff line ranges | `--json` |
 | `validate_<stack>_quality.py` (all 6 stacks) | `PASS: <stack>-quality (profile=<profile>, caps=<n>)` | Each finding (`<code>: <message> [capability=...]`) + summary line | `--json` (returns `{"status", "findings"}`) |
-| `validate_quality_contract.py` (`registry`, `capability`, `invocation`, `result`, `reconcile`) | `PASS: <subcommand> (profile=<profile>, items=<n>)` | Each finding (`<code>: <message>`) + summary line | `--json` (returns full structured dict, required when piping normalized payloads) |
+| `validate_quality_contract.py` (`capability`, `result`; `registry`/`invocation`/`reconcile` keep JSON default with `--compact`) | `PASS: <subcommand> (profile=<profile>, items=<n>)` for `capability`/`result` (and `--compact` on payload subcommands) | Each finding (`<code>: <message>`) + summary line (`registry`, `invocation`, and `reconcile` preserve full JSON default stdout so `quality_check` fan-out keeps its execution plan) | `--json` (default for `registry`/`invocation`/`reconcile`) |
 | `check_task_contract.py` | `Result: 0 problems — PASS` | All problem lines + `Implicit protected paths: ...` + `Result: <n> problems — FAIL` (with `--verbose` also printing `Implicit protected paths: ...` on `PASS`) | `--json` (returns `{"status", "problems", "warnings", "implicit_protected_paths"}`) |
 
 Python library entry points (`validate_registry()`, `validate_*_config()`, `normalize_invocation()`, `reconcile_results()`) remain completely unchanged in their returned dict structures, preserving 100% backwards compatibility with `verify_polyglot_registry.py` and existing unit tests. Existing CLI tests asserting `Implicit protected paths:` on `PASS` will pass `--verbose` alongside new regression tests locking the default 1-line `PASS` contract.
@@ -163,7 +163,8 @@ Replaces the flat `CACHE_DIR_CANDIDATES` symlink loop with a declarative two-mod
   - Gitignored local secrets/configs when present in `main_wt` and ignored by git: `secureFiles`, `local.properties`, `android/local.properties`, `*.xcconfig`, `ios/Flutter/*.xcconfig`, `macos/Flutter/*.xcconfig`
 - **Manifest extensibility**: Reads optional `"pool_mounts"` array from `.agents/quality/check_quality.json` where each entry is `{"path": "<rel-path-or-glob>", "mode": "symlink" | "cow_copy"}`. Security invariant: reject any path containing `..` or absolute paths escaping the repository root.
 - **Git clean, snapshot, triage, and staging isolation**:
-  - `PoolWorkspaceStrategy.get_excluded_relpaths(slot_path, main_wt)` returns every active mounted path (both symlinked and `cow_copy` materialized paths) so:
+  - Every `cow_copy` candidate (built-in or custom `pool_mounts`) MUST be untracked (absent from `git ls-files`) AND gitignored (`git check-ignore -q`), so tracked files such as `ios/Flutter/Debug.xcconfig` are never treated as ignored mounts or dropped on commit.
+  - `PoolWorkspaceStrategy.get_excluded_relpaths(main_wt, slot_path)` returns ONLY paths actually materialized as active symlink or ignored `cow_copy` mounts so:
     1. `sync_slot()` passes `-e <path>` to `git clean -fd` for every active mount.
     2. `capture_slot_tree_sha()` excludes every active mount from the temporary `GIT_INDEX_FILE`.
     3. `triage_fix_slot()` passes `:(exclude)<path>` to `git diff`.
@@ -171,14 +172,14 @@ Replaces the flat `CACHE_DIR_CANDIDATES` symlink loop with a declarative two-mod
 
 #### 3. `TriageSurfaceRegistry` (consumed by `manage_worker_pool.py` `triage-fix`)
 
-Scopes every `SurfaceRuleSet` strictly by `Path(changed_file).suffix.lower()` (zero cross-firing across stacks):
+Scopes stack-specific `SurfaceRuleSet` entries strictly by `Path(changed_file).suffix.lower()` (zero cross-firing across stacks), layered on top of a **language-neutral baseline** applied to every suffix (including unknown suffixes such as `.sql` migrations): SQL DDL/DML (`SELECT|INSERT\s+INTO|UPDATE\s+\w+\s+SET|DELETE\s+FROM|CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+TABLE`), top-level `class` declarations (`^\s*(?:abstract\s+|final\s+|sealed\s+|open\s+|data\s+)?class\s+[A-Za-z]`), and generic lock constructors (`\b(?:Lock|RLock|Semaphore|Condition|Event)\s*\(`):
 
 | Suffixes | `signature` | `api_wire` | `persistence` | `concurrency` | `test_weakening` (added lines in test files) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `.dart` | `MethodChannel\|EventChannel\|@HostApi\|@FlutterApi\|ffi\.` | `@RestApi\|@GET\|@POST\|fromJson` | `DriftDatabase\|outbox_entries` | `Isolate\.\|Completer<` | `skip:\s*(?:true\|['"])` |
 | `.rs` | `pub\s+(?:async\s+)?(?:fn\|struct\|enum\|trait)` | `unsafe\b\|extern\s+"C"` | `sqlx::query\|SELECT\|INSERT\s+INTO` | `tokio::spawn\|Mutex\|RwLock` | `#\[ignore\b` |
 | `.ts`, `.tsx`, `.js`, `.mjs`, `.astro` | `export\s+(?:async\s+)?(?:function\|class\|interface\|type)` | `fetch\(\|WebSocket\|EventSource` | `indexedDB\|localStorage` | `Worker\(\|SharedArrayBuffer` | `\.(?:skip\|fixme)\(` |
-| `.kt`, `.kts` | `(?:suspend\s+)?fun\s+\|interface\s+` | `@(?:GET\|POST\|PUT\|DELETE\|Entity\|Dao)\b\|MethodChannel` | `RoomDatabase\|SQLiteDatabase` | `Mutex\|CoroutineScope\|Dispatchers\.` | `@(?:Ignore\|Disabled)\b` |
+| `.kt`, `.kts` | `^\s*(?!private\b\|protected\b)(?:(?:public\|internal\|override\|open\|final\|inline\|operator\|infix\|tailrec)\s+)*(?:suspend\s+)?fun\s+\|^\s*(?!private\b\|protected\b)(?:(?:public\|internal\|sealed\|fun)\s+)*interface\s+` | `@(?:GET\|POST\|PUT\|DELETE\|Entity\|Dao)\b\|MethodChannel` | `RoomDatabase\|SQLiteDatabase` | `Mutex\|CoroutineScope\|Dispatchers\.` | `@(?:Ignore\|Disabled)\b` |
 | `.swift` | `public\s+(?:func\|struct\|class\|protocol\|enum\|actor)` | `Codable\|URLSession\|FlutterMethodChannel` | `@Model\|NSManagedObject\|sqlite3` | `\bactor\s+\|Task\.detached\|NSLock` | `XCTSkip\|@Test\([^)]*\.disabled` |
 | `.py` | Existing Python `def`/`class` public signature rules | Existing FastAPI/router/Pydantic rules | Existing SQLAlchemy/SQL/Alembic rules | Existing `asyncio`/lock/thread rules | Existing `pytest.mark.skip`/`xfail`/`unittest.skip` rules |
 
@@ -207,8 +208,8 @@ Additional polyglot test-file classification (`_is_test_file`):
 Provides lightweight, zero-false-positive mechanical enforcement alongside the Component 4 documentation so `Tier C1` (fast host/VM subcutaneous integration, `< 5s`) and `Tier C2` (`Needs:`-gated device/simulator/browser E2E) stay cleanly separated before Gate 2 closes:
 
 - **Hard Contract Errors (`check.problem`, exit code `1`)** — triggered strictly on unambiguous declarations:
-  1. **Explicit `Tier C2` row missing `Needs:`**: Any `TIER-C` verification row whose command, expect clause, or row comment/annotation explicitly declares `Tier C2` / `TIER-C2` (case-insensitive `\bTIER[- ]?C2\b`) while its `Needs` cell is empty (`—` or `-`) fails contract validation.
-  2. **Invalid HLD `Integration test roots:` line**: When an Epic HLD declares an optional `Integration test roots:` directive (per handoff Section 2), every listed root path/glob must be a safe repo-relative path (no `..`, no absolute path) matching at least one tracked file or task `(new)` file.
+  1. **Explicit `Tier C2` row missing `Needs:`**: Any `TIER-C` verification row whose `Command` cell carries the canonical trailing shell comment marker `# tier: C2` (matched case-insensitively by `#\s*tier:\s*C2\b`, which is valid in the existing 5-column row grammar and a harmless shell comment under `bash -c`) while its `Needs` cell is empty (`—` or `-`) fails contract validation.
+  2. **Invalid HLD `Integration test roots:` line**: When an Epic HLD declares an optional `Integration test roots:` directive (per handoff Section 2), every listed root path/glob must be a safe repo-relative path (no `..`, no absolute path) where a bare directory root matches if any tracked or task `(new)` file equals `root.rstrip("/")` or starts with `root.rstrip("/") + "/"` (or matches via glob when `*?[` metacharacters are present).
 - **Non-Blocking Diagnostic Warnings (`check.warnings`, emitted to stderr and in `--json`, never failing exit code `0`)** — zero false positives on legacy epics:
   1. **Ungated heavy-runtime `TIER-C` heuristic**: If a `TIER-C` row with empty `Needs` (`—`) matches a stack's conservative Tier C2 runtime pattern (`flutter test.*integration_test`, `connected\w*AndroidTest`, `xcodebuild\b.*\btest\b`, or `playwright test`) without explicitly tagging `Tier C2`, emit a structured warning suggesting a `Needs:` token (e.g., `FLUTTER_DEVICE`, `ANDROID_DEVICE`, `IOS_SIMULATOR`, `PLAYWRIGHT_BROWSER`) so designers catch accidentally ungated heavy suites without breaking legacy epics or repos that legitimately run local headless Playwright in a task.
 
@@ -267,7 +268,7 @@ Ported and generalized from `nexus/scripts/check_lcov_threshold.py` with modular
 Create `skills/quality_check/resources/scripts/_provider_manifest_common.py` and update all 6 provider skills (`flutter`, `rust`, `web`, `python`, `android`, `ios`):
 
 - **Add missing schema**: Create `skills/web-quality-check/resources/schemas/web-quality.schema.json` matching the draft `2020-12` conventions of the other 5 providers.
-- **4 Profiles across all 6 schemas**: `pr`, `epic`, `scheduled`, `release` (keep `required: ["pr", "epic"]` so existing repos remain valid; `scheduled` and `release` are optional in validation and always generated by `setup_quality_check`).
+- **4-Profile Parity (`web-quality.schema.json` addition)**: The existing 5 provider schemas (`flutter`, `rust`, `python`, `android`, `ios`) already declare `pr`, `epic`, `scheduled`, and `release` with `required: ["pr", "epic"]`; `web-quality.schema.json` adopts the exact same 4-profile schema structure so all 6 stacks share full parity while `setup_quality_check` scaffolds all 4 profiles by default.
 - **Unified Additive Capabilities across all 6 schemas**:
   - `anti_stub`, `security`, `security_deps`, `pr_diff_audit`, `workspace_audit` (invoked with `--all-files`), `pr_impact`, `workspace_impact` (invoked with `--all-files`), and `license` (license header verification across Flutter, Rust, Android, iOS, Python, and Web), plus existing stack-native capabilities (`format`, `lint`, `clippy`, `check`, `type_check`, `analyze`, `architecture`, `boundaries`, `bcv`, `db_hygiene`, `test`, `test_unit`, `test_e2e`, `ui_review`, `coverage`, `acceptance`, `contracts`, `contract_diff`, `^contracts_[a-z0-9_]+$`).
   - Keep Android `cleanup` optional in `android-quality.schema.json` strictly for backwards compatibility with existing consumer repositories, while removing `"cleanup": ["pkill", "-9", "java"]` from `scaffold_quality_manifest.py`, `valid_android_quality.json`, and `android-quality-check/SKILL.md`.

@@ -93,7 +93,7 @@ Scenario: [PLQ-HP-03] [Tier C - Integration] Scaffolder generates 4-profile unif
 Given a polyglot repository containing Cargo.toml, pubspec.yaml, package.json, pyproject.toml, build.gradle.kts, and Package.swift
 When scaffold_quality_manifest.py scaffolds check_quality.json, all 6 <stack>-quality.json manifests, and standards_catalog.json
 Then every generated manifest defines all 4 profiles ("pr", "epic", "scheduled", "release"), unified capabilities ("anti_stub", "security", "security_deps", "pr_diff_audit", "workspace_audit", "pr_impact", "workspace_impact", "license"), "standards_catalog", dual-floor coverage referencing check_diff_coverage.py, and Android omits "cleanup" ("pkill -9 java")
-And validate_quality_contract.py and all 6 validate_<stack>_quality.py CLIs exit 0 with a single stdout line starting with "PASS:"
+And validate_quality_contract.py registry returns valid JSON containing "status": "PASS" and selected "providers" (with --compact emitting a single "PASS:" line), while validate_quality_contract.py capability and all 6 validate_<stack>_quality.py CLIs exit 0 with a single stdout line starting with "PASS:"
 
 Scenario: [PLQ-EC-05] [Tier C - Integration] Legacy v1 manifests without scheduled/release or new additive fields still pass validation
 Given legacy check_quality.json and all 6 legacy <stack>-quality.json fixtures containing only schema_version 1, pr/epic profiles, and original capability keys
@@ -144,10 +144,8 @@ Then both return status "BLOCKED" with deterministic finding codes and exit code
     - Capabilities: add `anti_stub`, `security`, `security_deps`, `pr_diff_audit`, `workspace_audit`, `pr_impact`, `workspace_impact`, `license` across all 6 schemas alongside existing stack-native capabilities.
     - Dual-floor `coverage` optional keys: `min_package_coverage` (`0..1`), `exclude_package_floor` (`list[str]`), `min_diff_coverage` (`0..1`), `diff_base` (`str`), `lcov_path` / `report_path` / `profdata_path` (`str`).
 - **Compact CLI output across all 7 validators**:
-  - Add `--verbose` and `--json` flags to `validate_quality_contract.py` and all 6 `validate_*_quality.py` CLIs.
-  - Default `PASS`: single line (`PASS: <label> (profile=<profile>, caps=<n>)` or `PASS: <subcommand> (...)`).
-  - Default `BLOCKED`/`FAIL`: summary line plus one line per finding (`  - <code>: <message>`).
-  - `--json`: preserves exact full JSON payload `json.dumps(res, indent=2)`.
+  - `validate_quality_contract.py`: keep full JSON as the default stdout for payload-producing subcommands `registry`, `invocation`, and `reconcile` (so `quality_check/SKILL.md` Step 1 `providers` fan-out and Step 4 `reconcile` payloads continue working out of the box), adding `--compact` for 1-line `PASS` output; default to compact 1-line `PASS` stdout (with `--verbose` and `--json` opt-in) for boolean validation subcommands `capability` and `result`.
+  - All 6 `validate_<stack>_quality.py` CLIs: add `--verbose` and `--json` flags; default `PASS` prints a single line (`PASS: <stack>-quality (profile=<profile>, caps=<n>)`); default `BLOCKED`/`FAIL` prints the summary line plus one line per finding (`  - <code>: <message>`); `--json` preserves exact full JSON payload `json.dumps(res, indent=2)`.
 - **Android `pkill -9 java` removal**: Remove `"cleanup": ["pkill", "-9", "java"]` from `scaffold_quality_manifest.py` and `skills/android-quality-check/resources/fixtures/valid_android_quality.json`; keep `cleanup` optional in `android-quality.schema.json` strictly for legacy consumer manifest compatibility.
 - **Scaffolder `standards_catalog.json`**: Create starter `.agents/quality/standards_catalog.json` with ISO/IEC 25010:2023, ISO/IEC 27001/27002:2022, OWASP, and CWE skeleton entries ONLY if the file does not already exist (never overwrite existing customized catalogs).
 
