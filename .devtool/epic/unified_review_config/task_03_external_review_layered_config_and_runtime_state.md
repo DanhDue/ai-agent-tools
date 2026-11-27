@@ -26,6 +26,7 @@ Wire `skills/dev-implementation/resources/scripts/run_external_review.py` to loa
 Allowed files:
 - `skills/dev-implementation/resources/scripts/run_external_review.py`
 - `skills/dev-implementation/resources/scripts/test_run_external_review.py`
+- `tests/test_tto_external_review.py`
 - `tests/test_urc_external_review_integration.py` (new)
 
 Read-only context:
@@ -33,7 +34,6 @@ Read-only context:
 - `.devtool/epic/unified_review_config/bdd_scenarios.md`
 - `scripts/persona_config.py`
 - `scripts/personas.default.json`
-- `tests/test_tto_external_review.py`
 
 ## Design Rationale & Applicable Skills
 
@@ -96,7 +96,7 @@ And configuration falls back cleanly to global/kit defaults with last_used_provi
 | V1 | RED | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_urc_external_review_integration.py::test_urc_hp_04_per_kind_pass_limits_and_global_priority` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_urc_external_review_integration.py` | exit 0; contains "passed" | — |
 | V3 | REGRESSION | `python3 -m pytest -q --tb=short --maxfail=3 skills/dev-implementation/resources/scripts/test_run_external_review.py tests/test_tto_external_review.py` | exit 0; contains "passed" | — |
-| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py tests/test_urc_external_review_integration.py && ruff format --check skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py tests/test_urc_external_review_integration.py && mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py tests/test_urc_external_review_integration.py --ignore-missing-imports --follow-imports=silent` | exit 0 | — |
+| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py tests/test_tto_external_review.py tests/test_urc_external_review_integration.py && ruff format --check skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py tests/test_tto_external_review.py tests/test_urc_external_review_integration.py && mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py tests/test_tto_external_review.py tests/test_urc_external_review_integration.py --ignore-missing-imports --follow-imports=silent` | exit 0 | — |
 | V5 | TIER-C | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_urc_external_review_integration.py --junitxml=build/test-results/task_03.xml` | exit 0; results build/test-results/task_03.xml | — |
 
 ## Stop and Report If
@@ -118,6 +118,7 @@ And configuration falls back cleanly to global/kit defaults with last_used_provi
   - `evaluate_provider_quota(cli, quota_data, *, thresholds=None)` and `select_provider_by_quota(priority=None, fetcher=None, *, thresholds=None)` use `thresholds or QUOTA_THRESHOLDS`; `resolve_review_settings()` passes `thresholds=config.get("quota_thresholds")`.
   - Keep `save_review_config(root, config)` function exported for explicit test/tool callers, while removing all automatic calls from `load_review_config()` and `update_sticky_review_config()`.
   - In `run_external_review.py` CLI parser (`main()`), `--max-rounds` uses `default=None` and `run`/`check`/`triage`/`status_cmd` call `resolve_effective_max_rounds(root, args.kind, args.max_rounds)`.
+  - Per `[SE-01]` (`tests/test_tto_external_review.py`): update `test_tto_st_01_load_review_config_migrates_legacy_and_preserves_custom` (`L493-L506`) to verify in-memory defaults without mutating untracked `.devtool/review_config.json` on disk (matching `URC-ST-03`), and reuse `sys.modules.get("run_external_review")` in `_load_external_review_module()` (`L37-L50`) so combined `V3` pytest runs preserve single module identity.
 
 ## Definition of Done
 

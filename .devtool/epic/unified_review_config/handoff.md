@@ -14,7 +14,7 @@
 ## Status
 
 - **Packaged**: 2026-11-27
-- **Design commit**: `1937b27` — `HEAD` before the packaging commit, or `uncommitted` when `auto_commit` is false
+- **Design commit**: `3ca9329`
 - **Base branch**: `main`
 - **PIC / Assigned Profile**: `tess` (e.g. `danhdue`, `buivantrong8901`, `huynhminhtien0510`)
 - **Gates passed**: 1 (spec), 2 (HLD and task breakdown)
@@ -69,12 +69,13 @@ None
 ## Revisions
 
 - **2026-11-27 (`1937b27`)**: Initial Stage 2 packaging
+- **2026-11-27 (`1937b27` -> `3ca9329`)**: Add tests/test_tto_external_review.py to Task 03 Allowed files ([SE-01])
 
 ## Rules for the Receiving Agent
 
 - Do not re-run `dev-brainstorming` or `dev-designer`. Raise a wrong or missing document at Gate 3.
 - Gate 3 computes wave-parallel execution automatically via `compute_execution_order.py unified_review_config --parallel`, estimates wave heartbeat via `estimate_heartbeat.py`, dispatches independent wave tasks across isolated slots (`manage_worker_pool.py init|sync|triage-fix|finalize-slot|merge|cleanup` / `workspace:"share"` subagents — pass `--task <task_id> [--wave <k>] --status working|review` on `sync` or use `sync_task_status.py task <task_id> in-progress|review` in single-worktree mode before dispatch/review, enforce the 2-pass task review cap and 1 fix pass, then finalize via `finalize-slot` or `done` + commit in slot before `merge`), and pauses via `resume_context.py --pending-decision` only on Choice A gates or `CRITICAL_CONFLICT`.
-- Unless the design commit is `uncommitted`: if `git log 1937b27..main -- .devtool/epic/unified_review_config` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
+- Unless the design commit is `uncommitted`: if `git log 3ca9329..main -- .devtool/epic/unified_review_config` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
 - This file is updated only by `package_epic.py --revise`, which records each re-anchoring under `## Revisions` and clears any pending revision decision for this epic.
 - Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.
 - On a missing CLI, failed authentication or exhausted quota there is no automatic fallback and no retry: write `--checkpoint model_unavailable`, record a blocker with the fallback command, and stop. In low-quota mode finish the wave in flight, write `--checkpoint low_quota_stop`, print `--emit-prompt implement`, and stop.

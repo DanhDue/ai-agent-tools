@@ -194,4 +194,4 @@ All 22 scenarios (`URC-HP-01`..`URC-HP-06`, `URC-EC-01`..`URC-EC-05`, `URC-ST-01
 
 ## Spec Errata
 
-None.
+- **[SE-01] Add `tests/test_tto_external_review.py` to Task 03 `Allowed files` & `V4 TIER-B` (Role 1.0 Approved)**: `tests/test_tto_external_review.py::test_tto_st_01_load_review_config_migrates_legacy_and_preserves_custom` (`L493-L506`) previously asserted disk auto-seeding of untracked `.devtool/review_config.json` (contradicting `URC-ST-03`), and `_load_external_review_module()` (`L37-L50`) unconditionally overwrote `sys.modules["run_external_review"]` at pytest collection time (breaking combined `V3` pytest runs with `test_run_external_review.py`). Added `tests/test_tto_external_review.py` to Task 03 `Allowed files` and `V4 TIER-B` so `test_tto_st_01` verifies in-memory upgrade/defaults without disk mutation and `_load_external_review_module()` reuses `sys.modules.get("run_external_review")`.
