@@ -4,6 +4,7 @@
 Shared by run_task_checks.py and the other scripts that read task files, so every one of them reads a
 task identically. Python 3 standard library only.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -40,12 +41,27 @@ ALLOWED_BULLET = re.compile(
 )
 EVIDENCE_BULLET = re.compile(r"^- `([^`]+)`( \(new\))?\s*$")
 _INNER_LINE_RANGE_RE = re.compile(r"\s*\(L\d+(?:\s*[-–:]\s*L?\d+)?\)\s*$")
-EVIDENCE_FILE_RE = re.compile(r"^\.devtool/epic/[A-Za-z0-9_-]+/evidence/[A-Za-z0-9_.-]+$")
+EVIDENCE_FILE_RE = re.compile(
+    r"^\.devtool/epic/[A-Za-z0-9_-]+/evidence/[A-Za-z0-9_.-]+$"
+)
 ENVIRONMENT_HEADING = re.compile(r"^## (?:\d+\.\s*)?Verification Environment\s*$")
-INTERPRETERS = {"python", "python3", "bash", "sh", "zsh", "node", "deno", "ruby", "perl"}
+INTERPRETERS = {
+    "python",
+    "python3",
+    "bash",
+    "sh",
+    "zsh",
+    "node",
+    "deno",
+    "ruby",
+    "perl",
+}
 CONTROL_TOKENS = {"&&", "||", ";", "|"}
 EXCLUDE_DEVTOOL = ":(exclude).devtool"
-DIFF_PLAIN = ("--no-ext-diff", "--no-color")  # user diff settings must not change a patch id
+DIFF_PLAIN = (
+    "--no-ext-diff",
+    "--no-color",
+)  # user diff settings must not change a patch id
 DOD_REFERENCE = re.compile(
     r"\((V[0-9]+(?:,\s*V[0-9]+)*|Gate 5)\)\.?(?:\s*(?:[—–-]|\(|\[)\s*[^\n]*)?\s*$"
 )
@@ -125,7 +141,9 @@ def section(text: str, title: str) -> str | None:
 def parse_expect(text: str) -> Expect:
     head = EXIT_CLAUSE.match(text)
     if not head:
-        raise ContractError(f'Expect must start with "exit <n>" or "exit non-zero": {text!r}')
+        raise ContractError(
+            f'Expect must start with "exit <n>" or "exit non-zero": {text!r}'
+        )
     position = head.end()
     contains: list[str] = []
     results: str | None = None
@@ -159,10 +177,14 @@ def parse_row(cells: list[str], seen: set[str]) -> Row:
         raise ContractError(f"Verification row {row_id}: duplicate ID")
     phase, command_cell, expect_text, needs_cell = cells[1:]
     if phase not in PHASES:
-        raise ContractError(f"Verification row {row_id}: Phase must be one of {', '.join(PHASES)}")
+        raise ContractError(
+            f"Verification row {row_id}: Phase must be one of {', '.join(PHASES)}"
+        )
     span = CODE_SPAN.fullmatch(command_cell)
     if not span:
-        raise ContractError(f"Verification row {row_id}: Command must be exactly one inline code span")
+        raise ContractError(
+            f"Verification row {row_id}: Command must be exactly one inline code span"
+        )
     try:
         expect = parse_expect(expect_text)
     except ContractError as error:
@@ -171,8 +193,12 @@ def parse_row(cells: list[str], seen: set[str]) -> Row:
     if needs_cell not in NONE_CELL:
         needs = tuple(name.strip() for name in needs_cell.split(","))
         if not all(NEEDS_NAME.fullmatch(name) for name in needs):
-            raise ContractError(f"Verification row {row_id}: Needs must be — or names like TEST_DATABASE_URL")
-    return Row(row_id, phase, span.group(1).replace("\\|", "|"), expect_text, expect, needs)
+            raise ContractError(
+                f"Verification row {row_id}: Needs must be — or names like TEST_DATABASE_URL"
+            )
+    return Row(
+        row_id, phase, span.group(1).replace("\\|", "|"), expect_text, expect, needs
+    )
 
 
 def parse_verification(task_text: str) -> tuple[list[Row], str | None]:
@@ -182,13 +208,17 @@ def parse_verification(task_text: str) -> tuple[list[Row], str | None]:
     lines = body.splitlines()
     table = [line for line in lines if line.lstrip().startswith("|")]
     if not table or split_cells(table[0]) != HEADER:
-        raise ContractError("Verification header must be exactly: " + "| " + " | ".join(HEADER) + " |")
+        raise ContractError(
+            "Verification header must be exactly: " + "| " + " | ".join(HEADER) + " |"
+        )
     rows: list[Row] = []
     seen: set[str] = set()
     for line in table[2:]:
         cells = split_cells(line)
         if len(cells) != len(HEADER):
-            raise ContractError(f"Verification row {cells[0]!r}: expected {len(HEADER)} cells, found {len(cells)}")
+            raise ContractError(
+                f"Verification row {cells[0]!r}: expected {len(HEADER)} cells, found {len(cells)}"
+            )
         rows.append(parse_row(cells, seen))
         seen.add(rows[-1].id)
     reason = next((m.group(1) for m in map(RED_NA.match, lines) if m), None)
@@ -232,8 +262,36 @@ def parse_evidence_files(task_text: str) -> list[AllowedPath]:
 def parse_protected_paths(hld_text: str) -> list[str]:
     for line in hld_text.splitlines():
         if line.startswith("Protected paths:"):
-            return [entry.strip() for entry in line.split(":", 1)[1].split(",") if entry.strip()]
+            return [
+                entry.strip()
+                for entry in line.split(":", 1)[1].split(",")
+                if entry.strip()
+            ]
     return []
+
+
+def parse_integration_test_roots(hld_text: str) -> list[str]:
+    """Extract comma-separated paths or globs from `Integration test roots:` line(s)."""
+    roots: list[str] = []
+    fence: str | None = None
+    for line in hld_text.splitlines():
+        marker = FENCE.match(line)
+        if marker:
+            if fence is None:
+                fence = marker.group(1)
+            elif marker.group(1)[0] == fence[0] and len(marker.group(1)) >= len(fence):
+                fence = None
+            continue
+        if fence is not None:
+            continue
+        stripped = line.strip()
+        if stripped.startswith("Integration test roots:"):
+            rest = stripped.split(":", 1)[1]
+            for entry in rest.split(","):
+                cleaned = entry.strip().strip("`").strip()
+                if cleaned:
+                    roots.append(cleaned)
+    return roots
 
 
 def parse_read_only_context(task_text: str) -> list[str]:
@@ -323,9 +381,17 @@ def parse_integration_result_specs(hld_text: str) -> list[IntegrationResultSpec]
                 report = ""
             if needs_part is not None:
                 needs = tuple(v.strip() for v in needs_part.split(",") if v.strip())
-                specs.append(IntegrationResultSpec(command=cmd, report=report, live=True, needs=needs))
+                specs.append(
+                    IntegrationResultSpec(
+                        command=cmd, report=report, live=True, needs=needs
+                    )
+                )
             else:
-                specs.append(IntegrationResultSpec(command=cmd, report=report, live=False, needs=()))
+                specs.append(
+                    IntegrationResultSpec(
+                        command=cmd, report=report, live=False, needs=()
+                    )
+                )
     return specs
 
 
@@ -348,7 +414,11 @@ def verification_environment(hld_text: str) -> str | None:
     for line in hld_text.splitlines():
         marker = FENCE.match(line)
         if marker:
-            fence = marker.group(1) if fence is None else (None if marker.group(1)[0] == fence[0] else fence)
+            fence = (
+                marker.group(1)
+                if fence is None
+                else (None if marker.group(1)[0] == fence[0] else fence)
+            )
         elif fence is None and line.startswith("## "):
             if found:
                 break
@@ -375,10 +445,19 @@ def path_matches(pattern: str, path: str) -> bool:
     return re.fullmatch(regex, path) is not None
 
 
-def git_run(root: Path, *args: str, env: dict[str, str] | None = None, stdin: bytes | None = None) -> bytes:
-    done = subprocess.run(["git", *args], cwd=root, env=env, input=stdin, capture_output=True)
+def git_run(
+    root: Path,
+    *args: str,
+    env: dict[str, str] | None = None,
+    stdin: bytes | None = None,
+) -> bytes:
+    done = subprocess.run(
+        ["git", *args], cwd=root, env=env, input=stdin, capture_output=True
+    )
     if done.returncode != 0:
-        raise ContractError(f"git {' '.join(args)} failed: {done.stderr.decode(errors='replace').strip()}")
+        raise ContractError(
+            f"git {' '.join(args)} failed: {done.stderr.decode(errors='replace').strip()}"
+        )
     return done.stdout
 
 
@@ -435,7 +514,11 @@ def program_of(command: str, root: Path) -> str | None:
             if argument in ("-m", "-c"):
                 break
             if not argument.startswith("-"):
-                if Path(argument).name == "d3nexus" and i + 1 < len(tokens) and tokens[i + 1] in D3NEXUS_SUBCOMMANDS:
+                if (
+                    Path(argument).name == "d3nexus"
+                    and i + 1 < len(tokens)
+                    and tokens[i + 1] in D3NEXUS_SUBCOMMANDS
+                ):
                     candidate = D3NEXUS_SUBCOMMANDS[tokens[i + 1]]
                 else:
                     candidate = argument
@@ -445,8 +528,14 @@ def program_of(command: str, root: Path) -> str | None:
     if not candidate:
         return None
     candidate = candidate[2:] if candidate.startswith("./") else candidate
-    tracked = subprocess.run(["git", "ls-files", "--error-unmatch", "--", candidate], cwd=root,
-                             capture_output=True).returncode == 0
+    tracked = (
+        subprocess.run(
+            ["git", "ls-files", "--error-unmatch", "--", candidate],
+            cwd=root,
+            capture_output=True,
+        ).returncode
+        == 0
+    )
     return candidate if tracked else None
 
 
@@ -458,12 +547,22 @@ def epic_layout(task_file: Path) -> EpicLayout:
         raise ContractError(f"{task_file} is not inside a git repository") from None
     root = Path(top).resolve()
     parts = path.relative_to(root).parts if path.is_relative_to(root) else ()
-    if not (len(parts) == 4 and parts[:2] == (".devtool", "epic") and is_task_markdown(parts[3])):
+    if not (
+        len(parts) == 4
+        and parts[:2] == (".devtool", "epic")
+        and is_task_markdown(parts[3])
+    ):
         raise ContractError("pass the task's mirror under .devtool/epic/<epic_dir>/")
     epic_dir = path.parent
-    hld = resolve_epic_doc(epic_dir, epic_dir.name) or (epic_dir / f"{epic_dir.name}.md")
-    scenarios = resolve_epic_doc(epic_dir, "bdd_scenarios") or (epic_dir / "bdd_scenarios.md")
-    return EpicLayout(root, epic_dir, hld, scenarios, epic_dir / "evidence" / f"{path.stem}.json")
+    hld = resolve_epic_doc(epic_dir, epic_dir.name) or (
+        epic_dir / f"{epic_dir.name}.md"
+    )
+    scenarios = resolve_epic_doc(epic_dir, "bdd_scenarios") or (
+        epic_dir / "bdd_scenarios.md"
+    )
+    return EpicLayout(
+        root, epic_dir, hld, scenarios, epic_dir / "evidence" / f"{path.stem}.json"
+    )
 
 
 def fingerprint(root: Path) -> tuple[str, str | None]:
@@ -471,11 +570,35 @@ def fingerprint(root: Path) -> tuple[str, str | None]:
     with tempfile.TemporaryDirectory() as scratch:
         env = {**os.environ, "GIT_INDEX_FILE": str(Path(scratch) / "index")}
         git_run(root, "read-tree", "HEAD", env=env)
-        git_run(root, "rm", "-r", "-q", "--cached", "--ignore-unmatch", "--", ".devtool", env=env)
+        git_run(
+            root,
+            "rm",
+            "-r",
+            "-q",
+            "--cached",
+            "--ignore-unmatch",
+            "--",
+            ".devtool",
+            env=env,
+        )
         git_run(root, "add", "-A", "--", ".", EXCLUDE_DEVTOOL, env=env)
         tree = git_run(root, "write-tree", env=env).decode().strip()
-        diff = git_run(root, "diff", *DIFF_PLAIN, "--cached", "HEAD", "--", ".", EXCLUDE_DEVTOOL, env=env)
-        patch = git_run(root, "patch-id", "--stable", stdin=diff).decode().split() if diff else []
+        diff = git_run(
+            root,
+            "diff",
+            *DIFF_PLAIN,
+            "--cached",
+            "HEAD",
+            "--",
+            ".",
+            EXCLUDE_DEVTOOL,
+            env=env,
+        )
+        patch = (
+            git_run(root, "patch-id", "--stable", stdin=diff).decode().split()
+            if diff
+            else []
+        )
     return tree, patch[0] if patch else None
 
 
@@ -504,7 +627,9 @@ def load_evidence(path: Path) -> dict | None:
 def save_evidence(path: Path, data: dict) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
 
 
 def is_code_epic(hld_path: Path) -> bool:
@@ -520,16 +645,33 @@ def row_problems(rows: list[Row], runs: dict) -> list[str]:
     """Condition 2: each table row needs a PASS record carrying the same command and expect."""
     problems: list[str] = []
     for row in rows:
-        run = runs.get("red" if row.phase == "RED" else "measure" if row.phase == "MEASURE" else "verify") or {}
+        run = (
+            runs.get(
+                "red"
+                if row.phase == "RED"
+                else "measure"
+                if row.phase == "MEASURE"
+                else "verify"
+            )
+            or {}
+        )
         record = next((r for r in run.get("rows", []) if r["id"] == row.id), None)
-        if record is None or (record["outcome"] != "PASS" and record["outcome"] != "BLOCKED"):
-            problems.append(f"condition 2: row {row.id}: no PASS result in the evidence")
+        if record is None or (
+            record["outcome"] != "PASS" and record["outcome"] != "BLOCKED"
+        ):
+            problems.append(
+                f"condition 2: row {row.id}: no PASS result in the evidence"
+            )
         elif record["outcome"] == "BLOCKED":
             continue
         elif record["command"] != row.command:
-            problems.append(f"condition 2: row {row.id}: recorded command differs from the table")
+            problems.append(
+                f"condition 2: row {row.id}: recorded command differs from the table"
+            )
         elif record["expect"] != row.expect_text:
-            problems.append(f"condition 2: row {row.id}: recorded expect differs from the table")
+            problems.append(
+                f"condition 2: row {row.id}: recorded expect differs from the table"
+            )
     return problems
 
 
@@ -543,48 +685,85 @@ def evaluate_done_gate(task_file: Path) -> list[str]:
         return [f"condition 2: {error}"]
     evidence = load_evidence(layout.evidence)
     if evidence is None:
-        return [f"condition 1: evidence {layout.evidence} not found in this checkout — record it with "
-                "run_task_checks.py and run the done gate in the epic worktree"]
+        return [
+            f"condition 1: evidence {layout.evidence} not found in this checkout — record it with "
+            "run_task_checks.py and run the done gate in the epic worktree"
+        ]
     runs = evidence.get("runs", {})
     needs_red = red_na is None and any(row.phase == "RED" for row in rows)
     needs_measure = any(row.phase == "MEASURE" for row in rows)
-    missing = [kind for kind in (("red",) if needs_red else ()) + (("measure",) if needs_measure else ()) + ("verify",) if kind not in runs]
+    missing = [
+        kind
+        for kind in (("red",) if needs_red else ())
+        + (("measure",) if needs_measure else ())
+        + ("verify",)
+        if kind not in runs
+    ]
     if missing:
-        return [f"condition 1: evidence {layout.evidence} has no {kind} run" for kind in missing]
+        return [
+            f"condition 1: evidence {layout.evidence} has no {kind} run"
+            for kind in missing
+        ]
     problems = row_problems(rows, runs)
     ids = {row.id for row in rows} | {"SCOPE"}
-    problems += [f"condition 2: {kind} row {r['id']} is {r['outcome']} and no longer in the table"
-                 for kind, run in runs.items() for r in run["rows"]
-                 if r["id"] not in ids and r["outcome"] not in ("PASS", "BLOCKED")]
+    problems += [
+        f"condition 2: {kind} row {r['id']} is {r['outcome']} and no longer in the table"
+        for kind, run in runs.items()
+        for r in run["rows"]
+        if r["id"] not in ids and r["outcome"] not in ("PASS", "BLOCKED")
+    ]
     for kind, run in runs.items():
-        problems += [f"condition 3: {kind} row {r['id']} is BLOCKED ({r.get('reason')})"
-                     for r in run["rows"] if r["outcome"] == "BLOCKED"]
+        problems += [
+            f"condition 3: {kind} row {r['id']} is BLOCKED ({r.get('reason')})"
+            for r in run["rows"]
+            if r["outcome"] == "BLOCKED"
+        ]
     verify = runs["verify"]
     if verify["tree"] != fingerprint(layout.root)[0]:
-        problems.append("condition 4: the verify run's tree differs from the current tree — "
-                        "files changed after verification")
+        problems.append(
+            "condition 4: the verify run's tree differs from the current tree — "
+            "files changed after verification"
+        )
     if verify.get("patch_id") is None:
-        problems.append("condition 4: verify saw no change outside .devtool — record verify before committing")
+        problems.append(
+            "condition 4: verify saw no change outside .devtool — record verify before committing"
+        )
     if needs_measure:
         measure = runs["measure"]
         if measure.get("passed") is not True:
             problems.append("condition 2: measure run did not pass")
         if measure.get("tree") != fingerprint(layout.root)[0]:
-            problems.append("condition 4: the measure run's tree differs from the current tree")
+            problems.append(
+                "condition 4: the measure run's tree differs from the current tree"
+            )
     if needs_red:
         red = runs["red"]
         if red.get("head") != verify.get("head"):
-            problems.append("condition 5: red and verify were recorded on different commits")
+            problems.append(
+                "condition 5: red and verify were recorded on different commits"
+            )
         if red["tree"] == verify["tree"]:
-            problems.append("condition 5: the red run's tree equals the verify run's tree — "
-                            "RED was not recorded before the change")
+            problems.append(
+                "condition 5: the red run's tree equals the verify run's tree — "
+                "RED was not recorded before the change"
+            )
         if red["finished"] > verify["started"]:
-            problems.append("condition 5: the red run finished after the verify run started")
-    cases = [Case(c["name"], c["classname"], c["status"]) for r in verify["rows"] if r["phase"] == "TIER-C"
-             for c in r.get("results", {}).get("digest", {}).get("cases", [])]
-    problems += [f"condition 6: {identifier}: {detail}"
-                 for identifier, (passed, detail) in verdicts(covers_of(Path(task_file)), cases).items()
-                 if not passed]
+            problems.append(
+                "condition 5: the red run finished after the verify run started"
+            )
+    cases = [
+        Case(c["name"], c["classname"], c["status"])
+        for r in verify["rows"]
+        if r["phase"] == "TIER-C"
+        for c in r.get("results", {}).get("digest", {}).get("cases", [])
+    ]
+    problems += [
+        f"condition 6: {identifier}: {detail}"
+        for identifier, (passed, detail) in verdicts(
+            covers_of(Path(task_file)), cases
+        ).items()
+        if not passed
+    ]
     scope = next((r for r in verify["rows"] if r["id"] == "SCOPE"), None)
     if scope is None or scope["outcome"] != "PASS":
         detail = "; ".join(scope.get("violations", [])) if scope else "no SCOPE row"
@@ -599,7 +778,9 @@ def evaluate_done_gate(task_file: Path) -> list[str]:
             measure_digests = runs.get("measure", {}).get("evidence_digests", {})
             sha256 = hashlib.sha256(ev_path.read_bytes()).hexdigest()
             if sha256 != measure_digests.get(ev.pattern):
-                problems.append(f"condition 8: evidence file {ev.pattern} digest does not match measure run")
+                problems.append(
+                    f"condition 8: evidence file {ev.pattern} digest does not match measure run"
+                )
     if unchecked_dod_bullets(task_text):
         problems.append(
             "condition 9: Definition of Done contains unchecked '- [ ]' item(s) — "
@@ -613,9 +794,9 @@ def evaluate_done_gate(task_file: Path) -> list[str]:
         check=False,
     )
     if head_proc.returncode == 0:
-        if normalize_dod_for_tamper(section(task_text, "Definition of Done")) != normalize_dod_for_tamper(
-            section(head_proc.stdout, "Definition of Done")
-        ):
+        if normalize_dod_for_tamper(
+            section(task_text, "Definition of Done")
+        ) != normalize_dod_for_tamper(section(head_proc.stdout, "Definition of Done")):
             problems.append(
                 "condition 9: TASK_TAMPERED_ERROR: Definition of Done criteria altered from HEAD"
             )

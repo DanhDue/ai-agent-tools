@@ -2,15 +2,18 @@
 """Check the task files and HLD a designer wrote against the task contract, before Gate 2 closes.
 
 Usage:
-  check_task_contract.py [--design] --hld <epic_dir>.md --tasks <task_*.md ...>
+  check_task_contract.py [--design] [--verbose] [--json] --hld <epic_dir>.md --tasks <task_*.md ...>
 
 Accepts `<epic_dir>.md` or legacy `<epic_dir>.en.md` for `--hld`, and resolves
 `bdd_scenarios` English-only via `_epic_docs.resolve_epic_doc` (`bdd_scenarios.md`,
 else legacy `bdd_scenarios.en.md`; Vietnamese `*.vi.md` mirrors are never read).
-Prints problems as `<task stem>:<row or section>: <problem>` or `<hld file name>: <problem>`, the
-implicit protected paths, and a Result line. Exit codes: 0 no problem; 1 problems; 2 usage error.
-Python 3 standard library only.
+Emits a compact 1-line `Result: 0 problems — PASS` on success by default; `--verbose`
+adds `Implicit protected paths: ...`; `--json` prints structured JSON; failures print
+all `<task stem>:<row or section>: <problem>` or `<hld file name>: <problem>` lines,
+the implicit protected paths, and the Result line. Exit codes: 0 no problem; 1 problems;
+2 usage error. Python 3 standard library only.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -30,6 +33,8 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _epic_docs import resolve_epic_doc
+from _stack_lifecycle_registry import TierBContractAdapter, TierCTaxonomy
+
 tc: Any = importlib.import_module("task_contract")
 cb: Any = importlib.import_module("check_bdd_traceability")
 sts: Any = importlib.import_module("sync_task_status")
@@ -38,30 +43,64 @@ UsageError: type[Exception] = cb.UsageError
 covers_of: Any = cb.covers_of
 read_text: Any = cb.read_text
 
-SECTIONS = ("Files", "Verification", "Definition of Done", "Stop and Report If", "Decisions Already Made")
+SECTIONS = (
+    "Files",
+    "Verification",
+    "Definition of Done",
+    "Stop and Report If",
+    "Decisions Already Made",
+)
 ROW_PREFIX = re.compile(r"^Verification row [^:]+: ")
 STATUS = re.compile(r'^status:\s*"?([A-Za-z_-]+)"?\s*$', re.MULTILINE)
 GLOB_CHARS = re.compile(r"[*?\[]")
-WEAK_ASSERTION_RE = re.compile(r"\b(should be truthy|is valid|should work|returns non-empty)\b", re.IGNORECASE)
+WEAK_ASSERTION_RE = re.compile(
+    r"\b(should be truthy|is valid|should work|returns non-empty)\b", re.IGNORECASE
+)
 RESERVED_RUNNER_EVIDENCE = re.compile(r"^task_.*\.json$")
-NON_PORTABLE_PATH_RE = re.compile(r"(?:/Users/|/home/|~/|\.claude/plugins/cache/|\.gemini/config/plugins/)")
+NON_PORTABLE_PATH_RE = re.compile(
+    r"(?:/Users/|/home/|~/|\.claude/plugins/cache/|\.gemini/config/plugins/)"
+)
 SURGICAL_LINE_THRESHOLD = 200
-LOCKFILE_NAMES = frozenset({"uv.lock", "package-lock.json", "pubspec.lock", "Cargo.lock", "Podfile.lock"})
-ANCHOR_SECTIONS = frozenset({
-    "files",
-    "impact analysis & blast radius",
-    "impact analysis and blast radius",
-    "impact analysis",
-    "impact & design",
-    "decisions already made",
-    "file anchor map",
-})
+LOCKFILE_NAMES = frozenset(
+    {"uv.lock", "package-lock.json", "pubspec.lock", "Cargo.lock", "Podfile.lock"}
+)
+ANCHOR_SECTIONS = frozenset(
+    {
+        "files",
+        "impact analysis & blast radius",
+        "impact analysis and blast radius",
+        "impact analysis",
+        "impact & design",
+        "decisions already made",
+        "file anchor map",
+    }
+)
 LINE_RANGE_RE = re.compile(r"\bL(\d+)\s*[-–:]\s*L?(\d+)\b")
-NON_SYMBOL_WORDS = frozenset({
-    "new", "add", "update", "modify", "edit", "fix", "remove", "delete",
-    "file", "files", "line", "lines", "section", "sections", "module",
-    "test", "tests", "general", "todo", "done", "none",
-})
+NON_SYMBOL_WORDS = frozenset(
+    {
+        "new",
+        "add",
+        "update",
+        "modify",
+        "edit",
+        "fix",
+        "remove",
+        "delete",
+        "file",
+        "files",
+        "line",
+        "lines",
+        "section",
+        "sections",
+        "module",
+        "test",
+        "tests",
+        "general",
+        "todo",
+        "done",
+        "none",
+    }
+)
 
 
 class Checker:
@@ -69,13 +108,26 @@ class Checker:
         self.root = root
         self.problems: list[str] = []
         self.warnings: list[str] = []
-        proc = subprocess.run(["git", "ls-files", "-z"], check=False, cwd=root, capture_output=True, text=True)
+        proc = subprocess.run(
+            ["git", "ls-files", "-z"],
+            check=False,
+            cwd=root,
+            capture_output=True,
+            text=True,
+        )
         self.in_git_repo = proc.returncode == 0
         self.tracked = set(proc.stdout.split("\0")) - {""}
 
     def ignored(self, path: str) -> bool:
-        return subprocess.run(["git", "check-ignore", "-q", "--", path], check=False, cwd=self.root,
-                              capture_output=True).returncode == 0
+        return (
+            subprocess.run(
+                ["git", "check-ignore", "-q", "--", path],
+                check=False,
+                cwd=self.root,
+                capture_output=True,
+            ).returncode
+            == 0
+        )
 
     def problem(self, where: str, text: str) -> None:
         self.problems.append(f"{where}: {text}")
@@ -101,7 +153,10 @@ def table_rows(check: Checker, stem: str, text: str) -> list[Any]:
         return []
     table = [line for line in body.splitlines() if line.lstrip().startswith("|")]
     if not table or tc.split_cells(table[0]) != tc.HEADER:
-        check.problem(f"{stem}:Verification", "Verification header must be exactly: | " + " | ".join(tc.HEADER) + " |")
+        check.problem(
+            f"{stem}:Verification",
+            "Verification header must be exactly: | " + " | ".join(tc.HEADER) + " |",
+        )
         return []
     rows: list[Any] = []
     seen: set[str] = set()
@@ -109,10 +164,14 @@ def table_rows(check: Checker, stem: str, text: str) -> list[Any]:
         cells = tc.split_cells(line)
         try:
             if len(cells) != len(tc.HEADER):
-                raise tc.ContractError(f"Verification row {cells[0]!r}: expected {len(tc.HEADER)} cells, found {len(cells)}")
+                raise tc.ContractError(
+                    f"Verification row {cells[0]!r}: expected {len(tc.HEADER)} cells, found {len(cells)}"
+                )
             rows.append(tc.parse_row(cells, seen))
             if rows[-1].phase != "TIER-C" and rows[-1].expect.results:
-                check.problem(f"{stem}:{cells[0]}", "results is allowed only on TIER-C rows")
+                check.problem(
+                    f"{stem}:{cells[0]}", "results is allowed only on TIER-C rows"
+                )
         except tc.ContractError as error:
             check.problem(f"{stem}:{cells[0]}", ROW_PREFIX.sub("", str(error)))
         seen.add(cells[0])
@@ -136,14 +195,28 @@ def check_structure(
         check.problem(f"{stem}:Files", "Allowed files lists no entry")
     v_sec = tc.section(text, "Verification")
     if v_sec is not None:
-        reason = next((m.group(1) for m in map(tc.RED_NA.match, v_sec.splitlines()) if m), None)
-        if not any(row.phase == "RED" for row in rows) and not (reason and reason.strip()):
-            check.problem(f"{stem}:Verification", "no RED row and no RED: n/a line with a reason")
-        if covers_of(path) and not any(row.phase == "TIER-C" and row.expect.results for row in rows):
-            check.problem(f"{stem}:Verification", "Covers line but no TIER-C row with results")
+        reason = next(
+            (m.group(1) for m in map(tc.RED_NA.match, v_sec.splitlines()) if m), None
+        )
+        if not any(row.phase == "RED" for row in rows) and not (
+            reason and reason.strip()
+        ):
+            check.problem(
+                f"{stem}:Verification", "no RED row and no RED: n/a line with a reason"
+            )
+        if covers_of(path) and not any(
+            row.phase == "TIER-C" and row.expect.results for row in rows
+        ):
+            check.problem(
+                f"{stem}:Verification", "Covers line but no TIER-C row with results"
+            )
     ids = {row.id for row in rows}
     task_status = _task_status(text)
-    require_checkbox = design and not allow_historical and task_status not in EXISTING_NEW_EXEMPT_STATUSES
+    require_checkbox = (
+        design
+        and not allow_historical
+        and task_status not in EXISTING_NEW_EXEMPT_STATUSES
+    )
     for bullet in tc.dod_bullets(text):
         if require_checkbox and not (
             tc.UNCHECKED_DOD_PREFIX.match(bullet) or tc.CHECKED_DOD_PREFIX.match(bullet)
@@ -154,13 +227,24 @@ def check_structure(
             )
         reference = tc.DOD_REFERENCE.search(bullet)
         if not reference:
-            check.problem(f"{stem}:Definition of Done", f"{bullet} ends with no (V<n>) or (Gate 5) reference")
+            check.problem(
+                f"{stem}:Definition of Done",
+                f"{bullet} ends with no (V<n>) or (Gate 5) reference",
+            )
             continue
-        missing = [name for name in re.findall(r"V[0-9]+", reference.group(1)) if name not in ids]
+        missing = [
+            name
+            for name in re.findall(r"V[0-9]+", reference.group(1))
+            if name not in ids
+        ]
         if missing:
-            check.problem(f"{stem}:Definition of Done",
-                          f"{bullet} references {', '.join(missing)}, which the table lacks")
-    if (task_status == "done" or tc.has_completed_at(text)) and tc.unchecked_dod_bullets(text):
+            check.problem(
+                f"{stem}:Definition of Done",
+                f"{bullet} references {', '.join(missing)}, which the table lacks",
+            )
+    if (
+        task_status == "done" or tc.has_completed_at(text)
+    ) and tc.unchecked_dod_bullets(text):
         check.problem(
             f"{stem}:Definition of Done",
             "task status is 'done' (or completedAt is set) while Definition of Done still contains unchecked '- [ ]' item(s)",
@@ -169,9 +253,15 @@ def check_structure(
     if has_executable:
         decisions = tc.section(text, "Decisions Already Made")
         clean_decisions = decisions.strip().lower() if decisions else ""
-        if not decisions or not clean_decisions or clean_decisions in ("none", "none.", "n/a"):
-            check.problem(f"{stem}:Decisions Already Made",
-                          "executable task requires grounded facts, cannot be empty or 'None'")
+        if (
+            not decisions
+            or not clean_decisions
+            or clean_decisions in ("none", "none.", "n/a")
+        ):
+            check.problem(
+                f"{stem}:Decisions Already Made",
+                "executable task requires grounded facts, cannot be empty or 'None'",
+            )
 
 
 EXISTING_NEW_EXEMPT_STATUSES = frozenset({"done", "review", "in-progress"})
@@ -194,7 +284,9 @@ def check_allowed(
     allow_existing_done_new: bool = False,
     task_status: str = "",
 ) -> None:
-    skip_existing = allow_existing_done_new and task_status in EXISTING_NEW_EXEMPT_STATUSES
+    skip_existing = (
+        allow_existing_done_new and task_status in EXISTING_NEW_EXEMPT_STATUSES
+    )
     for entry in tc.parse_allowed_files(text):
         pattern = entry.pattern
         if entry.new:
@@ -202,18 +294,28 @@ def check_allowed(
                 parent = (check.root / pattern).parent
                 if (check.root / pattern).exists():
                     if not skip_existing:
-                        check.problem(f"{stem}:Files", f"{pattern} is marked (new) but already exists")
+                        check.problem(
+                            f"{stem}:Files",
+                            f"{pattern} is marked (new) but already exists",
+                        )
                 elif not (parent.exists() or parent.parent.exists()):
-                    check.problem(f"{stem}:Files", f"{pattern} (new) has no parent or grandparent directory")
+                    check.problem(
+                        f"{stem}:Files",
+                        f"{pattern} (new) has no parent or grandparent directory",
+                    )
         elif prereq_files and any(
             tc.path_matches(p, pattern) or tc.path_matches(pattern, p)
             for p in prereq_files
         ):
             pass
         elif pattern.endswith("/") or (
-            not check.is_tracked(pattern) and not GLOB_CHARS.search(pattern) and (check.root / pattern).is_dir()
+            not check.is_tracked(pattern)
+            and not GLOB_CHARS.search(pattern)
+            and (check.root / pattern).is_dir()
         ):
-            check.problem(f"{stem}:Files", f"{pattern} is a directory; list files or a glob")
+            check.problem(
+                f"{stem}:Files", f"{pattern} is a directory; list files or a glob"
+            )
         elif not check.is_tracked(pattern) and GLOB_CHARS.search(pattern):
             if not check.matches_tracked(pattern):
                 check.problem(f"{stem}:Files", f"{pattern} matches no tracked file")
@@ -230,7 +332,9 @@ def check_evidence(
     allow_existing_done_new: bool = False,
     task_status: str = "",
 ) -> None:
-    skip_existing = allow_existing_done_new and task_status in EXISTING_NEW_EXEMPT_STATUSES
+    skip_existing = (
+        allow_existing_done_new and task_status in EXISTING_NEW_EXEMPT_STATUSES
+    )
     for entry in tc.parse_evidence_files(text):
         pattern = entry.pattern
         parts = Path(pattern).parts
@@ -250,8 +354,16 @@ def check_evidence(
                 f"Evidence file {pattern} collides with reserved 'task_*.json' runner records",
             )
             continue
-        if design and entry.new and (check.root / pattern).exists() and not skip_existing:
-            check.problem(f"{stem}:Files", f"Evidence file {pattern} is marked (new) but already exists")
+        if (
+            design
+            and entry.new
+            and (check.root / pattern).exists()
+            and not skip_existing
+        ):
+            check.problem(
+                f"{stem}:Files",
+                f"Evidence file {pattern} is marked (new) but already exists",
+            )
 
 
 def _normalize_rel_claim(pattern: str) -> str:
@@ -386,7 +498,9 @@ def _expand_ownership_entry(entry: str, kind: str, universe: list[str]) -> set[s
     return {p for p in universe if _glob_matches(entry, p)}
 
 
-def _blocked_ancestors(tasks: dict[Path, str], ordered_paths: list[Path]) -> dict[str, set[str]]:
+def _blocked_ancestors(
+    tasks: dict[Path, str], ordered_paths: list[Path]
+) -> dict[str, set[str]]:
     """Build transitive Blocked-by ancestor map keyed by task stem."""
     id_map = _task_id_map(tasks)
     direct_blockers: dict[str, set[str]] = {}
@@ -450,13 +564,21 @@ def check_exclusive_ownership(check: Checker, tasks: dict[Path, str]) -> None:
     ordered_paths = sorted(tasks.keys(), key=lambda p: p.stem)
     ancestors = _blocked_ancestors(tasks, ordered_paths)
     repo_files = _ownership_repo_files(check)
-    raw_entries = {path.stem: _allowed_ownership_paths(tasks[path]) for path in ordered_paths}
+    raw_entries = {
+        path.stem: _allowed_ownership_paths(tasks[path]) for path in ordered_paths
+    }
     classified = {
-        stem: [(entry, _classify_ownership_entry(check, entry, repo_files)) for entry in entries]
+        stem: [
+            (entry, _classify_ownership_entry(check, entry, repo_files))
+            for entry in entries
+        ]
         for stem, entries in raw_entries.items()
     }
     all_literals = {
-        entry for items in classified.values() for entry, kind in items if kind == "literal"
+        entry
+        for items in classified.values()
+        for entry, kind in items
+        if kind == "literal"
     }
     universe = sorted(repo_files | all_literals)
     expanded = {
@@ -544,18 +666,32 @@ def command_paths(command: str) -> tuple[list[str], str | None]:
             if pattern_idx is None:
                 has_f = any(tok in ("-f", "--file") for tok in sub_tokens)
                 if not has_f:
-                    prog_idx = sub_tokens.index(unwrapped[0]) if unwrapped[0] in sub_tokens else 0
+                    prog_idx = (
+                        sub_tokens.index(unwrapped[0])
+                        if unwrapped[0] in sub_tokens
+                        else 0
+                    )
                     for idx in range(prog_idx + 1, len(sub_tokens)):
                         tok = sub_tokens[idx]
                         if not tok.startswith("-"):
                             pattern_idx = idx
                             break
             if pattern_idx is not None:
-                tokens_to_scan = [t for i, t in enumerate(sub_tokens) if i != pattern_idx]
+                tokens_to_scan = [
+                    t for i, t in enumerate(sub_tokens) if i != pattern_idx
+                ]
 
         for token in tokens_to_scan:
-            value = token.split("=", 1)[1] if token.startswith("-") and "=" in token else token
-            if "/" in value and not value.startswith("-") and not re.search(r"[*$]|://", value):
+            value = (
+                token.split("=", 1)[1]
+                if token.startswith("-") and "=" in token
+                else token
+            )
+            if (
+                "/" in value
+                and not value.startswith("-")
+                and not re.search(r"[*$]|://", value)
+            ):
                 clean_path = value.split("::", 1)[0]
                 paths.append(clean_path.removeprefix("./"))
 
@@ -564,12 +700,17 @@ def command_paths(command: str) -> tuple[list[str], str | None]:
     return paths, first if first and "/" not in first else None
 
 
-def check_grounding(check: Checker, stem: str, text: str, rows: list[Any], created: set[str]) -> None:
+def check_grounding(
+    check: Checker, stem: str, text: str, rows: list[Any], created: set[str]
+) -> None:
     for context in tc.parse_read_only_context(text):
         if not (check.root / context).exists() and not any(
             tc.path_matches(p, context) or tc.path_matches(context, p) for p in created
         ):
-            check.problem(f"{stem}:Files", f"Read-only context {context} does not exist and is not (new) in any task")
+            check.problem(
+                f"{stem}:Files",
+                f"Read-only context {context} does not exist and is not (new) in any task",
+            )
     for row in rows:
         try:
             lexer = shlex.shlex(row.command, posix=True, punctuation_chars=True)
@@ -585,11 +726,24 @@ def check_grounding(check: Checker, stem: str, text: str, rows: list[Any], creat
                 )
         paths, executable = command_paths(row.command)
         for path in paths:
-            if not (check.root / path).exists() and not check.ignored(path) and path not in created:
-                check.problem(f"{stem}:{row.id}",
-                              f"{path} does not exist, is not ignored by git and is not (new) in any task")
-        if executable and executable != "d3nexus" and "=" not in executable and shutil.which(executable) is None:
-            check.warnings.append(f"warning: {stem}:{row.id}: executable {executable} not found on PATH")
+            if (
+                not (check.root / path).exists()
+                and not check.ignored(path)
+                and path not in created
+            ):
+                check.problem(
+                    f"{stem}:{row.id}",
+                    f"{path} does not exist, is not ignored by git and is not (new) in any task",
+                )
+        if (
+            executable
+            and executable != "d3nexus"
+            and "=" not in executable
+            and shutil.which(executable) is None
+        ):
+            check.warnings.append(
+                f"warning: {stem}:{row.id}: executable {executable} not found on PATH"
+            )
 
 
 def check_portable_command(check: Checker, stem: str, row: Any) -> None:
@@ -617,16 +771,25 @@ def check_pytest_k(check: Checker, stem: str, row: Any) -> None:
             val = token.split("=", 1)[1]
         elif token.startswith("-k") and len(token) > 2:
             val = token[2:]
-        if val is not None and ("::" not in val or not val.split("::", 1)[0].endswith(".py")):
-            check.problem(f"{stem}:{row.id}",
-                          f"pytest -k expression must use an exact node ID (<file>::<test>), found: {val!r}")
+        if val is not None and (
+            "::" not in val or not val.split("::", 1)[0].endswith(".py")
+        ):
+            check.problem(
+                f"{stem}:{row.id}",
+                f"pytest -k expression must use an exact node ID (<file>::<test>), found: {val!r}",
+            )
 
 
 def is_python_task(text: str, rows: list[Any]) -> bool:
     entries = tc.parse_allowed_files(text)
     for entry in entries:
         pat = entry.pattern.lower()
-        if pat.endswith(".py") or pat in ("pyproject.toml", "setup.py", "requirements.txt", "pipfile"):
+        if pat.endswith(".py") or pat in (
+            "pyproject.toml",
+            "setup.py",
+            "requirements.txt",
+            "pipfile",
+        ):
             return True
     tier_b_rows = [r for r in rows if r.phase == "TIER-B"]
     for row in tier_b_rows:
@@ -669,7 +832,20 @@ def _is_test_path(path: str) -> bool:
         or "test" in parts
         or "integration_test" in parts
         or name.startswith("test_")
-        or name.endswith(("_test.py", "_test.dart", "_test.go", "_test.rs", ".test.ts", ".spec.ts", ".test.js", ".spec.js", "test.kt", "tests.swift"))
+        or name.endswith(
+            (
+                "_test.py",
+                "_test.dart",
+                "_test.go",
+                "_test.rs",
+                ".test.ts",
+                ".spec.ts",
+                ".test.js",
+                ".spec.js",
+                "test.kt",
+                "tests.swift",
+            )
+        )
     )
 
 
@@ -773,7 +949,9 @@ def check_regression_coverage(
     # 1. Every test file explicitly listed under Downstream Callers must be executed
     for caller_test in _extract_downstream_caller_tests(text):
         if _caller_test_exists(check, caller_test):
-            if not any(_token_covers_caller_test(tok, caller_test) for tok in row_tokens):
+            if not any(
+                _token_covers_caller_test(tok, caller_test) for tok in row_tokens
+            ):
                 check.problem(
                     f"{stem}:Verification",
                     f"Downstream caller test {caller_test} listed in Impact Analysis is not executed in any REGRESSION, GREEN, or TIER-C row",
@@ -812,7 +990,11 @@ def check_regression_coverage(
             ):
                 referenced_test_targets.append(clean)
 
-    if referenced_test_targets and all(t in new_test_files for t in referenced_test_targets) and not has_regression_phase:
+    if (
+        referenced_test_targets
+        and all(t in new_test_files for t in referenced_test_targets)
+        and not has_regression_phase
+    ):
         check.problem(
             f"{stem}:Verification",
             "Verification only runs newly created test file(s); add a REGRESSION row (or expand GREEN/TIER-C) covering existing module and Downstream Caller tests",
@@ -872,22 +1054,45 @@ def check_python_tier_b(
         try:
             data = json.loads(manifest_path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
-            check.problem(f"{stem}:Verification", "malformed .agents/quality/python-quality.json manifest")
+            check.problem(
+                f"{stem}:Verification",
+                "malformed .agents/quality/python-quality.json manifest",
+            )
             return
         if not isinstance(data, dict):
-            check.problem(f"{stem}:Verification", "invalid python-quality.json manifest: root must be an object")
+            check.problem(
+                f"{stem}:Verification",
+                "invalid python-quality.json manifest: root must be an object",
+            )
             return
         capabilities = data.get("capabilities")
         if not isinstance(capabilities, dict):
-            check.problem(f"{stem}:Verification", "invalid python-quality.json manifest: capabilities must be an object")
+            check.problem(
+                f"{stem}:Verification",
+                "invalid python-quality.json manifest: capabilities must be an object",
+            )
             return
         lint_cmd = capabilities.get("lint")
         type_check_cmd = capabilities.get("type_check")
-        if not isinstance(lint_cmd, list) or not lint_cmd or not all(isinstance(x, str) for x in lint_cmd):
-            check.problem(f"{stem}:Verification", "invalid python-quality.json manifest: lint capability missing or invalid")
+        if (
+            not isinstance(lint_cmd, list)
+            or not lint_cmd
+            or not all(isinstance(x, str) for x in lint_cmd)
+        ):
+            check.problem(
+                f"{stem}:Verification",
+                "invalid python-quality.json manifest: lint capability missing or invalid",
+            )
             return
-        if not isinstance(type_check_cmd, list) or not type_check_cmd or not all(isinstance(x, str) for x in type_check_cmd):
-            check.problem(f"{stem}:Verification", "invalid python-quality.json manifest: type_check capability missing or invalid")
+        if (
+            not isinstance(type_check_cmd, list)
+            or not type_check_cmd
+            or not all(isinstance(x, str) for x in type_check_cmd)
+        ):
+            check.problem(
+                f"{stem}:Verification",
+                "invalid python-quality.json manifest: type_check capability missing or invalid",
+            )
             return
 
         def matches_cap(cap: list[str], command: str) -> bool:
@@ -900,16 +1105,26 @@ def check_python_tier_b(
                     return True
                 if allow_historical_prefix:
                     prefix = _cap_tool_prefix(cap)
-                    if prefix and len(sub) > len(prefix) and sub[: len(prefix)] == prefix:
+                    if (
+                        prefix
+                        and len(sub) > len(prefix)
+                        and sub[: len(prefix)] == prefix
+                    ):
                         return True
             return False
 
         has_lint = any(matches_cap(lint_cmd, r.command) for r in tier_b_rows)
         has_type = any(matches_cap(type_check_cmd, r.command) for r in tier_b_rows)
         if not has_lint:
-            check.problem(f"{stem}:Verification", f"Python task missing registered lint capability ({' '.join(lint_cmd)})")
+            check.problem(
+                f"{stem}:Verification",
+                f"Python task missing registered lint capability ({' '.join(lint_cmd)})",
+            )
         if not has_type:
-            check.problem(f"{stem}:Verification", f"Python task missing registered type_check capability ({' '.join(type_check_cmd)})")
+            check.problem(
+                f"{stem}:Verification",
+                f"Python task missing registered type_check capability ({' '.join(type_check_cmd)})",
+            )
         if has_lint and has_type and text and not allow_historical_prefix:
             _check_python_tier_b_allowed_coverage(check, stem, text, tier_b_rows)
         return
@@ -932,7 +1147,10 @@ def check_python_tier_b(
             missing_tools.append("lint (ruff)")
         if not has_type_checker:
             missing_tools.append("type-check (mypy/pyright/ty)")
-        check.problem(f"{stem}:Verification", f"Python task requires TIER-B direct {', '.join(missing_tools)}")
+        check.problem(
+            f"{stem}:Verification",
+            f"Python task requires TIER-B direct {', '.join(missing_tools)}",
+        )
         return
 
     if text and not allow_historical_prefix:
@@ -950,12 +1168,15 @@ def _check_python_tier_b_allowed_coverage(
     allowed_py = [
         entry.pattern.removeprefix("./")
         for entry in allowed_entries
-        if entry.pattern.lower().endswith(".py") and not GLOB_CHARS.search(entry.pattern)
+        if entry.pattern.lower().endswith(".py")
+        and not GLOB_CHARS.search(entry.pattern)
     ]
     has_test_py = any(_is_test_path(p) for p in allowed_py)
     prod_py = [p for p in allowed_py if not _is_test_path(p)]
     has_new_test_py = any(
-        entry.new and entry.pattern.lower().endswith(".py") and _is_test_path(entry.pattern)
+        entry.new
+        and entry.pattern.lower().endswith(".py")
+        and _is_test_path(entry.pattern)
         for entry in allowed_entries
     )
     has_strict_or_format = any(
@@ -986,7 +1207,9 @@ def _check_python_tier_b_allowed_coverage(
 
     if lint_targets:
         missing_lint = [
-            p for p in allowed_py if not any(_target_covers_path(t, p) for t in lint_targets)
+            p
+            for p in allowed_py
+            if not any(_target_covers_path(t, p) for t in lint_targets)
         ]
         if missing_lint:
             check.problem(
@@ -995,7 +1218,9 @@ def _check_python_tier_b_allowed_coverage(
             )
     if type_targets:
         missing_type = [
-            p for p in allowed_py if not any(_target_covers_path(t, p) for t in type_targets)
+            p
+            for p in allowed_py
+            if not any(_target_covers_path(t, p) for t in type_targets)
         ]
         if missing_type:
             check.problem(
@@ -1008,7 +1233,9 @@ def check_weak_bdd(check: Checker, source_name: str, text: str) -> None:
     for line_num, line in enumerate(text.splitlines(), start=1):
         m = WEAK_ASSERTION_RE.search(line)
         if m:
-            check.problem(f"{source_name}:{line_num}", f"weak BDD assertion found: {m.group(0)!r}")
+            check.problem(
+                f"{source_name}:{line_num}", f"weak BDD assertion found: {m.group(0)!r}"
+            )
 
 
 def _read_text_if_not_binary(path: Path) -> str | None:
@@ -1099,7 +1326,9 @@ def _strip_matched_path(line: str, pattern: str) -> tuple[bool, str]:
     return False, line
 
 
-def _iter_file_anchor_chunks(section_bodies: list[str], pattern: str) -> list[tuple[str, str]]:
+def _iter_file_anchor_chunks(
+    section_bodies: list[str], pattern: str
+) -> list[tuple[str, str]]:
     chunks: list[tuple[str, str]] = []
     for body in section_bodies:
         lines = body.splitlines()
@@ -1134,7 +1363,9 @@ def _extract_symbol_candidates(raw_chunk: str, cleaned_chunk: str) -> list[str]:
     candidates: list[str] = []
     for span in tc.CODE_SPAN.findall(cleaned_chunk):
         cand = span.strip().removesuffix("()").split("[", 1)[0]
-        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]*", cand) and not re.fullmatch(r"L\d+", cand):
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]*", cand) and not re.fullmatch(
+            r"L\d+", cand
+        ):
             candidates.append(cand)
     for m in re.finditer(r"::\s*`?([A-Za-z_][A-Za-z0-9_.]*)`?", raw_chunk):
         cand = m.group(1)
@@ -1150,7 +1381,9 @@ def _extract_symbol_candidates(raw_chunk: str, cleaned_chunk: str) -> list[str]:
     return candidates
 
 
-def _symbol_present_in_file(cand: str, is_python: bool, py_symbols: set[str], content: str) -> bool:
+def _symbol_present_in_file(
+    cand: str, is_python: bool, py_symbols: set[str], content: str
+) -> bool:
     if is_python:
         return cand in py_symbols or cand.split(".")[-1] in py_symbols
     leaf = cand.split(".")[-1]
@@ -1159,7 +1392,9 @@ def _symbol_present_in_file(cand: str, is_python: bool, py_symbols: set[str], co
     return bool(re.search(rf"\b{re.escape(leaf)}\b", content))
 
 
-def _has_valid_anchor(pattern: str, content: str, line_count: int, section_bodies: list[str]) -> bool:
+def _has_valid_anchor(
+    pattern: str, content: str, line_count: int, section_bodies: list[str]
+) -> bool:
     is_python = pattern.endswith(".py")
     py_symbols: set[str] | None = None
     for raw_chunk, cleaned_chunk in _iter_file_anchor_chunks(section_bodies, pattern):
@@ -1172,7 +1407,9 @@ def _has_valid_anchor(pattern: str, content: str, line_count: int, section_bodie
             if is_python and py_symbols is None:
                 py_symbols = _python_symbols(content)
             for cand in candidates:
-                if _symbol_present_in_file(cand, is_python, py_symbols or set(), content):
+                if _symbol_present_in_file(
+                    cand, is_python, py_symbols or set(), content
+                ):
                     return True
     return False
 
@@ -1182,12 +1419,20 @@ def check_surgical_anchors(check: Checker, stem: str, text: str) -> None:
     section_bodies = _collect_anchor_section_bodies(text)
     for entry in tc.parse_allowed_files(text):
         pattern = entry.pattern
-        if entry.new or (not check.is_tracked(pattern) and GLOB_CHARS.search(pattern)) or pattern.endswith("/"):
+        if (
+            entry.new
+            or (not check.is_tracked(pattern) and GLOB_CHARS.search(pattern))
+            or pattern.endswith("/")
+        ):
             continue
         if not check.is_tracked(pattern):
             continue
         target_path = check.root / pattern
-        if not target_path.is_file() or target_path.name in LOCKFILE_NAMES or target_path.suffix.lower() == ".lock":
+        if (
+            not target_path.is_file()
+            or target_path.name in LOCKFILE_NAMES
+            or target_path.suffix.lower() == ".lock"
+        ):
             continue
         content = _read_text_if_not_binary(target_path)
         if content is None:
@@ -1229,13 +1474,39 @@ def check_task(
     )
     for row in rows:
         if row.expect.results and not check.ignored(row.expect.results):
-            check.problem(f"{stem}:{row.id}", f"results path {row.expect.results} is not ignored by git")
+            check.problem(
+                f"{stem}:{row.id}",
+                f"results path {row.expect.results} is not ignored by git",
+            )
         check_pytest_k(check, stem, row)
         check_portable_command(check, stem, row)
     check_weak_bdd(check, stem, text)
     if design or task_status != "done":
+        allowed_entries = tc.parse_allowed_files(text)
         if is_python_task(text, rows):
-            check_python_tier_b(check, stem, rows, text=text, allow_historical_prefix=allow_hist)
+            check_python_tier_b(
+                check, stem, rows, text=text, allow_historical_prefix=allow_hist
+            )
+        for where, msg in TierBContractAdapter.validate_tier_b(
+            check.root,
+            stem,
+            allowed_entries,
+            rows,
+            allow_historical_prefix=allow_hist,
+        ):
+            check.problem(where, msg)
+        active_stacks = TierBContractAdapter.resolve_active_stacks(
+            check.root,
+            [entry.pattern for entry in allowed_entries],
+        )
+        tier_c_problems, tier_c_warnings = TierCTaxonomy.check_tier_c_rows(
+            stem,
+            rows,
+            active_stacks,
+        )
+        for where, msg in tier_c_problems:
+            check.problem(where, msg)
+        check.warnings.extend(tier_c_warnings)
         if design and not allow_hist:
             check_regression_coverage(check, stem, text, rows)
         check_allowed(
@@ -1260,19 +1531,38 @@ def check_task(
         check_grounding(check, stem, text, rows, created)
 
 
-def check_hld(check: Checker, hld_path: Path, text: str, tasks: dict[Path, str]) -> None:
+def check_hld(
+    check: Checker,
+    hld_path: Path,
+    text: str,
+    tasks: dict[Path, str],
+    created: set[str] | None = None,
+) -> None:
     name = hld_path.name
     if not tc.parse_protected_paths(text):
         check.problem(name, "no Protected paths: line")
+    integration_roots = tc.parse_integration_test_roots(text)
+    if integration_roots:
+        for msg in TierCTaxonomy.validate_integration_test_roots(
+            check.root,
+            integration_roots,
+            check.tracked,
+            created or set(),
+        ):
+            check.problem(name, msg)
     results = tc.parse_integration_results(text)
     if not results:
         check.problem(name, "no Integration results: line")
     for entry in results:
         command, arrow, report = entry.rpartition(" -> ")
         if not arrow or not command.strip() or not report.strip():
-            check.problem(name, f"Integration results line is not <command> -> <path>: {entry}")
+            check.problem(
+                name, f"Integration results line is not <command> -> <path>: {entry}"
+            )
         elif not check.ignored(report.strip()):
-            check.problem(name, f"Integration results path {report.strip()} is not ignored by git")
+            check.problem(
+                name, f"Integration results path {report.strip()} is not ignored by git"
+            )
     environment = tc.verification_environment(text)
     if environment is None or not environment.strip():
         check.problem(name, "## Verification Environment section is missing or empty")
@@ -1293,7 +1583,10 @@ def check_hld(check: Checker, hld_path: Path, text: str, tasks: dict[Path, str])
         for row in rows:
             for need in row.needs:
                 if need not in environment:
-                    check.problem(f"{path.stem}:{row.id}", f"Needs {need} is not named in the Verification Environment section")
+                    check.problem(
+                        f"{path.stem}:{row.id}",
+                        f"Needs {need} is not named in the Verification Environment section",
+                    )
     bdd_path = resolve_epic_doc(hld_path.parent, "bdd_scenarios")
     if bdd_path is not None:
         try:
@@ -1327,7 +1620,10 @@ def check_r2_r3_parity(check: Checker, hld_path: Path, tasks: dict[Path, str]) -
                 if cid in canonical_blocks:
                     if cid in task_blocks and task_blocks[cid] != canonical_blocks[cid]:
                         assert bdd_path is not None
-                        check.problem(f"{stem}:BDD", f"scenario {cid} differs from {bdd_path.name} (R3)")
+                        check.problem(
+                            f"{stem}:BDD",
+                            f"scenario {cid} differs from {bdd_path.name} (R3)",
+                        )
 
         # R2: Mirror parity check if mirror exists
         features_dir = check.root / ".devtool" / "features"
@@ -1336,14 +1632,26 @@ def check_r2_r3_parity(check: Checker, hld_path: Path, tasks: dict[Path, str]) -
         if not mirror_path.is_file():
             mirror_path = done_dir / task_path.name
         if mirror_path.is_file():
-            prefix = f"](../../epic/{epic_dir}/" if mirror_path.parent == done_dir else f"](../epic/{epic_dir}/"
+            prefix = (
+                f"](../../epic/{epic_dir}/"
+                if mirror_path.parent == done_dir
+                else f"](../epic/{epic_dir}/"
+            )
             norm_mirror = read_file(mirror_path).replace(prefix, "](")
             if norm_mirror != epic_text:
-                check.problem(f"{stem}:Mirror", "features mirror content differs from epic task (R2)")
+                check.problem(
+                    f"{stem}:Mirror",
+                    "features mirror content differs from epic task (R2)",
+                )
 
 
 def repository_root() -> Path:
-    done = subprocess.run(["git", "rev-parse", "--show-toplevel"], check=False, capture_output=True, text=True)
+    done = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
     if done.returncode != 0:
         raise UsageError("not inside a git repository")
     return Path(done.stdout.strip())
@@ -1353,6 +1661,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--design", action="store_true")
     parser.add_argument("--allow-existing-done-new", action="store_true")
+    parser.add_argument("--verbose", action="store_true")
+    parser.add_argument("--json", dest="as_json", action="store_true")
     parser.add_argument("--hld", required=True, type=Path)
     parser.add_argument("--tasks", required=True, nargs="+", type=Path)
     args = parser.parse_args(argv)
@@ -1389,7 +1699,7 @@ def main(argv: list[str] | None = None) -> int:
                 prereq_files,
                 allow_existing_done_new=args.allow_existing_done_new,
             )
-        check_hld(check, args.hld, hld_text, tasks)
+        check_hld(check, args.hld, hld_text, tasks, created)
         if args.design:
             check_exclusive_ownership(check, tasks)
             check_r2_r3_parity(check, args.hld, tasks)
@@ -1409,13 +1719,33 @@ def main(argv: list[str] | None = None) -> int:
         f"{prog} ({', '.join(program_provenance[prog])})"
         for prog in sorted(program_provenance.keys())
     ]
+    if args.as_json:
+        payload = {
+            "status": "FAIL" if check.problems else "PASS",
+            "problems": list(check.problems),
+            "warnings": list(check.warnings),
+            "implicit_protected_paths": formatted_programs,
+        }
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+        return 1 if check.problems else 0
+
     for warning in check.warnings:
         print(warning, file=sys.stderr)
-    for problem in check.problems:
-        print(problem)
-    print(f"Implicit protected paths: {', '.join(formatted_programs) if formatted_programs else 'none'}")
-    print(f"Result: {len(check.problems)} problems — {'FAIL' if check.problems else 'PASS'}")
-    return 1 if check.problems else 0
+    if check.problems:
+        for problem in check.problems:
+            print(problem)
+        print(
+            f"Implicit protected paths: {', '.join(formatted_programs) if formatted_programs else 'none'}"
+        )
+        print(f"Result: {len(check.problems)} problems — FAIL")
+        return 1
+
+    if args.verbose:
+        print(
+            f"Implicit protected paths: {', '.join(formatted_programs) if formatted_programs else 'none'}"
+        )
+    print("Result: 0 problems — PASS")
+    return 0
 
 
 def _rows(text: str) -> list[Any]:

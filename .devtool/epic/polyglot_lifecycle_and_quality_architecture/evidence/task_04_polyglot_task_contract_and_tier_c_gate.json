@@ -1,0 +1,184 @@
+{
+  "schema": 1,
+  "task": "task_04_polyglot_task_contract_and_tier_c_gate",
+  "runs": {
+    "red": {
+      "head": "c3662d17ab704be8bebdba8d230974df3f973547",
+      "tree": "9c2b2be23bf78ef6bdc3219b24446e00f4802720",
+      "patch_id": "1b0fb88fb0994e0f505d77769c5ea10d8f4ea514",
+      "started": "2026-11-27T03:51:57Z",
+      "finished": "2026-11-27T03:51:58Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_plq_task_contract_polyglot.py::test_plq_hp_04_polyglot_task_passes_with_one_line_pass",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T03:51:57Z",
+          "finished": "2026-11-27T03:51:58Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "____________ test_plq_hp_04_polyglot_task_passes_with_one_line_pass ____________",
+            "tests/test_plq_task_contract_polyglot.py:252: in test_plq_hp_04_polyglot_task_passes_with_one_line_pass",
+            "    assert default_res.stdout.splitlines() == [\"Result: 0 problems — PASS\"], (",
+            "E   AssertionError: Expected single-line PASS stdout, got:",
+            "E     'Implicit protected paths: tool.py (task_01_poly:V1, task_01_poly:V2, task_01_poly:V4)\\nResult: 0 problems — PASS\\n'",
+            "E   assert ['Implicit pr...blems — PASS'] == ['Result: 0 problems — PASS']",
+            "E     ",
+            "E     At index 0 diff: 'Implicit protected paths: tool.py (task_01_poly:V1, task_01_poly:V2, task_01_poly:V4)' != 'Result: 0 problems — PASS'",
+            "E     Left contains one more item: 'Result: 0 problems — PASS'",
+            "E     Use -v to get more diff",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_plq_task_contract_polyglot.py::test_plq_hp_04_polyglot_task_passes_with_one_line_pass",
+            "1 failed in 0.27s"
+          ],
+          "output_sha256": "29b1d469d43c1c226dc2b36bf7637b9227e05f522ef3ec10d60c4548e2e9cfb9"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "c3662d17ab704be8bebdba8d230974df3f973547",
+      "tree": "114fe67fb11fd4f3bdaf4374fe5dcd417fb2dad6",
+      "patch_id": "426f1418147765bfc2a0a3370a6b87d4e0ec0cce",
+      "started": "2026-11-27T03:51:58Z",
+      "finished": "2026-11-27T03:54:48Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_plq_task_contract_polyglot.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T03:51:58Z",
+          "finished": "2026-11-27T03:52:04Z",
+          "output_tail": [
+            "......                                                                   [100%]",
+            "6 passed in 5.61s"
+          ],
+          "output_sha256": "e56616528dfa46069f4e08b6d1712efe7649a78f673c5b3f3f74b8b01aa89b40"
+        },
+        {
+          "id": "V3",
+          "phase": "REGRESSION",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 skills/dev-implementation/resources/scripts/test_check_task_contract.py skills/dev-implementation/resources/scripts/test_check_epic_readiness.py tests/test_ohk_cmr_and_contracts.py tests/test_token_throttling_acceptance.py tests/test_tto_bilingual_and_surgical.py tests/test_fpg_english_only_and_ownership.py scripts/test_verifiable_handoff.py tests/test_rsdh_orchestration.py tests/test_ohk2_skill_docs.py skills/dev-implementation/resources/scripts/test_sync_task_status.py skills/dev-implementation/resources/scripts/test_inter_epic_dependencies.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T03:52:04Z",
+          "finished": "2026-11-27T03:54:41Z",
+          "output_tail": [
+            "........................................................................ [ 29%]",
+            "........................................................................ [ 59%]",
+            "................................................................... [ 87%]",
+            "...............................                                          [100%]",
+            "242 passed, 5 subtests passed in 157.31s (0:02:37)"
+          ],
+          "output_sha256": "6c4d9634290ad2b9aa7bf713554e23f65948319cf409699e8944f0c4a679ce62"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/test_check_task_contract.py skills/dev-implementation/resources/scripts/test_check_epic_readiness.py tests/test_plq_task_contract_polyglot.py && ruff format --check skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/test_check_task_contract.py skills/dev-implementation/resources/scripts/test_check_epic_readiness.py tests/test_plq_task_contract_polyglot.py && mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/test_check_task_contract.py skills/dev-implementation/resources/scripts/test_check_epic_readiness.py tests/test_plq_task_contract_polyglot.py --ignore-missing-imports --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T03:54:41Z",
+          "finished": "2026-11-27T03:54:41Z",
+          "output_tail": [
+            "All checks passed!",
+            "5 files already formatted",
+            "Success: no issues found in 12 source files"
+          ],
+          "output_sha256": "3f767f170e90bc99b7c2b3087e91855131d2567944b273d19f24fa7d212cda09"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_plq_task_contract_polyglot.py --junitxml=build/test-results/task_04.xml",
+          "expect": "exit 0; results build/test-results/task_04.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T03:54:41Z",
+          "finished": "2026-11-27T03:54:47Z",
+          "output_tail": [
+            "......                                                                   [100%]",
+            "6 passed in 5.58s"
+          ],
+          "output_sha256": "bd5526a05a24064bd708a9a328bac8a2c479144d223ca47b6d8964dc3c814304",
+          "results": {
+            "path": "build/test-results/task_04.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 6,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_plq_hp_04_polyglot_task_passes_with_one_line_pass",
+                  "classname": "tests.test_plq_task_contract_polyglot",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_hp_04_mixed_python_web_untouched_flutter_and_custom_stack",
+                  "classname": "tests.test_plq_task_contract_polyglot.TestPLQTaskContractPolyglot_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_ec_06_python_tier_b_enforced_without_python_manifest_or_with_flutter_only",
+                  "classname": "tests.test_plq_task_contract_polyglot.TestPLQTaskContractPolyglot_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_st_02_tier_c_taxonomy_explicit_c2_and_heuristic_warning",
+                  "classname": "tests.test_plq_task_contract_polyglot.TestPLQTaskContractPolyglot_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_ar_03_conditional_boundary_checks_activate_only_for_boundary_files",
+                  "classname": "tests.test_plq_task_contract_polyglot.TestPLQTaskContractPolyglot_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_fr_04_invalid_hld_integration_test_roots_fail_and_valid_roots_pass",
+                  "classname": "tests.test_plq_task_contract_polyglot.TestPLQTaskContractPolyglot_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/check_task_contract.py",
+            "skills/dev-implementation/resources/scripts/task_contract.py",
+            "skills/dev-implementation/resources/scripts/test_check_epic_readiness.py",
+            "skills/dev-implementation/resources/scripts/test_check_task_contract.py",
+            "tests/test_plq_task_contract_polyglot.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

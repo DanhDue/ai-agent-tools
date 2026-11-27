@@ -4,6 +4,7 @@
 Run:
     python3 -m unittest skills/dev-implementation/resources/scripts/test_check_epic_readiness.py -k ReadinessCoreTest
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -49,10 +50,46 @@ def build_ready_epic(root: Path) -> None:
         (root / "tool.py").write_text("def run():\n    pass\n", encoding="utf-8")
         (root / "README.md").write_text("# Demo\n", encoding="utf-8")
         (root / "scripts").mkdir(parents=True, exist_ok=True)
-        (root / "scripts" / "verify.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        (root / "scripts" / "verify.sh").write_text(
+            "#!/bin/sh\nexit 0\n", encoding="utf-8"
+        )
         (root / ".gitignore").write_text("build/\n", encoding="utf-8")
-        git_cmd(root, "add", "tool.py", "README.md", "scripts/verify.sh", ".gitignore")
+        (root / "tests").mkdir(parents=True, exist_ok=True)
+        gitkeep = root / "tests" / ".gitkeep"
+        if not gitkeep.exists():
+            gitkeep.write_text("", encoding="utf-8")
+        git_cmd(
+            root,
+            "add",
+            "tool.py",
+            "README.md",
+            "scripts/verify.sh",
+            ".gitignore",
+            "tests/.gitkeep",
+        )
         git_cmd(root, "commit", "-m", "initial commit", "-q")
+    else:
+        tracked_tests = subprocess.run(
+            ["git", "-C", str(root), "ls-files", "tests"],
+            check=False,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        if not tracked_tests:
+            (root / "tests").mkdir(parents=True, exist_ok=True)
+            gitkeep = root / "tests" / ".gitkeep"
+            if not gitkeep.exists():
+                gitkeep.write_text("", encoding="utf-8")
+            git_cmd(root, "add", "tests/.gitkeep")
+            git_cmd(
+                root,
+                "commit",
+                "-m",
+                "seed tests root",
+                "-q",
+                "--",
+                "tests/.gitkeep",
+            )
 
     epic_dir = root / ".devtool" / "epic" / "demo_epic"
     features_dir = root / ".devtool" / "features"
@@ -90,8 +127,12 @@ Approved spec overview text.
 
 Nội dung tổng quan thiết kế đã được phê duyệt.
 """
-    (epic_dir / "2026-10-22-demo-epic-design.en.md").write_text(spec_en, encoding="utf-8")
-    (epic_dir / "2026-10-22-demo-epic-design.vi.md").write_text(spec_vi, encoding="utf-8")
+    (epic_dir / "2026-10-22-demo-epic-design.en.md").write_text(
+        spec_en, encoding="utf-8"
+    )
+    (epic_dir / "2026-10-22-demo-epic-design.vi.md").write_text(
+        spec_vi, encoding="utf-8"
+    )
 
     # 2. HLD pair
     hld_en = """# Demo Epic High-Level Design
@@ -390,8 +431,12 @@ Scenario: [DEMO-HP-02] [Tier C - Integration] Integration scenario description
     (epic_dir / "task_2.md").write_text(task_2_epic, encoding="utf-8")
 
     # 5. Mirrors in .devtool/features/
-    task_1_feature = task_1_epic.replace("](demo_epic.en.md)", "](../epic/demo_epic/demo_epic.en.md)")
-    task_2_feature = task_2_epic.replace("](demo_epic.en.md)", "](../epic/demo_epic/demo_epic.en.md)")
+    task_1_feature = task_1_epic.replace(
+        "](demo_epic.en.md)", "](../epic/demo_epic/demo_epic.en.md)"
+    )
+    task_2_feature = task_2_epic.replace(
+        "](demo_epic.en.md)", "](../epic/demo_epic/demo_epic.en.md)"
+    )
     (features_dir / "task_1.md").write_text(task_1_feature, encoding="utf-8")
     (features_dir / "task_2.md").write_text(task_2_feature, encoding="utf-8")
 
@@ -422,7 +467,9 @@ class ReadinessCoreTest(unittest.TestCase):
     def test_prv_hp_01_ready_fixture_epic_passes_every_check(self) -> None:
         """PRV-HP-01: A ready fixture epic passes every check."""
         code, stdout, stderr = self.run_check("demo_epic")
-        self.assertEqual(code, 0, f"Expected 0, got {code}.\nStdout:\n{stdout}\nStderr:\n{stderr}")
+        self.assertEqual(
+            code, 0, f"Expected 0, got {code}.\nStdout:\n{stdout}\nStderr:\n{stderr}"
+        )
         lines = [line.strip() for line in stdout.splitlines() if line.strip()]
         self.assertTrue(lines, "No output received")
         self.assertEqual(lines[0], "Epic: demo_epic (demo-epic), 2 tasks")
@@ -501,10 +548,18 @@ class ReadinessCoreTest(unittest.TestCase):
     def test_prv_ec_05_metadata_packaged_without_handoff_and_draft_spec(self) -> None:
         """PRV-EC-05: Packaged without a handoff fails R7 and a draft spec warns R7b."""
         hld_path = self.root / ".devtool" / "epic" / "demo_epic" / "demo_epic.en.md"
-        hld_text = hld_path.read_text(encoding="utf-8").replace("- **Status**: Planned", "- **Status**: Packaged")
+        hld_text = hld_path.read_text(encoding="utf-8").replace(
+            "- **Status**: Planned", "- **Status**: Packaged"
+        )
         hld_path.write_text(hld_text, encoding="utf-8")
 
-        spec_path = self.root / ".devtool" / "epic" / "demo_epic" / "2026-10-22-demo-epic-design.en.md"
+        spec_path = (
+            self.root
+            / ".devtool"
+            / "epic"
+            / "demo_epic"
+            / "2026-10-22-demo-epic-design.en.md"
+        )
         spec_text = spec_path.read_text(encoding="utf-8").replace(
             "- **Status**: Approved (Gate 1)",
             "- **Status**: Draft, awaiting Gate 1 review",
@@ -513,7 +568,12 @@ class ReadinessCoreTest(unittest.TestCase):
 
         code, stdout, _stderr = self.run_check("demo_epic")
         self.assertEqual(code, 1, f"Expected 1, got {code}.\nStdout:\n{stdout}")
-        self.assertTrue(any(line.startswith("R7 FAIL") and "handoff.md" in line for line in stdout.splitlines()))
+        self.assertTrue(
+            any(
+                line.startswith("R7 FAIL") and "handoff.md" in line
+                for line in stdout.splitlines()
+            )
+        )
         self.assertTrue(
             any(
                 line.startswith("R7b WARN") and "Draft, awaiting Gate 1 review" in line
@@ -532,10 +592,17 @@ class ReadinessCoreTest(unittest.TestCase):
 
 - **Base branch**: main
 """
-        (self.root / ".devtool" / "epic" / "demo_epic" / "handoff.md").write_text(bad_handoff, encoding="utf-8")
+        (self.root / ".devtool" / "epic" / "demo_epic" / "handoff.md").write_text(
+            bad_handoff, encoding="utf-8"
+        )
         code_bad, stdout_bad, _ = self.run_check("demo_epic")
         self.assertEqual(code_bad, 1)
-        self.assertTrue(any("missing 'Design commit' line" in line for line in stdout_bad.splitlines()))
+        self.assertTrue(
+            any(
+                "missing 'Design commit' line" in line
+                for line in stdout_bad.splitlines()
+            )
+        )
 
     def test_prv_fr_02_failing_preflight_subcheck_and_missing_dir(self) -> None:
         """PRV-FR-02: A failing preflight sub-check fails R1 by name; missing dir exits 2."""
@@ -553,8 +620,12 @@ Scenario: [DEMO-EC-09] [Tier C - Integration] Uncovered scenario
 """
         bdd_path.write_text(bdd_text + extra_scenario, encoding="utf-8")
         # Also mirror in bdd_scenarios.vi.md so R3 doesn't fail on missing vi ID before R1
-        bdd_vi_path = self.root / ".devtool" / "epic" / "demo_epic" / "bdd_scenarios.vi.md"
-        bdd_vi_path.write_text(bdd_vi_path.read_text(encoding="utf-8") + extra_scenario, encoding="utf-8")
+        bdd_vi_path = (
+            self.root / ".devtool" / "epic" / "demo_epic" / "bdd_scenarios.vi.md"
+        )
+        bdd_vi_path.write_text(
+            bdd_vi_path.read_text(encoding="utf-8") + extra_scenario, encoding="utf-8"
+        )
 
         code, stdout, _stderr = self.run_check("demo_epic")
         self.assertEqual(code, 1, f"Expected 1, got {code}.\nStdout:\n{stdout}")
@@ -567,19 +638,35 @@ Scenario: [DEMO-EC-09] [Tier C - Integration] Uncovered scenario
 
         # Unpaired docs and --strict-bilingual are tolerated; --strict-bilingual prints one deprecation warning
         unpaired = self.root / ".devtool" / "epic" / "demo_epic" / "unpaired-doc.en.md"
-        unpaired.write_text("# Unpaired\n\n## Table of Contents\n\n- [Section](#section)\n\n## Section\n\nText\n", encoding="utf-8")
+        unpaired.write_text(
+            "# Unpaired\n\n## Table of Contents\n\n- [Section](#section)\n\n## Section\n\nText\n",
+            encoding="utf-8",
+        )
         _code_default, stdout_default, _ = self.run_check("demo_epic")
-        self.assertFalse(any("check_document.py" in line for line in stdout_default.splitlines()))
-        code_unpaired, stdout_unpaired, stderr_unpaired = self.run_check("demo_epic", "--strict-bilingual")
+        self.assertFalse(
+            any("check_document.py" in line for line in stdout_default.splitlines())
+        )
+        code_unpaired, stdout_unpaired, stderr_unpaired = self.run_check(
+            "demo_epic", "--strict-bilingual"
+        )
         self.assertEqual(code_unpaired, 1)
-        self.assertEqual(stderr_unpaired.count("warning: --strict-bilingual is deprecated and ignored"), 1)
-        self.assertFalse(any("check_document.py" in line for line in stdout_unpaired.splitlines()))
+        self.assertEqual(
+            stderr_unpaired.count(
+                "warning: --strict-bilingual is deprecated and ignored"
+            ),
+            1,
+        )
+        self.assertFalse(
+            any("check_document.py" in line for line in stdout_unpaired.splitlines())
+        )
         unpaired.unlink()
 
         # Missing directory exits 2
         code2, _stdout2, stderr2 = self.run_check("nonexistent_epic_dir")
         self.assertEqual(code2, 2, f"Expected 2 for nonexistent dir, got {code2}")
-        self.assertTrue(stderr2.strip() != "", "Expected stderr output for nonexistent dir")
+        self.assertTrue(
+            stderr2.strip() != "", "Expected stderr output for nonexistent dir"
+        )
 
 
 class ReadinessGroundingTest(unittest.TestCase):
@@ -611,13 +698,17 @@ class ReadinessGroundingTest(unittest.TestCase):
         text = epic_file.read_text(encoding="utf-8")
         new_text = updater(text)
         epic_file.write_text(new_text, encoding="utf-8")
-        feat_text = new_text.replace("](demo_epic.en.md)", "](../epic/demo_epic/demo_epic.en.md)")
+        feat_text = new_text.replace(
+            "](demo_epic.en.md)", "](../epic/demo_epic/demo_epic.en.md)"
+        )
         feat_file.write_text(feat_text, encoding="utf-8")
 
     def test_prv_ec_01_symbol_missing_from_file_fails_r5(self) -> None:
         """PRV-EC-01: A symbol missing from its file fails R5."""
         (self.root / "src").mkdir(parents=True, exist_ok=True)
-        (self.root / "src" / "app.py").write_text("def other():\n    pass\n", encoding="utf-8")
+        (self.root / "src" / "app.py").write_text(
+            "def other():\n    pass\n", encoding="utf-8"
+        )
 
         def modify_task(text: str) -> str:
             text = text.replace(
@@ -637,10 +728,20 @@ class ReadinessGroundingTest(unittest.TestCase):
         r5_fails = [line for line in stdout.splitlines() if line.startswith("R5 FAIL")]
         self.assertTrue(r5_fails, f"Expected R5 FAIL in stdout:\n{stdout}")
         self.assertTrue(
-            any("task_2" in line and "build_payload" in line and "src/app.py" in line for line in r5_fails),
+            any(
+                "task_2" in line and "build_payload" in line and "src/app.py" in line
+                for line in r5_fails
+            ),
             f"Expected R5 FAIL containing task_2, build_payload, src/app.py. Got:\n{stdout}",
         )
-        self.assertFalse(any("render" in line for line in stdout.splitlines() if line.startswith("R5")), f"Render should not be mentioned in R5:\n{stdout}")
+        self.assertFalse(
+            any(
+                "render" in line
+                for line in stdout.splitlines()
+                if line.startswith("R5")
+            ),
+            f"Render should not be mentioned in R5:\n{stdout}",
+        )
         self.assertTrue(stdout.strip().splitlines()[-1].endswith("— FAIL"))
 
     def test_prv_ec_03_tier_c_test_outside_integration_results_fails_r6(self) -> None:
@@ -666,7 +767,9 @@ class ReadinessGroundingTest(unittest.TestCase):
         r6_fails = [line for line in stdout.splitlines() if line.startswith("R6 FAIL")]
         self.assertTrue(r6_fails, f"Expected R6 FAIL in stdout:\n{stdout}")
         self.assertTrue(
-            any("task_2" in line and "tests/test_extra.py" in line for line in r6_fails),
+            any(
+                "task_2" in line and "tests/test_extra.py" in line for line in r6_fails
+            ),
             f"Expected R6 FAIL containing task_2 and tests/test_extra.py. Got:\n{stdout}",
         )
 
@@ -689,14 +792,20 @@ class ReadinessGroundingTest(unittest.TestCase):
 
         code, stdout, _stderr = self.run_check("demo_epic")
         self.assertEqual(code, 0, f"Expected 0, got {code}.\nStdout:\n{stdout}")
-        r5b_warns = [line for line in stdout.splitlines() if line.startswith("R5b WARN")]
+        r5b_warns = [
+            line for line in stdout.splitlines() if line.startswith("R5b WARN")
+        ]
         self.assertTrue(r5b_warns, f"Expected R5b WARN in stdout:\n{stdout}")
         self.assertTrue(
             any("/api/tts/ocr-upload" in line for line in r5b_warns),
             f"Expected R5b WARN containing /api/tts/ocr-upload. Got:\n{stdout}",
         )
-        self.assertFalse(any("/api/studio/extract/start" in line for line in stdout.splitlines()))
-        self.assertEqual(stdout.strip().splitlines()[-1], "Result: 0 FAIL, 1 WARN — PASS")
+        self.assertFalse(
+            any("/api/studio/extract/start" in line for line in stdout.splitlines())
+        )
+        self.assertEqual(
+            stdout.strip().splitlines()[-1], "Result: 0 FAIL, 1 WARN — PASS"
+        )
 
     def test_prv_fr_01_baseline_failures_and_timeouts_warn(self) -> None:
         """PRV-FR-01: Baseline failures and timeouts warn and other rows still run."""
@@ -743,23 +852,43 @@ class ReadinessGroundingTest(unittest.TestCase):
         git_cmd(self.root, "add", "-A")
         git_cmd(self.root, "commit", "-m", "commit tasks for baseline", "-q")
 
-        code, stdout, _stderr = self.run_check("demo_epic", "--baseline", "--row-timeout", "2")
+        code, stdout, _stderr = self.run_check(
+            "demo_epic", "--baseline", "--row-timeout", "2"
+        )
         self.assertEqual(code, 0, f"Expected 0, got {code}.\nStdout:\n{stdout}")
         r8_warns = [line for line in stdout.splitlines() if line.startswith("R8 WARN")]
-        self.assertTrue(any("task_1:V2" in line for line in r8_warns), f"Expected task_1:V2 in R8 WARN:\n{stdout}")
+        self.assertTrue(
+            any("task_1:V2" in line for line in r8_warns),
+            f"Expected task_1:V2 in R8 WARN:\n{stdout}",
+        )
         self.assertTrue(
             any("task_1:V3" in line and "timeout" in line for line in r8_warns),
             f"Expected task_1:V3 timeout in R8 WARN:\n{stdout}",
         )
-        self.assertFalse(any("task_1:V4" in line for line in r8_warns), f"task_1:V4 should pass:\n{stdout}")
-        self.assertFalse(any("task_2" in line for line in r8_warns), f"task_2 should be skipped:\n{stdout}")
+        self.assertFalse(
+            any("task_1:V4" in line for line in r8_warns),
+            f"task_1:V4 should pass:\n{stdout}",
+        )
+        self.assertFalse(
+            any("task_2" in line for line in r8_warns),
+            f"task_2 should be skipped:\n{stdout}",
+        )
 
         # When dirty tree:
         (self.root / "README.md").write_text("# Dirty\n", encoding="utf-8")
-        code_dirty, stdout_dirty, _stderr_dirty = self.run_check("demo_epic", "--baseline", "--row-timeout", "2")
-        self.assertEqual(code_dirty, 0, f"Expected 0 for dirty tree, got {code_dirty}.\nStdout:\n{stdout_dirty}")
+        code_dirty, stdout_dirty, _stderr_dirty = self.run_check(
+            "demo_epic", "--baseline", "--row-timeout", "2"
+        )
+        self.assertEqual(
+            code_dirty,
+            0,
+            f"Expected 0 for dirty tree, got {code_dirty}.\nStdout:\n{stdout_dirty}",
+        )
         self.assertTrue(
-            any("R8 WARN baseline skipped: dirty tree" in line for line in stdout_dirty.splitlines()),
+            any(
+                "R8 WARN baseline skipped: dirty tree" in line
+                for line in stdout_dirty.splitlines()
+            ),
             f"Expected 'R8 WARN baseline skipped: dirty tree', got:\n{stdout_dirty}",
         )
 
@@ -768,7 +897,10 @@ class ReadinessGroundingTest(unittest.TestCase):
         import os
         from unittest import mock
         from run_external_review import collect_facts
-        from task_contract import parse_integration_result_specs, parse_integration_results
+        from task_contract import (
+            parse_integration_result_specs,
+            parse_integration_results,
+        )
 
         # 1. Spec parsing
         hld_text = (
@@ -784,7 +916,10 @@ class ReadinessGroundingTest(unittest.TestCase):
 
         results = parse_integration_results(hld_text)
         self.assertEqual(len(results), 2)
-        self.assertIn("python3 scripts/run_unittest_junit.py --junitxml build/test-results/live.xml tests/test_live.py -> build/test-results/live.xml", results)
+        self.assertIn(
+            "python3 scripts/run_unittest_junit.py --junitxml build/test-results/live.xml tests/test_live.py -> build/test-results/live.xml",
+            results,
+        )
 
         # 2. R6 coverage check in check_epic_readiness.py
         hld_path = self.root / ".devtool" / "epic" / "demo_epic" / "demo_epic.en.md"
@@ -809,15 +944,22 @@ class ReadinessGroundingTest(unittest.TestCase):
 
         code, stdout, _stderr = self.run_check("demo_epic")
         r6_lines = [line for line in stdout.splitlines() if line.startswith("R6 ")]
-        self.assertTrue(any("R6 PASS" in line for line in r6_lines), f"Expected R6 PASS, got:\n{stdout}")
+        self.assertTrue(
+            any("R6 PASS" in line for line in r6_lines),
+            f"Expected R6 PASS, got:\n{stdout}",
+        )
 
         # 3. Gate 4 collect_facts: when EVI_LIVE_MODEL is unset, live command is skipped
-        env_without_live = {k: v for k, v in os.environ.items() if k != "EVI_LIVE_MODEL"}
+        env_without_live = {
+            k: v for k, v in os.environ.items() if k != "EVI_LIVE_MODEL"
+        }
         with (
             mock.patch.dict(os.environ, env_without_live, clear=True),
             mock.patch("run_external_review.run_gate", return_value=(0, "ok", "")),
         ):
-            _audit_out, facts_str = collect_facts(self.root, "demo_epic", "HEAD", updated_hld, timeout=10)
+            _audit_out, facts_str = collect_facts(
+                self.root, "demo_epic", "HEAD", updated_hld, timeout=10
+            )
             self.assertIn("SKIPPED (missing env: EVI_LIVE_MODEL)", facts_str)
 
         # When EVI_LIVE_MODEL is set:
@@ -825,11 +967,20 @@ class ReadinessGroundingTest(unittest.TestCase):
         env_with_live["EVI_LIVE_MODEL"] = "1"
         with (
             mock.patch.dict(os.environ, env_with_live, clear=True),
-            mock.patch("run_external_review.run_gate", return_value=(0, "ok", "")) as mock_gate,
+            mock.patch(
+                "run_external_review.run_gate", return_value=(0, "ok", "")
+            ) as mock_gate,
         ):
-            _audit_out, facts_str = collect_facts(self.root, "demo_epic", "HEAD", updated_hld, timeout=10)
+            _audit_out, facts_str = collect_facts(
+                self.root, "demo_epic", "HEAD", updated_hld, timeout=10
+            )
             invoked_cmds = [call_args[0][0] for call_args in mock_gate.call_args_list]
-            self.assertTrue(any("Integration: python3 scripts/run_unittest_junit.py" in str(c) for c in invoked_cmds))
+            self.assertTrue(
+                any(
+                    "Integration: python3 scripts/run_unittest_junit.py" in str(c)
+                    for c in invoked_cmds
+                )
+            )
 
     def test_EVI_EC_03_route_drift_matches_parameterized_templates(self) -> None:
         """[EVI-EC-03] [Tier A - Unit] R5b route drift check matches concrete route literals against parameterized route templates without false-positive warnings."""
@@ -841,7 +992,11 @@ class ReadinessGroundingTest(unittest.TestCase):
             'USER_ROUTE = "/api/users/<user_id>/profile"\n',
             'ITEM_ROUTE = "/api/items/:item_id"\n',
         ]
-        self.assertTrue(route_matches_codebase("http://localhost/api/align/stream/job_plt", templates))
+        self.assertTrue(
+            route_matches_codebase(
+                "http://localhost/api/align/stream/job_plt", templates
+            )
+        )
         self.assertTrue(route_matches_codebase("/api/users/123/profile", templates))
         self.assertTrue(route_matches_codebase("/api/items/abc-def", templates))
         self.assertFalse(route_matches_codebase("/api/other/unmatched", templates))
@@ -852,19 +1007,29 @@ class ReadinessGroundingTest(unittest.TestCase):
             encoding="utf-8",
         )
         git_cmd(self.root, "add", "tool.py")
-        git_cmd(self.root, "commit", "-m", "update tool.py with parameterized template", "-q")
+        git_cmd(
+            self.root,
+            "commit",
+            "-m",
+            "update tool.py with parameterized template",
+            "-q",
+        )
 
         def modify_task(text: str) -> str:
             return text.replace(
                 "Requirement text for task 1.",
                 "Requirement text for task 1 calling http://localhost/api/align/stream/job_plt endpoint.",
             )
+
         self.update_task_both("task_1.md", modify_task)
 
         code, stdout, _stderr = self.run_check("demo_epic")
         self.assertEqual(code, 0, f"Expected 0, got {code}.\nStdout:\n{stdout}")
         r5b_lines = [line for line in stdout.splitlines() if line.startswith("R5b")]
-        self.assertFalse(any("WARN" in line for line in r5b_lines), f"Expected 0 R5b warnings, got:\n{stdout}")
+        self.assertFalse(
+            any("WARN" in line for line in r5b_lines),
+            f"Expected 0 R5b warnings, got:\n{stdout}",
+        )
 
     def test_grounding_fails_r5_when_verify_task_edit_anchors_is_none(self) -> None:
         """When verify_task_edit_anchors is None, check_grounding reports an R5 FAIL finding."""
@@ -898,13 +1063,23 @@ class ReadinessGroundingTest(unittest.TestCase):
         review_en = epic_dir / "review_report.en.md"
 
         # Unpaired English report passes in both default and --strict-bilingual modes
-        review_en.write_text("# Review\n\n## Table of Contents\n\n- [Summary](#summary)\n\n## Summary\n\nClean.\n", encoding="utf-8")
+        review_en.write_text(
+            "# Review\n\n## Table of Contents\n\n- [Summary](#summary)\n\n## Summary\n\nClean.\n",
+            encoding="utf-8",
+        )
         code_def, stdout_def, _ = self.run_check("demo_epic")
         self.assertEqual(code_def, 0, stdout_def)
 
-        code_strict, stdout_strict, stderr_strict = self.run_check("demo_epic", "--strict-bilingual")
+        code_strict, stdout_strict, stderr_strict = self.run_check(
+            "demo_epic", "--strict-bilingual"
+        )
         self.assertEqual(code_strict, 0, stdout_strict + stderr_strict)
-        self.assertEqual(stderr_strict.count("warning: --strict-bilingual is deprecated and ignored"), 1)
+        self.assertEqual(
+            stderr_strict.count(
+                "warning: --strict-bilingual is deprecated and ignored"
+            ),
+            1,
+        )
         review_en.unlink()
 
         # Stale/missing .vi.md files and drifted HLD prose pass under --strict-bilingual
@@ -914,11 +1089,16 @@ class ReadinessGroundingTest(unittest.TestCase):
         )
         hld_vi.write_text("# Broken stale VI\n", encoding="utf-8")
         bdd_vi.unlink()
-        code_after, stdout_after, stderr_after = self.run_check("demo_epic", "--strict-bilingual")
+        code_after, stdout_after, stderr_after = self.run_check(
+            "demo_epic", "--strict-bilingual"
+        )
         self.assertEqual(code_after, 0, stdout_after + stderr_after)
         self.assertIn("R3 PASS", stdout_after)
         self.assertIn("R7 PASS", stdout_after)
-        self.assertEqual(stderr_after.count("warning: --strict-bilingual is deprecated and ignored"), 1)
+        self.assertEqual(
+            stderr_after.count("warning: --strict-bilingual is deprecated and ignored"),
+            1,
+        )
 
     def test_r7_reanchoring_skips_only_ancestor_check(self) -> None:
         """--reanchoring skips only git merge-base --is-ancestor while preserving other R7 checks."""
@@ -981,24 +1161,31 @@ class ReadinessGroundingTest(unittest.TestCase):
         import replay_task_text as rtt
 
         contract_text = (
-            "## Files\n\n"
-            "Allowed files:\n"
-            "- `tool.py`\n"
-            "- `tests/test_future.py` (new)\n"
+            "## Files\n\nAllowed files:\n- `tool.py`\n- `tests/test_future.py` (new)\n"
         )
-        self.assertTrue(rtt.has_uncreated_new_test_targets(self.root, contract_text, []))
+        self.assertTrue(
+            rtt.has_uncreated_new_test_targets(self.root, contract_text, [])
+        )
         self.assertFalse(
             rtt.has_uncreated_new_test_targets(
                 self.root,
                 contract_text,
-                [rtt.CreateDirective(path="tests/test_future.py", content="def test_x(): pass\n")],
+                [
+                    rtt.CreateDirective(
+                        path="tests/test_future.py", content="def test_x(): pass\n"
+                    )
+                ],
             )
         )
         non_test_new = "## Files\n\nAllowed files:\n- `src/helper.py` (new)\n"
-        self.assertFalse(rtt.has_uncreated_new_test_targets(self.root, non_test_new, []))
+        self.assertFalse(
+            rtt.has_uncreated_new_test_targets(self.root, non_test_new, [])
+        )
 
         glob_test_text = "## Files\n\nAllowed files:\n- `tests/test_unit_*.py` (new)\n"
-        self.assertTrue(rtt.has_uncreated_new_test_targets(self.root, glob_test_text, []))
+        self.assertTrue(
+            rtt.has_uncreated_new_test_targets(self.root, glob_test_text, [])
+        )
         self.assertFalse(
             rtt.has_uncreated_new_test_targets(
                 self.root,
@@ -1012,6 +1199,7 @@ class ReadinessGroundingTest(unittest.TestCase):
             ("task_1.md", "tests/test_demo_one.py"),
             ("task_2.md", "tests/test_demo_two.py"),
         ):
+
             def _make_contract(text: str, rel: str = test_rel) -> str:
                 text = text.replace(
                     "Allowed files:\n- `tool.py`\n",
@@ -1051,7 +1239,9 @@ class ReadinessGroundingTest(unittest.TestCase):
         # check_epic_readiness.py --replay exits 0 with R8 SKIP
         code, stdout, stderr = self.run_check("demo_epic", "--replay")
         self.assertEqual(code, 0, f"stdout:\n{stdout}\nstderr:\n{stderr}")
-        self.assertIn("R8 SKIP (no literal test-creation directives for (new) test files)", stdout)
+        self.assertIn(
+            "R8 SKIP (no literal test-creation directives for (new) test files)", stdout
+        )
         self.assertNotIn("R8 PASS", stdout)
         self.assertNotIn("R8 FAIL", stdout)
 
@@ -1068,7 +1258,5 @@ class Test_Check_Epic_Readiness_Integration(unittest.TestCase):
             test_case.temp_dir.cleanup()
 
 
-
 if __name__ == "__main__":
     unittest.main()
-

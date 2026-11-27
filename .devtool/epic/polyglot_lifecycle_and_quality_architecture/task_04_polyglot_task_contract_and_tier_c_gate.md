@@ -1,13 +1,13 @@
 ---
 id: "task_04_polyglot_task_contract_and_tier_c_gate"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "polyglot_lifecycle_and_quality_architecture"
 dueDate: null
 created: "2026-11-27T09:18:00+07:00"
-modified: "2026-11-27T09:18:00+07:00"
-completedAt: null
+modified: "2026-11-27T03:57:37Z"
+completedAt: "2026-11-27T03:57:37Z"
 labels: ["dev-implementation", "polyglot", "task-contract", "tier-c"]
 order: "a04"
 review_tier: "full"
@@ -125,12 +125,12 @@ Then check_task_contract.py exits with code 1 and reports explicit problems for 
 
 ## Definition of Done
 
-- [ ] `check_task_contract.py` always runs `check_python_tier_b` when `is_python_task(text, rows)` is true and independently dispatches active non-Python stacks via `TierBContractAdapter.validate_tier_b(...)` (V2, V3, V5)
-- [ ] `TierCTaxonomy` hard-fails `TIER-C` rows carrying `# tier: C2` (`#\s*tier:\s*C2\b`) with empty `Needs:` and invalid HLD `Integration test roots:`, and warns on heuristic ungated heavy-runtime `TIER-C` commands (V2, V5)
-- [ ] `check_task_contract.py` emits 1-line `Result: 0 problems — PASS` by default with `--verbose` and `--json` opt-in (V2, V3, V5)
-- [ ] Existing `test_check_task_contract.py`, `test_check_epic_readiness.py`, and `test_ohk_cmr_and_contracts.py` pass without regressions (V3)
-- [ ] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4)
-- [ ] Fresh JUnit XML report written to `build/test-results/task_04.xml` containing all 5 assigned scenario IDs (V5)
+- [x] `check_task_contract.py` always runs `check_python_tier_b` when `is_python_task(text, rows)` is true and independently dispatches active non-Python stacks via `TierBContractAdapter.validate_tier_b(...)` (V2, V3, V5) — PASS exit 0
+- [x] `TierCTaxonomy` hard-fails `TIER-C` rows carrying `# tier: C2` (`#\s*tier:\s*C2\b`) with empty `Needs:` and invalid HLD `Integration test roots:`, and warns on heuristic ungated heavy-runtime `TIER-C` commands (V2, V5) — PASS exit 0
+- [x] `check_task_contract.py` emits 1-line `Result: 0 problems — PASS` by default with `--verbose` and `--json` opt-in (V2, V3, V5) — PASS exit 0
+- [x] Existing `test_check_task_contract.py`, `test_check_epic_readiness.py`, and `test_ohk_cmr_and_contracts.py` pass without regressions (V3) — PASS exit 0 across all 11 regression suites
+- [x] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4) — PASS exit 0 across all 5 Allowed files
+- [x] Fresh JUnit XML report written to `build/test-results/task_04.xml` containing all 5 assigned scenario IDs (V5) — PASS exit 0 (5/5 BDD scenario IDs covered)
 
 ## Dependencies & Blockers
 
