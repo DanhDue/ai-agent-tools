@@ -1,0 +1,173 @@
+{
+  "schema": 1,
+  "task": "task_04_lifecycle_runner_external_review_integration",
+  "runs": {
+    "red": {
+      "head": "78f04c47c3d45383f40cc35b6ad9819a8282aa94",
+      "tree": "55a7b80c4ed17c1591c1bf74ee50ffda530d4511",
+      "patch_id": "b2f1cfacd5b3c10f7181e894b76e18f5aca807a4",
+      "started": "2026-11-27T21:20:09Z",
+      "finished": "2026-11-27T21:20:10Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_urc_lifecycle_runner_review_config.py::test_urc_hp_05_runner_resolves_separate_caps_and_priority",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T21:20:09Z",
+          "finished": "2026-11-27T21:20:09Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "__________ test_urc_hp_05_runner_resolves_separate_caps_and_priority ___________",
+            "tests/test_urc_lifecycle_runner_review_config.py:58: in test_urc_hp_05_runner_resolves_separate_caps_and_priority",
+            "    assert cfg.max_review_rounds is None",
+            "E   AssertionError: assert 3 is None",
+            "E    +  where 3 = RunnerConfig(programmer_model=None, programmer_effort=None, config_programmer_model=None, config_programmer_effort=Non...c_hp_05_runner_resolves0/home'), timeout_seconds=1800, max_review_rounds=3, provider_priority=None, base_branch='main').max_review_rounds",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_urc_lifecycle_runner_review_config.py::test_urc_hp_05_runner_resolves_separate_caps_and_priority",
+            "1 failed in 0.07s"
+          ],
+          "output_sha256": "66237f9ceb0aeda942f664756c81972b23f234217e864e9bcd7157526d0e7d92"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "78f04c47c3d45383f40cc35b6ad9819a8282aa94",
+      "tree": "134e527d133f4e25f1e3a0d57eea1501dc6e03eb",
+      "patch_id": "40e39c747fbbfac9beceea637c8faba71c4a241a",
+      "started": "2026-11-27T21:25:43Z",
+      "finished": "2026-11-27T21:26:12Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_urc_lifecycle_runner_review_config.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T21:25:43Z",
+          "finished": "2026-11-27T21:25:43Z",
+          "output_tail": [
+            "......                                                                   [100%]",
+            "6 passed in 0.11s"
+          ],
+          "output_sha256": "bef8623b25b25ab880ba85efeef2d92c7d65627f885fe3b9c983593ce2c4795b"
+        },
+        {
+          "id": "V3",
+          "phase": "REGRESSION",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_lifecycle_runner.py tests/test_ohk_revise_and_replay.py tests/test_tto_docs_and_slimming.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T21:25:43Z",
+          "finished": "2026-11-27T21:26:11Z",
+          "output_tail": [
+            "..................................................                       [100%]",
+            "50 passed in 27.39s"
+          ],
+          "output_sha256": "d6d3d22a666c17bb895094a980a9fe883739dde55eda524c041c3b0816823b49"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-lifecycle/resources/scripts/lifecycle_runner.py tests/test_urc_lifecycle_runner_review_config.py && ruff format --check skills/dev-lifecycle/resources/scripts/lifecycle_runner.py tests/test_urc_lifecycle_runner_review_config.py && mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-lifecycle/resources/scripts/lifecycle_runner.py tests/test_urc_lifecycle_runner_review_config.py --ignore-missing-imports --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T21:26:11Z",
+          "finished": "2026-11-27T21:26:11Z",
+          "output_tail": [
+            "All checks passed!",
+            "2 files already formatted",
+            "Success: no issues found in 9 source files"
+          ],
+          "output_sha256": "88f62f30e45198e4961729af35529871cdfbb6cb180a6993f105420861f55ed6"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_urc_lifecycle_runner_review_config.py --junitxml=build/test-results/task_04.xml",
+          "expect": "exit 0; results build/test-results/task_04.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T21:26:11Z",
+          "finished": "2026-11-27T21:26:11Z",
+          "output_tail": [
+            "......                                                                   [100%]",
+            "6 passed in 0.08s"
+          ],
+          "output_sha256": "fac8aaadc73a18f429accef33900b10cfd78bd95c7687ad6e7c91bc437aa1b8d",
+          "results": {
+            "path": "build/test-results/task_04.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 6,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_urc_hp_05_runner_resolves_separate_caps_and_priority",
+                  "classname": "tests.test_urc_lifecycle_runner_review_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_hp_05_runner_resolves_separate_caps_and_priority",
+                  "classname": "tests.test_urc_lifecycle_runner_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_hp_05_kit_defaults_and_step_subprocess_arguments",
+                  "classname": "tests.test_urc_lifecycle_runner_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_st_04_explicit_runner_config_overrides_persona_limits_and_priority",
+                  "classname": "tests.test_urc_lifecycle_runner_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_st_04_cli_max_rounds_and_config_wiring",
+                  "classname": "tests.test_urc_lifecycle_runner_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_ar_03_runner_isolates_principal_and_cross_model_circuit_breaker_caps",
+                  "classname": "tests.test_urc_lifecycle_runner_review_config.Test_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-lifecycle/resources/scripts/lifecycle_runner.py",
+            "tests/test_urc_lifecycle_runner_review_config.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

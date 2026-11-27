@@ -286,7 +286,9 @@ class RunnerConfig:
     assistant_effort: str | None = None
     real_home: Path | None = None
     timeout_seconds: int = 1800
-    max_review_rounds: int = 3
+    max_review_rounds: int | None = None
+    max_principal_review_rounds: int | None = None
+    max_cross_model_review_rounds: int | None = None
     provider_priority: list[str] | None = None
     base_branch: str = "main"
 
@@ -310,7 +312,11 @@ class RunnerConfig:
             cli_model = cfg_model = cli_effort = cfg_effort = None
 
         raw_model = next(
-            (m.strip() for m in (cli_model, cfg_model) if isinstance(m, str) and m.strip()),
+            (
+                m.strip()
+                for m in (cli_model, cfg_model)
+                if isinstance(m, str) and m.strip()
+            ),
             None,
         )
         raw_effort = next(
@@ -321,7 +327,9 @@ class RunnerConfig:
             ),
             None,
         )
-        norm_effort = normalize_agy_effort(raw_effort) if raw_effort is not None else None
+        norm_effort = (
+            normalize_agy_effort(raw_effort) if raw_effort is not None else None
+        )
 
         cfg = pc.load_persona_config(project_root, real_home=self.real_home)
         base_binding = pc.resolve_persona(
@@ -363,7 +371,9 @@ class RunnerConfig:
             template = str(entry["id"])
             efforts = list(entry["efforts"])
             if "{effort}" in template:
-                pattern = re.escape(template).replace(r"\{effort\}", r"([A-Za-z0-9_-]+)")
+                pattern = re.escape(template).replace(
+                    r"\{effort\}", r"([A-Za-z0-9_-]+)"
+                )
                 match = re.fullmatch(pattern, raw_model)
                 if match is not None:
                     raw_matched = match.group(1)
@@ -633,7 +643,11 @@ class ModelDispatcher:
             tmp_path = Path(tmp_dir)
             prompt_path = tmp_path / "prompt.txt"
             prompt_path.write_text(prompt, encoding="utf-8")
-            log_path = explicit_log if explicit_log is not None else (tmp_path / "dispatch.log")
+            log_path = (
+                explicit_log
+                if explicit_log is not None
+                else (tmp_path / "dispatch.log")
+            )
             log_path.parent.mkdir(parents=True, exist_ok=True)
             res = self.pool_dispatcher(
                 binding,
@@ -781,9 +795,7 @@ class LifecycleRunner:
     def _detect_profile(self) -> str:
         resolved_home = _persona_config().get_real_home(self.config.real_home)
         profile = str(
-            _resume_context().detect_current_profile(
-                self.root, real_home=resolved_home
-            )
+            _resume_context().detect_current_profile(self.root, real_home=resolved_home)
             or ""
         ).strip()
         return profile or os.environ.get("USER", "").strip() or "default"
@@ -1055,7 +1067,10 @@ class LifecycleRunner:
 
         for attempt_idx in range(max_attempts):
             with self._checkpoint_lock:
-                if self._halted_by_stop or self.state.active_stage == StageName.HALTED.value:
+                if (
+                    self._halted_by_stop
+                    or self.state.active_stage == StageName.HALTED.value
+                ):
                     return 1, "", self.state.halt_reason or "halted", False
 
             owner = {
@@ -1279,9 +1294,7 @@ class LifecycleRunner:
                 probe_cli = _persona_config().build_dispatch_argv(
                     prog_binding, "write"
                 )[0]
-                ok, err = self.dispatcher.probe_model(
-                    probe_cli, prog_binding.model_id
-                )
+                ok, err = self.dispatcher.probe_model(probe_cli, prog_binding.model_id)
                 if not ok:
                     self.state.last_error = f"Programmer probe failed: {err}"
                     self.save_state()
@@ -1752,7 +1765,7 @@ class LifecycleRunner:
             f"- Severity Rubric (Blocker-Only): Report `BLOCKER` defects (`BDD_VIOLATION`, "
             f"`CONTRACT_SCHEMA_VIOLATION`, `RUNTIME_SAFETY`, `OWNERSHIP_ARCHITECTURE_VIOLATION`) "
             f"in `blockers` to return `CHANGES_REQUESTED`. Log minor refinements/style nits as "
-            f"`NON_BLOCKING_OBSERVATION` in `observations` with `\"verdict\": \"APPROVED\"` "
+            f'`NON_BLOCKING_OBSERVATION` in `observations` with `"verdict": "APPROVED"` '
             f"(legacy `PASS`/`FAIL` remains accepted).\n"
             f'- End with fenced json: `{{"task_id": "{task_slug}", "pass": 1, '
             f'"verdict": "APPROVED|CHANGES_REQUESTED", "head_sha": "{impl_head_sha}", '
@@ -1770,6 +1783,36 @@ class LifecycleRunner:
             max_review_passes, max_fix_passes = pc.resolve_task_review_limits(self.root)
         max_attempts = max(1, min(int(max_review_passes), int(max_fix_passes) + 1))
         return int(max_review_passes), int(max_fix_passes), max_attempts
+
+    def _resolve_external_review_bounds(self, stage: str) -> int:
+        """Return the effective review round cap for 'principal' or cross-model review."""
+        if stage in ("principal", StageName.PRINCIPAL_REVIEW.value):
+            if self.config.max_principal_review_rounds is not None:
+                return int(self.config.max_principal_review_rounds)
+            if self.config.max_review_rounds is not None:
+                return int(self.config.max_review_rounds)
+            limits = _persona_config().resolve_review_limits(
+                self.root, real_home=self.config.real_home
+            )
+            return int(limits.max_principal_review_passes)
+
+        if self.config.max_cross_model_review_rounds is not None:
+            return int(self.config.max_cross_model_review_rounds)
+        if self.config.max_review_rounds is not None:
+            return int(self.config.max_review_rounds)
+        limits = _persona_config().resolve_review_limits(
+            self.root, real_home=self.config.real_home
+        )
+        return int(limits.max_cross_model_review_passes)
+
+    def _resolve_review_provider_priority(self) -> list[str]:
+        """Return explicit RunnerConfig provider_priority or layered persona_config priority."""
+        if self.config.provider_priority:
+            return list(self.config.provider_priority)
+        review_cfg = _persona_config().resolve_review_config(
+            self.root, real_home=self.config.real_home
+        )
+        return list(review_cfg.provider_priority)
 
     def _record_or_queue_review_audit_note(
         self,
@@ -1839,14 +1882,10 @@ class LifecycleRunner:
             and rev_sha == impl_head_sha
         )
         blockers: list[dict[str, Any]] = (
-            list(normalized.get("blockers") or [])
-            if normalized is not None
-            else []
+            list(normalized.get("blockers") or []) if normalized is not None else []
         )
         observations: list[Any] = (
-            list(normalized.get("observations") or [])
-            if normalized is not None
-            else []
+            list(normalized.get("observations") or []) if normalized is not None else []
         )
         coerced = bool(
             normalized is not None and normalized.get("coerced_from_non_blocking")
@@ -2023,9 +2062,7 @@ class LifecycleRunner:
                 if "verify" in impl_summary:
                     impl_verify = str(impl_summary.get("verify") or "").strip().upper()
                     if impl_verify != "PASS":
-                        self.state.last_error = (
-                            f"Task {task_slug} returned verify '{impl_verify or 'missing'}'"
-                        )
+                        self.state.last_error = f"Task {task_slug} returned verify '{impl_verify or 'missing'}'"
                         return False
                 impl_head_sha = str(impl_summary.get("head_sha") or "").strip()
                 if self._is_git_repo(exec_root):
@@ -2386,6 +2423,7 @@ class LifecycleRunner:
         triage_stdout: str = "",
     ) -> str | None:
         """Evaluate circuit breaker triggers across review rounds."""
+        max_rounds = self._resolve_external_review_bounds(stage)
         content = triage_stdout
         if not content:
             review_script = (
@@ -2406,7 +2444,7 @@ class LifecycleRunner:
                     "--epic-dir",
                     self.epic_slug,
                     "--max-rounds",
-                    str(self.config.max_review_rounds),
+                    str(max_rounds),
                 ]
                 res = subprocess.run(
                     triage_cmd,
@@ -2423,7 +2461,7 @@ class LifecycleRunner:
             return "CIRCUIT_BREAKER_HALT (FIX_LOOP)"
         if "CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)" in content:
             return "CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)"
-        if round_num >= self.config.max_review_rounds and "Critical" in content:
+        if round_num >= max_rounds and "Critical" in content:
             return "CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)"
         return None
 
@@ -2459,7 +2497,10 @@ class LifecycleRunner:
             / "run_external_review.py"
         )
 
-        while self.state.principal_round < self.config.max_review_rounds:
+        max_rounds = self._resolve_external_review_bounds("principal")
+        priority = self._resolve_review_provider_priority()
+
+        while self.state.principal_round < max_rounds:
             self.state.principal_round += 1
             round_num = self.state.principal_round
             self.save_state()
@@ -2473,11 +2514,11 @@ class LifecycleRunner:
                 "--epic-dir",
                 self.epic_slug,
                 "--auto-quota",
+                "--max-rounds",
+                str(max_rounds),
             ]
-            if self.config.provider_priority:
-                cmd.extend(
-                    ["--provider-priority", ",".join(self.config.provider_priority)]
-                )
+            if priority:
+                cmd.extend(["--provider-priority", ",".join(priority)])
             subprocess.run(
                 cmd, cwd=self.root, capture_output=True, text=True, check=False
             )
@@ -2491,7 +2532,7 @@ class LifecycleRunner:
                 "--epic-dir",
                 self.epic_slug,
                 "--max-rounds",
-                str(self.config.max_review_rounds),
+                str(max_rounds),
             ]
             triage_res = subprocess.run(
                 triage_cmd, cwd=self.root, capture_output=True, text=True, check=False
@@ -2980,7 +3021,9 @@ class LifecycleRunner:
             for icmd in hld_integ_cmds:
                 lines.append(f"4a. HLD Integration results command: `{icmd}`")
         else:
-            lines.append("4a. Execute any `Integration results:` command declared in the epic HLD.")
+            lines.append(
+                "4a. Execute any `Integration results:` command declared in the epic HLD."
+            )
         lines.extend(
             [
                 f"4b. `{bdd_cmd}`",
@@ -3020,7 +3063,7 @@ class LifecycleRunner:
 
     def run_gate4(self) -> tuple[bool, str]:
         """Execute Stage 3 Gate 4 via a fresh Role 2.3 gate4-verifier with SHA and clean-tree checks."""
-        max_attempts = max(4, self.config.max_review_rounds + 1)
+        max_attempts = max(4, self._resolve_external_review_bounds("code") + 1)
         prev_checks: set[str] = set()
         last_detail = "Gate 4 verification failed"
 
@@ -3053,9 +3096,7 @@ class LifecycleRunner:
                         text=True,
                         check=False,
                     )
-                    clean_tree = (
-                        st_res.returncode == 0 and not st_res.stdout.strip()
-                    )
+                    clean_tree = st_res.returncode == 0 and not st_res.stdout.strip()
                 else:
                     head_sha = candidate_sha or "HEAD"
                     clean_tree = True
@@ -3088,7 +3129,8 @@ class LifecycleRunner:
                 if not reasons:
                     self.state.last_commit_sha = candidate_sha
                     self.sync_gate_ledger(
-                        4, f"Gate 4 verification passed for candidate SHA {candidate_sha}"
+                        4,
+                        f"Gate 4 verification passed for candidate SHA {candidate_sha}",
                     )
                     self.save_state()
                     return True, "Gate 4 PASS"
@@ -3253,7 +3295,9 @@ class LifecycleRunner:
             and bool(plan_markdown.strip())
         ):
             epic_dir.mkdir(parents=True, exist_ok=True)
-            body = plan_markdown if plan_markdown.endswith("\n") else f"{plan_markdown}\n"
+            body = (
+                plan_markdown if plan_markdown.endswith("\n") else f"{plan_markdown}\n"
+            )
             plan_file.write_text(body, encoding="utf-8")
             if self._is_git_repo(self.root):
                 subprocess.run(
@@ -3262,9 +3306,7 @@ class LifecycleRunner:
                     capture_output=True,
                     check=False,
                 )
-                commit_title = (
-                    f"[{self.epic_slug.upper()}] Add fix plan for Cross-Model Review round {round_num}"
-                )
+                commit_title = f"[{self.epic_slug.upper()}] Add fix plan for Cross-Model Review round {round_num}"
                 subprocess.run(
                     ["git", "commit", "-m", commit_title],
                     cwd=self.root,
@@ -3274,15 +3316,15 @@ class LifecycleRunner:
             return "PLANNED", [], plan_markdown
 
         if not criteria:
-            criteria = ["CRITICAL_CONFLICT"] if status == "ESCALATE" else ["UNPARSEABLE"]
+            criteria = (
+                ["CRITICAL_CONFLICT"] if status == "ESCALATE" else ["UNPARSEABLE"]
+            )
         return "ESCALATE", criteria, ""
 
     def _escalate_fix_plan(self, round_num: int, criteria: list[str]) -> None:
         """Record FIX_PLAN_ESCALATE blocker pending decision and halt pipeline."""
         criteria_str = ", ".join(criteria) if criteria else "UNPARSEABLE"
-        reason = (
-            f"FIX_PLAN_ESCALATE ({criteria_str}): high-risk fix plan escalated in round {round_num}."
-        )
+        reason = f"FIX_PLAN_ESCALATE ({criteria_str}): high-risk fix plan escalated in round {round_num}."
         _state_envelope().record_pending_decision(
             self.root,
             self.epic_slug,
@@ -3400,12 +3442,14 @@ class LifecycleRunner:
                 sys.path.insert(0, str(ext_scripts))
             import run_external_review  # type: ignore[import-not-found]
 
+            resolved_kind = "principal" if kind == "principal" else "code"
             run_external_review._emit_review_heartbeat(
                 self.root,
                 self.epic_slug,
-                kind="principal" if kind == "principal" else "code",
+                kind=resolved_kind,
                 phase=phase,
                 round_num=round_num,
+                max_rounds=self._resolve_external_review_bounds(resolved_kind),
             )
         except Exception:  # noqa: BLE001
             return
@@ -3435,7 +3479,11 @@ class LifecycleRunner:
             anchor_candidates.append(rev_art)
         fixer_mode = mode or ("apply-plan" if plan_text.strip() else "fast-track")
         plan_path = epic_dir / f"fix_plan_round{round_num}.md"
-        if fixer_mode == "apply-plan" and plan_path.is_file() and plan_path not in anchor_candidates:
+        if (
+            fixer_mode == "apply-plan"
+            and plan_path.is_file()
+            and plan_path not in anchor_candidates
+        ):
             anchor_candidates.append(plan_path)
 
         anchors: list[str] = []
@@ -3829,7 +3877,10 @@ class LifecycleRunner:
             / "run_external_review.py"
         )
 
-        while self.state.cross_model_round < self.config.max_review_rounds:
+        max_rounds = self._resolve_external_review_bounds("code")
+        priority = self._resolve_review_provider_priority()
+
+        while self.state.cross_model_round < max_rounds:
             self.state.cross_model_round += 1
             round_num = self.state.cross_model_round
             self.save_state()
@@ -3843,11 +3894,11 @@ class LifecycleRunner:
                 "--epic-dir",
                 self.epic_slug,
                 "--auto-quota",
+                "--max-rounds",
+                str(max_rounds),
             ]
-            if self.config.provider_priority:
-                cmd.extend(
-                    ["--provider-priority", ",".join(self.config.provider_priority)]
-                )
+            if priority:
+                cmd.extend(["--provider-priority", ",".join(priority)])
             subprocess.run(
                 cmd, cwd=self.root, capture_output=True, text=True, check=False
             )
@@ -3861,7 +3912,7 @@ class LifecycleRunner:
                 "--epic-dir",
                 self.epic_slug,
                 "--max-rounds",
-                str(self.config.max_review_rounds),
+                str(max_rounds),
             ]
             triage_res = subprocess.run(
                 triage_cmd, cwd=self.root, capture_output=True, text=True, check=False
@@ -3942,9 +3993,7 @@ class LifecycleRunner:
                 return False
 
             if action == "AUTO_FIX_ELIGIBLE":
-                fast_track = self._can_fast_track_code_findings(
-                    findings, triage_stdout
-                )
+                fast_track = self._can_fast_track_code_findings(findings, triage_stdout)
                 gate_personas = (
                     ("orchestrator", "programmer")
                     if fast_track
@@ -4074,12 +4123,14 @@ class LifecycleRunner:
         if not candidate_sha:
             candidate_sha = "HEAD"
 
+        principal_max_rounds = self._resolve_external_review_bounds("principal")
+        cross_model_max_rounds = self._resolve_external_review_bounds("code")
         lines = [
             f"# Executive Review Report: Epic '{self.epic_slug}'",
             "",
             "## Review Lifecycle Summary",
-            f"- **Principal Review Rounds**: {self.state.principal_round} / {self.config.max_review_rounds}",
-            f"- **Cross-Model Review Rounds**: {self.state.cross_model_round} / {self.config.max_review_rounds}",
+            f"- **Principal Review Rounds**: {self.state.principal_round} / {principal_max_rounds}",
+            f"- **Cross-Model Review Rounds**: {self.state.cross_model_round} / {cross_model_max_rounds}",
             f"- **Candidate SHA**: `{candidate_sha}`",
             "- **Gate 4 Status**: PASS (Candidate certified)",
             f"- **Completed Tasks ({len(self.state.completed_tasks)})**: {', '.join(self.state.completed_tasks)}",
@@ -4124,7 +4175,7 @@ class LifecycleRunner:
         return "\n".join(lines)
 
 
-def main() -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     """CLI entrypoint for autonomous lifecycle runner."""
     parser = argparse.ArgumentParser(description="Autonomous Lifecycle Runner CLI")
     parser.add_argument("--epic", required=True, help="Epic slug identifier")
@@ -4166,16 +4217,25 @@ def main() -> int:
         help="CLI override model for AI Architect & Reviewer (--assistant-model alias)",
     )
     parser.add_argument(
+        "--max-rounds",
+        type=int,
+        default=None,
+        help="CLI override maximum review rounds for external reviews",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Simulate execution without running subprocesses",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
+    if args.max_rounds is not None and args.max_rounds < 1:
+        parser.error("--max-rounds must be >= 1")
 
     cfg = RunnerConfig(
         programmer_model=args.programmer_model,
         programmer_effort=args.programmer_effort,
         architect_model=args.architect_model,
+        max_review_rounds=args.max_rounds,
         base_branch=args.base,
     )
     if args.config and args.config.is_file():
@@ -4194,14 +4254,34 @@ def main() -> int:
             arch_cfg_model = cdata.get("architect_model", cdata.get("assistant_model"))
             if isinstance(arch_cfg_model, str):
                 cfg.config_architect_model = arch_cfg_model
-            arch_cfg_effort = cdata.get("architect_effort", cdata.get("assistant_effort"))
+            arch_cfg_effort = cdata.get(
+                "architect_effort", cdata.get("assistant_effort")
+            )
             if isinstance(arch_cfg_effort, str):
                 cfg.config_architect_effort = arch_cfg_effort
             if "timeout_seconds" in cdata:
                 cfg.timeout_seconds = int(cdata["timeout_seconds"])
-            if "max_review_rounds" in cdata:
-                cfg.max_review_rounds = int(cdata["max_review_rounds"])
-            if "provider_priority" in cdata:
+            if args.max_rounds is None:
+                if (
+                    "max_review_rounds" in cdata
+                    and cdata["max_review_rounds"] is not None
+                ):
+                    cfg.max_review_rounds = int(cdata["max_review_rounds"])
+                if (
+                    "max_principal_review_rounds" in cdata
+                    and cdata["max_principal_review_rounds"] is not None
+                ):
+                    cfg.max_principal_review_rounds = int(
+                        cdata["max_principal_review_rounds"]
+                    )
+                if (
+                    "max_cross_model_review_rounds" in cdata
+                    and cdata["max_cross_model_review_rounds"] is not None
+                ):
+                    cfg.max_cross_model_review_rounds = int(
+                        cdata["max_cross_model_review_rounds"]
+                    )
+            if "provider_priority" in cdata and cdata["provider_priority"] is not None:
                 cfg.provider_priority = list(cdata["provider_priority"])
             if "base_branch" in cdata and isinstance(cdata["base_branch"], str):
                 cfg.base_branch = cdata["base_branch"]
