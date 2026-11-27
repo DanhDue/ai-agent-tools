@@ -1131,6 +1131,27 @@ class CompoundTierBMatchingTest(ContractCase):
         self.assertIn("TIER-B type-check must cover all Allowed Python files", out2)
         self.assertIn("tests/test_mod.py", out2)
 
+    def test_malformed_quotes_in_tier_b_falls_back_cleanly_without_raising(self) -> None:
+        from check_task_contract import _split_sequential_subcommands
+
+        self._uv_manifest()
+        malformed_cmd = 'uv run ruff check --select="E src/mod.py && uv run mypy --strict src/mod.py'
+        subs = _split_sequential_subcommands(malformed_cmd)
+        self.assertEqual(len(subs), 2)
+        self.assertEqual(subs[0][:4], ["uv", "run", "ruff", "check"])
+        self.assertEqual(subs[1][:4], ["uv", "run", "mypy", "--strict"])
+
+        rows = RED + GREEN + f"| V3 | TIER-B | `{malformed_cmd}` | exit 0 | — |\n" + TIER_C
+        t = self.task(
+            "1_malformed_quote",
+            allowed="- `src/mod.py`",
+            rows=rows,
+            dod="- [ ] done (V2, V3, V5)\n",
+            decisions="- Malformed quote fallback.\n",
+        )
+        code, out, _ = self.check(t, design=True)
+        self.assertEqual(code, 0, out)
+
 
 if __name__ == "__main__":
     unittest.main()

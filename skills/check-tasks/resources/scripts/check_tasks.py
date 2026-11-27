@@ -744,11 +744,24 @@ def _resolve_canonical_epic_slug(repo_path: Path, candidate: str) -> str:
     return clean
 
 
-def _collect_matching_worktrees(
+def _worktree_matches_slug(
+    candidate_path: Path, target_norm: str, branch_name: str | None = None
+) -> bool:
+    """Return True if worktree directory name or epic/feat branch matches `target_norm`."""
+    if _normalize_slug(_strip_slot_suffix(candidate_path.name)) == target_norm:
+        return True
+    if branch_name:
+        m_br = re.match(r"(?:epic|feat)/([a-zA-Z0-9_\-]+)", branch_name)
+        if m_br:
+            return _normalize_slug(_strip_slot_suffix(m_br.group(1))) == target_norm
+    return False
+
+
+def _collect_matching_worktrees_with_branches(
     repo_path: Path, epic_slug: str | None = None
-) -> list[Path]:
-    """Discover unique non-root worktrees matching `epic_slug` (or all worktrees when None)."""
-    results: list[Path] = []
+) -> list[tuple[Path, str | None]]:
+    """Discover unique non-root worktrees (with git branch if known) matching `epic_slug`."""
+    results: list[tuple[Path, str | None]] = []
     seen: set[Path] = set()
     root_resolved = repo_path.resolve()
     target_norm = _normalize_slug(_strip_slot_suffix(epic_slug)) if epic_slug else None
@@ -759,20 +772,12 @@ def _collect_matching_worktrees(
         resolved = candidate_path.resolve()
         if resolved == root_resolved or resolved in seen:
             return
-        if target_norm is not None:
-            dir_norm = _normalize_slug(_strip_slot_suffix(candidate_path.name))
-            branch_match = False
-            if branch_name:
-                m_br = re.match(r"(?:epic|feat)/([a-zA-Z0-9_\-]+)", branch_name)
-                if m_br:
-                    branch_match = (
-                        _normalize_slug(_strip_slot_suffix(m_br.group(1)))
-                        == target_norm
-                    )
-            if dir_norm != target_norm and not branch_match:
-                return
+        if target_norm is not None and not _worktree_matches_slug(
+            candidate_path, target_norm, branch_name
+        ):
+            return
         seen.add(resolved)
-        results.append(candidate_path)
+        results.append((candidate_path, branch_name))
 
     for wt in scan_worktrees(repo_path):
         _maybe_add(Path(wt.path), wt.branch)
@@ -786,6 +791,18 @@ def _collect_matching_worktrees(
                 _maybe_add(d)
 
     return results
+
+
+def _collect_matching_worktrees(
+    repo_path: Path, epic_slug: str | None = None
+) -> list[Path]:
+    """Discover unique non-root worktrees matching `epic_slug` (or all worktrees when None)."""
+    return [
+        wt_path
+        for wt_path, _ in _collect_matching_worktrees_with_branches(
+            repo_path, epic_slug
+        )
+    ]
 
 
 def _collect_devtool_dirs(
@@ -1312,7 +1329,7 @@ def _parse_sdd_progress(
     repo_path: Path, plan_stem: str, extra_roots: list[Path]
 ) -> tuple[bool, dict[int, str]]:
     """Parse `.superpowers/sdd/<plan_stem>/progress.md` across worktrees and root repo."""
-    candidates: list[Path] = []
+    candidates: list[tuple[float, Path]] = []
     seen_paths: set[Path] = set()
     for root in [*extra_roots, repo_path]:
         p = root / ".superpowers" / "sdd" / plan_stem / "progress.md"
@@ -1320,12 +1337,13 @@ def _parse_sdd_progress(
             with contextlib.suppress(OSError):
                 resolved = p.resolve()
                 if resolved not in seen_paths:
+                    mtime = p.stat().st_mtime
                     seen_paths.add(resolved)
-                    candidates.append(p)
+                    candidates.append((mtime, p))
     if not candidates:
         return False, {}
 
-    best = max(candidates, key=lambda p: p.stat().st_mtime)
+    best = max(candidates, key=lambda item: item[0])[1]
     statuses: dict[int, str] = {}
     with contextlib.suppress(OSError, UnicodeDecodeError):
         for raw_line in best.read_text(encoding="utf-8").splitlines():
@@ -1345,13 +1363,16 @@ def _discover_standalone_plans(repo_path: Path) -> list[dict[str, Any]]:
 
     Strictly excludes dotfiles and `*.vi.md` mirrors (Rule 11).
     """
-    worktrees = _collect_matching_worktrees(repo_path, None)
+    worktree_entries = _collect_matching_worktrees_with_branches(repo_path, None)
+    worktrees = [wt_path for wt_path, _ in worktree_entries]
     ledger_milestones = _parse_project_ledger_milestones(repo_path)
 
     root_candidates: dict[str, tuple[Path, bool, float]] = {}
-    wt_candidates: dict[str, tuple[Path, bool, float, Path]] = {}
+    wt_candidates: dict[str, tuple[Path, bool, bool, float, Path]] = {}
 
-    def _scan_plans_dir(root: Path, is_worktree: bool) -> None:
+    def _scan_plans_dir(
+        root: Path, is_worktree: bool, branch_name: str | None = None
+    ) -> None:
         plans_dir = root / "docs" / "superpowers" / "plans"
         if not plans_dir.is_dir():
             return
@@ -1371,8 +1392,10 @@ def _discover_standalone_plans(repo_path: Path) -> list[dict[str, Any]]:
                     is_legacy_en = False
                 if not plan_stem:
                     continue
-                with contextlib.suppress(OSError):
+                try:
                     f_mtime = f.stat().st_mtime
+                except OSError:
+                    continue
                 if not is_worktree:
                     prev = root_candidates.get(plan_stem)
                     if (
@@ -1382,17 +1405,31 @@ def _discover_standalone_plans(repo_path: Path) -> list[dict[str, Any]]:
                     ):
                         root_candidates[plan_stem] = (f, is_legacy_en, f_mtime)
                 else:
+                    m_stem_date = _PLAN_DATE_PREFIX_RE.match(plan_stem)
+                    norm_stem_slug = _normalize_slug(
+                        m_stem_date.group(2) if m_stem_date else plan_stem
+                    )
+                    wt_matches_slug = _worktree_matches_slug(
+                        root, norm_stem_slug, branch_name
+                    )
+                    cand_rank = (not is_legacy_en, wt_matches_slug, f_mtime)
                     prev_wt = wt_candidates.get(plan_stem)
-                    if (
-                        prev_wt is None
-                        or (prev_wt[1] and not is_legacy_en)
-                        or (prev_wt[1] == is_legacy_en and f_mtime > prev_wt[2])
+                    if prev_wt is None or cand_rank > (
+                        not prev_wt[1],
+                        prev_wt[2],
+                        prev_wt[3],
                     ):
-                        wt_candidates[plan_stem] = (f, is_legacy_en, f_mtime, root)
+                        wt_candidates[plan_stem] = (
+                            f,
+                            is_legacy_en,
+                            wt_matches_slug,
+                            f_mtime,
+                            root,
+                        )
 
     _scan_plans_dir(repo_path, False)
-    for wt in worktrees:
-        _scan_plans_dir(wt, True)
+    for wt, wt_branch in worktree_entries:
+        _scan_plans_dir(wt, True, wt_branch)
 
     selected_by_norm_slug: dict[str, dict[str, Any]] = {}
     all_stems = sorted(set(root_candidates) | set(wt_candidates))
@@ -1409,7 +1446,7 @@ def _discover_standalone_plans(repo_path: Path) -> list[dict[str, Any]]:
         from_worktree: bool
 
         if root_cand is None and wt_cand is not None:
-            chosen_file, _, chosen_mtime, _ = wt_cand
+            chosen_file, _, _, chosen_mtime, _ = wt_cand
             from_worktree = True
         elif wt_cand is None and root_cand is not None:
             chosen_file, _, chosen_mtime = root_cand
@@ -1417,22 +1454,19 @@ def _discover_standalone_plans(repo_path: Path) -> list[dict[str, Any]]:
         else:
             assert root_cand is not None and wt_cand is not None
             r_file, r_legacy, r_mtime = root_cand
-            w_file, w_legacy, w_mtime, w_root = wt_cand
+            w_file, w_legacy, w_matches_slug, w_mtime, _ = wt_cand
             if r_legacy and not w_legacy:
                 chosen_file, chosen_mtime, from_worktree = w_file, w_mtime, True
             elif not r_legacy and w_legacy:
                 chosen_file, chosen_mtime, from_worktree = r_file, r_mtime, False
             else:
-                wt_matches_slug = (
-                    _normalize_slug(_strip_slot_suffix(w_root.name)) == norm_slug
-                )
                 content_differs = False
-                if w_mtime > r_mtime and not wt_matches_slug:
+                if w_mtime > r_mtime and not w_matches_slug:
                     with contextlib.suppress(OSError, UnicodeDecodeError):
                         content_differs = w_file.read_text(
                             encoding="utf-8"
                         ) != r_file.read_text(encoding="utf-8")
-                if (wt_matches_slug and w_mtime >= r_mtime) or (
+                if (w_matches_slug and w_mtime >= r_mtime) or (
                     w_mtime > r_mtime and content_differs
                 ):
                     chosen_file, chosen_mtime, from_worktree = w_file, w_mtime, True
@@ -2214,6 +2248,8 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
             ep_dir = epic_dir / ep_slug
             if ep_dir.is_dir():
                 for tf in sorted(ep_dir.glob("task_*.md"), key=natural_sort_key):
+                    if tf.name.lower().endswith(".vi.md"):
+                        continue
                     task_id = tf.stem
                     with contextlib.suppress(OSError, UnicodeDecodeError):
                         content = tf.read_text(encoding="utf-8")

@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import sys
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CHECK_TASKS_SCRIPT_DIR = REPO_ROOT / "skills" / "check-tasks" / "resources" / "scripts"
 if str(CHECK_TASKS_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(CHECK_TASKS_SCRIPT_DIR))
 
+import check_tasks  # type: ignore[import-not-found]  # noqa: E402
 from check_tasks import (  # type: ignore[import-not-found]  # noqa: E402
+    WorktreeMetadata,
+    _discover_standalone_plans,
     extract_task_progress,
     harvest_epics_overview,
 )
@@ -193,6 +199,103 @@ def test_harvest_discovers_worktree_only_standalone_plan(tmp_path: Path) -> None
     assert [t["epic"] for t in tp.tasks] == ["wt-plan-feature", "wt-plan-feature"]
     assert all(t["labels"] == ["plan"] for t in tp.tasks)
     assert all(t["source"] == "worktree" for t in tp.tasks)
+
+
+def test_owning_worktree_plan_beats_newer_unrelated_worktree_copy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An owning slug-matching worktree (by dir or branch) beats a newer unrelated worktree copy instead of falling back to main."""
+    base_plan = "# Shared Plan Implementation Plan\n\n### Task 1: Baseline task\n"
+    edited_plan = (
+        "# Shared Plan Implementation Plan\n\n"
+        "### Task 1: Baseline task\n\n"
+        "### Task 2: Owning worktree edit\n"
+    )
+
+    # Case 1: Owning worktree matches by directory name (wt_a = alpha_plan) vs newer unrelated wt_b
+    repo_dir = tmp_path / "wt-dir-match"
+    repo_dir.mkdir()
+    rel_plan = Path("docs/superpowers/plans/2026-11-27-alpha-plan.md")
+    main_plan = repo_dir / rel_plan
+    wt_a_plan = repo_dir / ".worktrees" / "alpha_plan" / rel_plan
+    wt_b_plan = repo_dir / ".worktrees" / "z_unrelated_wt" / rel_plan
+    _write(main_plan, base_plan)
+    _write(wt_a_plan, edited_plan)
+    _write(wt_b_plan, base_plan)
+    os.utime(main_plan, (1000.0, 1000.0))
+    os.utime(wt_a_plan, (1100.0, 1100.0))
+    os.utime(wt_b_plan, (1200.0, 1200.0))
+
+    discovered_dir = _discover_standalone_plans(repo_dir)
+    assert len(discovered_dir) == 1
+    assert discovered_dir[0]["from_worktree"] is True
+    assert [t["title"] for t in discovered_dir[0]["tasks"]] == [
+        "Task 1: Baseline task",
+        "Task 2: Owning worktree edit",
+    ]
+
+    tp_dir = extract_task_progress(repo_dir, active_epic=None)
+    assert tp_dir.total_tasks == 2
+    assert [t["title"] for t in tp_dir.tasks] == [
+        "Task 1: Baseline task",
+        "Task 2: Owning worktree edit",
+    ]
+    assert all(t["source"] == "worktree" for t in tp_dir.tasks)
+
+    # Case 2: Owning worktree matches by git branch `feat/<slug>` (dir `wt_a`) vs newer unrelated `wt_b`
+    repo_br = tmp_path / "wt-branch-match"
+    repo_br.mkdir()
+    rel_br_plan = Path("docs/superpowers/plans/2026-11-27-beta-plan.md")
+    main_br_plan = repo_br / rel_br_plan
+    wt_a_root = repo_br / ".worktrees" / "wt_a"
+    wt_b_root = repo_br / ".worktrees" / "wt_b"
+    wt_a_br_plan = wt_a_root / rel_br_plan
+    wt_b_br_plan = wt_b_root / rel_br_plan
+    _write(main_br_plan, base_plan)
+    _write(wt_a_br_plan, edited_plan)
+    _write(wt_b_br_plan, base_plan)
+    os.utime(main_br_plan, (1000.0, 1000.0))
+    os.utime(wt_a_br_plan, (1100.0, 1100.0))
+    os.utime(wt_b_br_plan, (1200.0, 1200.0))
+
+    monkeypatch.setattr(
+        check_tasks,
+        "scan_worktrees",
+        lambda _p: [
+            WorktreeMetadata(
+                path=str(wt_a_root),
+                branch="feat/beta-plan",
+                head_sha="abc1234",
+                is_dirty=True,
+                dirty_file_count=1,
+                is_detached=False,
+            ),
+            WorktreeMetadata(
+                path=str(wt_b_root),
+                branch="feat/unrelated-branch",
+                head_sha="def5678",
+                is_dirty=False,
+                dirty_file_count=0,
+                is_detached=False,
+            ),
+        ],
+    )
+
+    discovered_br = _discover_standalone_plans(repo_br)
+    assert len(discovered_br) == 1
+    assert discovered_br[0]["from_worktree"] is True
+    assert [t["title"] for t in discovered_br[0]["tasks"]] == [
+        "Task 1: Baseline task",
+        "Task 2: Owning worktree edit",
+    ]
+
+    tp_br = extract_task_progress(repo_br, active_epic=None)
+    assert tp_br.total_tasks == 2
+    assert [t["title"] for t in tp_br.tasks] == [
+        "Task 1: Baseline task",
+        "Task 2: Owning worktree edit",
+    ]
+    assert all(t["source"] == "worktree" for t in tp_br.tasks)
 
 
 def test_completed_tasks_caps_to_top_10_newest_and_preserves_active_metrics(
@@ -425,7 +528,7 @@ def test_kanban_dashboard_done_tab_top_10_cap_badges_and_plan_tasks_vm() -> None
         const roadmapSigAfter = ctx.buildRoadmapSig(repo);
         repo.epics_summary.epics[2].source_kind = 'plan';
 
-        // Kanban sig changes when completed_tasks changes
+        // Kanban sig changes when completed_tasks, milestone_summary, or mtime changes
         const kanbanSigBefore = ctx.buildKanbanSig(repo, 'all');
         repo.task_progress.completed_tasks.push({
           id: 'task_03',
@@ -437,6 +540,16 @@ def test_kanban_dashboard_done_tab_top_10_cap_badges_and_plan_tasks_vm() -> None
           labels: ['plan'],
         });
         const kanbanSigAfter = ctx.buildKanbanSig(repo, 'all');
+
+        const kanbanSigBeforeMilestone = ctx.buildKanbanSig(repo, 'all');
+        repo.epics_summary.epics[1].milestone_summary = 'Updated ledger hotfix summary';
+        const kanbanSigAfterMilestone = ctx.buildKanbanSig(repo, 'all');
+        repo.epics_summary.epics[1].milestone_summary = 'Direct ledger hotfix';
+
+        const kanbanSigBeforeMtime = ctx.buildKanbanSig(repo, 'all');
+        repo.epics_summary.epics[1].mtime = 1250;
+        const kanbanSigAfterMtime = ctx.buildKanbanSig(repo, 'all');
+        repo.epics_summary.epics[1].mtime = 1200;
 
         // Overview header hint
         const overviewHtml = ctx.renderEpicsOverviewAndApprovalGate(repo);
@@ -453,6 +566,8 @@ def test_kanban_dashboard_done_tab_top_10_cap_badges_and_plan_tasks_vm() -> None
           roadmapHtml,
           roadmapSigChanged: roadmapSigBefore !== roadmapSigAfter,
           kanbanSigChanged: kanbanSigBefore !== kanbanSigAfter,
+          kanbanSigMilestoneChanged: kanbanSigBeforeMilestone !== kanbanSigAfterMilestone,
+          kanbanSigMtimeChanged: kanbanSigBeforeMtime !== kanbanSigAfterMtime,
           overviewHtml,
         }));
         """
@@ -512,6 +627,8 @@ def test_kanban_dashboard_done_tab_top_10_cap_badges_and_plan_tasks_vm() -> None
     # Signature invalidation checks
     assert res["roadmapSigChanged"] is True
     assert res["kanbanSigChanged"] is True
+    assert res["kanbanSigMilestoneChanged"] is True
+    assert res["kanbanSigMtimeChanged"] is True
 
     # Overview header hint updated
     assert ".devtool/epic/ · plans/" in res["overviewHtml"]

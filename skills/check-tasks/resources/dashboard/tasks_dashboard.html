@@ -4113,6 +4113,8 @@ Loading evidence data...
           e.status,
           e.source_kind || 'epic',
           e.completed_date || '',
+          Number(e.mtime || 0),
+          e.milestone_summary || '',
           e.execution_state || 'doing',
           e.execution_state_reason || '',
           Number(e.task_count || 0),
