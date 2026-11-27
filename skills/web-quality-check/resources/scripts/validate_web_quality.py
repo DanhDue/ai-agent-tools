@@ -5,10 +5,23 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import sys
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
+
+_QC_SCRIPTS_DIR = (
+    Path(__file__).resolve().parents[3] / "quality_check" / "resources" / "scripts"
+)
+if str(_QC_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_QC_SCRIPTS_DIR))
+
+from _provider_manifest_common import (  # noqa: E402
+    format_validator_cli_output,
+    validate_additive_provider_fields,
+    validate_dual_floor_coverage,
+)
 
 VALID_PROFILES = {"pr", "epic", "scheduled", "release"}
 MANDATORY_PR_CAPABILITIES = {"type_check", "lint", "test_unit"}
@@ -54,6 +67,8 @@ def validate_manifest(
             )
         )
 
+    findings.extend(validate_additive_provider_fields(config))
+
     capabilities = config.get("capabilities", {})
     if not isinstance(capabilities, dict):
         findings.append(
@@ -92,7 +107,8 @@ def validate_manifest(
                 )
             threshold = cap_val.get("threshold")
             if (
-                not isinstance(threshold, (int, float))
+                isinstance(threshold, bool)
+                or not isinstance(threshold, (int, float))
                 or threshold < 0
                 or threshold > 1.0
             ):
@@ -103,6 +119,7 @@ def validate_manifest(
                         capability=cap_name,
                     )
                 )
+            findings.extend(validate_dual_floor_coverage(cap_val, capability=cap_name))
         else:
             if not isinstance(cap_val, list) or not all(
                 isinstance(arg, str) for arg in cap_val
@@ -209,7 +226,13 @@ def validate_manifest(
     return {
         "status": "BLOCKED" if findings else "PASS",
         "findings": sorted(
-            findings, key=lambda f: (f.get("code", ""), f.get("capability", ""))
+            findings,
+            key=lambda f: (
+                f.get("code", ""),
+                f.get("capability", ""),
+                f.get("field", ""),
+                f.get("message", ""),
+            ),
         ),
     }
 
@@ -687,11 +710,23 @@ def main() -> int:
         help="Requested profile (pr, epic, scheduled, release)",
     )
     parser.add_argument("--repo-root", default=".", help="Repository root directory")
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Expand capability breakdown on PASS",
+    )
+    parser.add_argument(
+        "--json",
+        dest="as_json",
+        action="store_true",
+        help="Emit full JSON output",
+    )
 
     args = parser.parse_args()
     config_path = Path(args.config_file)
+    data: dict[str, Any] = {}
     if not config_path.is_file():
-        res = {
+        res: dict[str, Any] = {
             "status": "BLOCKED",
             "findings": [
                 _finding(
@@ -702,7 +737,7 @@ def main() -> int:
         }
     else:
         try:
-            data = json.loads(config_path.read_text())
+            data = json.loads(config_path.read_text(encoding="utf-8"))
             res = validate_manifest(data, args.profile, repo_root=args.repo_root)
         except json.JSONDecodeError as err:
             res = {
@@ -710,11 +745,34 @@ def main() -> int:
                 "findings": [_finding("invalid_json", f"JSON parsing failed: {err}")],
             }
 
-    print(json.dumps(res, indent=2))
+    profiles_obj = data.get("profiles") if isinstance(data, dict) else None
+    profile_caps = (
+        profiles_obj.get(args.profile) if isinstance(profiles_obj, dict) else None
+    )
+    details = [str(c) for c in profile_caps] if isinstance(profile_caps, list) else None
+    item_count = (
+        len(profile_caps)
+        if isinstance(profile_caps, list)
+        else (
+            len(data.get("capabilities", {}))
+            if isinstance(data.get("capabilities"), dict)
+            else 0
+        )
+    )
+    print(
+        format_validator_cli_output(
+            "web-quality",
+            args.profile,
+            res,
+            verbose=bool(args.verbose),
+            as_json=bool(args.as_json),
+            item_count=item_count,
+            item_label="caps",
+            details=details,
+        )
+    )
     return 0 if res["status"] == "PASS" else 1
 
 
 if __name__ == "__main__":
-    import sys
-
     sys.exit(main())

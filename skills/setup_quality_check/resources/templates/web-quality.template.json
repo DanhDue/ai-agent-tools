@@ -1,6 +1,8 @@
 {
   "schema_version": 1,
+  "standards_catalog": ".agents/quality/standards_catalog.json",
   "capabilities": {
+    "format": ["npx", "prettier", "--check", "."],
     "type_check": ["npm", "run", "check"],
     "lint": ["npm", "run", "lint"],
     "test_unit": ["npm", "run", "test:unit"],
@@ -11,6 +13,52 @@
       "--base-ref",
       "{base_ref}"
     ],
+    "coverage": {
+      "command": [
+        "python3",
+        "{skills_dir}/quality_check/resources/scripts/check_diff_coverage.py",
+        "coverage/lcov.info",
+        "--format",
+        "lcov",
+        "--min-coverage",
+        "0.80",
+        "--min-package-coverage",
+        "0.70",
+        "--diff-base",
+        "{base_ref}",
+        "--min-diff-coverage",
+        "0.80",
+        "--source-ext",
+        ".ts",
+        "--source-ext",
+        ".tsx",
+        "--source-ext",
+        ".js"
+      ],
+      "lcov_path": "coverage/lcov.info",
+      "threshold": 0.8,
+      "min_package_coverage": 0.7,
+      "exclude_package_floor": [],
+      "min_diff_coverage": 0.8,
+      "diff_base": "main"
+    },
+    "anti_stub": ["./scripts/check_anti_stub.sh"],
+    "security": ["./scripts/check_security.sh"],
+    "security_deps": ["npm", "audit", "--audit-level=high"],
+    "pr_diff_audit": ["./scripts/check_quality_audit.sh", "--base-ref", "{base_ref}"],
+    "workspace_audit": ["./scripts/check_quality_audit.sh", "--all-files"],
+    "pr_impact": [
+      "python3",
+      "{skills_dir}/impact-analysis/resources/scripts/check_code_impact.py",
+      "--base-ref",
+      "{base_ref}"
+    ],
+    "workspace_impact": [
+      "python3",
+      "{skills_dir}/impact-analysis/resources/scripts/check_code_impact.py",
+      "--all-files"
+    ],
+    "license": ["./scripts/check_license_header.sh"],
     "contracts": [
       "python3",
       "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py",
@@ -20,9 +68,59 @@
     ]
   },
   "profiles": {
-    "pr": ["type_check", "lint", "test_unit", "contracts"],
-    "epic": ["type_check", "lint", "test_unit", "test_e2e", "ui_review", "contracts"],
-    "release": ["type_check", "lint", "test_unit", "test_e2e", "ui_review", "contracts"],
-    "scheduled": ["type_check", "lint", "test_unit", "test_e2e", "ui_review", "contracts"]
+    "pr": [
+      "type_check",
+      "lint",
+      "test_unit",
+      "anti_stub",
+      "security",
+      "pr_diff_audit",
+      "pr_impact",
+      "contracts"
+    ],
+    "epic": [
+      "type_check",
+      "lint",
+      "license",
+      "test_unit",
+      "test_e2e",
+      "ui_review",
+      "coverage",
+      "anti_stub",
+      "security",
+      "pr_diff_audit",
+      "pr_impact",
+      "contracts"
+    ],
+    "scheduled": [
+      "type_check",
+      "lint",
+      "license",
+      "test_unit",
+      "test_e2e",
+      "ui_review",
+      "coverage",
+      "anti_stub",
+      "security",
+      "security_deps",
+      "workspace_audit",
+      "workspace_impact",
+      "contracts"
+    ],
+    "release": [
+      "type_check",
+      "lint",
+      "license",
+      "test_unit",
+      "test_e2e",
+      "ui_review",
+      "coverage",
+      "anti_stub",
+      "security",
+      "security_deps",
+      "workspace_audit",
+      "workspace_impact",
+      "contracts"
+    ]
   }
 }

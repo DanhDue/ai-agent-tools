@@ -11,11 +11,10 @@
       "report_path": "build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml",
       "threshold": 0.85
     },
-    "acceptance": ["./scripts/acceptance_check.sh"],
-    "cleanup": ["pkill", "-9", "java"]
+    "acceptance": ["./scripts/acceptance_check.sh"]
   },
   "profiles": {
     "pr": ["format", "lint", "test"],
-    "epic": ["format", "lint", "bcv", "architecture", "test", "coverage", "cleanup"]
+    "epic": ["format", "lint", "bcv", "architecture", "test", "coverage"]
   }
 }

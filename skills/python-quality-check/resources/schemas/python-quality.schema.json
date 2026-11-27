@@ -22,6 +22,74 @@
         "items": { "type": "string", "minLength": 1 }
       }
     },
+    "standards_catalog": {
+      "type": "string",
+      "minLength": 1
+    },
+    "extensions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^\\.[a-z0-9]+$"
+      }
+    },
+    "task_tier_b": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "format_prefixes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "lint_prefixes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "typecheck_prefixes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "boundary_prefixes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "boundary_triggers": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "require_all_allowed_files_in_format": {
+          "type": "boolean"
+        }
+      }
+    },
+    "triage_surfaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "signature": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "api_wire": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "persistence": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "concurrency": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "test_weakening": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
     "capabilities": {
       "type": "object",
       "additionalProperties": false,
@@ -61,10 +129,36 @@
               "minItems": 1,
               "items": { "type": "string" }
             },
+            "lcov_path": {
+              "type": "string"
+            },
+            "report_path": {
+              "type": "string"
+            },
+            "profdata_path": {
+              "type": "string"
+            },
             "threshold": {
               "type": "number",
               "minimum": 0,
               "maximum": 1
+            },
+            "min_package_coverage": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "exclude_package_floor": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "min_diff_coverage": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "diff_base": {
+              "type": "string"
             }
           }
         },
@@ -88,7 +182,42 @@
           "minItems": 1,
           "items": { "type": "string" }
         },
+        "anti_stub": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
         "security": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "security_deps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "pr_diff_audit": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "workspace_audit": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "pr_impact": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "workspace_impact": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "license": {
           "type": "array",
           "minItems": 1,
           "items": { "type": "string" }

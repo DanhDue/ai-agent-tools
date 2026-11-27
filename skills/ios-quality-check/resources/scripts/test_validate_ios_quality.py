@@ -17,8 +17,20 @@ def valid_config() -> dict:
     return {
         "schema_version": 1,
         "capabilities": {
-            "format": ["swiftformat", "--config", "quality/.swiftformat", "--lint", "."],
-            "lint": ["swiftlint", "lint", "--config", "quality/.swiftlint.yml", "--strict"],
+            "format": [
+                "swiftformat",
+                "--config",
+                "quality/.swiftformat",
+                "--lint",
+                ".",
+            ],
+            "lint": [
+                "swiftlint",
+                "lint",
+                "--config",
+                "quality/.swiftlint.yml",
+                "--strict",
+            ],
             "architecture": ["swift", "test", "--package-path", "ArchTests"],
             "boundaries": ["./scripts/check_module_boundaries.sh"],
             "test": ["swift", "test"],
@@ -31,7 +43,14 @@ def valid_config() -> dict:
         },
         "profiles": {
             "pr": ["format", "lint", "test"],
-            "epic": ["format", "lint", "architecture", "boundaries", "test", "coverage"],
+            "epic": [
+                "format",
+                "lint",
+                "architecture",
+                "boundaries",
+                "test",
+                "coverage",
+            ],
         },
     }
 
@@ -68,7 +87,9 @@ class IOSQualityConfigTests(unittest.TestCase):
         del cfg["capabilities"]["architecture"]
         res = validate_ios_config(cfg, "epic")
         self.assertEqual("BLOCKED", res["status"])
-        self.assertIn("missing_capability_definition", [f["code"] for f in res["findings"]])
+        self.assertIn(
+            "missing_capability_definition", [f["code"] for f in res["findings"]]
+        )
 
     def test_schema_file_is_valid_json_schema(self) -> None:
         schema_path = SCRIPT_DIR.parent / "schemas/ios-quality.schema.json"
@@ -84,15 +105,46 @@ class IOSQualityConfigTests(unittest.TestCase):
         cap_props = schema["properties"]["capabilities"]["properties"]
         self.assertIn("contracts", cap_props)
         self.assertIn("contract_diff", cap_props)
-        pattern_props = schema["properties"]["capabilities"].get("patternProperties", {})
+        pattern_props = schema["properties"]["capabilities"].get(
+            "patternProperties", {}
+        )
         self.assertIn("^contracts_[a-z0-9_]+$", pattern_props)
 
         cfg = valid_config()
-        cfg["capabilities"]["contracts"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "check"]
-        cfg["capabilities"]["contracts_lyrics_sync"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "check", "--domain", "lyrics-sync"]
-        cfg["capabilities"]["contract_diff"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "diff-check", "--base-ref", "{base_ref}"]
+        cfg["capabilities"]["contracts"] = [
+            "python3",
+            "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py",
+            "check",
+        ]
+        cfg["capabilities"]["contracts_lyrics_sync"] = [
+            "python3",
+            "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py",
+            "check",
+            "--domain",
+            "lyrics-sync",
+        ]
+        cfg["capabilities"]["contract_diff"] = [
+            "python3",
+            "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py",
+            "diff-check",
+            "--base-ref",
+            "{base_ref}",
+        ]
         res = validate_ios_config(cfg, "epic")
         self.assertEqual("PASS", res["status"])
+
+    def test_additive_v1_fields_and_invalid_extensions(self) -> None:
+        cfg = valid_config()
+        cfg["standards_catalog"] = ".agents/quality/standards_catalog.json"
+        cfg["extensions"] = [".swift"]
+        cfg["triage_surfaces"] = {"concurrency": [r"Task\.detached"]}
+        cfg["capabilities"]["coverage"]["min_diff_coverage"] = 0.8
+        self.assertEqual("PASS", validate_ios_config(cfg, "epic")["status"])
+
+        cfg["extensions"] = ["swift"]
+        bad = validate_ios_config(cfg, "epic")
+        self.assertEqual("BLOCKED", bad["status"])
+        self.assertIn("invalid_extensions", [f["code"] for f in bad["findings"]])
 
 
 if __name__ == "__main__":

@@ -9,7 +9,20 @@ from __future__ import annotations
 
 import copy
 import re
+import sys
+from pathlib import Path
 from typing import Any
+
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+from _provider_manifest_common import (  # noqa: E402
+    format_validator_cli_output,
+    validate_additive_provider_fields,
+    validate_dual_floor_coverage,
+    validate_pool_mounts,
+)
 
 VALID_PROFILES = {"pr", "epic", "scheduled", "release"}
 VALID_STATUSES = {"PASS", "FAIL", "BLOCKED", "NOT_APPLICABLE"}
@@ -31,9 +44,14 @@ def _finding(code: str, message: str, **extra: Any) -> dict[str, Any]:
 
 def _sort_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     # Deduplicate findings with identical representations
-    unique: dict[str, dict[str, Any]] = {}
+    unique: dict[tuple[Any, Any, Any, Any], dict[str, Any]] = {}
     for f in findings:
-        key = (f.get("code", ""), f.get("provider_id", ""), f.get("field", ""), f.get("message", ""))
+        key = (
+            f.get("code", ""),
+            f.get("provider_id", ""),
+            f.get("field", ""),
+            f.get("message", ""),
+        )
         if key not in unique:
             unique[key] = f
     return sorted(
@@ -56,14 +74,25 @@ def validate_registry(
     findings: list[dict[str, Any]] = []
 
     # Check top-level fields
-    allowed_top = {"schema_version", "providers"}
+    allowed_top = {"schema_version", "providers", "pool_mounts"}
     for k in sorted(registry_data.keys()):
         if k not in allowed_top:
-            findings.append(_finding("unknown_field", f"Unknown top-level field '{k}'", field=k))
+            findings.append(
+                _finding("unknown_field", f"Unknown top-level field '{k}'", field=k)
+            )
+
+    if "pool_mounts" in registry_data:
+        findings.extend(validate_pool_mounts(registry_data["pool_mounts"]))
 
     for req in ("schema_version", "providers"):
         if req not in registry_data:
-            findings.append(_finding("missing_field", f"Missing required top-level field '{req}'", field=req))
+            findings.append(
+                _finding(
+                    "missing_field",
+                    f"Missing required top-level field '{req}'",
+                    field=req,
+                )
+            )
 
     schema_version = registry_data.get("schema_version")
     if schema_version != 1:
@@ -77,7 +106,11 @@ def validate_registry(
     providers_raw = registry_data.get("providers")
     if not isinstance(providers_raw, list):
         if "providers" in registry_data:
-            findings.append(_finding("empty_providers", "Registry providers must be a non-empty list"))
+            findings.append(
+                _finding(
+                    "empty_providers", "Registry providers must be a non-empty list"
+                )
+            )
         return {
             "status": "BLOCKED",
             "providers": [],
@@ -93,7 +126,11 @@ def validate_registry(
 
     for idx, p in enumerate(providers_raw):
         if not isinstance(p, dict):
-            findings.append(_finding("malformed_provider", f"Provider at index {idx} must be an object"))
+            findings.append(
+                _finding(
+                    "malformed_provider", f"Provider at index {idx} must be an object"
+                )
+            )
             continue
 
         p_id = p.get("id")
@@ -183,7 +220,11 @@ def validate_registry(
     # Sort selected providers by id for deterministic ordering
     selected_providers.sort(key=lambda item: item.get("id", ""))
 
-    if len(selected_providers) == 0 and len(providers_raw) > 0 and requested_profile in VALID_PROFILES:
+    if (
+        len(selected_providers) == 0
+        and len(providers_raw) > 0
+        and requested_profile in VALID_PROFILES
+    ):
         findings.append(
             _finding(
                 "empty_selection",
@@ -202,11 +243,20 @@ def validate_registry(
 def normalize_invocation(invocation_data: dict[str, Any]) -> dict[str, Any]:
     """Validate and normalize an orchestrator invocation request."""
     findings: list[dict[str, Any]] = []
-    allowed_fields = {"contract_version", "profile", "base_ref", "repository_sha", "provider_id", "required"}
+    allowed_fields = {
+        "contract_version",
+        "profile",
+        "base_ref",
+        "repository_sha",
+        "provider_id",
+        "required",
+    }
 
     for k in sorted(invocation_data.keys()):
         if k not in allowed_fields:
-            findings.append(_finding("unknown_field", f"Unknown invocation field '{k}'", field=k))
+            findings.append(
+                _finding("unknown_field", f"Unknown invocation field '{k}'", field=k)
+            )
 
     contract_version = invocation_data.get("contract_version", 1)
     if contract_version != 1:
@@ -219,11 +269,15 @@ def normalize_invocation(invocation_data: dict[str, Any]) -> dict[str, Any]:
 
     profile = invocation_data.get("profile", "pr")
     if profile not in VALID_PROFILES:
-        findings.append(_finding("unsupported_profile", f"Unsupported profile '{profile}'"))
+        findings.append(
+            _finding("unsupported_profile", f"Unsupported profile '{profile}'")
+        )
 
     sha = invocation_data.get("repository_sha")
     if not isinstance(sha, str) or not SHA_PATTERN.match(sha):
-        findings.append(_finding("invalid_repository_sha", f"Invalid repository_sha '{sha}'"))
+        findings.append(
+            _finding("invalid_repository_sha", f"Invalid repository_sha '{sha}'")
+        )
 
     norm = copy.deepcopy(invocation_data)
     norm["contract_version"] = 1
@@ -281,7 +335,10 @@ def validate_provider_result(
                     f"Result repository_sha '{result_data.get('repository_sha')}' != invocation '{exp_sha}'",
                 )
             )
-        if result_data.get("started_head") != exp_sha or result_data.get("finished_head") != exp_sha:
+        if (
+            result_data.get("started_head") != exp_sha
+            or result_data.get("finished_head") != exp_sha
+        ):
             findings.append(
                 _finding(
                     "sha_drift",
@@ -292,9 +349,13 @@ def validate_provider_result(
     duration = result_data.get("duration")
     if duration is not None:
         if not isinstance(duration, (int, float)) or duration < 0:
-            findings.append(_finding("invalid_duration", f"Invalid duration '{duration}'"))
+            findings.append(
+                _finding("invalid_duration", f"Invalid duration '{duration}'")
+            )
     else:
-        findings.append(_finding("missing_field", "Missing duration in result", field="duration"))
+        findings.append(
+            _finding("missing_field", "Missing duration in result", field="duration")
+        )
 
     status = result_data.get("status")
     if status not in VALID_STATUSES:
@@ -305,15 +366,38 @@ def validate_provider_result(
     if isinstance(coverage, dict):
         for metric, cov in coverage.items():
             if not isinstance(cov, dict):
-                findings.append(_finding("invalid_coverage", f"Coverage for '{metric}' must be object"))
+                findings.append(
+                    _finding(
+                        "invalid_coverage", f"Coverage for '{metric}' must be object"
+                    )
+                )
                 continue
             measured = cov.get("measured")
             threshold = cov.get("threshold")
             if not isinstance(measured, (int, float)) or measured < 0 or measured > 1.0:
-                findings.append(_finding("invalid_coverage", f"Invalid measured coverage '{measured}' in '{metric}'"))
-            if threshold is not None and (not isinstance(threshold, (int, float)) or threshold < 0 or threshold > 1.0):
-                findings.append(_finding("invalid_coverage", f"Invalid threshold coverage '{threshold}' in '{metric}'"))
-            if status == "PASS" and threshold is not None and isinstance(measured, (int, float)) and isinstance(threshold, (int, float)):
+                findings.append(
+                    _finding(
+                        "invalid_coverage",
+                        f"Invalid measured coverage '{measured}' in '{metric}'",
+                    )
+                )
+            if threshold is not None and (
+                not isinstance(threshold, (int, float))
+                or threshold < 0
+                or threshold > 1.0
+            ):
+                findings.append(
+                    _finding(
+                        "invalid_coverage",
+                        f"Invalid threshold coverage '{threshold}' in '{metric}'",
+                    )
+                )
+            if (
+                status == "PASS"
+                and threshold is not None
+                and isinstance(measured, (int, float))
+                and isinstance(threshold, (int, float))
+            ):
                 if measured < threshold:
                     findings.append(
                         _finding(
@@ -334,16 +418,31 @@ def validate_provider_result(
     if isinstance(evidence, list):
         for idx, ev in enumerate(evidence):
             if not isinstance(ev, dict):
-                findings.append(_finding("malformed_evidence", f"Evidence at index {idx} must be an object"))
+                findings.append(
+                    _finding(
+                        "malformed_evidence",
+                        f"Evidence at index {idx} must be an object",
+                    )
+                )
                 continue
             ev_id = ev.get("id")
             if ev_id:
                 evidence_ids.add(ev_id)
             for req in ("id", "type", "source"):
                 if req not in ev:
-                    findings.append(_finding("malformed_evidence", f"Missing field '{req}' in evidence {ev_id or idx}"))
+                    findings.append(
+                        _finding(
+                            "malformed_evidence",
+                            f"Missing field '{req}' in evidence {ev_id or idx}",
+                        )
+                    )
             if "location" not in ev and "digest" not in ev:
-                findings.append(_finding("malformed_evidence", f"Evidence '{ev_id or idx}' missing location or digest"))
+                findings.append(
+                    _finding(
+                        "malformed_evidence",
+                        f"Evidence '{ev_id or idx}' missing location or digest",
+                    )
+                )
             if ev.get("type") == "applicability":
                 has_applicability_evidence = True
     elif evidence is not None:
@@ -354,10 +453,22 @@ def validate_provider_result(
     if isinstance(checks, list):
         for idx, chk in enumerate(checks):
             if not isinstance(chk, dict):
-                findings.append(_finding("malformed_check", f"Check at index {idx} must be an object"))
+                findings.append(
+                    _finding(
+                        "malformed_check", f"Check at index {idx} must be an object"
+                    )
+                )
                 continue
             chk_id = chk.get("id") or f"check_{idx}"
-            req_check_fields = ("id", "category", "status", "source", "duration", "summary", "evidence_refs")
+            req_check_fields = (
+                "id",
+                "category",
+                "status",
+                "source",
+                "duration",
+                "summary",
+                "evidence_refs",
+            )
             for req in req_check_fields:
                 if req not in chk:
                     findings.append(
@@ -369,8 +480,14 @@ def validate_provider_result(
                     )
 
             chk_dur = chk.get("duration")
-            if chk_dur is not None and (not isinstance(chk_dur, (int, float)) or chk_dur < 0):
-                findings.append(_finding("invalid_duration", f"Invalid duration in check '{chk_id}'"))
+            if chk_dur is not None and (
+                not isinstance(chk_dur, (int, float)) or chk_dur < 0
+            ):
+                findings.append(
+                    _finding(
+                        "invalid_duration", f"Invalid duration in check '{chk_id}'"
+                    )
+                )
 
             chk_status = chk.get("status")
             if status == "PASS" and chk_status in {"FAIL", "BLOCKED"}:
@@ -384,7 +501,11 @@ def validate_provider_result(
                 )
             if chk_status == "NOT_APPLICABLE":
                 reason = chk.get("not_applicable_reason")
-                if not isinstance(reason, dict) or "code" not in reason or "detail" not in reason:
+                if (
+                    not isinstance(reason, dict)
+                    or "code" not in reason
+                    or "detail" not in reason
+                ):
                     findings.append(
                         _finding(
                             "missing_not_applicable_reason",
@@ -437,8 +558,10 @@ def reconcile_results(
     """Reconcile collected provider results against the execution plan."""
     findings: list[dict[str, Any]] = []
 
+    plan_entries: list[dict[str, Any]]
     if isinstance(execution_plan, dict):
-        plan_entries = execution_plan.get("providers", execution_plan.get("plan", []))
+        raw_entries = execution_plan.get("providers", execution_plan.get("plan", []))
+        plan_entries = raw_entries if isinstance(raw_entries, list) else []
         expected_sha = expected_sha or execution_plan.get("repository_sha")
     else:
         plan_entries = execution_plan
@@ -467,7 +590,11 @@ def reconcile_results(
                     provider_id=p_id,
                 )
             )
-        if expected_sha and (res_sha != expected_sha or start_sha != expected_sha or fin_sha != expected_sha):
+        if expected_sha and (
+            res_sha != expected_sha
+            or start_sha != expected_sha
+            or fin_sha != expected_sha
+        ):
             findings.append(
                 _finding(
                     "sha_mismatch",
@@ -494,7 +621,11 @@ def reconcile_results(
                     if isinstance(m_cov, dict):
                         meas = m_cov.get("measured")
                         thresh = m_cov.get("threshold")
-                        if thresh is not None and isinstance(meas, (int, float)) and isinstance(thresh, (int, float)):
+                        if (
+                            thresh is not None
+                            and isinstance(meas, (int, float))
+                            and isinstance(thresh, (int, float))
+                        ):
                             if meas < thresh:
                                 findings.append(
                                     _finding(
@@ -572,12 +703,19 @@ def validate_capability_manifest(
 
     if manifest_data.get("schema_version") != 1:
         findings.append(
-            _finding("unsupported_version", f"Unsupported schema_version '{manifest_data.get('schema_version')}', expected 1")
+            _finding(
+                "unsupported_version",
+                f"Unsupported schema_version '{manifest_data.get('schema_version')}', expected 1",
+            )
         )
+
+    findings.extend(validate_additive_provider_fields(manifest_data))
 
     capabilities = manifest_data.get("capabilities")
     if not isinstance(capabilities, dict):
-        findings.append(_finding("missing_capabilities", "Missing or invalid 'capabilities' object"))
+        findings.append(
+            _finding("missing_capabilities", "Missing or invalid 'capabilities' object")
+        )
         return {"status": "BLOCKED", "findings": _sort_findings(findings)}
 
     if len(capabilities) == 0:
@@ -586,10 +724,18 @@ def validate_capability_manifest(
     for cap_name, cap_val in capabilities.items():
         if cap_name == "coverage":
             if not isinstance(cap_val, dict):
-                findings.append(_finding("invalid_coverage_config", "Coverage capability must be an object", capability=cap_name))
+                findings.append(
+                    _finding(
+                        "invalid_coverage_config",
+                        "Coverage capability must be an object",
+                        capability=cap_name,
+                    )
+                )
                 continue
             cmd = cap_val.get("command")
-            if not isinstance(cmd, list) or not all(isinstance(arg, str) for arg in cmd):
+            if not isinstance(cmd, list) or not all(
+                isinstance(arg, str) for arg in cmd
+            ):
                 findings.append(
                     _finding(
                         "invalid_command_format",
@@ -606,10 +752,24 @@ def validate_capability_manifest(
                     )
                 )
             threshold = cap_val.get("threshold")
-            if not isinstance(threshold, (int, float)) or threshold < 0 or threshold > 1.0:
-                findings.append(_finding("invalid_coverage_threshold", "Coverage threshold must be between 0.0 and 1.0", capability=cap_name))
+            if (
+                isinstance(threshold, bool)
+                or not isinstance(threshold, (int, float))
+                or threshold < 0
+                or threshold > 1.0
+            ):
+                findings.append(
+                    _finding(
+                        "invalid_coverage_threshold",
+                        "Coverage threshold must be between 0.0 and 1.0",
+                        capability=cap_name,
+                    )
+                )
+            findings.extend(validate_dual_floor_coverage(cap_val, capability=cap_name))
         else:
-            if not isinstance(cap_val, list) or not all(isinstance(arg, str) for arg in cap_val):
+            if not isinstance(cap_val, list) or not all(
+                isinstance(arg, str) for arg in cap_val
+            ):
                 findings.append(
                     _finding(
                         "invalid_command_format",
@@ -628,7 +788,9 @@ def validate_capability_manifest(
 
     profiles = manifest_data.get("profiles")
     if not isinstance(profiles, dict):
-        findings.append(_finding("missing_profiles", "Missing or invalid 'profiles' object"))
+        findings.append(
+            _finding("missing_profiles", "Missing or invalid 'profiles' object")
+        )
         return {"status": "BLOCKED", "findings": _sort_findings(findings)}
 
     profile_caps = profiles.get(requested_profile)
@@ -641,10 +803,22 @@ def validate_capability_manifest(
             )
         )
     elif not isinstance(profile_caps, list):
-        findings.append(_finding("invalid_profile_format", f"Profile '{requested_profile}' must be an array of capability names", profile=requested_profile))
+        findings.append(
+            _finding(
+                "invalid_profile_format",
+                f"Profile '{requested_profile}' must be an array of capability names",
+                profile=requested_profile,
+            )
+        )
     else:
         if len(profile_caps) == 0:
-            findings.append(_finding("empty_profile_selection", f"Profile '{requested_profile}' has empty capability selection", profile=requested_profile))
+            findings.append(
+                _finding(
+                    "empty_profile_selection",
+                    f"Profile '{requested_profile}' has empty capability selection",
+                    profile=requested_profile,
+                )
+            )
         for cap in profile_caps:
             if cap not in capabilities:
                 findings.append(
@@ -672,66 +846,224 @@ def _load_json_arg(arg: str) -> Any:
     return json.loads(arg)
 
 
+def _add_output_flags(subparser: Any, *, include_compact: bool = True) -> None:
+    if include_compact:
+        subparser.add_argument(
+            "--compact",
+            action="store_true",
+            help="Emit compact 1-line PASS summary (expanded findings on BLOCKED/FAIL)",
+        )
+    subparser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Expand details even on PASS",
+    )
+    subparser.add_argument(
+        "--json",
+        dest="as_json",
+        action="store_true",
+        help="Emit full machine-readable JSON output",
+    )
+
+
 def main() -> int:
     import argparse
     import json
-    import sys
 
-    parser = argparse.ArgumentParser(description="Validate quality contracts and project manifests.")
+    parser = argparse.ArgumentParser(
+        description="Validate quality contracts and project manifests."
+    )
     subparsers = parser.add_subparsers(dest="command")
 
     reg_parser = subparsers.add_parser("registry", help="Validate project registry")
-    reg_parser.add_argument("registry_path", help="Path to registry JSON or JSON string")
-    reg_parser.add_argument("--profile", default="pr", help="Requested profile (pr, epic, scheduled, release)")
+    reg_parser.add_argument(
+        "registry_path", help="Path to registry JSON or JSON string"
+    )
+    reg_parser.add_argument(
+        "--profile",
+        default="pr",
+        help="Requested profile (pr, epic, scheduled, release)",
+    )
+    _add_output_flags(reg_parser)
 
-    inv_parser = subparsers.add_parser("invocation", help="Validate and normalize invocation")
-    inv_parser.add_argument("invocation_path", help="Path to invocation JSON or JSON string")
+    inv_parser = subparsers.add_parser(
+        "invocation", help="Validate and normalize invocation"
+    )
+    inv_parser.add_argument(
+        "invocation_path", help="Path to invocation JSON or JSON string"
+    )
+    _add_output_flags(inv_parser)
 
-    res_parser = subparsers.add_parser("result", help="Validate provider result against invocation")
+    res_parser = subparsers.add_parser(
+        "result", help="Validate provider result against invocation"
+    )
     res_parser.add_argument("result_path", help="Path to result JSON or JSON string")
-    res_parser.add_argument("--invocation", required=True, help="Path to invocation JSON or JSON string")
+    res_parser.add_argument(
+        "--invocation", required=True, help="Path to invocation JSON or JSON string"
+    )
+    _add_output_flags(res_parser)
 
-    rec_parser = subparsers.add_parser("reconcile", help="Reconcile provider results with execution plan")
-    rec_parser.add_argument("plan_path", help="Path to execution plan JSON or JSON string")
-    rec_parser.add_argument("--results", nargs="+", required=True, help="Paths to provider result JSONs")
-    rec_parser.add_argument("--expected-sha", default=None, help="Expected candidate SHA across results")
+    rec_parser = subparsers.add_parser(
+        "reconcile", help="Reconcile provider results with execution plan"
+    )
+    rec_parser.add_argument(
+        "plan_path", help="Path to execution plan JSON or JSON string"
+    )
+    rec_parser.add_argument(
+        "--results", nargs="+", required=True, help="Paths to provider result JSONs"
+    )
+    rec_parser.add_argument(
+        "--expected-sha", default=None, help="Expected candidate SHA across results"
+    )
+    _add_output_flags(rec_parser)
 
-    cap_parser = subparsers.add_parser("capability", help="Validate provider capability manifest")
-    cap_parser.add_argument("manifest_path", help="Path to capability JSON or JSON string")
-    cap_parser.add_argument("--profile", default="pr", help="Requested profile (pr, epic, scheduled, release)")
+    cap_parser = subparsers.add_parser(
+        "capability", help="Validate provider capability manifest"
+    )
+    cap_parser.add_argument(
+        "manifest_path", help="Path to capability JSON or JSON string"
+    )
+    cap_parser.add_argument(
+        "--profile",
+        default="pr",
+        help="Requested profile (pr, epic, scheduled, release)",
+    )
+    _add_output_flags(cap_parser)
 
     args = parser.parse_args()
 
     if args.command == "registry":
         data = _load_json_arg(args.registry_path)
         res = validate_registry(data, args.profile)
-        print(json.dumps(res, indent=2))
+        use_json = bool(args.as_json) or not (bool(args.compact) or bool(args.verbose))
+        if use_json:
+            print(json.dumps(res, indent=2))
+        else:
+            details = [str(p.get("id", "")) for p in res.get("providers", [])]
+            print(
+                format_validator_cli_output(
+                    "registry",
+                    args.profile,
+                    res,
+                    verbose=bool(args.verbose),
+                    as_json=False,
+                    item_count=len(res.get("providers", [])),
+                    item_label="items",
+                    details=details,
+                )
+            )
         return 0 if res["status"] == "PASS" else 1
 
     if args.command == "invocation":
         data = _load_json_arg(args.invocation_path)
         res = normalize_invocation(data)
-        print(json.dumps(res, indent=2))
+        use_json = bool(args.as_json) or not (bool(args.compact) or bool(args.verbose))
+        if use_json:
+            print(json.dumps(res, indent=2))
+        else:
+            raw_inv = res.get("invocation")
+            inv_obj: dict[str, Any] = raw_inv if isinstance(raw_inv, dict) else {}
+            inv_profile = inv_obj.get("profile") or (
+                data.get("profile") if isinstance(data, dict) else None
+            )
+            print(
+                format_validator_cli_output(
+                    "invocation",
+                    str(inv_profile) if inv_profile else None,
+                    res,
+                    verbose=bool(args.verbose),
+                    as_json=False,
+                    item_count=1 if res.get("invocation") else 0,
+                    item_label="items",
+                )
+            )
         return 0 if res["status"] == "PASS" else 1
 
     if args.command == "result":
         res_data = _load_json_arg(args.result_path)
         inv_data = _load_json_arg(args.invocation)
         res = validate_provider_result(res_data, inv_data)
-        print(json.dumps(res, indent=2))
+        checks = res_data.get("checks") if isinstance(res_data, dict) else None
+        item_count = len(checks) if isinstance(checks, list) else 0
+        res_profile = None
+        if isinstance(inv_data, dict) and inv_data.get("profile"):
+            res_profile = str(inv_data["profile"])
+        elif isinstance(res_data, dict) and res_data.get("profile"):
+            res_profile = str(res_data["profile"])
+        print(
+            format_validator_cli_output(
+                "result",
+                res_profile,
+                res,
+                verbose=bool(args.verbose),
+                as_json=bool(args.as_json),
+                item_count=item_count,
+                item_label="items",
+            )
+        )
         return 0 if res["status"] == "PASS" else 1
 
     if args.command == "reconcile":
         plan_data = _load_json_arg(args.plan_path)
         results = [_load_json_arg(r) for r in args.results]
-        res = reconcile_results(plan_data, results, expected_sha=getattr(args, "expected_sha", None))
-        print(json.dumps(res, indent=2))
+        res = reconcile_results(
+            plan_data, results, expected_sha=getattr(args, "expected_sha", None)
+        )
+        use_json = bool(args.as_json) or not (bool(args.compact) or bool(args.verbose))
+        if use_json:
+            print(json.dumps(res, indent=2))
+        else:
+            raw_results = res.get("results")
+            rec_results: list[Any] = (
+                raw_results if isinstance(raw_results, list) else []
+            )
+            details = [
+                f"{r.get('provider_id', '')}: {r.get('status', '')}"
+                for r in rec_results
+                if isinstance(r, dict)
+            ]
+            print(
+                format_validator_cli_output(
+                    "reconcile",
+                    None,
+                    res,
+                    verbose=bool(args.verbose),
+                    as_json=False,
+                    item_count=len(rec_results),
+                    item_label="items",
+                    details=details,
+                )
+            )
         return 0 if res["status"] == "PASS" else 1
 
     if args.command == "capability":
         data = _load_json_arg(args.manifest_path)
         res = validate_capability_manifest(data, args.profile)
-        print(json.dumps(res, indent=2))
+        profiles_obj = data.get("profiles") if isinstance(data, dict) else None
+        profile_caps = (
+            profiles_obj.get(args.profile) if isinstance(profiles_obj, dict) else None
+        )
+        if isinstance(profile_caps, list):
+            item_count = len(profile_caps)
+            details_list: list[str] | None = [str(c) for c in profile_caps]
+        elif isinstance(data, dict) and isinstance(data.get("capabilities"), dict):
+            item_count = len(data["capabilities"])
+            details_list = None
+        else:
+            item_count = 0
+            details_list = None
+        print(
+            format_validator_cli_output(
+                "capability",
+                args.profile,
+                res,
+                verbose=bool(args.verbose),
+                as_json=bool(args.as_json),
+                item_count=item_count,
+                item_label="items",
+                details=details_list,
+            )
+        )
         return 0 if res["status"] == "PASS" else 1
 
     parser.print_help()
@@ -739,7 +1071,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    import sys
-
     sys.exit(main())
-

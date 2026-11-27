@@ -1,13 +1,13 @@
 ---
 id: "task_03_quality_schemas_validators_and_scaffolder"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "polyglot_lifecycle_and_quality_architecture"
 dueDate: null
 created: "2026-11-27T09:18:00+07:00"
-modified: "2026-11-27T09:18:00+07:00"
-completedAt: null
+modified: "2026-11-27T03:25:21Z"
+completedAt: "2026-11-27T03:25:21Z"
 labels: ["quality_check", "schemas", "validators", "scaffolder"]
 order: "a03"
 review_tier: "full"
@@ -151,12 +151,12 @@ Then both return status "BLOCKED" with deterministic finding codes and exit code
 
 ## Definition of Done
 
-- [ ] `_provider_manifest_common.py` and `web-quality.schema.json` created and all 6 provider schemas + `check-quality.schema.json` upgraded with additive v1 parity (V2, V5)
-- [ ] `validate_quality_contract.py` preserves JSON default stdout on `registry`/`invocation`/`reconcile` (with `--compact`) while `capability`/`result` and all 6 `validate_<stack>_quality.py` CLIs emit compact 1-line `PASS` stdout by default with `--verbose` and `--json` opt-in while preserving Python dict APIs (V2, V3, V5)
-- [ ] `scaffold_quality_manifest.py` scaffolds 4 profiles, unified capabilities, `standards_catalog.json` (non-overwriting), `check_diff_coverage.py` hooks, `pool_mounts`, and omits Android `pkill -9 java` (V2, V3, V5)
-- [ ] All existing validator, scaffolder, and polyglot acceptance tests pass without regressions (V3)
-- [ ] `ruff check`, `ruff format --check`, and `mypy` pass across all Python Allowed files (V4)
-- [ ] Fresh JUnit XML report written to `build/test-results/task_03.xml` containing all 5 assigned scenario IDs (V5)
+- [x] `_provider_manifest_common.py` and `web-quality.schema.json` created and all 6 provider schemas + `check-quality.schema.json` upgraded with additive v1 parity (V2, V5) — exit 0, 11 passed
+- [x] `validate_quality_contract.py` preserves JSON default stdout on `registry`/`invocation`/`reconcile` (with `--compact`) while `capability`/`result` and all 6 `validate_<stack>_quality.py` CLIs emit compact 1-line `PASS` stdout by default with `--verbose` and `--json` opt-in while preserving Python dict APIs (V2, V3, V5) — exit 0, 11 + 118 passed
+- [x] `scaffold_quality_manifest.py` scaffolds 4 profiles, unified capabilities, `standards_catalog.json` (non-overwriting), `check_diff_coverage.py` hooks, `pool_mounts`, and omits Android `pkill -9 java` (V2, V3, V5) — exit 0, 11 + 118 passed
+- [x] All existing validator, scaffolder, and polyglot acceptance tests pass without regressions (V3) — exit 0, 118 passed, 10 subtests passed
+- [x] `ruff check`, `ruff format --check`, and `mypy` pass across all Python Allowed files (V4) — exit 0, ruff check/format (17 files) and mypy (23 files) clean
+- [x] Fresh JUnit XML report written to `build/test-results/task_03.xml` containing all 5 assigned scenario IDs (V5) — exit 0, 11 passed, fresh XML written
 
 ## Dependencies & Blockers
 

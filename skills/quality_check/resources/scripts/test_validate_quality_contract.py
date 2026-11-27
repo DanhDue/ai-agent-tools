@@ -7,6 +7,7 @@ import json
 import sys
 import unittest
 from pathlib import Path
+from typing import Any
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -28,7 +29,9 @@ def registry(*providers: dict, schema_version: int = 1) -> dict:
     return {"schema_version": schema_version, "providers": list(providers)}
 
 
-def provider(provider_id: str, profiles: list[str] | None = None, **extra: object) -> dict:
+def provider(
+    provider_id: str, profiles: list[str] | None = None, **extra: object
+) -> dict:
     value = {
         "id": provider_id,
         "skill": f"d3nexus:{provider_id}",
@@ -84,7 +87,14 @@ class RegistryContractTests(unittest.TestCase):
         self.assertEqual([], checked["findings"])
 
     def test_unknown_and_missing_fields_fail_closed_without_selection(self) -> None:
-        bad = registry({"id": "alpha", "skill": "d3nexus:alpha", "profiles": ["epic"], "profles": []})
+        bad = registry(
+            {
+                "id": "alpha",
+                "skill": "d3nexus:alpha",
+                "profiles": ["epic"],
+                "profles": [],
+            }
+        )
         checked = validate_registry(bad, "epic", available_skills={"d3nexus:alpha"})
         self.assertEqual("BLOCKED", checked["status"])
         self.assertEqual([], checked["providers"])
@@ -93,7 +103,9 @@ class RegistryContractTests(unittest.TestCase):
             [finding["code"] for finding in checked["findings"]],
         )
 
-    def test_rejects_unsupported_version_duplicate_id_invalid_profile_and_empty_registry(self) -> None:
+    def test_rejects_unsupported_version_duplicate_id_invalid_profile_and_empty_registry(
+        self,
+    ) -> None:
         cases = [
             (registry(provider("alpha"), schema_version=2), "unsupported_version"),
             (registry(provider("alpha"), provider("alpha")), "duplicate_id"),
@@ -108,7 +120,9 @@ class RegistryContractTests(unittest.TestCase):
                     available_skills={"d3nexus:alpha"},
                 )
                 self.assertEqual("BLOCKED", checked["status"])
-                self.assertIn(expected, [finding["code"] for finding in checked["findings"]])
+                self.assertIn(
+                    expected, [finding["code"] for finding in checked["findings"]]
+                )
 
     def test_rejects_unresolved_skill_and_empty_selection(self) -> None:
         unresolved = validate_registry(
@@ -116,14 +130,18 @@ class RegistryContractTests(unittest.TestCase):
             "epic",
             available_skills=set(),
         )
-        self.assertIn("unresolved_skill", [finding["code"] for finding in unresolved["findings"]])
+        self.assertIn(
+            "unresolved_skill", [finding["code"] for finding in unresolved["findings"]]
+        )
 
         empty = validate_registry(
             registry(provider("alpha", ["pr"])),
             "epic",
             available_skills={"d3nexus:alpha"},
         )
-        self.assertIn("empty_selection", [finding["code"] for finding in empty["findings"]])
+        self.assertIn(
+            "empty_selection", [finding["code"] for finding in empty["findings"]]
+        )
 
     def test_findings_and_plan_are_deterministic_for_input_order(self) -> None:
         first = validate_registry(
@@ -137,6 +155,27 @@ class RegistryContractTests(unittest.TestCase):
             available_skills={"d3nexus:alpha", "d3nexus:zeta"},
         )
         self.assertEqual(first, second)
+
+    def test_valid_and_invalid_pool_mounts(self) -> None:
+        valid = registry(provider("alpha"))
+        valid["pool_mounts"] = [
+            {"path": ".dart_tool", "mode": "cow_copy"},
+            {"path": "target", "mode": "symlink"},
+        ]
+        ok = validate_registry(valid, "epic", available_skills={"d3nexus:alpha"})
+        self.assertEqual("PASS", ok["status"])
+        self.assertEqual([], ok["findings"])
+
+        invalid = registry(provider("alpha"))
+        invalid["pool_mounts"] = [
+            {"path": "../secret", "mode": "symlink"},
+            {"path": "/etc/passwd", "mode": "hardlink"},
+        ]
+        bad = validate_registry(invalid, "epic", available_skills={"d3nexus:alpha"})
+        self.assertEqual("BLOCKED", bad["status"])
+        codes = {f["code"] for f in bad["findings"]}
+        self.assertIn("invalid_pool_mount_path", codes)
+        self.assertIn("invalid_pool_mount_mode", codes)
 
 
 class InvocationContractTests(unittest.TestCase):
@@ -156,7 +195,9 @@ class InvocationContractTests(unittest.TestCase):
         self.assertIn("unsupported_profile", codes)
 
         bad_sha = normalize_invocation(invocation(repository_sha="not-a-sha"))
-        self.assertIn("invalid_repository_sha", [f["code"] for f in bad_sha["findings"]])
+        self.assertIn(
+            "invalid_repository_sha", [f["code"] for f in bad_sha["findings"]]
+        )
 
 
 class ResultContractTests(unittest.TestCase):
@@ -166,19 +207,24 @@ class ResultContractTests(unittest.TestCase):
         self.assertEqual([], checked["findings"])
 
     def test_result_identity_sha_and_profile_mismatches_are_blocked(self) -> None:
-        for change, code in [
+        cases: list[tuple[dict[str, Any], str]] = [
             ({"profile": "pr"}, "profile_mismatch"),
             ({"repository_sha": "b" * 40}, "repository_sha_mismatch"),
             ({"provider_id": "beta"}, "provider_id_mismatch"),
             ({"contract_version": 2}, "unsupported_version"),
-        ]:
+        ]
+        for change, code in cases:
             value = result(**change)
             checked = validate_provider_result(value, invocation())
             with self.subTest(code=code):
                 self.assertEqual("BLOCKED", checked["status"])
-                self.assertIn(code, [finding["code"] for finding in checked["findings"]])
+                self.assertIn(
+                    code, [finding["code"] for finding in checked["findings"]]
+                )
 
-    def test_malformed_checks_coverage_evidence_duration_and_status_are_blocked(self) -> None:
+    def test_malformed_checks_coverage_evidence_duration_and_status_are_blocked(
+        self,
+    ) -> None:
         malformed = result(
             checks=[{"id": "lint", "status": "PASS"}],
             coverage={"lines": {"measured": 1.1, "threshold": 0.8}},
@@ -188,7 +234,12 @@ class ResultContractTests(unittest.TestCase):
         checked = validate_provider_result(malformed, invocation())
         self.assertEqual("BLOCKED", checked["status"])
         codes = [finding["code"] for finding in checked["findings"]]
-        for expected in ("missing_field", "invalid_coverage", "malformed_evidence", "invalid_duration"):
+        for expected in (
+            "missing_field",
+            "invalid_coverage",
+            "malformed_evidence",
+            "invalid_duration",
+        ):
             self.assertIn(expected, codes)
 
     def test_evidence_references_must_resolve(self) -> None:
@@ -214,7 +265,9 @@ class ResultContractTests(unittest.TestCase):
             ],
         )
         checked = validate_provider_result(malformed, invocation())
-        self.assertIn("unresolved_evidence_reference", [f["code"] for f in checked["findings"]])
+        self.assertIn(
+            "unresolved_evidence_reference", [f["code"] for f in checked["findings"]]
+        )
 
     def test_not_applicable_requires_reason_and_applicability_evidence(self) -> None:
         check = {
@@ -239,19 +292,28 @@ class ResultContractTests(unittest.TestCase):
             ],
         )
         checked = validate_provider_result(missing_reason, invocation())
-        self.assertIn("missing_not_applicable_reason", [f["code"] for f in checked["findings"]])
+        self.assertIn(
+            "missing_not_applicable_reason", [f["code"] for f in checked["findings"]]
+        )
 
         invalid_reason = copy.deepcopy(check)
-        invalid_reason["not_applicable_reason"] = {"code": "missing_tool", "detail": "no"}
+        invalid_reason["not_applicable_reason"] = {
+            "code": "missing_tool",
+            "detail": "no",
+        }
         invalid = result(
             status="NOT_APPLICABLE",
             checks=[invalid_reason],
             evidence=missing_reason["evidence"],
         )
         checked = validate_provider_result(invalid, invocation())
-        self.assertIn("invalid_not_applicable_reason", [f["code"] for f in checked["findings"]])
+        self.assertIn(
+            "invalid_not_applicable_reason", [f["code"] for f in checked["findings"]]
+        )
 
-    def test_provider_pass_with_check_fail_or_blocked_is_contract_violation(self) -> None:
+    def test_provider_pass_with_check_fail_or_blocked_is_contract_violation(
+        self,
+    ) -> None:
         chk_fail = {
             "id": "unit_tests",
             "category": "unit",
@@ -266,7 +328,9 @@ class ResultContractTests(unittest.TestCase):
         self.assertEqual("BLOCKED", checked["status"])
         self.assertIn("contract_violation", [f["code"] for f in checked["findings"]])
 
-    def test_provider_pass_with_sub_threshold_coverage_is_coverage_deficit(self) -> None:
+    def test_provider_pass_with_sub_threshold_coverage_is_coverage_deficit(
+        self,
+    ) -> None:
         cov = {
             "lines": {
                 "measured": 0.10,
@@ -280,28 +344,42 @@ class ResultContractTests(unittest.TestCase):
 
 
 class ReconciliationTests(unittest.TestCase):
-    def test_missing_result_gets_synthetic_blocked_and_valid_result_remains(self) -> None:
+    def test_missing_result_gets_synthetic_blocked_and_valid_result_remains(
+        self,
+    ) -> None:
         plan = [
             {"id": "alpha", "required": True},
             {"id": "beta", "required": True},
         ]
         checked = reconcile_results(plan, [result()])
         self.assertEqual("BLOCKED", checked["status"])
-        self.assertEqual(["alpha", "beta"], [item["provider_id"] for item in checked["results"]])
+        self.assertEqual(
+            ["alpha", "beta"], [item["provider_id"] for item in checked["results"]]
+        )
         self.assertEqual("PASS", checked["results"][0]["status"])
         self.assertEqual("BLOCKED", checked["results"][1]["status"])
-        self.assertIn("missing_result", [finding["code"] for finding in checked["findings"]])
+        self.assertIn(
+            "missing_result", [finding["code"] for finding in checked["findings"]]
+        )
 
     def test_duplicate_results_never_choose_arbitrarily(self) -> None:
-        first = reconcile_results([{"id": "alpha", "required": True}], [result(), result()])
-        second = reconcile_results([{"id": "alpha", "required": True}], [result(), result()])
+        first = reconcile_results(
+            [{"id": "alpha", "required": True}], [result(), result()]
+        )
+        second = reconcile_results(
+            [{"id": "alpha", "required": True}], [result(), result()]
+        )
         self.assertEqual(first, second)
         self.assertEqual("BLOCKED", first["status"])
-        self.assertIn("duplicate_result", [finding["code"] for finding in first["findings"]])
+        self.assertIn(
+            "duplicate_result", [finding["code"] for finding in first["findings"]]
+        )
 
     def test_reconcile_rejects_stale_commit_sha(self) -> None:
         plan = [{"id": "alpha", "required": True, "repository_sha": SHA}]
-        stale_result = result(repository_sha="b" * 40, started_head="b" * 40, finished_head="b" * 40)
+        stale_result = result(
+            repository_sha="b" * 40, started_head="b" * 40, finished_head="b" * 40
+        )
         checked = reconcile_results(plan, [stale_result], expected_sha=SHA)
         self.assertEqual("BLOCKED", checked["status"])
         self.assertIn("sha_mismatch", [f["code"] for f in checked["findings"]])
@@ -325,8 +403,18 @@ class CapabilityContractTests(unittest.TestCase):
     def test_capability_manifest_valid_passes(self) -> None:
         manifest = {
             "schema_version": 1,
+            "standards_catalog": ".agents/quality/standards_catalog.json",
+            "extensions": [".py"],
+            "triage_surfaces": {"api_wire": [r"@router\."]},
             "capabilities": {
                 "test": ["pytest"],
+                "coverage": {
+                    "command": ["pytest", "--cov"],
+                    "threshold": 0.8,
+                    "min_package_coverage": 0.7,
+                    "min_diff_coverage": 0.8,
+                    "diff_base": "main",
+                },
             },
             "profiles": {
                 "pr": ["test"],
@@ -335,10 +423,29 @@ class CapabilityContractTests(unittest.TestCase):
         checked = validate_capability_manifest(manifest, "pr")
         self.assertEqual("PASS", checked["status"])
 
+    def test_capability_manifest_rejects_invalid_additive_fields(self) -> None:
+        manifest = {
+            "schema_version": 1,
+            "standards_catalog": "../escape.json",
+            "triage_surfaces": ["not-an-object"],
+            "capabilities": {
+                "test": ["pytest"],
+            },
+            "profiles": {
+                "pr": ["test"],
+            },
+        }
+        checked = validate_capability_manifest(manifest, "pr")
+        self.assertEqual("BLOCKED", checked["status"])
+        codes = {f["code"] for f in checked["findings"]}
+        self.assertIn("invalid_standards_catalog_path", codes)
+        self.assertIn("invalid_triage_surfaces_format", codes)
 
 
 class SchemaContractTests(unittest.TestCase):
-    def test_checked_in_schemas_describe_version_one_and_reject_unknown_fields(self) -> None:
+    def test_checked_in_schemas_describe_version_one_and_reject_unknown_fields(
+        self,
+    ) -> None:
         root = Path(__file__).resolve().parents[1] / "schemas"
         for name in ("check-quality.schema.json", "provider-result.schema.json"):
             with self.subTest(name=name):
@@ -355,7 +462,10 @@ class FixtureContractTests(unittest.TestCase):
         checked_reg = validate_registry(
             valid_reg,
             "pr",
-            available_skills={"d3nexus:rust-quality-check", "d3nexus:doc_quality_check"},
+            available_skills={
+                "d3nexus:rust-quality-check",
+                "d3nexus:doc_quality_check",
+            },
         )
         self.assertEqual("PASS", checked_reg["status"])
         self.assertEqual(2, len(checked_reg["providers"]))
@@ -373,6 +483,7 @@ class FixtureContractTests(unittest.TestCase):
 class DocumentationExamplesTests(unittest.TestCase):
     def test_embedded_documentation_json_examples_are_valid(self) -> None:
         import re
+
         root = Path(__file__).resolve().parents[4]
         for doc_rel in (
             "docs/architecture/quality-provider-system.en.md",
@@ -383,12 +494,18 @@ class DocumentationExamplesTests(unittest.TestCase):
                 continue
             text = doc_path.read_text()
             json_blocks = re.findall(r"```json\s*\n(.*?)\n```", text, re.DOTALL)
-            self.assertEqual(4, len(json_blocks), f"Expected 4 JSON blocks in {doc_rel}")
+            self.assertEqual(
+                4, len(json_blocks), f"Expected 4 JSON blocks in {doc_rel}"
+            )
 
             # 1. Single provider registry
             reg_single = json.loads(json_blocks[0])
-            res_reg_single = validate_registry(reg_single, "epic", {"d3nexus:rust-quality-check"})
-            self.assertEqual("PASS", res_reg_single["status"], res_reg_single["findings"])
+            res_reg_single = validate_registry(
+                reg_single, "epic", {"d3nexus:rust-quality-check"}
+            )
+            self.assertEqual(
+                "PASS", res_reg_single["status"], res_reg_single["findings"]
+            )
 
             # 2. Normalized invocation
             inv_req = json.loads(json_blocks[1])
@@ -407,10 +524,10 @@ class DocumentationExamplesTests(unittest.TestCase):
                 "epic",
                 {"d3nexus:rust-quality-check", "d3nexus:android-quality-check"},
             )
-            self.assertEqual("PASS", res_reg_composite["status"], res_reg_composite["findings"])
+            self.assertEqual(
+                "PASS", res_reg_composite["status"], res_reg_composite["findings"]
+            )
 
 
 if __name__ == "__main__":
     unittest.main()
-
-
