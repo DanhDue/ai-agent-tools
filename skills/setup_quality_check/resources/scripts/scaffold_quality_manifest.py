@@ -1,30 +1,111 @@
 #!/usr/bin/env python3
+"""Automated Scaffolding Engine for Quality Providers.
+
+Inspects project repository roots, detects project platforms (Flutter, Android,
+iOS, Rust, Python, Web), and generates standardized .agents/quality/
+configurations adhering to the additive v1 unified quality contract.
 """
-Automated Scaffolding Engine for Quality Providers.
-Inspects project repository roots, detects project platforms (Flutter, Android, iOS, Rust),
-and generates standardized .agents/quality/ configurations adhering to canonical templates.
-"""
+
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any
 
 
 class ScaffoldError(Exception):
     """Raised when scaffolding fails due to safety or detection violations."""
-    pass
 
 
-PLATFORM_CONFIGS: Dict[str, Dict[str, Any]] = {
+ALL_PROFILES: list[str] = ["pr", "epic", "scheduled", "release"]
+STANDARDS_CATALOG_REL_PATH = ".agents/quality/standards_catalog.json"
+
+DEFAULT_STANDARDS_CATALOG: dict[str, Any] = {
+    "schema_version": 1,
+    "standards": [
+        {
+            "id": "ISO-25010-2023",
+            "name": "ISO/IEC 25010:2023 Software Product Quality",
+            "categories": [
+                "functional_suitability",
+                "reliability",
+                "maintainability",
+                "security",
+                "performance_efficiency",
+            ],
+        },
+        {
+            "id": "ISO-27001-27002-2022",
+            "name": "ISO/IEC 27001/27002:2022 Information Security Controls",
+            "categories": [
+                "access_control",
+                "cryptography",
+                "secure_development",
+                "logging_monitoring",
+            ],
+        },
+        {
+            "id": "OWASP-TOP-10",
+            "name": "OWASP Top 10 & Mobile Top 10",
+            "categories": [
+                "A01-Broken-Access-Control",
+                "A02-Cryptographic-Failures",
+                "A03-Injection",
+                "M1-Improper-Credential-Usage",
+            ],
+        },
+        {
+            "id": "CWE-TOP-25",
+            "name": "MITRE CWE Top 25 Most Dangerous Software Weaknesses",
+            "categories": [
+                "CWE-22-Path-Traversal",
+                "CWE-78-OS-Command-Injection",
+                "CWE-89-SQL-Injection",
+                "CWE-798-Hardcoded-Credentials",
+            ],
+        },
+    ],
+    "rules": [],
+}
+
+_STACK_POOL_MOUNTS: dict[str, list[dict[str, str]]] = {
+    "flutter": [
+        {"path": ".dart_tool", "mode": "cow_copy"},
+        {"path": "packages/*/.dart_tool", "mode": "cow_copy"},
+        {"path": "features/*/.dart_tool", "mode": "cow_copy"},
+        {"path": "secureFiles", "mode": "cow_copy"},
+    ],
+    "android": [
+        {"path": ".gradle", "mode": "symlink"},
+        {"path": "local.properties", "mode": "cow_copy"},
+        {"path": "android/local.properties", "mode": "cow_copy"},
+    ],
+    "ios": [
+        {"path": "Pods", "mode": "symlink"},
+        {"path": ".build", "mode": "symlink"},
+    ],
+    "rust": [
+        {"path": "target", "mode": "symlink"},
+    ],
+    "web": [
+        {"path": "node_modules", "mode": "symlink"},
+    ],
+    "python": [
+        {"path": ".venv", "mode": "symlink"},
+    ],
+}
+
+PLATFORM_CONFIGS: dict[str, dict[str, Any]] = {
     "flutter": {
         "provider_id": "flutter-core",
         "skill": "d3nexus:flutter-quality-check",
         "filename": "flutter-quality.json",
         "manifest": {
             "schema_version": 1,
+            "standards_catalog": STANDARDS_CATALOG_REL_PATH,
             "capabilities": {
                 "format": ["./scripts/dartfmt.sh"],
                 "analyze": ["fvm", "flutter", "analyze"],
@@ -32,17 +113,120 @@ PLATFORM_CONFIGS: Dict[str, Dict[str, Any]] = {
                 "license": ["./scripts/check_license_header.sh"],
                 "test": ["melos", "run", "test"],
                 "coverage": {
-                    "command": ["./scripts/testWithCoverage.sh"],
+                    "command": [
+                        "python3",
+                        "{skills_dir}/quality_check/resources/scripts/check_diff_coverage.py",
+                        "coverage_report/lcov.info",
+                        "--format",
+                        "lcov",
+                        "--min-coverage",
+                        "0.85",
+                        "--min-package-coverage",
+                        "0.75",
+                        "--diff-base",
+                        "{base_ref}",
+                        "--min-diff-coverage",
+                        "0.80",
+                        "--source-ext",
+                        ".dart",
+                    ],
                     "lcov_path": "coverage_report/lcov.info",
-                    "threshold": 0.85
+                    "threshold": 0.85,
+                    "min_package_coverage": 0.75,
+                    "exclude_package_floor": [],
+                    "min_diff_coverage": 0.80,
+                    "diff_base": "main",
                 },
-                "acceptance": ["./scripts/acceptance_check.sh"]
+                "diff_coverage": [
+                    "python3",
+                    "{skills_dir}/quality_check/resources/scripts/check_diff_coverage.py",
+                    "coverage_report/lcov.info",
+                    "--format",
+                    "lcov",
+                    "--min-coverage",
+                    "0",
+                    "--diff-base",
+                    "{base_ref}",
+                    "--min-diff-coverage",
+                    "0.80",
+                    "--source-ext",
+                    ".dart",
+                ],
+                "acceptance": ["./scripts/acceptance_check.sh"],
+                "anti_stub": ["./scripts/check_anti_stub.sh"],
+                "security": ["./scripts/check_security.sh"],
+                "security_deps": ["./scripts/check_security_deps.sh"],
+                "pr_diff_audit": [
+                    "./scripts/check_quality_audit.sh",
+                    "--base-ref",
+                    "{base_ref}",
+                ],
+                "workspace_audit": ["./scripts/check_quality_audit.sh", "--all-files"],
+                "pr_impact": [
+                    "python3",
+                    "{skills_dir}/impact-analysis/resources/scripts/check_code_impact.py",
+                    "--base-ref",
+                    "{base_ref}",
+                ],
+                "workspace_impact": [
+                    "python3",
+                    "{skills_dir}/impact-analysis/resources/scripts/check_code_impact.py",
+                    "--all-files",
+                ],
             },
             "profiles": {
-                "pr": ["format", "analyze", "test"],
-                "epic": ["format", "analyze", "boundaries", "license", "test", "coverage"]
-            }
-        }
+                "pr": [
+                    "format",
+                    "analyze",
+                    "test",
+                    "diff_coverage",
+                    "anti_stub",
+                    "security",
+                    "pr_diff_audit",
+                    "pr_impact",
+                ],
+                "epic": [
+                    "format",
+                    "analyze",
+                    "boundaries",
+                    "license",
+                    "test",
+                    "coverage",
+                    "anti_stub",
+                    "security",
+                    "pr_diff_audit",
+                    "pr_impact",
+                ],
+                "scheduled": [
+                    "format",
+                    "analyze",
+                    "boundaries",
+                    "license",
+                    "test",
+                    "coverage",
+                    "anti_stub",
+                    "security",
+                    "security_deps",
+                    "workspace_audit",
+                    "workspace_impact",
+                ],
+                "release": [
+                    "format",
+                    "analyze",
+                    "boundaries",
+                    "license",
+                    "test",
+                    "coverage",
+                    "anti_stub",
+                    "security",
+                    "pr_diff_audit",
+                    "pr_impact",
+                    "security_deps",
+                    "workspace_audit",
+                    "workspace_impact",
+                ],
+            },
+        },
     },
     "android": {
         "provider_id": "android-core",
@@ -50,6 +234,7 @@ PLATFORM_CONFIGS: Dict[str, Dict[str, Any]] = {
         "filename": "android-quality.json",
         "manifest": {
             "schema_version": 1,
+            "standards_catalog": STANDARDS_CATALOG_REL_PATH,
             "capabilities": {
                 "format": ["./gradlew", "spotlessCheck"],
                 "lint": ["./gradlew", "detekt"],
@@ -57,18 +242,124 @@ PLATFORM_CONFIGS: Dict[str, Dict[str, Any]] = {
                 "architecture": ["./gradlew", ":konsist-test:test"],
                 "test": ["./gradlew", "testDebugUnitTest"],
                 "coverage": {
-                    "command": ["./gradlew", "jacocoTestReport"],
+                    "command": [
+                        "python3",
+                        "{skills_dir}/quality_check/resources/scripts/check_diff_coverage.py",
+                        "build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml",
+                        "--format",
+                        "jacoco",
+                        "--min-coverage",
+                        "0.85",
+                        "--min-package-coverage",
+                        "0.75",
+                        "--diff-base",
+                        "{base_ref}",
+                        "--min-diff-coverage",
+                        "0.80",
+                        "--source-ext",
+                        ".kt",
+                    ],
                     "report_path": "build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml",
-                    "threshold": 0.85
+                    "threshold": 0.85,
+                    "min_package_coverage": 0.75,
+                    "exclude_package_floor": [],
+                    "min_diff_coverage": 0.80,
+                    "diff_base": "main",
                 },
+                "diff_coverage": [
+                    "python3",
+                    "{skills_dir}/quality_check/resources/scripts/check_diff_coverage.py",
+                    "build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml",
+                    "--format",
+                    "jacoco",
+                    "--min-coverage",
+                    "0",
+                    "--diff-base",
+                    "{base_ref}",
+                    "--min-diff-coverage",
+                    "0.80",
+                    "--source-ext",
+                    ".kt",
+                ],
                 "acceptance": ["./scripts/acceptance_check.sh"],
-                "cleanup": ["pkill", "-9", "java"]
+                "anti_stub": ["./scripts/check_anti_stub.sh"],
+                "security": ["./scripts/check_security.sh"],
+                "security_deps": ["./gradlew", "dependencyCheckAnalyze"],
+                "pr_diff_audit": [
+                    "./scripts/check_quality_audit.sh",
+                    "--base-ref",
+                    "{base_ref}",
+                ],
+                "workspace_audit": ["./scripts/check_quality_audit.sh", "--all-files"],
+                "pr_impact": [
+                    "python3",
+                    "{skills_dir}/impact-analysis/resources/scripts/check_code_impact.py",
+                    "--base-ref",
+                    "{base_ref}",
+                ],
+                "workspace_impact": [
+                    "python3",
+                    "{skills_dir}/impact-analysis/resources/scripts/check_code_impact.py",
+                    "--all-files",
+                ],
+                "license": ["./scripts/check_license_header.sh"],
             },
             "profiles": {
-                "pr": ["format", "lint", "test"],
-                "epic": ["format", "lint", "bcv", "architecture", "test", "coverage", "cleanup"]
-            }
-        }
+                "pr": [
+                    "format",
+                    "lint",
+                    "test",
+                    "diff_coverage",
+                    "anti_stub",
+                    "security",
+                    "pr_diff_audit",
+                    "pr_impact",
+                ],
+                "epic": [
+                    "format",
+                    "lint",
+                    "bcv",
+                    "architecture",
+                    "license",
+                    "test",
+                    "coverage",
+                    "anti_stub",
+                    "security",
+                    "pr_diff_audit",
+                    "pr_impact",
+                ],
+                "scheduled": [
+                    "format",
+                    "lint",
+                    "bcv",
+                    "architecture",
+                    "license",
+                    "test",
+                    "coverage",
+                    "anti_stub",
+                    "security",
+                    "security_deps",
+                    "workspace_audit",
+                    "workspace_impact",
+                ],
+                "release": [
+                    "format",
+                    "lint",
+                    "bcv",
+                    "architecture",
+                    "license",
+                    "test",
+                    "coverage",
+                    "anti_stub",
+                    "security",
+                    "pr_diff_audit",
+                    "pr_impact",
+                    "security_deps",
+                    "workspace_audit",
+                    "workspace_impact",
+                ],
+            },
+        },
     },
     "ios": {
         "provider_id": "ios-core",
@@ -76,24 +367,145 @@ PLATFORM_CONFIGS: Dict[str, Dict[str, Any]] = {
         "filename": "ios-quality.json",
         "manifest": {
             "schema_version": 1,
+            "standards_catalog": STANDARDS_CATALOG_REL_PATH,
             "capabilities": {
-                "format": ["swiftformat", "--config", "quality/.swiftformat", "--lint", "."],
-                "lint": ["swiftlint", "lint", "--config", "quality/.swiftlint.yml", "--strict"],
+                "format": [
+                    "swiftformat",
+                    "--config",
+                    "quality/.swiftformat",
+                    "--lint",
+                    ".",
+                ],
+                "lint": [
+                    "swiftlint",
+                    "lint",
+                    "--config",
+                    "quality/.swiftlint.yml",
+                    "--strict",
+                ],
                 "architecture": ["swift", "test", "--package-path", "ArchTests"],
                 "boundaries": ["./scripts/check_module_boundaries.sh"],
                 "test": ["swift", "test"],
                 "coverage": {
-                    "command": ["./scripts/check_coverage_thresholds.sh"],
+                    "command": [
+                        "python3",
+                        "{skills_dir}/quality_check/resources/scripts/check_diff_coverage.py",
+                        "build/coverage/lcov.info",
+                        "--format",
+                        "lcov",
+                        "--min-coverage",
+                        "0.85",
+                        "--min-package-coverage",
+                        "0.75",
+                        "--diff-base",
+                        "{base_ref}",
+                        "--min-diff-coverage",
+                        "0.80",
+                        "--source-ext",
+                        ".swift",
+                    ],
+                    "lcov_path": "build/coverage/lcov.info",
                     "profdata_path": "default.profdata",
-                    "threshold": 0.85
+                    "threshold": 0.85,
+                    "min_package_coverage": 0.75,
+                    "exclude_package_floor": [],
+                    "min_diff_coverage": 0.80,
+                    "diff_base": "main",
                 },
-                "acceptance": ["./scripts/acceptance_check.sh"]
+                "diff_coverage": [
+                    "python3",
+                    "{skills_dir}/quality_check/resources/scripts/check_diff_coverage.py",
+                    "build/coverage/lcov.info",
+                    "--format",
+                    "lcov",
+                    "--min-coverage",
+                    "0",
+                    "--diff-base",
+                    "{base_ref}",
+                    "--min-diff-coverage",
+                    "0.80",
+                    "--source-ext",
+                    ".swift",
+                ],
+                "acceptance": ["./scripts/acceptance_check.sh"],
+                "anti_stub": ["./scripts/check_anti_stub.sh"],
+                "security": ["./scripts/check_security.sh"],
+                "security_deps": ["./scripts/check_security_deps.sh"],
+                "pr_diff_audit": [
+                    "./scripts/check_quality_audit.sh",
+                    "--base-ref",
+                    "{base_ref}",
+                ],
+                "workspace_audit": ["./scripts/check_quality_audit.sh", "--all-files"],
+                "pr_impact": [
+                    "python3",
+                    "{skills_dir}/impact-analysis/resources/scripts/check_code_impact.py",
+                    "--base-ref",
+                    "{base_ref}",
+                ],
+                "workspace_impact": [
+                    "python3",
+                    "{skills_dir}/impact-analysis/resources/scripts/check_code_impact.py",
+                    "--all-files",
+                ],
+                "license": ["./scripts/check_license_header.sh"],
             },
             "profiles": {
-                "pr": ["format", "lint", "test"],
-                "epic": ["format", "lint", "architecture", "boundaries", "test", "coverage"]
-            }
-        }
+                "pr": [
+                    "format",
+                    "lint",
+                    "test",
+                    "diff_coverage",
+                    "anti_stub",
+                    "security",
+                    "pr_diff_audit",
+                    "pr_impact",
+                ],
+                "epic": [
+                    "format",
+                    "lint",
+                    "architecture",
+                    "boundaries",
+                    "license",
+                    "test",
+                    "coverage",
+                    "anti_stub",
+                    "security",
+                    "pr_diff_audit",
+                    "pr_impact",
+                ],
+                "scheduled": [
+                    "format",
+                    "lint",
+                    "architecture",
+                    "boundaries",
+                    "license",
+                    "test",
+                    "coverage",
+                    "anti_stub",
+                    "security",
+                    "security_deps",
+                    "workspace_audit",
+                    "workspace_impact",
+                ],
+                "release": [
+                    "format",
+                    "lint",
+                    "architecture",
+                    "boundaries",
+                    "license",
+                    "test",
+                    "coverage",
+                    "anti_stub",
+                    "security",
+                    "pr_diff_audit",
+                    "pr_impact",
+                    "security_deps",
+                    "workspace_audit",
+                    "workspace_impact",
+                ],
+            },
+        },
     },
     "rust": {
         "provider_id": "rust-core",
@@ -101,22 +513,140 @@ PLATFORM_CONFIGS: Dict[str, Dict[str, Any]] = {
         "filename": "rust-quality.json",
         "manifest": {
             "schema_version": 1,
+            "standards_catalog": STANDARDS_CATALOG_REL_PATH,
             "capabilities": {
                 "format": ["cargo", "fmt", "--all", "--", "--check"],
                 "check": ["cargo", "check", "--all-targets"],
                 "clippy": ["cargo", "clippy", "--all-targets", "--", "-D", "warnings"],
                 "test": ["cargo", "test", "--workspace"],
                 "coverage": {
-                    "command": ["cargo", "llvm-cov", "--workspace", "--fail-under-lines", "80"],
-                    "threshold": 0.8
+                    "command": [
+                        "python3",
+                        "{skills_dir}/quality_check/resources/scripts/check_diff_coverage.py",
+                        "target/llvm-cov/lcov.info",
+                        "--format",
+                        "lcov",
+                        "--min-coverage",
+                        "0.80",
+                        "--min-package-coverage",
+                        "0.70",
+                        "--diff-base",
+                        "{base_ref}",
+                        "--min-diff-coverage",
+                        "0.80",
+                        "--source-ext",
+                        ".rs",
+                    ],
+                    "lcov_path": "target/llvm-cov/lcov.info",
+                    "threshold": 0.8,
+                    "min_package_coverage": 0.7,
+                    "exclude_package_floor": [],
+                    "min_diff_coverage": 0.8,
+                    "diff_base": "main",
                 },
-                "architecture": ["cargo", "run", "-p", "xtask", "--", "check-architecture"]
+                "diff_coverage": [
+                    "python3",
+                    "{skills_dir}/quality_check/resources/scripts/check_diff_coverage.py",
+                    "target/llvm-cov/lcov.info",
+                    "--format",
+                    "lcov",
+                    "--min-coverage",
+                    "0",
+                    "--diff-base",
+                    "{base_ref}",
+                    "--min-diff-coverage",
+                    "0.80",
+                    "--source-ext",
+                    ".rs",
+                ],
+                "architecture": [
+                    "cargo",
+                    "run",
+                    "-p",
+                    "xtask",
+                    "--",
+                    "check-architecture",
+                ],
+                "anti_stub": ["./scripts/check_anti_stub.sh"],
+                "security": ["cargo", "audit"],
+                "security_deps": ["cargo", "deny", "check", "advisories"],
+                "pr_diff_audit": [
+                    "./scripts/check_quality_audit.sh",
+                    "--base-ref",
+                    "{base_ref}",
+                ],
+                "workspace_audit": ["./scripts/check_quality_audit.sh", "--all-files"],
+                "pr_impact": [
+                    "python3",
+                    "{skills_dir}/impact-analysis/resources/scripts/check_code_impact.py",
+                    "--base-ref",
+                    "{base_ref}",
+                ],
+                "workspace_impact": [
+                    "python3",
+                    "{skills_dir}/impact-analysis/resources/scripts/check_code_impact.py",
+                    "--all-files",
+                ],
+                "license": ["./scripts/check_license_header.sh"],
             },
             "profiles": {
-                "pr": ["format", "check", "clippy", "test", "architecture"],
-                "epic": ["format", "check", "clippy", "test", "coverage", "architecture"]
-            }
-        }
+                "pr": [
+                    "format",
+                    "check",
+                    "clippy",
+                    "test",
+                    "diff_coverage",
+                    "architecture",
+                    "anti_stub",
+                    "security",
+                    "pr_diff_audit",
+                    "pr_impact",
+                ],
+                "epic": [
+                    "format",
+                    "check",
+                    "clippy",
+                    "license",
+                    "test",
+                    "coverage",
+                    "architecture",
+                    "anti_stub",
+                    "security",
+                    "pr_diff_audit",
+                    "pr_impact",
+                ],
+                "scheduled": [
+                    "format",
+                    "check",
+                    "clippy",
+                    "license",
+                    "test",
+                    "coverage",
+                    "architecture",
+                    "anti_stub",
+                    "security",
+                    "security_deps",
+                    "workspace_audit",
+                    "workspace_impact",
+                ],
+                "release": [
+                    "format",
+                    "check",
+                    "clippy",
+                    "license",
+                    "test",
+                    "coverage",
+                    "architecture",
+                    "anti_stub",
+                    "security",
+                    "pr_diff_audit",
+                    "pr_impact",
+                    "security_deps",
+                    "workspace_audit",
+                    "workspace_impact",
+                ],
+            },
+        },
     },
     "python": {
         "provider_id": "python-core",
@@ -124,22 +654,141 @@ PLATFORM_CONFIGS: Dict[str, Dict[str, Any]] = {
         "filename": "python-quality.json",
         "manifest": {
             "schema_version": 1,
+            "standards_catalog": STANDARDS_CATALOG_REL_PATH,
             "capabilities": {
                 "format": ["uv", "run", "ruff", "format", "--check", "."],
                 "lint": ["uv", "run", "ruff", "check", "."],
                 "type_check": ["uv", "run", "mypy", "--strict", "src"],
-                "test": ["uv", "run", "pytest", "-q", "--tb=short", "--maxfail=3", "-m", "not slow and not acceptance and not live_llm"],
+                "test": [
+                    "uv",
+                    "run",
+                    "pytest",
+                    "-q",
+                    "--tb=short",
+                    "--maxfail=3",
+                    "-m",
+                    "not slow and not acceptance and not live_llm",
+                ],
                 "coverage": {
-                    "command": ["uv", "run", "pytest", "--cov=src", "--cov-report=json:coverage.json"],
-                    "threshold": 0.8
+                    "command": [
+                        "python3",
+                        "{skills_dir}/quality_check/resources/scripts/check_diff_coverage.py",
+                        "coverage.xml",
+                        "--format",
+                        "cobertura",
+                        "--min-coverage",
+                        "0.80",
+                        "--min-package-coverage",
+                        "0.70",
+                        "--diff-base",
+                        "{base_ref}",
+                        "--min-diff-coverage",
+                        "0.80",
+                        "--source-ext",
+                        ".py",
+                    ],
+                    "report_path": "coverage.xml",
+                    "threshold": 0.8,
+                    "min_package_coverage": 0.7,
+                    "exclude_package_floor": [],
+                    "min_diff_coverage": 0.8,
+                    "diff_base": "main",
                 },
-                "architecture": ["uv", "run", "lint-imports"]
+                "diff_coverage": [
+                    "python3",
+                    "{skills_dir}/quality_check/resources/scripts/check_diff_coverage.py",
+                    "coverage.xml",
+                    "--format",
+                    "cobertura",
+                    "--min-coverage",
+                    "0",
+                    "--diff-base",
+                    "{base_ref}",
+                    "--min-diff-coverage",
+                    "0.80",
+                    "--source-ext",
+                    ".py",
+                ],
+                "architecture": ["uv", "run", "lint-imports"],
+                "anti_stub": ["python3", "scripts/check_anti_stub.py"],
+                "security": ["uv", "run", "bandit", "-r", "src"],
+                "security_deps": ["uv", "run", "pip-audit"],
+                "pr_diff_audit": [
+                    "./scripts/check_quality_audit.sh",
+                    "--base-ref",
+                    "{base_ref}",
+                ],
+                "workspace_audit": ["./scripts/check_quality_audit.sh", "--all-files"],
+                "pr_impact": [
+                    "python3",
+                    "{skills_dir}/impact-analysis/resources/scripts/check_code_impact.py",
+                    "--base-ref",
+                    "{base_ref}",
+                ],
+                "workspace_impact": [
+                    "python3",
+                    "{skills_dir}/impact-analysis/resources/scripts/check_code_impact.py",
+                    "--all-files",
+                ],
+                "license": ["./scripts/check_license_header.sh"],
             },
             "profiles": {
-                "pr": ["format", "lint", "type_check", "test"],
-                "epic": ["format", "lint", "type_check", "test", "coverage", "architecture"]
-            }
-        }
+                "pr": [
+                    "format",
+                    "lint",
+                    "type_check",
+                    "test",
+                    "diff_coverage",
+                    "anti_stub",
+                    "security",
+                    "pr_diff_audit",
+                    "pr_impact",
+                ],
+                "epic": [
+                    "format",
+                    "lint",
+                    "type_check",
+                    "license",
+                    "test",
+                    "coverage",
+                    "architecture",
+                    "anti_stub",
+                    "security",
+                    "pr_diff_audit",
+                    "pr_impact",
+                ],
+                "scheduled": [
+                    "format",
+                    "lint",
+                    "type_check",
+                    "license",
+                    "test",
+                    "coverage",
+                    "architecture",
+                    "anti_stub",
+                    "security",
+                    "security_deps",
+                    "workspace_audit",
+                    "workspace_impact",
+                ],
+                "release": [
+                    "format",
+                    "lint",
+                    "type_check",
+                    "license",
+                    "test",
+                    "coverage",
+                    "architecture",
+                    "anti_stub",
+                    "security",
+                    "pr_diff_audit",
+                    "pr_impact",
+                    "security_deps",
+                    "workspace_audit",
+                    "workspace_impact",
+                ],
+            },
+        },
     },
     "web": {
         "provider_id": "web-quality",
@@ -147,34 +796,166 @@ PLATFORM_CONFIGS: Dict[str, Dict[str, Any]] = {
         "filename": "web-quality.json",
         "manifest": {
             "schema_version": 1,
+            "standards_catalog": STANDARDS_CATALOG_REL_PATH,
             "capabilities": {
+                "format": ["npx", "prettier", "--check", "."],
                 "type_check": ["npm", "run", "check"],
                 "lint": ["npm", "run", "lint"],
                 "test_unit": ["npm", "run", "test:unit"],
                 "test_e2e": ["npx", "playwright", "test"],
-                "contracts": ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "diff-check", "--base-ref", "{base_ref}"]
+                "ui_review": [
+                    "python3",
+                    "{skills_dir}/web-quality-check/resources/scripts/audit_ui_state_and_styles.py",
+                    "--base-ref",
+                    "{base_ref}",
+                ],
+                "coverage": {
+                    "command": [
+                        "python3",
+                        "{skills_dir}/quality_check/resources/scripts/check_diff_coverage.py",
+                        "coverage/lcov.info",
+                        "--format",
+                        "lcov",
+                        "--min-coverage",
+                        "0.80",
+                        "--min-package-coverage",
+                        "0.70",
+                        "--diff-base",
+                        "{base_ref}",
+                        "--min-diff-coverage",
+                        "0.80",
+                        "--source-ext",
+                        ".ts",
+                        "--source-ext",
+                        ".tsx",
+                        "--source-ext",
+                        ".js",
+                    ],
+                    "lcov_path": "coverage/lcov.info",
+                    "threshold": 0.8,
+                    "min_package_coverage": 0.7,
+                    "exclude_package_floor": [],
+                    "min_diff_coverage": 0.8,
+                    "diff_base": "main",
+                },
+                "diff_coverage": [
+                    "python3",
+                    "{skills_dir}/quality_check/resources/scripts/check_diff_coverage.py",
+                    "coverage/lcov.info",
+                    "--format",
+                    "lcov",
+                    "--min-coverage",
+                    "0",
+                    "--diff-base",
+                    "{base_ref}",
+                    "--min-diff-coverage",
+                    "0.80",
+                    "--source-ext",
+                    ".ts",
+                    "--source-ext",
+                    ".tsx",
+                    "--source-ext",
+                    ".js",
+                ],
+                "anti_stub": ["./scripts/check_anti_stub.sh"],
+                "security": ["./scripts/check_security.sh"],
+                "security_deps": ["npm", "audit", "--audit-level=high"],
+                "pr_diff_audit": [
+                    "./scripts/check_quality_audit.sh",
+                    "--base-ref",
+                    "{base_ref}",
+                ],
+                "workspace_audit": ["./scripts/check_quality_audit.sh", "--all-files"],
+                "pr_impact": [
+                    "python3",
+                    "{skills_dir}/impact-analysis/resources/scripts/check_code_impact.py",
+                    "--base-ref",
+                    "{base_ref}",
+                ],
+                "workspace_impact": [
+                    "python3",
+                    "{skills_dir}/impact-analysis/resources/scripts/check_code_impact.py",
+                    "--all-files",
+                ],
+                "license": ["./scripts/check_license_header.sh"],
+                "contracts": [
+                    "python3",
+                    "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py",
+                    "diff-check",
+                    "--base-ref",
+                    "{base_ref}",
+                ],
             },
             "profiles": {
-                "pr": ["type_check", "lint", "test_unit"],
-                "epic": ["type_check", "lint", "test_unit", "test_e2e"]
-            }
-        }
-    }
+                "pr": [
+                    "type_check",
+                    "lint",
+                    "test_unit",
+                    "diff_coverage",
+                    "anti_stub",
+                    "security",
+                    "pr_diff_audit",
+                    "pr_impact",
+                ],
+                "epic": [
+                    "type_check",
+                    "lint",
+                    "license",
+                    "test_unit",
+                    "test_e2e",
+                    "ui_review",
+                    "coverage",
+                    "anti_stub",
+                    "security",
+                    "pr_diff_audit",
+                    "pr_impact",
+                    "contracts",
+                ],
+                "scheduled": [
+                    "type_check",
+                    "lint",
+                    "license",
+                    "test_unit",
+                    "test_e2e",
+                    "ui_review",
+                    "coverage",
+                    "anti_stub",
+                    "security",
+                    "security_deps",
+                    "workspace_audit",
+                    "workspace_impact",
+                    "contracts",
+                ],
+                "release": [
+                    "type_check",
+                    "lint",
+                    "license",
+                    "test_unit",
+                    "test_e2e",
+                    "ui_review",
+                    "coverage",
+                    "anti_stub",
+                    "security",
+                    "pr_diff_audit",
+                    "pr_impact",
+                    "security_deps",
+                    "workspace_audit",
+                    "workspace_impact",
+                    "contracts",
+                ],
+            },
+        },
+    },
 }
 
 
-def detect_platforms(repo_root: Path) -> List[str]:
-    """
-    Inspects repository root directory and returns detected platform names.
-    Supports Flutter, Android, iOS, Rust, Python, and Web heuristics.
-    """
-    detected = []
+def detect_platforms(repo_root: Path) -> list[str]:
+    """Inspect repository root directory and return detected platform names."""
+    detected: list[str] = []
 
-    # Flutter detection
     if (repo_root / "pubspec.yaml").is_file() or (repo_root / "melos.yaml").is_file():
         detected.append("flutter")
 
-    # Android detection
     android_markers = [
         "build.gradle.kts",
         "build.gradle",
@@ -184,7 +965,6 @@ def detect_platforms(repo_root: Path) -> List[str]:
     if any((repo_root / marker).is_file() for marker in android_markers):
         detected.append("android")
 
-    # iOS detection
     ios_markers = [
         "Project.swift",
         "Tuist.swift",
@@ -193,11 +973,9 @@ def detect_platforms(repo_root: Path) -> List[str]:
     if any((repo_root / marker).is_file() for marker in ios_markers):
         detected.append("ios")
 
-    # Rust detection
     if (repo_root / "Cargo.toml").is_file():
         detected.append("rust")
 
-    # Python detection
     python_markers = [
         "pyproject.toml",
         "uv.lock",
@@ -208,7 +986,6 @@ def detect_platforms(repo_root: Path) -> List[str]:
     if any((repo_root / marker).is_file() for marker in python_markers):
         detected.append("python")
 
-    # Web detection
     web_markers = [
         "package.json",
         "astro.config.mjs",
@@ -220,51 +997,91 @@ def detect_platforms(repo_root: Path) -> List[str]:
     if any((repo_root / marker).is_file() for marker in web_markers):
         detected.append("web")
 
-    return sorted(list(set(detected)))
+    return sorted(set(detected))
 
 
-def build_registry_data(platforms: List[str]) -> Dict[str, Any]:
-    """Builds standard check_quality.json structure for given platforms."""
-    providers = []
+def build_pool_mounts(
+    platforms: list[str],
+    repo_root: Path | None = None,
+) -> list[dict[str, str]]:
+    """Build deterministic stack-appropriate pool_mounts entries for check_quality.json."""
+    mounts: list[dict[str, str]] = []
+    seen_paths: set[str] = set()
+
+    for platform in platforms:
+        for entry in _STACK_POOL_MOUNTS.get(platform, []):
+            path = entry["path"]
+            if path not in seen_paths:
+                seen_paths.add(path)
+                mounts.append(dict(entry))
+
+    if (
+        repo_root is not None
+        and (repo_root / "secureFiles").exists()
+        and "secureFiles" not in seen_paths
+    ):
+        seen_paths.add("secureFiles")
+        mounts.append({"path": "secureFiles", "mode": "cow_copy"})
+
+    return mounts
+
+
+def build_registry_data(
+    platforms: list[str],
+    repo_root: Path | None = None,
+) -> dict[str, Any]:
+    """Build standard check_quality.json structure for given platforms."""
+    providers: list[dict[str, Any]] = []
     for p in platforms:
         cfg = PLATFORM_CONFIGS[p]
-        providers.append({
-            "id": cfg["provider_id"],
-            "skill": cfg["skill"],
-            "required": True,
-            "profiles": ["pr", "epic"]
-        })
+        providers.append(
+            {
+                "id": cfg["provider_id"],
+                "skill": cfg["skill"],
+                "required": True,
+                "profiles": list(ALL_PROFILES),
+            }
+        )
 
-    return {
+    registry: dict[str, Any] = {
         "schema_version": 1,
-        "providers": providers
+        "providers": providers,
     }
+    pool_mounts = build_pool_mounts(platforms, repo_root=repo_root)
+    if pool_mounts:
+        registry["pool_mounts"] = pool_mounts
+    return registry
 
 
 def scaffold_quality_manifests(
     repo_root: Path,
-    output_dir: Optional[Path] = None,
-    platforms: Optional[List[str]] = None,
+    output_dir: Path | None = None,
+    platforms: list[str] | None = None,
     force: bool = False,
     dry_run: bool = False,
-) -> Dict[str, Any]:
-    """
-    Scaffolds quality check registry and provider manifests into output_dir.
-    Raises ScaffoldError on detection failures or overwrite conflicts.
+) -> dict[str, Any]:
+    """Scaffold quality check registry, provider manifests, and starter standards catalog.
+
+    Raises ScaffoldError on detection failures or overwrite conflicts for
+    registry/provider manifests. Existing standards_catalog.json is never
+    overwritten (even with force=True).
     """
     repo_root = repo_root.resolve()
-    if output_dir is None:
-        target_dir = repo_root / ".agents" / "quality"
-    else:
-        target_dir = output_dir.resolve()
+    target_dir = (
+        (repo_root / ".agents" / "quality")
+        if output_dir is None
+        else output_dir.resolve()
+    )
 
     if platforms is None:
         detected = detect_platforms(repo_root)
     else:
-        detected = sorted(list(set(platforms)))
+        detected = sorted(set(platforms))
         for p in detected:
             if p not in PLATFORM_CONFIGS:
-                raise ScaffoldError(f"Unsupported platform specified: '{p}'. Allowed: {list(PLATFORM_CONFIGS.keys())}")
+                raise ScaffoldError(
+                    f"Unsupported platform specified: '{p}'. Allowed: {list(PLATFORM_CONFIGS.keys())}"
+                )
 
     if not detected:
         raise ScaffoldError(
@@ -272,17 +1089,16 @@ def scaffold_quality_manifests(
             f"Supported platforms: {list(PLATFORM_CONFIGS.keys())}"
         )
 
-    # Prepare file mappings
-    target_files: Dict[Path, Dict[str, Any]] = {}
+    target_files: dict[Path, dict[str, Any]] = {}
     reg_path = target_dir / "check_quality.json"
-    target_files[reg_path] = build_registry_data(detected)
+    target_files[reg_path] = build_registry_data(detected, repo_root=repo_root)
 
     for p in detected:
         cfg = PLATFORM_CONFIGS[p]
         p_path = target_dir / cfg["filename"]
-        target_files[p_path] = cfg["manifest"]
+        target_files[p_path] = copy.deepcopy(cfg["manifest"])
 
-    # Check for existing files if not force
+    # Check for existing registry/provider manifests if not force
     if not force:
         for fpath in target_files:
             if fpath.exists():
@@ -290,19 +1106,23 @@ def scaffold_quality_manifests(
                     f"Configuration file already exists: {fpath}. Use --force to overwrite."
                 )
 
+    # Starter standards_catalog.json is created ONLY when absent (never overwritten)
+    catalog_path = target_dir / "standards_catalog.json"
+    if not catalog_path.exists():
+        target_files[catalog_path] = copy.deepcopy(DEFAULT_STANDARDS_CATALOG)
+
     if dry_run:
         return {
             "detected_platforms": detected,
             "output_directory": str(target_dir),
-            "planned_files": [str(p) for p in target_files.keys()],
+            "planned_files": [str(p) for p in target_files],
             "files": {str(p): data for p, data in target_files.items()},
         }
 
-    # Write files atomically
     target_dir.mkdir(parents=True, exist_ok=True)
-    written = []
+    written: list[str] = []
     for fpath, data in target_files.items():
-        fpath.write_text(json.dumps(data, indent=2) + "\n")
+        fpath.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
         written.append(str(fpath))
 
     return {
@@ -332,12 +1152,12 @@ def main() -> int:
         "--platform",
         type=str,
         default=None,
-        help="Comma-separated platform override (e.g. flutter,android,ios,rust).",
+        help="Comma-separated platform override (e.g. flutter,android,ios,rust,python,web).",
     )
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Overwrite existing configuration files.",
+        help="Overwrite existing registry/provider configuration files (never overwrites standards_catalog.json).",
     )
     parser.add_argument(
         "--dry-run",
@@ -347,7 +1167,7 @@ def main() -> int:
 
     args = parser.parse_args()
 
-    platforms = None
+    platforms: list[str] | None = None
     if args.platform:
         platforms = [p.strip().lower() for p in args.platform.split(",") if p.strip()]
 
@@ -359,13 +1179,17 @@ def main() -> int:
             force=args.force,
             dry_run=args.dry_run,
         )
-        print(f"Scaffolding completed successfully for platforms: {result['detected_platforms']}")
+        print(
+            f"Scaffolding completed successfully for platforms: {result['detected_platforms']}"
+        )
         if args.dry_run:
             print(f"Dry-run planned {len(result['planned_files'])} file(s):")
             for f in result["planned_files"]:
                 print(f"  - {f}")
         else:
-            print(f"Written {len(result['written_files'])} file(s) into {result['output_directory']}:")
+            print(
+                f"Written {len(result['written_files'])} file(s) into {result['output_directory']}:"
+            )
             for f in result["written_files"]:
                 print(f"  - {f}")
         return 0

@@ -74,9 +74,12 @@ Load the project quality manifest located at `.agents/quality/check_quality.json
 python3 skills/quality_check/resources/scripts/validate_quality_contract.py registry .agents/quality/check_quality.json --profile "<profile>"
 ```
 
+- **Profiles & Additive v1 Contract**: Registries and provider manifests support 4 profiles (`pr`, `epic`, `scheduled`, `release`; `pr` and `epic` required for legacy v1 compatibility). Optional top-level `pool_mounts` (`symlink` or `cow_copy`, path-traversal guarded) configures worker-pool mounts in `check_quality.json`. Provider manifests support unified capabilities (`anti_stub`, `security`, `security_deps`, `pr_diff_audit`, `workspace_audit`, `pr_impact`, `workspace_impact`, `license`), dual-floor `coverage` (`min_package_coverage`, `exclude_package_floor`, `min_diff_coverage`, `diff_base` via `{skills_dir}/quality_check/resources/scripts/check_diff_coverage.py` supporting LCOV, Cobertura XML, and JaCoCo XML), `standards_catalog` (`.agents/quality/standards_catalog.json`), `extensions`, `task_tier_b`, and `triage_surfaces`.
+- **CLI Output Modes**: Payload-producing subcommands (`validate_quality_contract.py registry`, `invocation`, `reconcile`) preserve full JSON output by default and support `--compact` (1-line `PASS:` summary) and `--verbose`. Boolean validation subcommands (`validate_quality_contract.py capability`, `result`), all 6 `validate_<stack>_quality.py` CLIs, and `check_diff_coverage.py` emit a compact 1-line `PASS:` summary by default (opt-in `--verbose` / `--json`).
+
 Fail-closed rules:
 - If `.agents/quality/check_quality.json` is missing or unreadable: halt with status `BLOCKED`. Never attempt fallback platform detection.
-- If the registry contains unknown fields, unsupported schema versions, duplicate provider IDs, or empty provider lists: halt with status `BLOCKED`.
+- If the registry contains unknown fields, unsupported schema versions, duplicate provider IDs, invalid `pool_mounts`, or empty provider lists: halt with status `BLOCKED`.
 - If no provider matches the requested profile: return `BLOCKED` with finding `empty_selection`.
 - If a selected provider's skill is unresolvable in the active environment: halt with status `BLOCKED`.
 
@@ -144,5 +147,7 @@ Only an aggregated verdict of **PASS** bound to the candidate commit SHA qualifi
 - [Registry Schema](resources/schemas/check-quality.schema.json): Machine-readable JSON Schema for project registries.
 - [Result Schema](resources/schemas/provider-result.schema.json): Machine-readable JSON Schema for provider results.
 - [Contract Validator](resources/scripts/validate_quality_contract.py): Standard-library validator script and CLI.
+- [Shared Provider Manifest Helper](resources/scripts/_provider_manifest_common.py): Shared additive v1 validation (`pool_mounts`, `standards_catalog`, `task_tier_b`, `triage_surfaces`, dual-floor coverage) and compact CLI output formatter.
+- [Portable Diff-Coverage Engine](resources/scripts/check_diff_coverage.py): Stdlib multi-format (LCOV, Cobertura XML, JaCoCo XML) hunk-level diff-coverage and dual-floor verifier.
 - [Aggregation Engine](resources/scripts/aggregate_quality_results.py): Result aggregation and markdown report engine.
 - [Acceptance Suite](resources/scripts/test_quality_provider_acceptance.py): End-to-end multi-provider acceptance test suite.

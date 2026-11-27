@@ -61,14 +61,18 @@ class FlutterQualityConfigTests(unittest.TestCase):
         del cfg["capabilities"]["boundaries"]
         res = validate_flutter_config(cfg, "epic")
         self.assertEqual("BLOCKED", res["status"])
-        self.assertIn("missing_capability_definition", [f["code"] for f in res["findings"]])
+        self.assertIn(
+            "missing_capability_definition", [f["code"] for f in res["findings"]]
+        )
 
     def test_invalid_coverage_threshold_is_rejected(self) -> None:
         cfg = valid_config()
         cfg["capabilities"]["coverage"]["threshold"] = 1.5
         res = validate_flutter_config(cfg, "epic")
         self.assertEqual("BLOCKED", res["status"])
-        self.assertIn("invalid_coverage_threshold", [f["code"] for f in res["findings"]])
+        self.assertIn(
+            "invalid_coverage_threshold", [f["code"] for f in res["findings"]]
+        )
 
     def test_schema_file_is_valid_json_schema(self) -> None:
         schema_path = SCRIPT_DIR.parent / "schemas/flutter-quality.schema.json"
@@ -84,15 +88,50 @@ class FlutterQualityConfigTests(unittest.TestCase):
         cap_props = schema["properties"]["capabilities"]["properties"]
         self.assertIn("contracts", cap_props)
         self.assertIn("contract_diff", cap_props)
-        pattern_props = schema["properties"]["capabilities"].get("patternProperties", {})
+        pattern_props = schema["properties"]["capabilities"].get(
+            "patternProperties", {}
+        )
         self.assertIn("^contracts_[a-z0-9_]+$", pattern_props)
 
         cfg = valid_config()
-        cfg["capabilities"]["contracts"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "check"]
-        cfg["capabilities"]["contracts_lyrics_sync"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "check", "--domain", "lyrics-sync"]
-        cfg["capabilities"]["contract_diff"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "diff-check", "--base-ref", "{base_ref}"]
+        cfg["capabilities"]["contracts"] = [
+            "python3",
+            "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py",
+            "check",
+        ]
+        cfg["capabilities"]["contracts_lyrics_sync"] = [
+            "python3",
+            "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py",
+            "check",
+            "--domain",
+            "lyrics-sync",
+        ]
+        cfg["capabilities"]["contract_diff"] = [
+            "python3",
+            "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py",
+            "diff-check",
+            "--base-ref",
+            "{base_ref}",
+        ]
         res = validate_flutter_config(cfg, "epic")
         self.assertEqual("PASS", res["status"])
+
+    def test_additive_v1_fields_and_invalid_triage_surfaces(self) -> None:
+        cfg = valid_config()
+        cfg["standards_catalog"] = ".agents/quality/standards_catalog.json"
+        cfg["extensions"] = [".dart"]
+        cfg["triage_surfaces"] = {"signature": [r"MethodChannel"]}
+        cfg["capabilities"]["coverage"]["min_package_coverage"] = 0.75
+        cfg["capabilities"]["coverage"]["min_diff_coverage"] = 0.8
+        cfg["capabilities"]["coverage"]["diff_base"] = "main"
+        self.assertEqual("PASS", validate_flutter_config(cfg, "epic")["status"])
+
+        cfg["triage_surfaces"] = {"signature": ["[unclosed"]}
+        bad = validate_flutter_config(cfg, "epic")
+        self.assertEqual("BLOCKED", bad["status"])
+        self.assertIn(
+            "invalid_triage_surface_regex", [f["code"] for f in bad["findings"]]
+        )
 
 
 if __name__ == "__main__":

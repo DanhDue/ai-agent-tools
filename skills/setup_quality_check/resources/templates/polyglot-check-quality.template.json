@@ -5,13 +5,23 @@
       "id": "rust-core",
       "skill": "d3nexus:rust-quality-check",
       "required": true,
-      "profiles": ["pr", "epic", "release", "scheduled"]
+      "profiles": ["pr", "epic", "scheduled", "release"]
     },
     {
       "id": "learning-web",
       "skill": "d3nexus:web-quality-check",
       "required": true,
-      "profiles": ["pr", "epic", "release", "scheduled"]
+      "profiles": ["pr", "epic", "scheduled", "release"]
+    }
+  ],
+  "pool_mounts": [
+    {
+      "path": "target",
+      "mode": "symlink"
+    },
+    {
+      "path": "node_modules",
+      "mode": "symlink"
     }
   ]
 }

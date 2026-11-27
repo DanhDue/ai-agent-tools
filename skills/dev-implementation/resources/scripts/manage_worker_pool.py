@@ -3,9 +3,11 @@
 
 Provides isolated ephemeral git worktrees for sub-agents executing independent
 Kanban tasks in parallel within the same topological layer, while sharing build
-caches and dependencies (node_modules, .venv, .gradle, target, .dart_tool) via
-APFS clone / symlinks with zero storage overhead.
+caches and gitignored workspace configs via PoolWorkspaceStrategy (symlink +
+APFS/copytree COW mounts) and running suffix-scoped Tier 1 triage via
+TriageSurfaceRegistry.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -15,8 +17,7 @@ from datetime import datetime, timezone
 import fcntl
 import json
 import os
-from pathlib import Path, PurePosixPath
-import platform
+from pathlib import Path
 import re
 import shutil
 import subprocess
@@ -25,10 +26,21 @@ import tempfile
 import threading
 from typing import Any
 
+SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
 REPO_ROOT = Path(__file__).resolve().parents[4]
 KIT_SCRIPTS_DIR = REPO_ROOT / "scripts"
 if str(KIT_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(KIT_SCRIPTS_DIR))
+
+from _stack_lifecycle_registry import (  # noqa: E402
+    DEFAULT_SYMLINK_MOUNTS,
+    TIER1_TRIGGER_ORDER,
+    PoolWorkspaceStrategy,
+    TriageSurfaceRegistry,
+)
 
 _STATE_ENVELOPE: Any | None = None
 try:
@@ -46,15 +58,7 @@ try:
 except ImportError:
     _PERSONA_CONFIG = None
 
-CACHE_DIR_CANDIDATES = [
-    "node_modules",
-    ".venv",
-    ".gradle",
-    "target",
-    ".dart_tool",
-    "Pods",
-    ".build",
-]
+CACHE_DIR_CANDIDATES: list[str] = list(DEFAULT_SYMLINK_MOUNTS)
 
 SLOT_SYNC_STATUSES = ("working", "review", "idle")
 ACTIVE_SLOT_STATUSES = frozenset(("working", "review"))
@@ -67,45 +71,6 @@ _FALLBACK_LOCK_GUARD = threading.Lock()
 _FALLBACK_INPROC_LOCKS: dict[Path, threading.RLock] = {}
 _FALLBACK_ACTIVE_FLOCKS: dict[Path, tuple[int, Any]] = {}
 
-TIER1_TRIGGER_ORDER = (
-    "NON_TEST_DIFF_OVER_30_LINES",
-    "PUBLIC_SIGNATURE_CHANGED",
-    "API_ROUTE_OR_SCHEMA_CHANGED",
-    "DB_OR_PERSISTENCE_CHANGED",
-    "CONCURRENCY_OR_LOCKING_CHANGED",
-    "TEST_ASSERTION_WEAKENED",
-)
-
-_PUBLIC_SIGNATURE_RES = (
-    re.compile(r"^\s*(?:async\s+)?def\s+[A-Za-z][A-Za-z0-9_]*\s*\("),
-    re.compile(r"^\s*class\s+[A-Za-z]"),
-    re.compile(r"^\s*export\s+(?:async\s+)?(?:function|class|interface|type)\b"),
-    re.compile(r"^\s*pub\s+(?:async\s+)?(?:fn|struct|enum|trait)\b"),
-)
-_API_SURFACE_RES = (
-    re.compile(r"@(?:router|app)\.(?:get|post|put|patch|delete|websocket)\b"),
-    re.compile(r"\b(?:APIRouter|BaseModel|TypedDict|openapi|json_schema)\b"),
-)
-_DB_SURFACE_RES = (
-    re.compile(
-        r"\b(?:SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM|CREATE\s+TABLE|ALTER\s+TABLE)\b"
-    ),
-    re.compile(r"\bsession\.(?:execute|commit|rollback|query)\b"),
-    re.compile(r"\b(?:alembic|migration|sqlite3|atomic_write)\b"),
-)
-_CONCURRENCY_RES = (
-    re.compile(r"\b(?:Lock|RLock|Semaphore|Condition|Event)\s*\("),
-    re.compile(r"\b(?:asyncio|threading|multiprocessing|concurrent\.futures)\."),
-    re.compile(r"\bfcntl\.flock\b"),
-    re.compile(r"\bos\.(?:setpgrp|killpg)\b"),
-    re.compile(r"\bcancel_event\b"),
-)
-_TEST_ASSERTION_RE = re.compile(
-    r"(?:\bassert\b|\bself\.assert|\bpytest\.raises|\bexpect\()"
-)
-_TEST_SKIP_RE = re.compile(
-    r"(?:pytest\.mark\.(?:skip|xfail)|@unittest\.skip|\.skip\()"
-)
 _COVERS_LINE_RE = re.compile(r"^\s*(?:[-*]\s+)?\**Covers\**\s*:\**\s*(.*)$")
 _ID_TOKEN_RE = re.compile(
     r"(?<![A-Za-z0-9-])[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]+(?![A-Za-z0-9])"
@@ -159,7 +124,10 @@ def resolve_repo_root(path: Path) -> Path:
                 repo_dir = common_path.resolve().parent
                 if path.resolve() == repo_dir:
                     return path
-                if path.parent.name == ".worktrees" and path.parent.parent.resolve() == repo_dir:
+                if (
+                    path.parent.name == ".worktrees"
+                    and path.parent.parent.resolve() == repo_dir
+                ):
                     return path.parent.parent
                 return repo_dir
 
@@ -191,31 +159,51 @@ def get_slot_branch(epic_slug: str, slot: int) -> str:
 
 
 def link_shared_caches(main_wt: Path, slot_wt: Path) -> list[str]:
-    """Link or APFS-clone heavy cache and dependency directories from main worktree to slot."""
-    linked: list[str] = []
+    """Materialize symlink caches and APFS/copytree COW mounts from main worktree to slot."""
     if not main_wt.is_dir() or not slot_wt.is_dir():
-        return linked
+        return []
+    materialized = PoolWorkspaceStrategy.materialize_mounts(main_wt, slot_wt)
+    return sorted({*materialized.get("symlink", ()), *materialized.get("cow_copy", ())})
 
-    is_darwin = platform.system() == "Darwin"
 
-    for cdir in CACHE_DIR_CANDIDATES:
-        src = main_wt / cdir
-        dst = slot_wt / cdir
-        if not src.exists() or dst.exists():
-            continue
+def _resolve_main_wt_for_slot(
+    slot_path: Path, epic_dir: str, main_wt: Path | None = None
+) -> Path:
+    """Resolve the main epic worktree (or repo root) associated with a slot worktree."""
+    if main_wt is not None and main_wt.is_dir():
+        return main_wt
+    repo_root, default_wt = resolve_pool_roots(slot_path, epic_dir)
+    if default_wt.is_dir():
+        return default_wt
+    return repo_root if repo_root.is_dir() else slot_path
 
-        try:
-            # On macOS, attempt APFS clone if supported and directory is writable; otherwise symlink
-            # Symlinks provide zero-byte overhead and real-time dependency resolution across all tools
-            dst.symlink_to(src)
-            linked.append(cdir)
-        except OSError:
-            # Fallback to copy-on-write via cp -c -R if symlink is disallowed
-            if is_darwin and src.is_dir():
-                res = subprocess.run(["cp", "-c", "-R", str(src), str(dst)], check=False, capture_output=True)
-                if res.returncode == 0:
-                    linked.append(cdir)
-    return linked
+
+def _is_tracked_in_head(repo_dir: Path, rel_path: str) -> bool:
+    res = subprocess.run(
+        ["git", "ls-tree", "-r", "--name-only", "HEAD", "--", rel_path],
+        cwd=repo_dir,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return res.returncode == 0 and bool(res.stdout.strip())
+
+
+def _get_excluded_mounts(main_wt: Path, slot_path: Path) -> list[str]:
+    """Return active materialized mount exclusions for slot_path (never tracked files)."""
+    excluded = set(PoolWorkspaceStrategy.get_excluded_relpaths(main_wt, slot_path))
+    if (
+        main_wt.is_dir()
+        and slot_path.is_dir()
+        and main_wt.resolve() != slot_path.resolve()
+    ):
+        for rel in PoolWorkspaceStrategy.get_excluded_relpaths(main_wt, main_wt):
+            candidate = slot_path / rel
+            if (
+                candidate.exists() or candidate.is_symlink()
+            ) and not _is_tracked_in_head(slot_path, rel):
+                excluded.add(rel)
+    return sorted(excluded)
 
 
 def _safe_epic_slug(epic_slug: str) -> str:
@@ -230,7 +218,12 @@ def _utc_now_iso() -> str:
 
 
 def _heartbeat_path(repo_root: Path, epic_slug: str) -> Path:
-    return repo_root / ".devtool" / "state" / f"{_safe_epic_slug(epic_slug)}.heartbeat.json"
+    return (
+        repo_root
+        / ".devtool"
+        / "state"
+        / f"{_safe_epic_slug(epic_slug)}.heartbeat.json"
+    )
 
 
 @contextlib.contextmanager
@@ -320,7 +313,9 @@ def _atomic_write_json_file(path: Path, payload: Mapping[str, Any]) -> None:
                 tmp_path.unlink()
 
 
-def _active_tasks_from_heartbeat(repo_root: Path, epic_slug: str) -> dict[str, dict[str, Any]]:
+def _active_tasks_from_heartbeat(
+    repo_root: Path, epic_slug: str
+) -> dict[str, dict[str, Any]]:
     hb_path = _heartbeat_path(repo_root, epic_slug)
     if _STATE_ENVELOPE is None:
         data = _read_json_file_safe(hb_path)
@@ -402,7 +397,9 @@ def _emit_pool_heartbeat(
         if (
             root.resolve() != repo_root.resolve()
             and (root / ".devtool").is_dir()
-            and not (root.parent.name == ".worktrees" and re.search(r"-slot-\d+$", root.name))
+            and not (
+                root.parent.name == ".worktrees" and re.search(r"-slot-\d+$", root.name)
+            )
         ):
             _atomic_write_json_file(_heartbeat_path(root, epic_slug), state)
 
@@ -436,7 +433,9 @@ def _carry_forward_slot_counters(prev_entry: Mapping[str, Any]) -> dict[str, Any
 
 
 def _resolve_task_review_limits(repo_root: Path) -> tuple[int, int]:
-    if _PERSONA_CONFIG is not None and hasattr(_PERSONA_CONFIG, "resolve_task_review_limits"):
+    if _PERSONA_CONFIG is not None and hasattr(
+        _PERSONA_CONFIG, "resolve_task_review_limits"
+    ):
         max_rev, max_fix = _PERSONA_CONFIG.resolve_task_review_limits(repo_root)
         return int(max_rev), int(max_fix)
     return 2, 1
@@ -556,7 +555,11 @@ def normalize_task_review_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
         normalized_verdict = "CHANGES_REQUESTED"
     elif normalized_verdict == "APPROVED" and blockers:
         normalized_verdict = "CHANGES_REQUESTED"
-    elif normalized_verdict == "CHANGES_REQUESTED" and not blockers and done_gate == "PASS":
+    elif (
+        normalized_verdict == "CHANGES_REQUESTED"
+        and not blockers
+        and done_gate == "PASS"
+    ):
         normalized_verdict = "APPROVED"
         coerced = True
 
@@ -573,7 +576,12 @@ def normalize_task_review_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def capture_slot_tree_sha(slot_path: Path, epic_dir: str) -> str:
+def capture_slot_tree_sha(
+    slot_path: Path,
+    epic_dir: str,
+    *,
+    main_wt: Path | None = None,
+) -> str:
     """Snapshot the slot working tree using a temporary GIT_INDEX_FILE without mutating HEAD or index."""
     idx_res = subprocess.run(
         ["git", "rev-parse", "--git-path", "index"],
@@ -587,8 +595,10 @@ def capture_slot_tree_sha(slot_path: Path, epic_dir: str) -> str:
     if not real_index.is_absolute():
         real_index = slot_path / real_index
 
+    resolved_main_wt = _resolve_main_wt_for_slot(slot_path, epic_dir, main_wt)
+    excluded_mounts = _get_excluded_mounts(resolved_main_wt, slot_path)
     exclude_paths = [
-        *CACHE_DIR_CANDIDATES,
+        *excluded_mounts,
         f".devtool/epic/{epic_dir}/evidence",
         f".devtool/epic/{epic_dir}/review_audit_notes*",
     ]
@@ -607,7 +617,16 @@ def capture_slot_tree_sha(slot_path: Path, epic_dir: str) -> str:
             check=True,
         )
         subprocess.run(
-            ["git", "rm", "-r", "-q", "--cached", "--ignore-unmatch", "--", *exclude_paths],
+            [
+                "git",
+                "rm",
+                "-r",
+                "-q",
+                "--cached",
+                "--ignore-unmatch",
+                "--",
+                *exclude_paths,
+            ],
             cwd=slot_path,
             env=env,
             capture_output=True,
@@ -674,7 +693,9 @@ def _list_worktrees_by_branch(repo_root: Path) -> dict[str, Path]:
     return mapping
 
 
-def _discover_epic_slot_branches(repo_root: Path, epic_dir: str, epic_slug: str) -> list[str]:
+def _discover_epic_slot_branches(
+    repo_root: Path, epic_dir: str, epic_slug: str
+) -> list[str]:
     res = subprocess.run(
         ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads/"],
         cwd=repo_root,
@@ -685,7 +706,14 @@ def _discover_epic_slot_branches(repo_root: Path, epic_dir: str, epic_slug: str)
     if res.returncode != 0:
         return []
     slug_variants = list(
-        dict.fromkeys([epic_slug, epic_dir, epic_slug.replace("-", "_"), epic_slug.replace("_", "-")])
+        dict.fromkeys(
+            [
+                epic_slug,
+                epic_dir,
+                epic_slug.replace("-", "_"),
+                epic_slug.replace("_", "-"),
+            ]
+        )
     )
     prefixes = tuple(
         prefix
@@ -700,7 +728,9 @@ def _discover_epic_slot_branches(repo_root: Path, epic_dir: str, epic_slug: str)
     )
 
 
-def _resolve_integration_target(repo_root: Path, epic_slug: str, base_ref: str | None = None) -> str:
+def _resolve_integration_target(
+    repo_root: Path, epic_slug: str, base_ref: str | None = None
+) -> str:
     candidates = [
         c
         for c in (
@@ -751,7 +781,15 @@ def init_slots(
             if res_branch.returncode == 0:
                 cmd = ["git", "worktree", "add", str(slot_path), slot_branch]
             else:
-                cmd = ["git", "worktree", "add", str(slot_path), "-b", slot_branch, target_base]
+                cmd = [
+                    "git",
+                    "worktree",
+                    "add",
+                    str(slot_path),
+                    "-b",
+                    slot_branch,
+                    target_base,
+                ]
 
             subprocess.run(cmd, cwd=repo_root, check=True, capture_output=True)
 
@@ -800,13 +838,18 @@ def sync_slot(
             f"Unsupported slot sync status {status!r}; expected one of {SLOT_SYNC_STATUSES}"
         )
 
-    repo_root = resolve_repo_root(root)
+    repo_root, default_wt = resolve_pool_roots(root, epic_dir)
+    main_wt = default_wt if default_wt.is_dir() else repo_root
     slot_path = get_slot_path(repo_root, epic_dir, slot)
     if not slot_path.is_dir():
         return False
 
     normalized_review: dict[str, Any] | None = None
-    if normalized_status == "working" and not reset_worktree and review_payload is not None:
+    if (
+        normalized_status == "working"
+        and not reset_worktree
+        and review_payload is not None
+    ):
         normalized_review = normalize_task_review_payload(review_payload)
         if (
             normalized_review.get("verdict") != "CHANGES_REQUESTED"
@@ -834,16 +877,21 @@ def sync_slot(
         if res.returncode != 0:
             return False
 
+        excluded_mounts = _get_excluded_mounts(main_wt, slot_path)
         clean_cmd = ["git", "clean", "-fd"]
-        for cdir in CACHE_DIR_CANDIDATES:
-            clean_cmd.extend(["-e", cdir])
+        for rel in excluded_mounts:
+            clean_cmd.extend(["-e", f"/{rel}"])
         subprocess.run(clean_cmd, cwd=slot_path, capture_output=True, check=False)
+        if main_wt.is_dir():
+            link_shared_caches(main_wt, slot_path)
 
     slot_key = f"slot-{slot}"
     with _pool_state_lock(repo_root):
         existing_slots = _active_tasks_from_heartbeat(repo_root, epic_slug)
         raw_prev = existing_slots.get(slot_key) or existing_slots.get(str(slot))
-        prev_entry: Mapping[str, Any] = raw_prev if isinstance(raw_prev, Mapping) else {}
+        prev_entry: Mapping[str, Any] = (
+            raw_prev if isinstance(raw_prev, Mapping) else {}
+        )
         prev_status = str(prev_entry.get("status") or "").strip().lower()
         prev_task_id = prev_entry.get("task_id")
 
@@ -862,7 +910,9 @@ def sync_slot(
             str(prev_task_id) if prev_task_id else None
         )
 
-        if normalized_status == "idle" or (normalized_status == "working" and reset_worktree):
+        if normalized_status == "idle" or (
+            normalized_status == "working" and reset_worktree
+        ):
             counters = _default_slot_counters()
         elif normalized_status == "review":
             if prev_status == "review" and same_task:
@@ -882,7 +932,9 @@ def sync_slot(
                 new_review = prev_review + 1
                 counters["review_passes_used"] = new_review
                 if prev_review == 0:
-                    counters["pass1_tree_sha"] = capture_slot_tree_sha(slot_path, epic_dir)
+                    counters["pass1_tree_sha"] = capture_slot_tree_sha(
+                        slot_path, epic_dir, main_wt=main_wt
+                    )
                     counters["pass1_head_sha"] = _git_head_sha(slot_path)
         elif normalized_status == "working" and not reset_worktree:
             max_review_passes, max_fix_passes = _resolve_task_review_limits(repo_root)
@@ -951,14 +1003,25 @@ def _reconcile_main_wt_devtool_mirrors(main_wt: Path, epic_dir: str) -> None:
     """Restore tracked .devtool mirrors and remove untracked .devtool/features mirrors before merge."""
     tracked_scopes = [".devtool/features", f".devtool/epic/{epic_dir}"]
     diff_res = subprocess.run(
-        ["git", "-c", "core.quotePath=false", "diff", "--name-only", "-z", "--", *tracked_scopes],
+        [
+            "git",
+            "-c",
+            "core.quotePath=false",
+            "diff",
+            "--name-only",
+            "-z",
+            "--",
+            *tracked_scopes,
+        ],
         cwd=main_wt,
         capture_output=True,
         check=False,
     )
     if diff_res.returncode == 0 and diff_res.stdout:
         tracked_dirty = [
-            p for p in diff_res.stdout.decode("utf-8", "surrogateescape").split("\0") if p
+            p
+            for p in diff_res.stdout.decode("utf-8", "surrogateescape").split("\0")
+            if p
         ]
         if tracked_dirty:
             subprocess.run(
@@ -1036,7 +1099,9 @@ def append_review_audit_note(
                 check=False,
             )
             if diff_cached.returncode != 0:
-                commit_msg = f"[{epic_slug.upper()}] Record review audit note for {task_id}"
+                commit_msg = (
+                    f"[{epic_slug.upper()}] Record review audit note for {task_id}"
+                )
                 subprocess.run(
                     ["git", "commit", "-m", commit_msg, "--", rel_posix],
                     cwd=main_wt,
@@ -1048,13 +1113,7 @@ def append_review_audit_note(
 
 
 def _is_test_file(rel_path: str) -> bool:
-    norm = rel_path.replace("\\", "/").lstrip("./")
-    if "/tests/" in f"/{norm}":
-        return True
-    name = PurePosixPath(norm).name
-    if name.startswith("test_") and name.endswith(".py"):
-        return True
-    return name.endswith(("_test.py", ".spec.ts", ".test.ts"))
+    return TriageSurfaceRegistry.is_test_file(rel_path)
 
 
 def _extract_diff_header_path(diff_git_line: str) -> str | None:
@@ -1079,7 +1138,12 @@ def _extract_diff_header_path(diff_git_line: str) -> str | None:
 def _classify_tier1_diff(
     numstat_raw: bytes,
     unified_text: str,
+    *,
+    registry: TriageSurfaceRegistry | None = None,
 ) -> tuple[list[str], int, int, list[str], str | None]:
+    active_registry = (
+        registry if registry is not None else TriageSurfaceRegistry.default()
+    )
     non_test_changed_lines = 0
     test_changed_lines = 0
     changed_files: list[str] = []
@@ -1154,23 +1218,19 @@ def _classify_tier1_diff(
 
         if _is_test_file(current_file):
             stats = test_stats.setdefault(current_file, [0, 0, False])
-            if _TEST_ASSERTION_RE.search(stripped):
+            matched_assertion, matched_skip = active_registry.match_test_line(
+                current_file, sign, stripped
+            )
+            if matched_assertion:
                 if sign == "+":
                     stats[0] += 1
                 else:
                     stats[1] += 1
-            if sign == "+" and _TEST_SKIP_RE.search(stripped):
+            if matched_skip:
                 stats[2] = True
             continue
 
-        if any(p.search(stripped) for p in _PUBLIC_SIGNATURE_RES):
-            fired.add("PUBLIC_SIGNATURE_CHANGED")
-        if any(p.search(stripped) for p in _API_SURFACE_RES):
-            fired.add("API_ROUTE_OR_SCHEMA_CHANGED")
-        if any(p.search(stripped) for p in _DB_SURFACE_RES):
-            fired.add("DB_OR_PERSISTENCE_CHANGED")
-        if any(p.search(stripped) for p in _CONCURRENCY_RES):
-            fired.add("CONCURRENCY_OR_LOCKING_CHANGED")
+        fired.update(active_registry.match_line(current_file, sign, stripped))
 
     _flush_section()
 
@@ -1237,11 +1297,12 @@ def triage_fix_slot(
             )
         pass1_blockers = list(counters.get("pass1_blockers") or [])
 
-    curr_tree_sha = capture_slot_tree_sha(slot_path, epic_dir)
+    registry_root = main_wt if main_wt.is_dir() else repo_root
+    curr_tree_sha = capture_slot_tree_sha(slot_path, epic_dir, main_wt=registry_root)
+    excluded_mounts = _get_excluded_mounts(registry_root, slot_path)
     diff_pathspecs = [
         ".",
-        *(f":(exclude){cdir}" for cdir in CACHE_DIR_CANDIDATES),
-        *(f":(exclude)**/{cdir}" for cdir in CACHE_DIR_CANDIDATES),
+        *(f":(exclude){rel}" for rel in excluded_mounts),
         f":(exclude).devtool/epic/{epic_dir}/evidence",
         f":(exclude).devtool/epic/{epic_dir}/review_audit_notes*",
         ":(exclude).devtool/state",
@@ -1287,9 +1348,13 @@ def triage_fix_slot(
         check=True,
     )
     unified_text = unified_res.stdout
-    triggers, non_test_lines, test_lines, changed_files, bounded_diff = _classify_tier1_diff(
-        numstat_res.stdout,
-        unified_text,
+    surface_registry = TriageSurfaceRegistry.from_repo(registry_root)
+    triggers, non_test_lines, test_lines, changed_files, bounded_diff = (
+        _classify_tier1_diff(
+            numstat_res.stdout,
+            unified_text,
+            registry=surface_registry,
+        )
     )
 
     tier1_status = "HIGH_RISK" if triggers else "ELIGIBLE_FOR_SHORT_CIRCUIT"
@@ -1420,7 +1485,9 @@ def merge_slot(
 
         with _pool_state_lock(repo_root):
             existing_slots = _active_tasks_from_heartbeat(repo_root, epic_slug)
-            working_tasks = sorted(_collect_other_active_tasks(existing_slots, slot, slot_key))
+            working_tasks = sorted(
+                _collect_other_active_tasks(existing_slots, slot, slot_key)
+            )
             _emit_pool_heartbeat(
                 root,
                 repo_root,
@@ -1443,7 +1510,14 @@ def merge_slot(
 
 def _resolve_dev_script(slot_path: Path, repo_root: Path, script_name: str) -> Path:
     for base in (slot_path, repo_root):
-        cand = base / "skills" / "dev-implementation" / "resources" / "scripts" / script_name
+        cand = (
+            base
+            / "skills"
+            / "dev-implementation"
+            / "resources"
+            / "scripts"
+            / script_name
+        )
         if cand.is_file():
             return cand
     return Path(__file__).resolve().parent / script_name
@@ -1465,12 +1539,7 @@ def _resolve_slot_task_mirror(
 ) -> tuple[Path | None, str]:
     """Resolve a task markdown mirror inside slot_path by exact name or unique prefix."""
     clean_id = task_id.strip()
-    if (
-        not clean_id
-        or "/" in clean_id
-        or "\\" in clean_id
-        or clean_id in (".", "..")
-    ):
+    if not clean_id or "/" in clean_id or "\\" in clean_id or clean_id in (".", ".."):
         return None, task_id
 
     slot_epic_dir = slot_path / ".devtool" / "epic" / epic_dir
@@ -1535,7 +1604,9 @@ def _run_finalize_mechanical_gates(
         check=False,
     )
     if rtc_res.returncode != 0 or "done gate: PASS" not in (rtc_res.stdout or ""):
-        detail = (rtc_res.stdout or rtc_res.stderr or f"exit {rtc_res.returncode}").strip()
+        detail = (
+            rtc_res.stdout or rtc_res.stderr or f"exit {rtc_res.returncode}"
+        ).strip()
         return f"MECHANICAL_GATE_FAILED: run_task_checks.py status failed ({detail})"
 
     cbt_script = _resolve_dev_script(slot_path, repo_root, "check_bdd_traceability.py")
@@ -1585,7 +1656,9 @@ def _run_finalize_mechanical_gates(
                     check=False,
                 )
                 if cbt_res.returncode != 0:
-                    detail = (cbt_res.stdout or cbt_res.stderr or f"exit {cbt_res.returncode}").strip()
+                    detail = (
+                        cbt_res.stdout or cbt_res.stderr or f"exit {cbt_res.returncode}"
+                    ).strip()
                     return f"MECHANICAL_GATE_FAILED: check_bdd_traceability.py failed ({detail})"
     return None
 
@@ -1606,7 +1679,9 @@ def finalize_slot(
 ) -> dict[str, Any]:
     """Verify mechanical gates, mark task done, commit slot, merge to main_wt, and record main_wt audit notes."""
     if mode not in FINALIZE_MODES:
-        raise ValueError(f"Unsupported finalize mode {mode!r}; expected one of {FINALIZE_MODES}")
+        raise ValueError(
+            f"Unsupported finalize mode {mode!r}; expected one of {FINALIZE_MODES}"
+        )
 
     effective_risk: str | None = None
     if mode == "tier2-short-circuit":
@@ -1670,7 +1745,9 @@ def finalize_slot(
         with _pool_state_lock(repo_root):
             existing_slots = _active_tasks_from_heartbeat(repo_root, epic_slug)
             raw_entry = existing_slots.get(slot_key) or existing_slots.get(str(slot))
-            entry: Mapping[str, Any] = raw_entry if isinstance(raw_entry, Mapping) else {}
+            entry: Mapping[str, Any] = (
+                raw_entry if isinstance(raw_entry, Mapping) else {}
+            )
             counters = _carry_forward_slot_counters(entry)
         last_triage = counters.get("last_triage")
         triage_ok = (
@@ -1679,8 +1756,10 @@ def finalize_slot(
             and last_triage.get("tier1_status") == "ELIGIBLE_FOR_SHORT_CIRCUIT"
         )
         if triage_ok and isinstance(last_triage, Mapping):
-            curr_tree_sha = capture_slot_tree_sha(slot_path, epic_dir)
-            triage_ok = bool(curr_tree_sha) and curr_tree_sha == last_triage.get("curr_tree_sha")
+            curr_tree_sha = capture_slot_tree_sha(slot_path, epic_dir, main_wt=main_wt)
+            triage_ok = bool(curr_tree_sha) and curr_tree_sha == last_triage.get(
+                "curr_tree_sha"
+            )
         if not triage_ok:
             return {
                 "ok": False,
@@ -1693,7 +1772,9 @@ def finalize_slot(
             }
 
     sync_script = _resolve_dev_script(slot_path, repo_root, "sync_task_status.py")
-    task_mirror, resolved_task_id = _resolve_slot_task_mirror(slot_path, epic_dir, task_id)
+    task_mirror, resolved_task_id = _resolve_slot_task_mirror(
+        slot_path, epic_dir, task_id
+    )
     if sync_script.is_file() and task_mirror is not None and task_mirror.is_file():
         sync_res = subprocess.run(
             [sys.executable, "-B", str(sync_script), "task", resolved_task_id, "done"],
@@ -1703,7 +1784,9 @@ def finalize_slot(
             check=False,
         )
         if sync_res.returncode != 0:
-            detail = (sync_res.stderr or sync_res.stdout or f"exit {sync_res.returncode}").strip()
+            detail = (
+                sync_res.stderr or sync_res.stdout or f"exit {sync_res.returncode}"
+            ).strip()
             return {
                 "ok": False,
                 "code": "MECHANICAL_GATE_FAILED",
@@ -1714,6 +1797,7 @@ def finalize_slot(
                 "merged": False,
             }
 
+    excluded_mounts = _get_excluded_mounts(main_wt, slot_path)
     subprocess.run(
         ["git", "add", "-A"],
         cwd=slot_path,
@@ -1723,7 +1807,7 @@ def finalize_slot(
     )
     unstage_paths = [
         f".devtool/epic/{epic_dir}/review_audit_notes*",
-        *(cdir for cdir in CACHE_DIR_CANDIDATES if (slot_path / cdir).is_symlink()),
+        *excluded_mounts,
     ]
     if unstage_paths:
         if _ref_exists(slot_path, "HEAD"):
@@ -1800,7 +1884,8 @@ def finalize_slot(
             audit_entry["observations"] = norm_review["observations"]
     elif mode == "pass2-complete":
         if norm_review is not None and (
-            norm_review.get("verdict") == "CHANGES_REQUESTED" or norm_review.get("blockers")
+            norm_review.get("verdict") == "CHANGES_REQUESTED"
+            or norm_review.get("blockers")
         ):
             audit_entry = {
                 "event": "pass2_residual_logged_on_cap",
@@ -1831,7 +1916,8 @@ def finalize_slot(
             }
     elif mode == "pass1-approved":
         if norm_review is not None and (
-            norm_review.get("coerced_from_non_blocking") or norm_review.get("observations")
+            norm_review.get("coerced_from_non_blocking")
+            or norm_review.get("observations")
         ):
             audit_entry = {
                 "event": (
@@ -1940,7 +2026,9 @@ def cleanup_slots_report(
             )
             dirty = st.returncode != 0 or bool(st.stdout.strip())
 
-        unmerged = branch_exists and not _is_ancestor(repo_root, branch, integration_ref)
+        unmerged = branch_exists and not _is_ancestor(
+            repo_root, branch, integration_ref
+        )
 
         if (dirty or unmerged) and not discard_unmerged:
             if dirty:
@@ -1983,7 +2071,9 @@ def cleanup_slots_report(
         if slot_key:
             removed_slots.append(slot_key)
 
-    subprocess.run(["git", "worktree", "prune"], cwd=repo_root, capture_output=True, check=False)
+    subprocess.run(
+        ["git", "worktree", "prune"], cwd=repo_root, capture_output=True, check=False
+    )
 
     if removed_slots:
         _emit_pool_heartbeat(
@@ -2072,17 +2162,23 @@ def get_pool_status(
     return status
 
 
-def _resolve_cli_epic(parser: argparse.ArgumentParser, args: argparse.Namespace) -> tuple[str, str]:
+def _resolve_cli_epic(
+    parser: argparse.ArgumentParser, args: argparse.Namespace
+) -> tuple[str, str]:
     raw_epic = getattr(args, "epic", None)
     epic_dir = args.epic_dir or (raw_epic.replace("-", "_") if raw_epic else None)
     epic_slug = args.epic_slug or (epic_dir.replace("_", "-") if epic_dir else None)
     if not epic_dir or not epic_slug:
-        parser.error("either --epic-dir (with --epic-slug) or positional <epic> is required")
+        parser.error(
+            "either --epic-dir (with --epic-slug) or positional <epic> is required"
+        )
     return epic_dir, epic_slug
 
 
 def _add_epic_flags(sub: argparse.ArgumentParser) -> None:
-    sub.add_argument("epic", nargs="?", default=None, help="Optional epic directory or slug")
+    sub.add_argument(
+        "epic", nargs="?", default=None, help="Optional epic directory or slug"
+    )
     sub.add_argument("--epic-dir", default=None, help="Epic directory name")
     sub.add_argument("--epic-slug", default=None, help="Epic slug")
 
@@ -2125,23 +2221,37 @@ def _load_sync_review_payload(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # init
     p_init = subparsers.add_parser("init", help="Initialize worker pool slots")
     _add_epic_flags(p_init)
-    p_init.add_argument("--pool-size", type=int, default=2, help="Number of slots (default: 2)")
-    p_init.add_argument("--base", default=None, help="Base ref for slots (default: epic/<epic_slug>)")
-    p_init.add_argument("--wave", type=int, default=None, help="Active execution wave number")
+    p_init.add_argument(
+        "--pool-size", type=int, default=2, help="Number of slots (default: 2)"
+    )
+    p_init.add_argument(
+        "--base", default=None, help="Base ref for slots (default: epic/<epic_slug>)"
+    )
+    p_init.add_argument(
+        "--wave", type=int, default=None, help="Active execution wave number"
+    )
 
     # sync
-    p_sync = subparsers.add_parser("sync", help="Reset slot or update slot heartbeat status")
+    p_sync = subparsers.add_parser(
+        "sync", help="Reset slot or update slot heartbeat status"
+    )
     _add_epic_flags(p_sync)
     p_sync.add_argument("--slot", type=int, required=True, help="Slot number (1 or 2)")
-    p_sync.add_argument("--base", default=None, help="Base ref to sync to (default: epic/<epic_slug>)")
+    p_sync.add_argument(
+        "--base", default=None, help="Base ref to sync to (default: epic/<epic_slug>)"
+    )
     p_sync.add_argument("--task", default=None, help="Task ID assigned to this slot")
-    p_sync.add_argument("--wave", type=int, default=None, help="Active execution wave number")
+    p_sync.add_argument(
+        "--wave", type=int, default=None, help="Active execution wave number"
+    )
     p_sync.add_argument(
         "--status",
         choices=SLOT_SYNC_STATUSES,
@@ -2155,47 +2265,84 @@ def main(argv: list[str] | None = None) -> int:
         default=True,
         help="Update heartbeat status/task without resetting the slot git worktree",
     )
-    p_sync.add_argument("--review-file", default=None, help="Optional reviewer JSON payload file")
-    p_sync.add_argument("--blockers-file", default=None, help="Optional blockers JSON file")
+    p_sync.add_argument(
+        "--review-file", default=None, help="Optional reviewer JSON payload file"
+    )
+    p_sync.add_argument(
+        "--blockers-file", default=None, help="Optional blockers JSON file"
+    )
 
     # triage-fix
-    p_triage = subparsers.add_parser("triage-fix", help="Run Tier 1 heuristic risk triage on Fix Pass 1")
+    p_triage = subparsers.add_parser(
+        "triage-fix", help="Run Tier 1 heuristic risk triage on Fix Pass 1"
+    )
     _add_epic_flags(p_triage)
-    p_triage.add_argument("--slot", type=int, required=True, help="Slot number (1 or 2)")
+    p_triage.add_argument(
+        "--slot", type=int, required=True, help="Slot number (1 or 2)"
+    )
     p_triage.add_argument("--task", default=None, help="Task ID assigned to this slot")
-    p_triage.add_argument("--format", choices=("json",), default="json", help="Output format")
-    p_triage.add_argument("--record-tier2", action="store_true", help="Record Tier 2 escalation note to main_wt")
-    p_triage.add_argument("--risk-level", default=None, help="Tier 2 risk level (MEDIUM or HIGH)")
-    p_triage.add_argument("--rationale", default=None, help="Tier 2 RiskAssessment rationale")
+    p_triage.add_argument(
+        "--format", choices=("json",), default="json", help="Output format"
+    )
+    p_triage.add_argument(
+        "--record-tier2",
+        action="store_true",
+        help="Record Tier 2 escalation note to main_wt",
+    )
+    p_triage.add_argument(
+        "--risk-level", default=None, help="Tier 2 risk level (MEDIUM or HIGH)"
+    )
+    p_triage.add_argument(
+        "--rationale", default=None, help="Tier 2 RiskAssessment rationale"
+    )
 
     # finalize-slot
-    p_fin = subparsers.add_parser("finalize-slot", help="Verify gates, mark task done, commit, merge, and log audit notes")
+    p_fin = subparsers.add_parser(
+        "finalize-slot",
+        help="Verify gates, mark task done, commit, merge, and log audit notes",
+    )
     _add_epic_flags(p_fin)
     p_fin.add_argument("--slot", type=int, required=True, help="Slot number (1 or 2)")
     p_fin.add_argument("--task", required=True, help="Task ID being finalized")
-    p_fin.add_argument("--wave", type=int, default=None, help="Active execution wave number")
+    p_fin.add_argument(
+        "--wave", type=int, default=None, help="Active execution wave number"
+    )
     p_fin.add_argument(
         "--mode",
         choices=FINALIZE_MODES,
         default="pass1-approved",
         help="Finalization path",
     )
-    p_fin.add_argument("--risk-level", default=None, help="Tier 2 risk level (LOW for tier2-short-circuit)")
+    p_fin.add_argument(
+        "--risk-level",
+        default=None,
+        help="Tier 2 risk level (LOW for tier2-short-circuit)",
+    )
     p_fin.add_argument("--rationale", default=None, help="Tier 2 or review rationale")
-    p_fin.add_argument("--review-file", default=None, help="Optional reviewer JSON file")
+    p_fin.add_argument(
+        "--review-file", default=None, help="Optional reviewer JSON file"
+    )
 
     # merge
     p_merge = subparsers.add_parser("merge", help="Merge slot back to main worktree")
     _add_epic_flags(p_merge)
     p_merge.add_argument("--slot", type=int, required=True, help="Slot number (1 or 2)")
     p_merge.add_argument("--task", default=None, help="Task ID being merged")
-    p_merge.add_argument("--wave", type=int, default=None, help="Active execution wave number")
+    p_merge.add_argument(
+        "--wave", type=int, default=None, help="Active execution wave number"
+    )
 
     # cleanup
-    p_clean = subparsers.add_parser("cleanup", help="Safely remove clean/integrated slots and branches")
+    p_clean = subparsers.add_parser(
+        "cleanup", help="Safely remove clean/integrated slots and branches"
+    )
     _add_epic_flags(p_clean)
-    p_clean.add_argument("--pool-size", type=int, default=2, help="Number of slots (default: 2)")
-    p_clean.add_argument("--base", default=None, help="Base ref used to verify branch integration")
+    p_clean.add_argument(
+        "--pool-size", type=int, default=2, help="Number of slots (default: 2)"
+    )
+    p_clean.add_argument(
+        "--base", default=None, help="Base ref used to verify branch integration"
+    )
     p_clean.add_argument(
         "--discard-unmerged",
         "--force",
@@ -2212,7 +2359,9 @@ def main(argv: list[str] | None = None) -> int:
     # status
     p_status = subparsers.add_parser("status", help="Show pool status")
     _add_epic_flags(p_status)
-    p_status.add_argument("--pool-size", type=int, default=2, help="Number of slots (default: 2)")
+    p_status.add_argument(
+        "--pool-size", type=int, default=2, help="Number of slots (default: 2)"
+    )
 
     args = parser.parse_args(argv)
     epic_dir, epic_slug = _resolve_cli_epic(parser, args)
@@ -2252,9 +2401,7 @@ def main(argv: list[str] | None = None) -> int:
         except HardCapExceededError as exc:
             detail = str(exc)
             line = (
-                detail
-                if detail.startswith(f"{exc.code}:")
-                else f"{exc.code}: {detail}"
+                detail if detail.startswith(f"{exc.code}:") else f"{exc.code}: {detail}"
             )
             print(line, file=sys.stderr)
             return HARD_CAP_EXIT_CODE
@@ -2265,11 +2412,17 @@ def main(argv: list[str] | None = None) -> int:
             elif args.status == "idle" and not args.reset_worktree:
                 print(f"Slot {args.slot} heartbeat marked as idle (worktree preserved)")
             elif args.status == "idle":
-                print(f"Slot {args.slot} reset to idle at {args.base or f'epic/{epic_slug}'}")
+                print(
+                    f"Slot {args.slot} reset to idle at {args.base or f'epic/{epic_slug}'}"
+                )
             elif not args.reset_worktree:
-                print(f"Slot {args.slot} heartbeat marked as {args.status} (worktree preserved)")
+                print(
+                    f"Slot {args.slot} heartbeat marked as {args.status} (worktree preserved)"
+                )
             else:
-                print(f"Slot {args.slot} synchronized to latest {args.base or f'epic/{epic_slug}'}")
+                print(
+                    f"Slot {args.slot} synchronized to latest {args.base or f'epic/{epic_slug}'}"
+                )
             return 0
         print(f"Failed to sync slot {args.slot}", file=sys.stderr)
         return 1
@@ -2343,7 +2496,9 @@ def main(argv: list[str] | None = None) -> int:
             discard_unmerged=args.discard_unmerged,
             stale_only=args.stale_only,
         )
-        print(f"Cleaned {len(report['removed'])} worker pool entry/entries for {epic_dir}")
+        print(
+            f"Cleaned {len(report['removed'])} worker pool entry/entries for {epic_dir}"
+        )
         if report["preserved_dirty"]:
             print(
                 f"Preserved dirty slot(s): {', '.join(report['preserved_dirty'])}",
@@ -2357,11 +2512,17 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if report["ok"] else 1
 
     if args.command == "status":
-        status = get_pool_status(root, epic_dir, pool_size=args.pool_size, epic_slug=epic_slug)
+        status = get_pool_status(
+            root, epic_dir, pool_size=args.pool_size, epic_slug=epic_slug
+        )
         print(f"Worker Pool Status for {epic_dir}:")
         for slot, info in status.items():
             st = "Active" if info["exists"] else "Not created"
-            extra = f" (HEAD: {info['head']}, Dirty: {info['dirty']})" if info["exists"] else ""
+            extra = (
+                f" (HEAD: {info['head']}, Dirty: {info['dirty']})"
+                if info["exists"]
+                else ""
+            )
             print(f"  Slot {slot}: {st}{extra} at {info['path']}")
         return 0
 
@@ -2370,4 +2531,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

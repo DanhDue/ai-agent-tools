@@ -1,13 +1,13 @@
 ---
 id: "task_02_portable_diff_coverage_engine"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "polyglot_lifecycle_and_quality_architecture"
 dueDate: null
 created: "2026-11-27T09:18:00+07:00"
-modified: "2026-11-27T09:18:00+07:00"
-completedAt: null
+modified: "2026-11-27T02:57:07Z"
+completedAt: "2026-11-27T02:57:07Z"
 labels: ["quality_check", "coverage", "polyglot", "cli"]
 order: "a02"
 review_tier: "full"
@@ -113,11 +113,11 @@ And output starts with "BLOCKED:" naming the offending report path without a Pyt
 
 ## Definition of Done
 
-- [ ] `skills/quality_check/resources/scripts/check_diff_coverage.py` supports LCOV, Cobertura XML, and JaCoCo XML using Python 3 stdlib only (V2, V5)
-- [ ] All tests in `tests/test_check_diff_coverage.py` pass covering `PLQ-HP-02`, `PLQ-EC-03`, `PLQ-EC-04`, `PLQ-FR-02` (V2, V5)
-- [ ] Downstream quality contract and scaffolder regression suites pass without regressions (V3)
-- [ ] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4)
-- [ ] Fresh JUnit XML report written to `build/test-results/task_02.xml` containing all 4 assigned scenario IDs (V5)
+- [x] `skills/quality_check/resources/scripts/check_diff_coverage.py` supports LCOV, Cobertura XML, and JaCoCo XML using Python 3 stdlib only (V2, V5) — exit 0, 13 passed
+- [x] All tests in `tests/test_check_diff_coverage.py` pass covering `PLQ-HP-02`, `PLQ-EC-03`, `PLQ-EC-04`, `PLQ-FR-02` (V2, V5) — exit 0, 13 passed, 4/4 BDD covered
+- [x] Downstream quality contract and scaffolder regression suites pass without regressions (V3) — exit 0, passed
+- [x] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4) — exit 0
+- [x] Fresh JUnit XML report written to `build/test-results/task_02.xml` containing all 4 assigned scenario IDs (V5) — exit 0, 4/4 verified
 
 ## Dependencies & Blockers
 

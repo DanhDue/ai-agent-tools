@@ -23,18 +23,45 @@ def valid_config() -> dict:
             "format": ["uv", "run", "ruff", "format", "--check", "."],
             "lint": ["uv", "run", "ruff", "check", "."],
             "type_check": ["uv", "run", "mypy", "--strict", "src"],
-            "test": ["uv", "run", "pytest", "-m", "not slow and not acceptance and not live_llm"],
+            "test": [
+                "uv",
+                "run",
+                "pytest",
+                "-m",
+                "not slow and not acceptance and not live_llm",
+            ],
             "coverage": {
-                "command": ["uv", "run", "pytest", "--cov=src", "--cov-report=json:coverage.json"],
+                "command": [
+                    "uv",
+                    "run",
+                    "pytest",
+                    "--cov=src",
+                    "--cov-report=json:coverage.json",
+                ],
                 "threshold": 0.8,
             },
             "architecture": ["uv", "run", "lint-imports"],
-            "schema": ["uv", "run", "python", "-m", "lyrics_sync.model", "--check-schema"],
+            "schema": [
+                "uv",
+                "run",
+                "python",
+                "-m",
+                "lyrics_sync.model",
+                "--check-schema",
+            ],
             "acceptance": ["./scripts/run_e2e_acceptance.sh"],
         },
         "profiles": {
             "pr": ["format", "lint", "type_check", "test"],
-            "epic": ["format", "lint", "type_check", "test", "coverage", "architecture", "acceptance"],
+            "epic": [
+                "format",
+                "lint",
+                "type_check",
+                "test",
+                "coverage",
+                "architecture",
+                "acceptance",
+            ],
         },
     }
 
@@ -73,14 +100,18 @@ class PythonQualityConfigTests(unittest.TestCase):
         del cfg["capabilities"]["architecture"]
         res = validate_python_config(cfg, "epic")
         self.assertEqual("BLOCKED", res["status"])
-        self.assertIn("missing_architecture_authority", [f["code"] for f in res["findings"]])
+        self.assertIn(
+            "missing_architecture_authority", [f["code"] for f in res["findings"]]
+        )
 
     def test_invalid_coverage_threshold_is_rejected(self) -> None:
         cfg = valid_config()
         cfg["capabilities"]["coverage"]["threshold"] = 1.5
         res = validate_python_config(cfg, "epic")
         self.assertEqual("BLOCKED", res["status"])
-        self.assertIn("invalid_coverage_threshold", [f["code"] for f in res["findings"]])
+        self.assertIn(
+            "invalid_coverage_threshold", [f["code"] for f in res["findings"]]
+        )
 
     def test_profile_not_configured_is_rejected(self) -> None:
         res = validate_python_config(valid_config(), "non_existent_profile")
@@ -92,7 +123,9 @@ class PythonQualityConfigTests(unittest.TestCase):
         cfg["profiles"]["pr"].append("missing_tool")
         res = validate_python_config(cfg, "pr")
         self.assertEqual("BLOCKED", res["status"])
-        self.assertIn("missing_capability_definition", [f["code"] for f in res["findings"]])
+        self.assertIn(
+            "missing_capability_definition", [f["code"] for f in res["findings"]]
+        )
 
     def test_schema_file_is_valid_json_schema(self) -> None:
         schema_path = SCRIPT_DIR.parent / "schemas/python-quality.schema.json"
@@ -109,13 +142,31 @@ class PythonQualityConfigTests(unittest.TestCase):
         cap_props = schema["properties"]["capabilities"]["properties"]
         self.assertIn("contracts", cap_props)
         self.assertIn("contract_diff", cap_props)
-        pattern_props = schema["properties"]["capabilities"].get("patternProperties", {})
+        pattern_props = schema["properties"]["capabilities"].get(
+            "patternProperties", {}
+        )
         self.assertIn("^contracts_[a-z0-9_]+$", pattern_props)
 
         cfg = valid_config()
-        cfg["capabilities"]["contracts"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "check"]
-        cfg["capabilities"]["contracts_lyrics_sync"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "check", "--domain", "lyrics-sync"]
-        cfg["capabilities"]["contract_diff"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "diff-check", "--base-ref", "{base_ref}"]
+        cfg["capabilities"]["contracts"] = [
+            "python3",
+            "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py",
+            "check",
+        ]
+        cfg["capabilities"]["contracts_lyrics_sync"] = [
+            "python3",
+            "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py",
+            "check",
+            "--domain",
+            "lyrics-sync",
+        ]
+        cfg["capabilities"]["contract_diff"] = [
+            "python3",
+            "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py",
+            "diff-check",
+            "--base-ref",
+            "{base_ref}",
+        ]
         res = validate_python_config(cfg, "epic")
         self.assertEqual("PASS", res["status"])
 
@@ -129,12 +180,29 @@ class PythonQualityConfigTests(unittest.TestCase):
 
     def test_valid_bootstrap_passes_validation(self) -> None:
         cfg = valid_config()
-        cfg["bootstrap"] = [["uv", "sync", "--extra", "asr"], ["pip", "install", "-e", ".[dev]"]]
+        cfg["bootstrap"] = [
+            ["uv", "sync", "--extra", "asr"],
+            ["pip", "install", "-e", ".[dev]"],
+        ]
         res = validate_python_config(cfg, "epic")
         self.assertEqual("PASS", res["status"])
         self.assertEqual([], res["findings"])
 
+    def test_additive_v1_fields_and_triage_surfaces_validation(self) -> None:
+        cfg = valid_config()
+        cfg["standards_catalog"] = ".agents/quality/standards_catalog.json"
+        cfg["extensions"] = [".py"]
+        cfg["triage_surfaces"] = {"api_wire": [r"@router\."]}
+        cfg["capabilities"]["coverage"]["min_package_coverage"] = 0.7
+        cfg["capabilities"]["coverage"]["min_diff_coverage"] = 0.8
+        self.assertEqual("PASS", validate_python_config(cfg, "epic")["status"])
 
+        cfg["triage_surfaces"] = ["array-not-object"]
+        bad = validate_python_config(cfg, "epic")
+        self.assertEqual("BLOCKED", bad["status"])
+        self.assertIn(
+            "invalid_triage_surfaces_format", [f["code"] for f in bad["findings"]]
+        )
 
 
 if __name__ == "__main__":

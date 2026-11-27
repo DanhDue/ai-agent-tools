@@ -52,6 +52,30 @@
           }
         }
       }
+    },
+    "pool_mounts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "mode"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "symlink",
+              "cow_copy"
+            ]
+          }
+        }
+      }
     }
   }
 }

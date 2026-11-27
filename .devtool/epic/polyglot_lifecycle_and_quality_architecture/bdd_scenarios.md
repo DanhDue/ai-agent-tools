@@ -32,7 +32,7 @@ Scenario: [PLQ-HP-03] [Tier C - Integration] Scaffolder generates 4-profile unif
 Given a polyglot repository containing Cargo.toml, pubspec.yaml, package.json, pyproject.toml, build.gradle.kts, and Package.swift
 When scaffold_quality_manifest.py scaffolds check_quality.json, all 6 <stack>-quality.json manifests, and standards_catalog.json
 Then every generated manifest defines all 4 profiles ("pr", "epic", "scheduled", "release"), unified capabilities ("anti_stub", "security", "security_deps", "pr_diff_audit", "workspace_audit", "pr_impact", "workspace_impact", "license"), "standards_catalog", dual-floor coverage referencing check_diff_coverage.py, and Android omits "cleanup" ("pkill -9 java")
-And validate_quality_contract.py and all 6 validate_<stack>_quality.py CLIs exit 0 with a single stdout line starting with "PASS:"
+And validate_quality_contract.py registry returns valid JSON containing "status": "PASS" and selected "providers" (with --compact emitting a single "PASS:" line), while validate_quality_contract.py capability and all 6 validate_<stack>_quality.py CLIs exit 0 with a single stdout line starting with "PASS:"
 
 Scenario: [PLQ-HP-04] [Tier C - Integration] Polyglot task contract passes when all touched stacks satisfy Tier B and emits one-line PASS
 Given a repository with active rust-quality.json and web-quality.json manifests and a task whose Allowed files touch both "crates/core/src/lib.rs" and "apps/web/src/app.ts"
@@ -88,10 +88,10 @@ Given legacy check_quality.json and all 6 legacy <stack>-quality.json fixtures c
 When validate_quality_contract.py and all 6 validate_<stack>_quality.py validators run for profile "pr" and "epic"
 Then every validator returns status "PASS" with 0 findings
 
-Scenario: [PLQ-EC-06] [Tier C - Integration] Legacy Python repo without .agents/quality manifests preserves check_python_tier_b fallback
-Given a temporary git repository with no .agents/quality directory and a task whose Allowed files touch "src/app.py"
-When check_task_contract.py --design validates the task with a missing mypy row
-Then the legacy check_python_tier_b fallback reports the missing Python type-check problem and exits with code 1
+Scenario: [PLQ-EC-06] [Tier C - Integration] Python tasks retain check_python_tier_b enforcement without python-quality.json or with only non-Python manifests
+Given a temporary git repository with no .agents/quality directory and another temporary git repository with only .agents/quality/flutter-quality.json (no python-quality.json), each having a task whose Allowed files touch "src/app.py"
+When check_task_contract.py --design validates each task with a missing mypy row
+Then check_python_tier_b reports the missing Python type-check problem and exits with code 1 in both repositories
 ```
 
 ## Dimension 3 State Transitions and Idempotency
@@ -104,7 +104,7 @@ Then ".agents/quality/standards_catalog.json" retains "CUSTOM-RULE-01" byte-for-
 And generated provider manifests reference ".agents/quality/standards_catalog.json" and validate PASS across profiles "pr", "epic", "scheduled", and "release"
 
 Scenario: [PLQ-ST-02] [Tier C - Integration] TierCTaxonomy distinguishes explicit Tier C2 missing Needs from heuristic heavy-runtime warning
-Given an epic with a task having a TIER-C row explicitly marked "Tier C2" with empty Needs ("—") and another task having an unlabeled "npx --no-install playwright test" TIER-C row with empty Needs ("—")
+Given an epic with a task having a TIER-C row whose Command ends with "# tier: C2" and empty Needs ("—") and another task having an unlabeled "npx --no-install playwright test" TIER-C row with empty Needs ("—")
 When check_task_contract.py --design validates the first task
 Then it exits with code 1 and reports an explicit Tier C2 missing Needs problem
 When check_task_contract.py --design validates the second task
@@ -116,11 +116,11 @@ When manage_worker_pool.py runs sync_slot twice consecutively on slot 1
 Then "scratch.tmp" is removed by git clean -fd
 And .dart_tool, packages/core/.dart_tool, and secureFiles/dev.json remain intact as non-symlink directories/files after both syncs
 
-Scenario: [PLQ-ST-04] [Tier C - Integration] finalize_slot unstages and never commits symlink or cow_copy mounted secrets and .dart_tool
-Given slot 1 containing a legitimate source edit plus materialized cow_copy mounts (.dart_tool, secureFiles/dev.json, android/local.properties) and a custom pool_mounts cow_copy entry
+Scenario: [PLQ-ST-04] [Tier C - Integration] finalize_slot unstages ignored mounts while committing edits to tracked xcconfig files
+Given slot 1 containing a legitimate source edit, an edited git-tracked "ios/Flutter/Debug.xcconfig", plus materialized gitignored cow_copy mounts (.dart_tool, secureFiles/dev.json, android/local.properties) and a custom gitignored pool_mounts cow_copy entry
 When manage_worker_pool.py runs capture_slot_tree_sha and finalize_slot on slot 1
-Then the resulting slot commit contains only the legitimate source edit
-And git show --stat HEAD contains zero paths from .dart_tool, secureFiles, android/local.properties, or custom pool_mounts
+Then the resulting slot commit contains both the legitimate source edit and the tracked "ios/Flutter/Debug.xcconfig" edit
+And git show --stat HEAD contains zero paths from .dart_tool, secureFiles, android/local.properties, or custom gitignored pool_mounts
 
 Scenario: [PLQ-ST-05] [Tier C - Integration] End-to-end polyglot lifecycle pipeline transitions cleanly from scaffold to contract check to pool triage
 Given a synthetic polyglot repo (Flutter + Rust + Python) initialized via scaffold_quality_manifest.py
@@ -131,11 +131,12 @@ Then every CLI stage exits with code 0 and emits compact one-line PASS summaries
 ## Dimension 4 Architecture Isolation and Cross-Stack Safety
 
 ```gherkin
-Scenario: [PLQ-AR-01] [Tier C - Integration] Suffix-scoped TriageSurfaceRegistry never cross-fires patterns across languages
-Given a Dart file containing the text "unsafe fn" and "tokio::spawn", a Rust file containing "MethodChannel" and "DriftDatabase", and a Kotlin file containing "XCTSkip" and "Codable"
+Scenario: [PLQ-AR-01] [Tier C - Integration] Suffix-scoped TriageSurfaceRegistry isolates stack rules while preserving language-neutral baselines
+Given a Dart file containing "unsafe fn" and "tokio::spawn", a Rust file containing "MethodChannel" and "DriftDatabase", a Kotlin file containing "XCTSkip", "Codable", and "private fun helper()", a ".sql" migration containing "ALTER TABLE users ADD COLUMN role TEXT;", and a Dart file declaring "class AuthService {"
 When TriageSurfaceRegistry evaluates each added line by its file suffix
-Then zero surface triggers fire on those cross-language strings
-And matching native-stack edits (Dart MethodChannel, Rust unsafe/sqlx::query, TS fetch(/Worker(, Kotlin RoomDatabase/@Ignore, Swift actor/XCTSkip, Python FastAPI/pytest.mark.skip) each fire their exact corresponding trigger code
+Then zero surface triggers fire on the cross-language strings or Kotlin "private fun helper()"
+And the ".sql" "ALTER TABLE" line fires "DB_OR_PERSISTENCE_CHANGED" and the Dart "class AuthService {" line fires "PUBLIC_SIGNATURE_CHANGED"
+And matching native-stack edits (Dart MethodChannel, Rust unsafe/sqlx::query, TS fetch(/Worker(, Kotlin public fun/RoomDatabase/@Ignore, Swift actor/XCTSkip, Python FastAPI/pytest.mark.skip) each fire their exact corresponding trigger code
 
 Scenario: [PLQ-AR-02] [Tier C - Integration] Web provider schema matches draft 2020-12 parity with the other 5 provider schemas
 Given all 6 provider JSON schemas (flutter, rust, web, python, android, ios) under skills/*-quality-check/resources/schemas/

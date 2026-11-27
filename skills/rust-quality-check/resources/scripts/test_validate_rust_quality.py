@@ -22,7 +22,13 @@ def valid_config() -> dict:
             "clippy": ["cargo", "clippy", "--all-targets", "--", "-D", "warnings"],
             "test": ["cargo", "test", "--workspace"],
             "coverage": {
-                "command": ["cargo", "llvm-cov", "--workspace", "--fail-under-lines", "80"],
+                "command": [
+                    "cargo",
+                    "llvm-cov",
+                    "--workspace",
+                    "--fail-under-lines",
+                    "80",
+                ],
                 "threshold": 0.8,
             },
             "architecture": ["cargo", "run", "-p", "xtask", "--", "check-architecture"],
@@ -42,7 +48,9 @@ class RustQualityConfigTests(unittest.TestCase):
 
     def test_shell_string_command_is_rejected(self) -> None:
         cfg = valid_config()
-        cfg["capabilities"]["check"] = "cargo check --all-targets"  # string instead of array
+        cfg["capabilities"]["check"] = (
+            "cargo check --all-targets"  # string instead of array
+        )
         res = validate_rust_config(cfg, "pr")
         self.assertEqual("BLOCKED", res["status"])
         self.assertIn("invalid_command_format", [f["code"] for f in res["findings"]])
@@ -52,7 +60,9 @@ class RustQualityConfigTests(unittest.TestCase):
         del cfg["capabilities"]["architecture"]
         res = validate_rust_config(cfg, "epic")
         self.assertEqual("BLOCKED", res["status"])
-        self.assertIn("missing_architecture_authority", [f["code"] for f in res["findings"]])
+        self.assertIn(
+            "missing_architecture_authority", [f["code"] for f in res["findings"]]
+        )
 
     def test_empty_command_array_is_rejected(self) -> None:
         cfg = valid_config()
@@ -76,16 +86,57 @@ class RustQualityConfigTests(unittest.TestCase):
         self.assertIn("contracts", cap_props)
         self.assertIn("contract_diff", cap_props)
         self.assertIn("db_hygiene", cap_props)
-        pattern_props = schema["properties"]["capabilities"].get("patternProperties", {})
+        pattern_props = schema["properties"]["capabilities"].get(
+            "patternProperties", {}
+        )
         self.assertIn("^contracts_[a-z0-9_]+$", pattern_props)
 
         cfg = valid_config()
-        cfg["capabilities"]["contracts"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "check"]
-        cfg["capabilities"]["contracts_lyrics_sync"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "check", "--domain", "lyrics-sync"]
-        cfg["capabilities"]["contract_diff"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "diff-check", "--base-ref", "{base_ref}"]
-        cfg["capabilities"]["db_hygiene"] = ["cargo", "run", "-p", "xtask", "--", "db-hygiene"]
+        cfg["capabilities"]["contracts"] = [
+            "python3",
+            "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py",
+            "check",
+        ]
+        cfg["capabilities"]["contracts_lyrics_sync"] = [
+            "python3",
+            "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py",
+            "check",
+            "--domain",
+            "lyrics-sync",
+        ]
+        cfg["capabilities"]["contract_diff"] = [
+            "python3",
+            "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py",
+            "diff-check",
+            "--base-ref",
+            "{base_ref}",
+        ]
+        cfg["capabilities"]["db_hygiene"] = [
+            "cargo",
+            "run",
+            "-p",
+            "xtask",
+            "--",
+            "db-hygiene",
+        ]
         res = validate_rust_config(cfg, "epic")
         self.assertEqual("PASS", res["status"])
+
+    def test_additive_v1_fields_and_invalid_standards_catalog(self) -> None:
+        cfg = valid_config()
+        cfg["standards_catalog"] = ".agents/quality/standards_catalog.json"
+        cfg["extensions"] = [".rs"]
+        cfg["triage_surfaces"] = {"concurrency": [r"tokio::spawn"]}
+        cfg["capabilities"]["coverage"]["min_package_coverage"] = 0.7
+        cfg["capabilities"]["coverage"]["min_diff_coverage"] = 0.8
+        self.assertEqual("PASS", validate_rust_config(cfg, "epic")["status"])
+
+        cfg["standards_catalog"] = "../outside.json"
+        bad = validate_rust_config(cfg, "epic")
+        self.assertEqual("BLOCKED", bad["status"])
+        self.assertIn(
+            "invalid_standards_catalog_path", [f["code"] for f in bad["findings"]]
+        )
 
 
 if __name__ == "__main__":

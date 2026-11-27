@@ -1,13 +1,13 @@
 ---
 id: "task_06_lifecycle_docs_provider_skills_and_acceptance"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "polyglot_lifecycle_and_quality_architecture"
 dueDate: null
 created: "2026-11-27T09:18:00+07:00"
-modified: "2026-11-27T09:18:00+07:00"
-completedAt: null
+modified: "2026-11-27T04:16:35Z"
+completedAt: "2026-11-27T04:16:35Z"
 labels: ["docs", "skills", "verify", "acceptance"]
 order: "a06"
 review_tier: "full"
@@ -70,7 +70,7 @@ Read-only context:
 
 - **Target Files & Symbols**:
   - `skills/dev-implementation/SKILL.md` (`L160-L172` Tier Separation & BDD automation, `L207-L215` Fix Loop & Triage, `L300-L311` review-fixer platform-mapped scoped tests — currently 342 lines / 4123 words, keep `<= 4500` words)
-  - `scripts/verify.sh` (`SUITES` list `L475-L490` — append Section 25 Polyglot Lifecycle & Quality Architecture suites)
+  - `scripts/verify.sh` (`SUITES` list `L362-L482` — append Section 25 Polyglot Lifecycle & Quality Architecture suites)
   - `skills/dev-designer/SKILL.md`, `skills/dev-designer/references/verification-rows.md`, `skills/dev-designer/references/verification-row-grammar.md`, `skills/dev-implementation/references/worker-execution-rules.md`, `skills/quality_check/SKILL.md`, `skills/setup_quality_check/SKILL.md`, and 6 `skills/*-quality-check/SKILL.md` (all <= 200 lines)
   - `tests/test_plq_end_to_end_acceptance.py` (new): End-to-end polyglot lifecycle pipeline & documentation acceptance tests (`PLQ-HP-06`, `PLQ-ST-05`, `PLQ-AR-05`).
 - **Downstream Callers**: `tests/test_tto_docs_and_slimming.py`, `tests/test_fpg_governance_text.py`, `tests/test_fpg_english_only_text.py`, `scripts/test_verifiable_handoff_text.py`, `scripts/test_lifecycle_document_contract.py`, `tests/test_ohk_docs_and_acceptance.py`, `tests/test_ohk2_skill_docs.py`.
@@ -126,18 +126,18 @@ And dev-designer/references/verification-rows.md preserves "-q --tb=short --maxf
 - **New contract**:
   - `dev-implementation/SKILL.md` replaces hardcoded `uv run pytest` at `L306` with a concise pointer to the 6-stack command table in `references/worker-execution-rules.md` and documents `_stack_lifecycle_registry.py` (`TierBContractAdapter`, `PoolWorkspaceStrategy`, `TriageSurfaceRegistry`, `TierCTaxonomy`) concisely while staying `<= 4500` words (`[SE-02]`).
   - `dev-designer/references/verification-rows.md` preserves `"-q --tb=short --maxfail=3"` and distinguishes `Tier C1` (`< 5s` host/VM subcutaneous integration: `test/integration/*_integration_test.dart`, `cargo nextest`, Vitest/Node wire tests, `tests/integration/`, JVM/Robolectric `*FlowTest`, `swift test --filter *FlowTests`) from `Tier C2` (`Needs:`-gated simulator/emulator/device/Playwright E2E) across all 6 stacks.
-  - `dev-designer/references/verification-row-grammar.md` updates the `Implicit protected paths` section to document default compact 1-line `PASS` stdout (`Result: 0 problems — PASS`) and opt-in `--verbose` / `--json` flags.
-  - `quality_check/SKILL.md`, `setup_quality_check/SKILL.md`, and all 6 `*-quality-check/SKILL.md` files document 4 profiles, unified capabilities, dual-floor coverage, `standards_catalog.json`, `task_tier_b`/`triage_surfaces`/`pool_mounts`, compact 1-line `PASS` validator output (`--verbose` / `--json`), and link `_provider_manifest_common.py`, `check_diff_coverage.py`, and `web-quality.schema.json` (ensuring `verify.sh` §8 passes).
+  - `dev-designer/references/verification-row-grammar.md` updates the `Implicit protected paths` section to document default compact 1-line `PASS` stdout (`Result: 0 problems — PASS`), opt-in `--verbose` / `--json` flags, and the canonical `# tier: C2` trailing command comment marker enforced by `TierCTaxonomy`.
+  - `quality_check/SKILL.md`, `setup_quality_check/SKILL.md` (explicitly removing `pkill -9 java` at `L26`), and all 6 `*-quality-check/SKILL.md` files (explicitly removing `pkill -9 java` in `android-quality-check/SKILL.md` at `L59`) document 4 profiles, unified capabilities, dual-floor coverage, `standards_catalog.json`, `task_tier_b`/`triage_surfaces`/`pool_mounts`, compact 1-line `PASS` validator output (`--verbose` / `--json`; JSON default preserved for `validate_quality_contract.py registry`/`invocation`/`reconcile` with `--compact`), and link `_provider_manifest_common.py`, `check_diff_coverage.py`, and `web-quality.schema.json` (ensuring `verify.sh` §8 passes).
   - `scripts/verify.sh` adds Section 25 registering all 6 new test suites (`tests/test_stack_lifecycle_registry.py`, `tests/test_check_diff_coverage.py`, `tests/test_plq_quality_contracts_and_scaffolder.py`, `tests/test_plq_task_contract_polyglot.py`, `tests/test_plq_worker_pool_polyglot.py`, `tests/test_plq_end_to_end_acceptance.py`).
 
 ## Definition of Done
 
-- [ ] Lifecycle docs (`dev-designer`, `dev-implementation`) standardize 6-stack commands and `Tier C1` vs `Tier C2` within word/byte caps (V2, V3, V5)
-- [ ] `quality_check`, `setup_quality_check`, and all 6 `*-quality-check/SKILL.md` files document additive v1 capabilities, compact CLI output, and link every new script/schema (V2, V5)
-- [ ] All 6 new test suites are registered in `scripts/verify.sh` (`SUITES`) (V2, V5)
-- [ ] All documentation, governance, and polyglot task regression suites pass without regressions (V3)
-- [ ] `ruff check`, `ruff format --check`, and `mypy` pass on `tests/test_plq_end_to_end_acceptance.py` (V4)
-- [ ] Fresh JUnit XML report written to `build/test-results/task_06.xml` containing all 3 assigned scenario IDs (V5)
+- [x] Lifecycle docs (`dev-designer`, `dev-implementation`) standardize 6-stack commands and `Tier C1` vs `Tier C2` within word/byte caps (V2, V3, V5) — exit 0, `dev-implementation/SKILL.md` 4183 words <= 4500, `dev-designer/SKILL.md` 18120 bytes <= 22528, 13 docs 0 findings
+- [x] `quality_check`, `setup_quality_check`, and all 6 `*-quality-check/SKILL.md` files document additive v1 capabilities, compact CLI output, and link every new script/schema (V2, V5) — exit 0, `PLQ-HP-06` and `PLQ-AR-05` passed, `pkill -9 java` removed
+- [x] All 6 new test suites are registered in `scripts/verify.sh` (`SUITES`) (V2, V5) — exit 0, Section 25 registered and verified via `verify.sh --full`
+- [x] All documentation, governance, and polyglot task regression suites pass without regressions (V3) — exit 0, V3 regression passed including `verify.sh --full`
+- [x] `ruff check`, `ruff format --check`, and `mypy` pass on `tests/test_plq_end_to_end_acceptance.py` (V4) — exit 0
+- [x] Fresh JUnit XML report written to `build/test-results/task_06.xml` containing all 3 assigned scenario IDs (V5) — exit 0, 3/3 covered (`PLQ-HP-06`, `PLQ-ST-05`, `PLQ-AR-05`) PASS
 
 ## Dependencies & Blockers
 

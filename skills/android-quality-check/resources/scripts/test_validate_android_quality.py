@@ -28,11 +28,10 @@ def valid_config() -> dict:
                 "threshold": 0.85,
             },
             "acceptance": ["./scripts/acceptance_check.sh"],
-            "cleanup": ["pkill", "-9", "java"],
         },
         "profiles": {
             "pr": ["format", "lint", "test"],
-            "epic": ["format", "lint", "bcv", "architecture", "test", "coverage", "cleanup"],
+            "epic": ["format", "lint", "bcv", "architecture", "test", "coverage"],
         },
     }
 
@@ -69,7 +68,9 @@ class AndroidQualityConfigTests(unittest.TestCase):
         del cfg["capabilities"]["architecture"]
         res = validate_android_config(cfg, "epic")
         self.assertEqual("BLOCKED", res["status"])
-        self.assertIn("missing_capability_definition", [f["code"] for f in res["findings"]])
+        self.assertIn(
+            "missing_capability_definition", [f["code"] for f in res["findings"]]
+        )
 
     def test_schema_file_is_valid_json_schema(self) -> None:
         schema_path = SCRIPT_DIR.parent / "schemas/android-quality.schema.json"
@@ -85,15 +86,49 @@ class AndroidQualityConfigTests(unittest.TestCase):
         cap_props = schema["properties"]["capabilities"]["properties"]
         self.assertIn("contracts", cap_props)
         self.assertIn("contract_diff", cap_props)
-        pattern_props = schema["properties"]["capabilities"].get("patternProperties", {})
+        pattern_props = schema["properties"]["capabilities"].get(
+            "patternProperties", {}
+        )
         self.assertIn("^contracts_[a-z0-9_]+$", pattern_props)
 
         cfg = valid_config()
-        cfg["capabilities"]["contracts"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "check"]
-        cfg["capabilities"]["contracts_lyrics_sync"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "check", "--domain", "lyrics-sync"]
-        cfg["capabilities"]["contract_diff"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "diff-check", "--base-ref", "{base_ref}"]
+        cfg["capabilities"]["contracts"] = [
+            "python3",
+            "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py",
+            "check",
+        ]
+        cfg["capabilities"]["contracts_lyrics_sync"] = [
+            "python3",
+            "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py",
+            "check",
+            "--domain",
+            "lyrics-sync",
+        ]
+        cfg["capabilities"]["contract_diff"] = [
+            "python3",
+            "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py",
+            "diff-check",
+            "--base-ref",
+            "{base_ref}",
+        ]
         res = validate_android_config(cfg, "epic")
         self.assertEqual("PASS", res["status"])
+
+    def test_legacy_optional_cleanup_and_additive_fields_supported(self) -> None:
+        cfg = valid_config()
+        cfg["capabilities"]["cleanup"] = ["./scripts/cleanup.sh"]
+        cfg["profiles"]["epic"].append("cleanup")
+        cfg["standards_catalog"] = ".agents/quality/standards_catalog.json"
+        cfg["triage_surfaces"] = {"persistence": [r"RoomDatabase"]}
+        res = validate_android_config(cfg, "epic")
+        self.assertEqual("PASS", res["status"])
+
+        cfg["triage_surfaces"] = {"bad_category": ["foo"]}
+        bad = validate_android_config(cfg, "epic")
+        self.assertEqual("BLOCKED", bad["status"])
+        self.assertIn(
+            "unknown_triage_surface_category", [f["code"] for f in bad["findings"]]
+        )
 
 
 if __name__ == "__main__":

@@ -478,6 +478,14 @@ SUITES = [
     # 24. Observer Hardening Batch 2 suites
     ("24", "pytest", "tests/test_ohk2_skill_docs.py", 10, True),
     ("24", "pytest", "tests/test_check_tasks_standalone_plans.py", 20, False),
+
+    # 25. Polyglot Lifecycle & Quality Architecture suites
+    ("25", "pytest", "tests/test_stack_lifecycle_registry.py", 15, False),
+    ("25", "pytest", "tests/test_check_diff_coverage.py", 15, False),
+    ("25", "pytest", "tests/test_plq_quality_contracts_and_scaffolder.py", 20, False),
+    ("25", "pytest", "tests/test_plq_task_contract_polyglot.py", 25, False),
+    ("25", "pytest", "tests/test_plq_worker_pool_polyglot.py", 35, False),
+    ("25", "pytest", "tests/test_plq_end_to_end_acceptance.py", 25, True),
 ]
 
 active_suites = [
