@@ -14,7 +14,7 @@ _QC_SCRIPTS_DIR = (
 if str(_QC_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_QC_SCRIPTS_DIR))
 
-from _provider_manifest_common import (  # noqa: E402
+from _provider_manifest_common import (  # type: ignore[import-not-found]  # noqa: E402
     format_validator_cli_output,
     validate_additive_provider_fields,
     validate_dual_floor_coverage,
