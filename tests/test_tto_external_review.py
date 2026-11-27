@@ -37,6 +37,9 @@ PR_PROMPT = (
 def _load_external_review_module() -> ModuleType:
     if str(SCRIPTS_DIR) not in sys.path:
         sys.path.insert(0, str(SCRIPTS_DIR))
+    existing = sys.modules.get("run_external_review")
+    if existing is not None:
+        return existing
     spec = importlib.util.spec_from_file_location(
         "run_external_review", SCRIPTS_DIR / "run_external_review.py"
     )
@@ -238,6 +241,10 @@ def test_tto_hp_01_diff_only_round1_and_round2(
     assert "line_13 = 13" in adhoc_diff
     assert "guide.vi.md" not in adhoc_diff
 
+    fake_home = tmp_path / "home"
+    fake_home.mkdir()
+    monkeypatch.setenv("HOME", str(fake_home))
+    monkeypatch.setenv("REAL_HOME", str(fake_home))
     monkeypatch.setenv("PATH", str(bin_dir))
     monkeypatch.setenv("FAKE_COUNT_FILE", str(count_file))
     monkeypatch.setenv("FAKE_PROMPT_DIR", str(prompt_dir))
@@ -433,6 +440,9 @@ def test_tto_st_01_load_review_config_migrates_legacy_and_preserves_custom(
         "medium",
     )
 
+    fake_home = tmp_path / "home"
+    fake_home.mkdir()
+
     # Repo 1: git-tracked legacy programmer config stays untouched on disk, upgraded in memory
     repo1 = tmp_path / "repo_legacy"
     repo1.mkdir()
@@ -452,7 +462,7 @@ def test_tto_st_01_load_review_config_migrates_legacy_and_preserves_custom(
     _git(repo1, "add", "-A")
     _git(repo1, "commit", "-q", "-m", "Track legacy config")
 
-    loaded1 = rer.load_review_config(repo1)
+    loaded1 = rer.load_review_config(repo1, real_home=fake_home)
     assert loaded1["providers"]["programmer"] == {
         "model": "gemini-4-hydrogen-xhigh",
         "thinking_level": "xhigh",
@@ -483,27 +493,25 @@ def test_tto_st_01_load_review_config_migrates_legacy_and_preserves_custom(
     _git(repo2, "add", "-A")
     _git(repo2, "commit", "-q", "-m", "Track custom config")
 
-    loaded2 = rer.load_review_config(repo2)
+    loaded2 = rer.load_review_config(repo2, real_home=fake_home)
     assert loaded2["providers"]["programmer"] == {
         "model": "claude-sonnet-4-6",
         "thinking_level": "medium",
     }
     assert cfg_path2.read_text(encoding="utf-8") == raw_custom
 
-    # Untracked config missing default providers seeds defaults to disk
+    # Untracked config missing default providers resolves defaults in memory without mutating disk
     repo3 = tmp_path / "repo_untracked"
     repo3.mkdir()
     _git(repo3, "init", "-q", "-b", "main")
     cfg_path3 = repo3 / ".devtool" / "review_config.json"
     cfg_path3.parent.mkdir(parents=True)
-    cfg_path3.write_text(
-        json.dumps({"providers": {"claude": {"model": "Opus 5.5"}}}) + "\n",
-        encoding="utf-8",
-    )
-    rer.load_review_config(repo3)
-    persisted3 = json.loads(cfg_path3.read_text(encoding="utf-8"))
-    assert persisted3["providers"]["programmer"]["model"] == "gemini-4-hydrogen-xhigh"
-    assert persisted3["providers"]["assistant"]["model"] == "claude-opus-5-5-high"
+    raw_untracked = json.dumps({"providers": {"claude": {"model": "Opus 5.5"}}}) + "\n"
+    cfg_path3.write_text(raw_untracked, encoding="utf-8")
+    loaded3 = rer.load_review_config(repo3, real_home=fake_home)
+    assert loaded3["providers"]["programmer"]["model"] == "gemini-4-hydrogen-xhigh"
+    assert loaded3["providers"]["assistant"]["model"] == "claude-opus-5-5-high"
+    assert cfg_path3.read_text(encoding="utf-8") == raw_untracked
 
 
 def test_tto_fr_01_quiet_facts_and_raw_log_offloading(
@@ -529,6 +537,10 @@ def test_tto_fr_01_quiet_facts_and_raw_log_offloading(
     sha7 = head_sha[:7]
     count_file = tmp_path / "count.txt"
 
+    fake_home = tmp_path / "home"
+    fake_home.mkdir()
+    monkeypatch.setenv("HOME", str(fake_home))
+    monkeypatch.setenv("REAL_HOME", str(fake_home))
     monkeypatch.setenv("PATH", str(bin_dir))
     monkeypatch.setenv("FAKE_COUNT_FILE", str(count_file))
     monkeypatch.setenv("FAKE_PROMPT_DIR", str(prompt_dir))

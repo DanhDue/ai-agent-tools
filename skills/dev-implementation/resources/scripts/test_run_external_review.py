@@ -5,6 +5,7 @@ The fakes are the only claude and codex on PATH, so no test reaches a real CLI.
 
 Run: python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py
 """
+
 from __future__ import annotations
 import contextlib
 import io
@@ -72,13 +73,14 @@ case "$FAKE_MODE" in
 
 esac
 """
-HLD = ("# Demo\n\nIntegration test roots: scripts/\n\nIntegration results: true -> build/demo.xml\n")
+HLD = "# Demo\n\nIntegration test roots: scripts/\n\nIntegration results: true -> build/demo.xml\n"
 SCENARIOS = f"# Scenarios\n\n{TICKS}gherkin\nScenario: [DEMO-HP-01] [Tier C - Integration] Demo\n  Given a demo\n{TICKS}\n"
 
 
 def git(root: Path, *args: str) -> str:
-    return subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True,
-                          check=True).stdout.strip()
+    return subprocess.run(
+        ["git", "-C", str(root), *args], capture_output=True, text=True, check=True
+    ).stdout.strip()
 
 
 class ReviewCase(unittest.TestCase):
@@ -104,7 +106,10 @@ class ReviewCase(unittest.TestCase):
             (f"{EPIC}/demo.en.md", HLD),
             (f"{EPIC}/bdd_scenarios.en.md", SCENARIOS),
             (f"{EPIC}/design.en.md", "# Spec\n"),
-            (f"{EPIC}/task_1_demo.md", '---\nid: "task_1_demo"\nstatus: "done"\n---\n\n# Task 1\n'),
+            (
+                f"{EPIC}/task_1_demo.md",
+                '---\nid: "task_1_demo"\nstatus: "done"\n---\n\n# Task 1\n',
+            ),
             (
                 "build/demo.xml",
                 '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>\n  <testsuite name="demo" tests="1">\n    <testcase name="test_demo_hp_01" classname="test_demo"/>\n  </testsuite>\n</testsuites>\n',
@@ -129,13 +134,27 @@ class ReviewCase(unittest.TestCase):
         shutil.copytree(template_repo, self.root)
         self.base = template_base
         self.bin.mkdir()
-        for tool in ("git", "bash", "cat", "sleep", "sh"):  # only what the run needs: never a real claude or codex
+        for tool in (
+            "git",
+            "bash",
+            "cat",
+            "sleep",
+            "sh",
+        ):  # only what the run needs: never a real claude or codex
             tool_path = shutil.which(tool)
             if tool_path is not None:
                 (self.bin / tool).symlink_to(tool_path)
         (self.bin / "python3").symlink_to(sys.executable)
         self.stdin, self.args = tmp / "stdin.txt", tmp / "args.txt"
-        env = {"PATH": str(self.bin), "FAKE_STDIN": str(self.stdin), "FAKE_ARGS": str(self.args)}
+        self.fake_home = tmp / "home"
+        self.fake_home.mkdir()
+        env = {
+            "PATH": str(self.bin),
+            "HOME": str(self.fake_home),
+            "REAL_HOME": str(self.fake_home),
+            "FAKE_STDIN": str(self.stdin),
+            "FAKE_ARGS": str(self.args),
+        }
         patcher = mock.patch.dict(os.environ, env)
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -158,11 +177,18 @@ class ReviewCase(unittest.TestCase):
         path.write_text(FAKE, encoding="utf-8")
         path.chmod(0o755)
 
-    def run_review(self, *extra: str, cli: str = "codex", mode: str = "pass") -> tuple[int, str, str]:
+    def run_review(
+        self, *extra: str, cli: str = "codex", mode: str = "pass"
+    ) -> tuple[int, str, str]:
         out, err = io.StringIO(), io.StringIO()
-        with mock.patch.dict(os.environ, {"FAKE_MODE": mode}), \
-                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            code = main(["run", "--epic-dir", "demo", "--base", self.base, "--cli", cli, *extra])
+        with (
+            mock.patch.dict(os.environ, {"FAKE_MODE": mode}),
+            contextlib.redirect_stdout(out),
+            contextlib.redirect_stderr(err),
+        ):
+            code = main(
+                ["run", "--epic-dir", "demo", "--base", self.base, "--cli", cli, *extra]
+            )
         return code, out.getvalue(), err.getvalue()
 
     def check(self) -> tuple[int, str]:
@@ -181,15 +207,39 @@ class RunExternalReviewTest(ReviewCase):
         code, _, _ = self.run_review("--model", "gpt-test")
         self.assertEqual(code, 0)
         prompt = self.stdin.read_text(encoding="utf-8")
-        for expected in (git(self.root, "rev-parse", "HEAD"), self.base, f"{EPIC}/evidence",
-                         "Each done task's evidence against its Verification table",
-                         "The `(Gate 5)` items", "Verdict: PASS"):
+        for expected in (
+            git(self.root, "rev-parse", "HEAD"),
+            self.base,
+            f"{EPIC}/evidence",
+            "Each done task's evidence against its Verification table",
+            "The `(Gate 5)` items",
+            "Verdict: PASS",
+        ):
             self.assertIn(expected, prompt)
-        self.assertEqual(self.args.read_text().split(), ["exec", "--sandbox", "read-only", "-c", "model_reasoning_effort=high", "--model", "gpt-test", "-"])
+        self.assertEqual(
+            self.args.read_text().split(),
+            [
+                "exec",
+                "--sandbox",
+                "read-only",
+                "-c",
+                "model_reasoning_effort=high",
+                "--model",
+                "gpt-test",
+                "-",
+            ],
+        )
         text = self.text()
         self.assertTrue(text.startswith("# Cross-Model Review: demo\n"))
-        for expected in ("## Round 1", "- **Status**: completed", "- **CLI**: codex", "- **Model**: gpt-test",
-                         "- **Verdict**: PASS", f"- **Base**: {self.base}", f"{TICKS}text\nVerdict: PASS\n{TICKS}"):
+        for expected in (
+            "## Round 1",
+            "- **Status**: completed",
+            "- **CLI**: codex",
+            "- **Model**: gpt-test",
+            "- **Verdict**: PASS",
+            f"- **Base**: {self.base}",
+            f"{TICKS}text\nVerdict: PASS\n{TICKS}",
+        ):
             self.assertIn(expected, text)
         self.assertEqual(self.check()[0], 0)
 
@@ -197,9 +247,19 @@ class RunExternalReviewTest(ReviewCase):
         self.install("claude")
         code, _, _ = self.run_review(cli="claude", mode="minor")
         self.assertEqual(code, 0)
-        self.assertEqual(self.args.read_text().split(), ["-p", "--dangerously-skip-permissions", "--effort", "high", "--model", "opus"])
+        self.assertEqual(
+            self.args.read_text().split(),
+            [
+                "-p",
+                "--dangerously-skip-permissions",
+                "--effort",
+                "high",
+                "--model",
+                "opus",
+            ],
+        )
         text = self.text()
-        self.assertIn("- **Model**: Opus 5.5", text)
+        self.assertIn("- **Model**: opus", text)
         self.assertIn("- **Thinking**: high", text)
         self.assertIn("| 1 | Minor | README.md:1 | wording \\| unclear |  |", text)
         self.assertEqual(self.check()[0], 0)
@@ -208,22 +268,32 @@ class RunExternalReviewTest(ReviewCase):
         self.install("agy")
         code, _, _ = self.run_review(cli="agy", mode="pass")
         self.assertEqual(code, 0)
-        self.assertEqual(self.args.read_text().strip(), "--sandbox --mode plan --model Gemini 4 Argon (Medium)")
+        self.assertEqual(
+            self.args.read_text().strip(),
+            "--sandbox --mode plan --model gemini-4-argon-high",
+        )
         text = self.text()
         self.assertIn("- **CLI**: agy", text)
-        self.assertIn("- **Model**: Gemini 4 Argon (Medium)", text)
+        self.assertIn("- **Model**: gemini-4-argon-high", text)
         self.assertEqual(self.check()[0], 0)
 
     def test_agy_review_custom_model(self) -> None:
         self.install("agy")
-        code, _, _ = self.run_review("--model", "gemini-4-argon-high", cli="agy", mode="pass")
+        code, _, _ = self.run_review(
+            "--model", "gemini-4-argon-high", cli="agy", mode="pass"
+        )
         self.assertEqual(code, 0)
-        self.assertEqual(self.args.read_text().split(), ["--sandbox", "--mode", "plan", "--model", "gemini-4-argon-high"])
+        self.assertEqual(
+            self.args.read_text().split(),
+            ["--sandbox", "--mode", "plan", "--model", "gemini-4-argon-high"],
+        )
         text = self.text()
         self.assertIn("- **CLI**: agy", text)
         self.assertIn("- **Model**: gemini-4-argon-high", text)
 
-    def test_vth_st_10_blocking_findings_hold_phase_4_until_each_has_a_decision(self) -> None:
+    def test_vth_st_10_blocking_findings_hold_phase_4_until_each_has_a_decision(
+        self,
+    ) -> None:
         self.install("claude")
         self.assertEqual(self.run_review(cli="claude", mode="blocking")[0], 1)
         text = self.text()
@@ -233,30 +303,45 @@ class RunExternalReviewTest(ReviewCase):
         self.assertEqual(code, 1)
         self.assertIn("undecided: #1 Critical demo.en.md:3", out)
         self.assertIn("undecided: #2 Important task_1_demo.md:9", out)
-        text = text.replace("evidence missing |  |", "evidence missing | fixed in abc1234 |")
-        self.results.write_text(text.replace("row too weak |  |", "row too weak | dismissed: by design |"),
-                                encoding="utf-8")
+        text = text.replace(
+            "evidence missing |  |", "evidence missing | fixed in abc1234 |"
+        )
+        self.results.write_text(
+            text.replace("row too weak |  |", "row too weak | dismissed: by design |"),
+            encoding="utf-8",
+        )
         self.assertEqual(self.check(), (0, ""))
 
     def test_vth_st_11_the_latest_completed_round_governs_check(self) -> None:
         def round_text(n: int, status: str, findings: str) -> str:
-            return (f"## Round {n}\n\n- **Status**: {status}\n- **Verdict**: none\n\n"
-                    f"| # | Severity | Location | Problem | Decision |\n|---|---|---|---|---|\n{findings}\n"
-                    f"Raw output:\n\n{TICKS}text\n## Round 99\n{TICKS}\n\n")
-        body = ("# Cross-Model Review: demo\n\n" + round_text(1, "completed", "| 1 | Critical | a:1 | bad |  |")
-                + round_text(2, "completed", "| 1 | Minor | b:2 | nit |  |")
-                + round_text(3, "no verdict", "| 1 | Critical | c:3 | worse |  |"))
+            return (
+                f"## Round {n}\n\n- **Status**: {status}\n- **Verdict**: none\n\n"
+                f"| # | Severity | Location | Problem | Decision |\n|---|---|---|---|---|\n{findings}\n"
+                f"Raw output:\n\n{TICKS}text\n## Round 99\n{TICKS}\n\n"
+            )
+
+        body = (
+            "# Cross-Model Review: demo\n\n"
+            + round_text(1, "completed", "| 1 | Critical | a:1 | bad |  |")
+            + round_text(2, "completed", "| 1 | Minor | b:2 | nit |  |")
+            + round_text(3, "no verdict", "| 1 | Critical | c:3 | worse |  |")
+        )
         self.results.write_text(body, encoding="utf-8")
         self.assertEqual(self.check(), (0, ""))
         self.assertEqual(self.text(), body)
 
-    def test_finding_lines_in_other_shapes_are_parsed_and_unparsed_blocking_lines_kept(self) -> None:
+    def test_finding_lines_in_other_shapes_are_parsed_and_unparsed_blocking_lines_kept(
+        self,
+    ) -> None:
         self.install("codex")
         self.assertEqual(self.run_review(mode="formats")[0], 1)
         text = self.text()
         self.assertIn("| 1 | Critical | demo.en.md:3 | evidence missing |  |", text)
         self.assertIn("| 2 | Important | task_1_demo.md:9 | row too weak |  |", text)
-        self.assertIn("| 3 | Important | unparsed | [Important] the audit output was never read |  |", text)
+        self.assertIn(
+            "| 3 | Important | unparsed | [Important] the audit output was never read |  |",
+            text,
+        )
         code, out = self.check()
         self.assertEqual(code, 1)
         self.assertEqual(out.count("undecided:"), 3)
@@ -268,23 +353,44 @@ class RunExternalReviewTest(ReviewCase):
         self.assertEqual(self.check(), (0, ""))
 
     def round_text(self, status: str, findings: str, raw: str) -> str:
-        return (f"## Round 1\n\n- **Status**: {status}\n- **Verdict**: none\n\n"
-                f"| # | Severity | Location | Problem | Decision |\n|---|---|---|---|---|\n{findings}\n"
-                f"Raw output:\n\n{TICKS}text\n{raw}\n{TICKS}\n")
+        return (
+            f"## Round 1\n\n- **Status**: {status}\n- **Verdict**: none\n\n"
+            f"| # | Severity | Location | Problem | Decision |\n|---|---|---|---|---|\n{findings}\n"
+            f"Raw output:\n\n{TICKS}text\n{raw}\n{TICKS}\n"
+        )
 
     def test_an_unreadable_findings_row_fails_closed(self) -> None:
-        self.results.write_text("# Cross-Model Review: demo\n\n" + self.round_text(
-            "completed", "| 1 | Minor | a:1 | split | by | pipes |  |", "Verdict: PASS"), encoding="utf-8")
+        self.results.write_text(
+            "# Cross-Model Review: demo\n\n"
+            + self.round_text(
+                "completed",
+                "| 1 | Minor | a:1 | split | by | pipes |  |",
+                "Verdict: PASS",
+            ),
+            encoding="utf-8",
+        )
         code, out = self.check()
         self.assertEqual(code, 1)
-        self.assertIn("undecided: unreadable findings row: | 1 | Minor | a:1 | split | by | pipes |  |", out)
+        self.assertIn(
+            "undecided: unreadable findings row: | 1 | Minor | a:1 | split | by | pipes |  |",
+            out,
+        )
 
     def test_a_round_status_is_read_from_its_fields_not_its_raw_output(self) -> None:
-        self.results.write_text("# Cross-Model Review: demo\n\n" + self.round_text(
-            "no verdict", "| 1 | Critical | c:3 | worse |  |", "- **Status**: completed"), encoding="utf-8")
+        self.results.write_text(
+            "# Cross-Model Review: demo\n\n"
+            + self.round_text(
+                "no verdict",
+                "| 1 | Critical | c:3 | worse |  |",
+                "- **Status**: completed",
+            ),
+            encoding="utf-8",
+        )
         self.assertEqual(self.check(), (0, ""))
 
-    def test_vth_fr_06_a_missing_cli_or_a_dirty_tree_stops_the_review_before_it_runs(self) -> None:
+    def test_vth_fr_06_a_missing_cli_or_a_dirty_tree_stops_the_review_before_it_runs(
+        self,
+    ) -> None:
         code, _, err = self.run_review(cli="claude")
         self.assertEqual(code, 2)
         self.assertIn("claude not found on PATH", err)
@@ -301,14 +407,22 @@ class RunExternalReviewTest(ReviewCase):
         self.install("codex")
         code, _, _ = self.run_review(mode="modify")
         self.assertEqual(code, 2)
-        self.assertIn("- **Status**: discarded: tree modified (DEMO-created.txt)", self.text())
+        self.assertIn(
+            "- **Status**: discarded: tree modified (DEMO-created.txt)", self.text()
+        )
         self.assertTrue((self.root / "DEMO-created.txt").exists())
 
     def test_vth_fr_08_a_failing_silent_or_slow_cli_records_no_verdict(self) -> None:
         self.install("claude")
-        for mode, option in (("fail", []), ("silent", []), ("slow", ["--timeout", "1"])):
+        for mode, option in (
+            ("fail", []),
+            ("silent", []),
+            ("slow", ["--timeout", "1"]),
+        ):
             with self.subTest(mode=mode):
-                self.assertEqual(self.run_review(*option, cli="claude", mode=mode)[0], 2)
+                self.assertEqual(
+                    self.run_review(*option, cli="claude", mode=mode)[0], 2
+                )
                 self.commit(f"Record {mode} round")  # a review needs a clean tree
         text = self.text()
         self.assertEqual(text.count("- **Status**: no verdict"), 3)
@@ -341,7 +455,9 @@ class RunExternalReviewTest(ReviewCase):
         self.assertIn("- **Status**: completed", self.text())
 
     # [RWE-EC-01] Conversational Summary Does Not Trigger Unparsed Blocking
-    def test_rwe_ec_01_conversational_summary_does_not_trigger_unparsed_blocking(self) -> None:
+    def test_rwe_ec_01_conversational_summary_does_not_trigger_unparsed_blocking(
+        self,
+    ) -> None:
         self.install("codex")
         code, _, _ = self.run_review(cli="codex", mode="prose_summary")
         self.assertEqual(code, 0)
@@ -359,11 +475,10 @@ class RunExternalReviewTest(ReviewCase):
         self.assertIn("| 2 | Important | demo.en.md:2 | list bullet star |  |", text)
         self.assertIn("| 3 | Minor | demo.en.md:3 | numbered list |  |", text)
 
-
-
     # [RWE-HP-03] Table cell sanitizes control characters
     def test_rwe_hp_03_cell_sanitizes_control_characters(self) -> None:
         from run_external_review import cell
+
         raw = "line 1\r\nline 2 | line 3\r"
         sanitized = cell(raw)
         self.assertEqual(sanitized, r"line 1 line 2 \| line 3")
@@ -373,6 +488,7 @@ class RunExternalReviewTest(ReviewCase):
     # [RWE-EC-03] Table findings row with multiple escaped pipes
     def test_rwe_ec_03_cell_handles_escaped_pipes(self) -> None:
         from run_external_review import render_round, table_findings
+
         meta = {"Status": "completed", "Verdict": "PASS"}
         findings = [("Minor", "src/file.py:10", "use a | b | c syntax")]
         round_md = render_round(1, meta, findings, "Verdict: PASS\n")
@@ -382,7 +498,6 @@ class RunExternalReviewTest(ReviewCase):
         self.assertEqual(len(cells), 5)
         self.assertEqual(cells[2], "src/file.py:10")
         self.assertEqual(cells[3], "use a | b | c syntax")
-
 
     # [RWE-HP-04] Clean facts collection proceeds to CLI execution
     def test_rwe_hp_04_clean_facts_collection_proceeds_to_cli(self) -> None:
@@ -399,7 +514,10 @@ class RunExternalReviewTest(ReviewCase):
         prompt = self.stdin.read_text(encoding="utf-8")
         self.assertIn("The audit of the epic branch, with its exit code:", prompt)
         self.assertIn("PASS: audit_epic.py", prompt)
-        self.assertIn("The integration test commands and the result-based traceability check", prompt)
+        self.assertIn(
+            "The integration test commands and the result-based traceability check",
+            prompt,
+        )
         self.assertIn("PASS: true", prompt)
 
     # [RWE-EC-04] Facts timeout separated from CLI timeout
@@ -407,12 +525,14 @@ class RunExternalReviewTest(ReviewCase):
         self.install("codex")
         with mock.patch("run_external_review.execute") as mock_exec:
             mock_exec.side_effect = [
-                (0, "audit passed", ""),       # audit_epic.py
-                (0, "test passed", ""),        # integration test
-                (0, "trace passed", ""),       # check_bdd_traceability.py
-                (0, "Verdict: PASS\n", ""),    # codex CLI
+                (0, "audit passed", ""),  # audit_epic.py
+                (0, "test passed", ""),  # integration test
+                (0, "trace passed", ""),  # check_bdd_traceability.py
+                (0, "Verdict: PASS\n", ""),  # codex CLI
             ]
-            code, _out, _err = self.run_review("--facts-timeout", "45", "--timeout", "1200", cli="codex", mode="pass")
+            code, _out, _err = self.run_review(
+                "--facts-timeout", "45", "--timeout", "1200", cli="codex", mode="pass"
+            )
             self.assertEqual(code, 0)
             self.assertEqual(mock_exec.call_args_list[0][0][2], 45)
             self.assertEqual(mock_exec.call_args_list[1][0][2], 45)
@@ -422,7 +542,10 @@ class RunExternalReviewTest(ReviewCase):
     # [RWE-FR-01] Fail-fast aborts on non-zero integration test exit
     def test_rwe_fr_01_fail_fast_aborts_on_integration_test_failure(self) -> None:
         self.install("claude")
-        self.write(f"{EPIC}/demo.en.md", "# Demo\n\nIntegration test roots: scripts/\n\nIntegration results: false -> build/demo.xml\n")
+        self.write(
+            f"{EPIC}/demo.en.md",
+            "# Demo\n\nIntegration test roots: scripts/\n\nIntegration results: false -> build/demo.xml\n",
+        )
         self.commit("HLD with failing test")
         code, _out, err = self.run_review(cli="claude", mode="pass")
         self.assertEqual(code, 2)
@@ -437,7 +560,10 @@ class RunExternalReviewTest(ReviewCase):
     def test_rwe_fr_01_fail_fast_aborts_on_audit_failure(self) -> None:
         self.install("claude")
         # Mark task_1_demo done with a Verification section but without evidence to make audit_epic fail
-        self.write(f"{EPIC}/task_1_demo.md", '---\nid: "task_1_demo"\nstatus: "done"\n---\n\n# Task 1\n\n## Verification\n\n| ID | Phase | Command | Expect | Needs |\n|----|-------|---------|--------|-------|\n| V1 | GREEN | true | exit 0 | — |\n')
+        self.write(
+            f"{EPIC}/task_1_demo.md",
+            '---\nid: "task_1_demo"\nstatus: "done"\n---\n\n# Task 1\n\n## Verification\n\n| ID | Phase | Command | Expect | Needs |\n|----|-------|---------|--------|-------|\n| V1 | GREEN | true | exit 0 | — |\n',
+        )
         self.commit("Task 1 done without evidence")
         code, _out, err = self.run_review(cli="claude", mode="pass")
         self.assertEqual(code, 2)
@@ -449,9 +575,14 @@ class RunExternalReviewTest(ReviewCase):
     def test_rwe_fr_02_fail_fast_aborts_on_test_timeout(self) -> None:
         self.install("claude")
         # Change HLD to have a sleeping integration test
-        self.write(f"{EPIC}/demo.en.md", "# Demo\n\nIntegration test roots: scripts/\n\nIntegration results: sleep 5 -> build/demo.xml\n")
+        self.write(
+            f"{EPIC}/demo.en.md",
+            "# Demo\n\nIntegration test roots: scripts/\n\nIntegration results: sleep 5 -> build/demo.xml\n",
+        )
         self.commit("HLD with slow test")
-        code, _out, err = self.run_review("--facts-timeout", "1", cli="claude", mode="pass")
+        code, _out, err = self.run_review(
+            "--facts-timeout", "1", cli="claude", mode="pass"
+        )
         self.assertEqual(code, 2)
         self.assertIn("[PRECONDITION BLOCKED]", err)
         self.assertIn("TIMEOUT (1s)", err)
@@ -461,8 +592,10 @@ class RunExternalReviewTest(ReviewCase):
     def test_precheck_progress_prints_are_flushed_immediately(self) -> None:
         from run_external_review import run_gate
 
-        with mock.patch("run_external_review.execute", return_value=(0, "ok", "")), \
-                mock.patch("builtins.print") as print_mock:
+        with (
+            mock.patch("run_external_review.execute", return_value=(0, "ok", "")),
+            mock.patch("builtins.print") as print_mock,
+        ):
             code, out, err = run_gate("demo gate", ["true"], self.root, 30)
 
         self.assertEqual((code, out, err), (0, "ok", ""))
@@ -472,17 +605,20 @@ class RunExternalReviewTest(ReviewCase):
             self.assertTrue(call.kwargs["flush"])
         self.assertEqual(print_mock.call_args_list[0].kwargs["end"], "")
 
-
     # [RWE-ST-01] Round transitions to check pass after decisions
     def test_rwe_st_01_round_transitions_to_check_pass_after_decisions(self) -> None:
         self.install("claude")
         self.assertEqual(self.run_review(cli="claude", mode="blocking")[0], 1)
         # Record decisions for both findings
         review_text = self.text()
-        review_text = review_text.replace("| 1 | Critical | demo.en.md:3 | evidence missing |  |",
-                                  "| 1 | Critical | demo.en.md:3 | evidence missing | fixed in abc1234 |")
-        review_text = review_text.replace("| 2 | Important | task_1_demo.md:9 | row too weak |  |",
-                                  "| 2 | Important | task_1_demo.md:9 | row too weak | dismissed: verified by V3 |")
+        review_text = review_text.replace(
+            "| 1 | Critical | demo.en.md:3 | evidence missing |  |",
+            "| 1 | Critical | demo.en.md:3 | evidence missing | fixed in abc1234 |",
+        )
+        review_text = review_text.replace(
+            "| 2 | Important | task_1_demo.md:9 | row too weak |  |",
+            "| 2 | Important | task_1_demo.md:9 | row too weak | dismissed: verified by V3 |",
+        )
         self.results.write_text(review_text, encoding="utf-8")
         code, out = self.check()
         self.assertEqual(code, 0)
@@ -496,7 +632,6 @@ class RunExternalReviewTest(ReviewCase):
         self.assertEqual(code, 1)
         self.assertIn("undecided: #1 Critical demo.en.md:3", out)
         self.assertIn("undecided: #2 Important task_1_demo.md:9", out)
-
 
     # [RWE-HP-05] Full diff inlined when under line limit
     def test_rwe_hp_05_inlined_code_diff(self) -> None:
@@ -517,7 +652,9 @@ class RunExternalReviewTest(ReviewCase):
         self.install("codex")
         self.write("src/large.py", "\n".join(f"x_{i} = {i}" for i in range(10)) + "\n")
         self.commit("Add large file")
-        code, _out, _err = self.run_review("--diff-limit", "3", cli="codex", mode="pass")
+        code, _out, _err = self.run_review(
+            "--diff-limit", "3", cli="codex", mode="pass"
+        )
         self.assertEqual(code, 0)
         prompt = self.stdin.read_text(encoding="utf-8")
         self.assertIn("## Code Changes (Diff)", prompt)
@@ -525,30 +662,34 @@ class RunExternalReviewTest(ReviewCase):
         self.assertIn("Full file change summary", prompt)
         self.assertIn("src/large.py", prompt)
 
-
     # [RWE-HP-05] Diff with raw dollar variables is safely substituted without Template crash
     def test_rwe_hp_05_diff_with_dollar_variables(self) -> None:
         self.install("claude")
-        self.write("src/script.sh", "#!/bin/bash\necho \"$UNDEFINED_VAR\" > \"$OUTPUT_FILE\"\n")
+        self.write(
+            "src/script.sh", '#!/bin/bash\necho "$UNDEFINED_VAR" > "$OUTPUT_FILE"\n'
+        )
         self.commit("Add bash script with dollars")
         code, _out, _err = self.run_review(cli="claude", mode="pass")
         self.assertEqual(code, 0)
         prompt = self.stdin.read_text(encoding="utf-8")
         self.assertIn("$UNDEFINED_VAR", prompt)
 
-
     # Test lowercase severity is capitalized and triggers blocking
     def test_lowercase_severity_is_capitalized_and_blocks_run(self) -> None:
         self.install("claude")
         from run_external_review import parse_findings
+
         out = "Verdict: CHANGES REQUIRED\n- [critical] demo.en.md:1 — broken\n"
         findings = parse_findings(out)
         self.assertEqual(len(findings), 1)
         self.assertEqual(findings[0][0], "Critical")
 
     # Test list text with important without brackets does not trigger unparsed blocking
-    def test_list_text_without_brackets_does_not_trigger_unparsed_blocking(self) -> None:
+    def test_list_text_without_brackets_does_not_trigger_unparsed_blocking(
+        self,
+    ) -> None:
         from run_external_review import parse_findings
+
         out = "Verdict: PASS\n- Important context: this is good documentation\n"
         findings = parse_findings(out, "PASS")
         self.assertEqual(len(findings), 0)
@@ -557,7 +698,10 @@ class RunExternalReviewTest(ReviewCase):
     def test_fail_fast_aborts_on_traceability_failure(self) -> None:
         self.install("claude")
         # Point to missing report in HLD
-        self.write(f"{EPIC}/demo.en.md", "# Demo\n\nIntegration test roots: scripts/\n\nIntegration results: true -> build/nonexistent.xml\n")
+        self.write(
+            f"{EPIC}/demo.en.md",
+            "# Demo\n\nIntegration test roots: scripts/\n\nIntegration results: true -> build/nonexistent.xml\n",
+        )
         self.commit("HLD with missing report")
         code, _out, err = self.run_review(cli="claude", mode="pass")
         self.assertEqual(code, 2)
@@ -567,18 +711,39 @@ class RunExternalReviewTest(ReviewCase):
         self.assertIn("failed with exit code 2", err)
         self.assertFalse(self.results.exists())
 
+
 class PrincipalReviewTest(ReviewCase):
     def setUp(self) -> None:
         super().setUp()
         tcer.build_ready_epic(self.root)
         self.commit("Ready epic")
-        self.principal_results = self.root / ".devtool" / "epic" / "demo_epic" / "principal_review.md"
+        self.principal_results = (
+            self.root / ".devtool" / "epic" / "demo_epic" / "principal_review.md"
+        )
 
-    def run_principal(self, *extra: str, cli: str = "claude", mode: str = "pass") -> tuple[int, str, str]:
+    def run_principal(
+        self, *extra: str, cli: str = "claude", mode: str = "pass"
+    ) -> tuple[int, str, str]:
         out, err = io.StringIO(), io.StringIO()
-        with mock.patch.dict(os.environ, {"FAKE_MODE": mode}), \
-                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            code = main(["run", "--kind", "principal", "--epic-dir", "demo_epic", "--base", "main", "--cli", cli, *extra])
+        with (
+            mock.patch.dict(os.environ, {"FAKE_MODE": mode}),
+            contextlib.redirect_stdout(out),
+            contextlib.redirect_stderr(err),
+        ):
+            code = main(
+                [
+                    "run",
+                    "--kind",
+                    "principal",
+                    "--epic-dir",
+                    "demo_epic",
+                    "--base",
+                    "main",
+                    "--cli",
+                    cli,
+                    *extra,
+                ]
+            )
         return code, out.getvalue(), err.getvalue()
 
     def test_srs_hp_01_principal_round_recorded_in_principal_review_md(self) -> None:
@@ -594,7 +759,9 @@ class PrincipalReviewTest(ReviewCase):
         self.assertIn(main_sha, prompt)
         self.assertNotIn("audit_epic.py", prompt)
 
-        self.assertTrue(self.principal_results.is_file(), "principal_review.md should exist")
+        self.assertTrue(
+            self.principal_results.is_file(), "principal_review.md should exist"
+        )
         text = self.principal_results.read_text(encoding="utf-8")
         self.assertTrue(text.startswith("# Principal Review: demo_epic\n"))
         self.assertIn("## Round 1", text)
@@ -602,7 +769,11 @@ class PrincipalReviewTest(ReviewCase):
         self.assertIn("- **CLI**: claude", text)
         self.assertIn("- **Status**: completed", text)
         self.assertIn("- **Verdict**: PASS", text)
-        self.assertFalse((self.root / ".devtool" / "epic" / "demo_epic" / "review_results.md").exists())
+        self.assertFalse(
+            (
+                self.root / ".devtool" / "epic" / "demo_epic" / "review_results.md"
+            ).exists()
+        )
 
     def test_prv_hp_03_findings_with_proposed_edits_become_table_rows(self) -> None:
         """PRV-HP-03: Findings with proposed edits become table rows and set exit code."""
@@ -619,10 +790,13 @@ class PrincipalReviewTest(ReviewCase):
         self.install("agy")
         code, out, err = self.run_principal(cli="agy", mode="pass")
         self.assertEqual(code, 0, f"Expected 0, got {code}.\nOut:\n{out}\nErr:\n{err}")
-        self.assertEqual(self.args.read_text().strip(), "--sandbox --mode plan --model Gemini 4 Argon (Medium)")
+        self.assertEqual(
+            self.args.read_text().strip(),
+            "--sandbox --mode plan --model gemini-4-argon-high",
+        )
         text = self.principal_results.read_text(encoding="utf-8")
         self.assertIn("- **CLI**: agy", text)
-        self.assertIn("- **Model**: Gemini 4 Argon (Medium)", text)
+        self.assertIn("- **Model**: gemini-4-argon-high", text)
         self.assertIn("- **Verdict**: PASS", text)
 
     def test_srs_st_01_decisions_move_check_from_1_to_0(self) -> None:
@@ -632,7 +806,9 @@ class PrincipalReviewTest(ReviewCase):
         self.assertEqual(code, 1)
 
         # Code review results with no findings (clean round)
-        code_rev_path = self.root / ".devtool" / "epic" / "demo_epic" / "review_results.md"
+        code_rev_path = (
+            self.root / ".devtool" / "epic" / "demo_epic" / "review_results.md"
+        )
         code_rev_path.write_text(
             "# Cross-Model Review: demo_epic\n\n## Round 1\n\n- **Status**: completed\n- **Verdict**: PASS\n\n"
             "| # | Severity | Location | Problem | Decision |\n|---|----------|----------|---------|----------|\n\n"
@@ -678,7 +854,9 @@ class PrincipalReviewTest(ReviewCase):
             encoding="utf-8",
         )
         # review_results.md with 1 round
-        code_rev_path = self.root / ".devtool" / "epic" / "demo_epic" / "review_results.md"
+        code_rev_path = (
+            self.root / ".devtool" / "epic" / "demo_epic" / "review_results.md"
+        )
         code_rev_path.write_text(
             "# Cross-Model Review: demo_epic\n\n"
             "## Round 1\n\n- **Status**: completed\n- **Verdict**: PASS\n\n"
@@ -691,7 +869,9 @@ class PrincipalReviewTest(ReviewCase):
         with contextlib.redirect_stdout(out_pr):
             c_pr = main(["triage", "--kind", "principal", "--epic-dir", "demo_epic"])
         self.assertEqual(c_pr, 0)
-        self.assertTrue(out_pr.getvalue().startswith("# Review Triage: demo_epic, Round 2"))
+        self.assertTrue(
+            out_pr.getvalue().startswith("# Review Triage: demo_epic, Round 2")
+        )
 
         out_code = io.StringIO()
         with contextlib.redirect_stdout(out_code):
@@ -701,9 +881,13 @@ class PrincipalReviewTest(ReviewCase):
 
         err_missing = io.StringIO()
         with contextlib.redirect_stderr(err_missing):
-            c_missing = main(["triage", "--kind", "principal", "--epic-dir", "nonexistent"])
+            c_missing = main(
+                ["triage", "--kind", "principal", "--epic-dir", "nonexistent"]
+            )
         self.assertEqual(c_missing, 2)
-        self.assertIn("no review round recorded for nonexistent", err_missing.getvalue())
+        self.assertIn(
+            "no review round recorded for nonexistent", err_missing.getvalue()
+        )
 
     def test_prv_ar_01_second_round_before_commit_refused(self) -> None:
         """PRV-AR-01: A second round before the first is committed is refused and rounds number in order."""
@@ -737,7 +921,9 @@ class PrincipalReviewTest(ReviewCase):
         """[SRS-FR-01] A readiness FAIL blocks the CLI and records nothing."""
         # Break readiness: make task_2 fail R5 by adding a missing symbol
         (self.root / "src").mkdir(parents=True, exist_ok=True)
-        (self.root / "src" / "app.py").write_text("def other(): pass\n", encoding="utf-8")
+        (self.root / "src" / "app.py").write_text(
+            "def other(): pass\n", encoding="utf-8"
+        )
         task_2_path = self.root / ".devtool" / "epic" / "demo_epic" / "task_2.md"
         t2_text = task_2_path.read_text(encoding="utf-8").replace(
             "- **Target Files & Symbols**:\n  - `tool.py`: `run`",
@@ -745,7 +931,9 @@ class PrincipalReviewTest(ReviewCase):
         )
         task_2_path.write_text(t2_text, encoding="utf-8")
         (self.root / ".devtool" / "features" / "task_2.md").write_text(
-            t2_text.replace("](demo_epic.en.md)", "](../epic/demo_epic/demo_epic.en.md)"),
+            t2_text.replace(
+                "](demo_epic.en.md)", "](../epic/demo_epic/demo_epic.en.md)"
+            ),
             encoding="utf-8",
         )
         self.commit("Break R5 readiness")
@@ -766,9 +954,25 @@ class PrincipalReviewTest(ReviewCase):
         (self.root / "dirty.txt").write_text("dirty\n", encoding="utf-8")
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            code = main(["run", "--kind", "principal", "--epic-dir", "demo_epic", "--base", "main", "--cli", "ollama", "--model", "m"])
+            code = main(
+                [
+                    "run",
+                    "--kind",
+                    "principal",
+                    "--epic-dir",
+                    "demo_epic",
+                    "--base",
+                    "main",
+                    "--cli",
+                    "ollama",
+                    "--model",
+                    "m",
+                ]
+            )
         self.assertEqual(code, 2)
-        self.assertIn("--kind principal supports --cli claude, codex, or agy", err.getvalue())
+        self.assertIn(
+            "--kind principal supports --cli claude, codex, or agy", err.getvalue()
+        )
         self.assertNotIn("[Pre-check]", err.getvalue())
         self.assertFalse(self.principal_results.exists())
 
@@ -792,7 +996,19 @@ class TestPrincipalReviewDocMode(ReviewCase):
         with mock.patch.dict(os.environ, {"FAKE_COUNTER": str(counter)}):
             out, err = io.StringIO(), io.StringIO()
             with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                code = main(["run", "--kind", "principal", "--doc", "docs/rfc/missing-doc.md", "--base", "main", "--cli", "claude"])
+                code = main(
+                    [
+                        "run",
+                        "--kind",
+                        "principal",
+                        "--doc",
+                        "docs/rfc/missing-doc.md",
+                        "--base",
+                        "main",
+                        "--cli",
+                        "claude",
+                    ]
+                )
             self.assertEqual(code, 2)
             self.assertIn("docs/rfc/missing-doc.md", err.getvalue())
             self.assertFalse(counter.exists())
@@ -808,7 +1024,19 @@ class TestPrincipalReviewDocMode(ReviewCase):
         with mock.patch.dict(os.environ, {"FAKE_COUNTER": str(counter)}):
             out, err = io.StringIO(), io.StringIO()
             with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                code = main(["run", "--kind", "principal", "--doc", "docs/rfc/broken.md", "--base", "main", "--cli", "claude"])
+                code = main(
+                    [
+                        "run",
+                        "--kind",
+                        "principal",
+                        "--doc",
+                        "docs/rfc/broken.md",
+                        "--base",
+                        "main",
+                        "--cli",
+                        "claude",
+                    ]
+                )
             self.assertEqual(code, 2)
             self.assertIn("docs/rfc/broken.md", err.getvalue())
             self.assertFalse(counter.exists())
@@ -817,9 +1045,24 @@ class TestPrincipalReviewDocMode(ReviewCase):
         """[SRS-HP-02] Ad-hoc principal review validates and streams triage table to stdout."""
         self.install("claude")
         out, err = io.StringIO(), io.StringIO()
-        with mock.patch.dict(os.environ, {"FAKE_MODE": "pass"}), \
-                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            code = main(["run", "--kind", "principal", "--doc", "docs/rfc/feature-architecture.md", "--base", "main", "--cli", "claude"])
+        with (
+            mock.patch.dict(os.environ, {"FAKE_MODE": "pass"}),
+            contextlib.redirect_stdout(out),
+            contextlib.redirect_stderr(err),
+        ):
+            code = main(
+                [
+                    "run",
+                    "--kind",
+                    "principal",
+                    "--doc",
+                    "docs/rfc/feature-architecture.md",
+                    "--base",
+                    "main",
+                    "--cli",
+                    "claude",
+                ]
+            )
         self.assertEqual(code, 0)
         output = out.getvalue()
         self.assertIn("Review Triage", output)
@@ -829,7 +1072,9 @@ class TestPrincipalReviewDocMode(ReviewCase):
         self.assertIn("docs/rfc/feature-architecture.md", prompt)
         self.assertIn("RFC: Feature Architecture", prompt)
         # Verify no principal_review.md was created
-        self.assertFalse((self.root / ".devtool" / "epic" / "demo" / "principal_review.md").exists())
+        self.assertFalse(
+            (self.root / ".devtool" / "epic" / "demo" / "principal_review.md").exists()
+        )
         self.assertFalse((self.root / "principal_review.md").exists())
 
 
@@ -851,8 +1096,11 @@ class TestCrossModelReviewAdhoc(ReviewCase):
         self.write("src/service.py", "def process(): return True\n")
         self.commit("Add service")
         out, err = io.StringIO(), io.StringIO()
-        with mock.patch.dict(os.environ, {"FAKE_MODE": "pass"}), \
-                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        with (
+            mock.patch.dict(os.environ, {"FAKE_MODE": "pass"}),
+            contextlib.redirect_stdout(out),
+            contextlib.redirect_stderr(err),
+        ):
             code = main(["run", "--base", "main", "--cli", "claude"])
         self.assertEqual(code, 0)
         output = out.getvalue()
@@ -865,11 +1113,30 @@ class TestCrossModelReviewAdhoc(ReviewCase):
 
     def test_srs_hp_05_local_model_review_invocation(self) -> None:
         """[SRS-HP-05] Local model review invokes runner with --cli ollama and records round."""
-        with mock.patch("local_review.probe", return_value=32768), \
-                mock.patch("local_review.chat", return_value=mock.Mock(error=None, content="Verdict: PASS", done_reason="stop")):
+        with (
+            mock.patch("local_review.probe", return_value=32768),
+            mock.patch(
+                "local_review.chat",
+                return_value=mock.Mock(
+                    error=None, content="Verdict: PASS", done_reason="stop"
+                ),
+            ),
+        ):
             out, err = io.StringIO(), io.StringIO()
             with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                code = main(["run", "--epic-dir", "demo", "--base", self.base, "--cli", "ollama", "--model", "qwen2.5-coder:32b"])
+                code = main(
+                    [
+                        "run",
+                        "--epic-dir",
+                        "demo",
+                        "--base",
+                        self.base,
+                        "--cli",
+                        "ollama",
+                        "--model",
+                        "qwen2.5-coder:32b",
+                    ]
+                )
             self.assertEqual(code, 0)
             text = self.results.read_text(encoding="utf-8")
             self.assertIn("## Round 1", text)
@@ -890,7 +1157,9 @@ class TestCrossModelReviewAdhoc(ReviewCase):
         """[SRS-EC-03] Missing external CLI triggers error guidance without crashing."""
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            code = main(["run", "--epic-dir", "demo", "--base", self.base, "--cli", "claude"])
+            code = main(
+                ["run", "--epic-dir", "demo", "--base", self.base, "--cli", "claude"]
+            )
         self.assertEqual(code, 2)
         self.assertIn("claude not found on PATH", err.getvalue())
 
@@ -968,46 +1237,61 @@ class TestReviewConfigAndHeader(ReviewCase):
         self.assertIn("• Verdict: PASS (0 findings)", output)
 
     def test_rts_hp_02_canonical_defaults_auto_seeded(self) -> None:
-        """[RTS-HP-02] Canonical provider defaults are automatically seeded when config is missing (Priority: Claude -> Codex -> Kiro -> Argon, max_rounds=3)."""
+        """[RTS-HP-02] Canonical provider defaults resolve from kit defaults without auto-seeding review_config.json."""
         config_path = self.root / ".devtool" / "review_config.json"
         if config_path.exists():
             config_path.unlink()
         cfg = load_review_config(self.root)
+        self.assertFalse(config_path.exists())
         self.assertEqual(cfg["last_used_provider"], "claude")
         self.assertEqual(cfg["provider_priority"], ["claude", "codex", "kiro", "agy"])
         self.assertEqual(cfg["max_rounds"], 3)
-        self.assertEqual(list(cfg["providers"].keys())[:4], ["claude", "codex", "kiro", "agy"])
-        self.assertEqual(cfg["providers"]["claude"]["model"], "Opus 5.5")
+        self.assertEqual(cfg["max_principal_review_passes"], 3)
+        self.assertEqual(cfg["max_cross_model_review_passes"], 3)
+        self.assertEqual(
+            list(cfg["providers"].keys())[:4], ["claude", "codex", "kiro", "agy"]
+        )
+        self.assertEqual(cfg["providers"]["claude"]["model"], "opus")
         self.assertEqual(cfg["providers"]["claude"]["thinking_level"], "high")
         self.assertEqual(cfg["providers"]["codex"]["model"], "gpt-6.1-sol")
         self.assertEqual(cfg["providers"]["codex"]["thinking_level"], "high")
         self.assertEqual(cfg["providers"]["kiro"]["model"], "claude-opus-5.5")
         self.assertEqual(cfg["providers"]["kiro"]["thinking_level"], "high")
-        self.assertEqual(cfg["providers"]["agy"]["model"], "Gemini 4 Argon (Medium)")
-        self.assertEqual(cfg["providers"]["agy"]["thinking_level"], "medium")
-        self.assertEqual(cfg["providers"]["ollama"]["model"], "qwen38-fast:latest")
+        self.assertEqual(cfg["providers"]["agy"]["model"], "gemini-4-argon-high")
+        self.assertEqual(cfg["providers"]["agy"]["thinking_level"], "high")
+        self.assertEqual(cfg["providers"]["ollama"]["model"], "gemma4:31b-it-qat")
         self.assertEqual(cfg["providers"]["ollama"]["thinking_level"], "high")
+        self.assertEqual(cfg["providers"]["ollama"]["host"], "http://localhost:11434")
 
     def test_rts_hp_03_sticky_memory_updates_on_subsequent_runs(self) -> None:
-        """[RTS-HP-03] Sticky memory updates provider preferences upon execution."""
-        initial_cfg = {"last_used_provider": "codex", "providers": {"codex": {"model": "gpt-6.1-sol", "thinking_level": "high"}}}
+        """[RTS-HP-03] Sticky runtime memory records last_used_provider in review_runtime.json without mutating review_config.json."""
+        initial_cfg = {
+            "last_used_provider": "codex",
+            "providers": {"codex": {"model": "gpt-6.1-sol", "thinking_level": "high"}},
+        }
         save_review_config(self.root, initial_cfg)
         self.commit("Save initial config")
+        config_path = self.root / ".devtool" / "review_config.json"
+        before_bytes = config_path.read_bytes()
         self.install("claude")
         code, _, _ = self.run_review(
-            "--thinking-level", "medium",
-            "--model", "custom-claude",
+            "--thinking-level",
+            "medium",
+            "--model",
+            "custom-claude",
             cli="claude",
             mode="pass",
         )
         self.assertEqual(code, 0)
-        config_path = self.root / ".devtool" / "review_config.json"
         self.assertTrue(config_path.exists())
-        config = json.loads(config_path.read_text(encoding="utf-8"))
-        self.assertEqual(config["last_used_provider"], "claude")
-        self.assertEqual(config["providers"]["claude"]["model"], "custom-claude")
-        self.assertEqual(config["providers"]["claude"]["thinking_level"], "medium")
-        self.assertEqual(config["providers"]["codex"]["model"], "gpt-6.1-sol")
+        self.assertEqual(config_path.read_bytes(), before_bytes)
+        runtime_path = self.root / ".devtool" / "state" / "review_runtime.json"
+        self.assertTrue(runtime_path.exists())
+        runtime_data = json.loads(runtime_path.read_text(encoding="utf-8"))
+        self.assertEqual(runtime_data["last_used_provider"], "claude")
+        loaded = load_review_config(self.root)
+        self.assertEqual(loaded["last_used_provider"], "claude")
+        self.assertEqual(loaded["providers"]["codex"]["model"], "gpt-6.1-sol")
 
     def test_rts_hp_04_thinking_level_translates_to_cli_flags(self) -> None:
         """[RTS-HP-04] Thinking level translates to provider-specific CLI flags."""
@@ -1022,7 +1306,9 @@ class TestReviewConfigAndHeader(ReviewCase):
         self.assertIn("xhigh", args)
         self.commit("Round 2")
         self.install("kiro-cli")
-        code_kiro, out_kiro, _ = self.run_review("--thinking-level", "high", cli="kiro", mode="pass")
+        code_kiro, out_kiro, _ = self.run_review(
+            "--thinking-level", "high", cli="kiro", mode="pass"
+        )
         self.assertEqual(code_kiro, 0)
         kiro_args = self.args.read_text().split()
         self.assertIn("chat", kiro_args)
@@ -1049,6 +1335,7 @@ class TestReviewConfigAndHeader(ReviewCase):
             principal_prompt_path,
             principal_rules_path,
         )
+
         ext_prompt = PROMPT.read_text(encoding="utf-8")
         ext_rules = RULES.read_text(encoding="utf-8")
         pr_prompt = principal_prompt_path().read_text(encoding="utf-8")
@@ -1062,7 +1349,9 @@ class TestReviewConfigAndHeader(ReviewCase):
         """[RTS-EC-01] Ollama requires explicit --model if no previous round exists."""
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            code = main(["run", "--epic-dir", "demo", "--base", self.base, "--cli", "ollama"])
+            code = main(
+                ["run", "--epic-dir", "demo", "--base", self.base, "--cli", "ollama"]
+            )
         self.assertEqual(code, 2)
         self.assertIn("--cli ollama needs --model", err.getvalue())
 
@@ -1080,18 +1369,23 @@ class TestReviewConfigAndHeader(ReviewCase):
 
     def test_rts_ec_03_zero_findings_in_verdict(self) -> None:
         """[RTS-EC-03] Zero findings in review verdict displays 0 findings."""
-        lines = format_triage_header("Title", "abc1234", "codex", "gpt-6.1-sol", "high", "PASS", [])
+        lines = format_triage_header(
+            "Title", "abc1234", "codex", "gpt-6.1-sol", "high", "PASS", []
+        )
         self.assertIn("• Verdict: PASS (0 findings)", lines)
 
     def test_rts_st_01_provider_switching_preserves_distinct_memory(self) -> None:
         """[RTS-ST-01] Switching providers preserves each provider's distinct preferences."""
-        save_review_config(self.root, {
-            "last_used_provider": "codex",
-            "providers": {
-                "claude": {"model": "saved-claude", "thinking_level": "low"},
-                "codex": {"model": "saved-codex", "thinking_level": "high"},
-            }
-        })
+        save_review_config(
+            self.root,
+            {
+                "last_used_provider": "codex",
+                "providers": {
+                    "claude": {"model": "saved-claude", "thinking_level": "low"},
+                    "codex": {"model": "saved-codex", "thinking_level": "high"},
+                },
+            },
+        )
         self.commit("Save config")
         self.install("claude")
         self.install("codex")
@@ -1130,9 +1424,14 @@ class TestReviewConfigAndHeader(ReviewCase):
     def test_rts_fr_02_unknown_thinking_level_defaults_to_high(self) -> None:
         """[RTS-FR-02] Unknown or None thinking level defaults safely to high."""
         from run_external_review import resolve_review_settings
-        _, _, thinking_custom = resolve_review_settings(self.root, "demo", "code", "codex", "gpt-6.1-sol", "unknown-level")
+
+        _, _, thinking_custom = resolve_review_settings(
+            self.root, "demo", "code", "codex", "gpt-6.1-sol", "unknown-level"
+        )
         self.assertEqual(thinking_custom, "high")
-        _, _, thinking_none = resolve_review_settings(self.root, "demo", "code", "codex", "gpt-6.1-sol", None)
+        _, _, thinking_none = resolve_review_settings(
+            self.root, "demo", "code", "codex", "gpt-6.1-sol", None
+        )
         self.assertEqual(thinking_none, "high")
 
     def test_convergence_funnel_round2_and_round3_for_code_review(self) -> None:
@@ -1161,7 +1460,9 @@ class TestReviewConfigAndHeader(ReviewCase):
         self.assertIn("DO NOT report new Minor", prompt2)
         self.assertIn("Exhaustive Per-File Pass (Anti-Drip-Feed Rule)", prompt2)
         self.assertIn("### Cross-Provider Handoff & Anti-Ping-Pong Guardrail", prompt2)
-        self.assertIn("### Previously Fixed Locations Registry (Verify-Then-Close)", prompt2)
+        self.assertIn(
+            "### Previously Fixed Locations Registry (Verify-Then-Close)", prompt2
+        )
         self.assertIn("`demo.en.md:3` (Round 1 #1, `Critical`)", prompt2)
         self.assertIn("Verify-Then-Close on Fixed Locations", prompt2)
         self.assertIn("Diff-Hunk Isolation on Fixed Files (No Late Drip-Feed)", prompt2)
@@ -1185,7 +1486,10 @@ class TestReviewConfigAndHeader(ReviewCase):
         self.assertEqual(code3, 0)
         prompt3 = self.stdin.read_text(encoding="utf-8")
         self.assertIn("You are in Round 3+ Convergence Mode.", prompt3)
-        self.assertIn("ONLY report (a) incomplete fixes from previous rounds, or (b) NEW Critical/Important regressions", prompt3)
+        self.assertIn(
+            "ONLY report (a) incomplete fixes from previous rounds, or (b) NEW Critical/Important regressions",
+            prompt3,
+        )
         text3 = self.results.read_text(encoding="utf-8")
         self.assertIn("- **Scope**: convergence from round 2", text3)
         self.commit("Record round 3")
@@ -1267,7 +1571,9 @@ class TestReviewConfigAndHeader(ReviewCase):
         out4 = io.StringIO()
         with contextlib.redirect_stdout(out4):
             main(["triage", "--epic-dir", "demo"])
-        self.assertIn("CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)", out4.getvalue())
+        self.assertIn(
+            "CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)", out4.getvalue()
+        )
         self.assertIn("STOP IMMEDIATELY", out4.getvalue())
 
         # 5. Round 3 with remaining Critical finding -> CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)
@@ -1296,7 +1602,9 @@ class TestReviewConfigAndHeader(ReviewCase):
         out5 = io.StringIO()
         with contextlib.redirect_stdout(out5):
             main(["triage", "--epic-dir", "demo"])
-        self.assertIn("CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)", out5.getvalue())
+        self.assertIn(
+            "CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)", out5.getvalue()
+        )
         self.assertIn("STOP IMMEDIATELY", out5.getvalue())
 
         # 6. Round 3 with 0 Critical (only Important/Minor, no fix loop) -> AUTO_PASS_FINAL_SWEEP
@@ -1423,7 +1731,9 @@ class TestReviewConfigAndHeader(ReviewCase):
         }
         custom_priority = ["codex", "claude", "kiro", "agy"]
         chosen, _ = select_provider_by_quota(
-            quota_fetcher=lambda p: {"claude": claude_healthy, "codex": codex_healthy}[p],
+            quota_fetcher=lambda p: {"claude": claude_healthy, "codex": codex_healthy}[
+                p
+            ],
             binary_resolver=lambda _p: "/usr/bin/fake",
             priority=custom_priority,
         )
@@ -1435,9 +1745,16 @@ class TestReviewConfigAndHeader(ReviewCase):
 
         from run_external_review import resolve_review_settings
 
-        healthy = {"status": "ACTIVE", "gemini5h": {"fraction": 0.9}, "geminiWeekly": {"fraction": 0.8}}
-        with patch("run_external_review.resolve_cli_binary", return_value="/usr/bin/fake"), patch(
-            "run_external_review._default_quota_fetcher", return_value=healthy
+        healthy = {
+            "status": "ACTIVE",
+            "gemini5h": {"fraction": 0.9},
+            "geminiWeekly": {"fraction": 0.8},
+        }
+        with (
+            patch(
+                "run_external_review.resolve_cli_binary", return_value="/usr/bin/fake"
+            ),
+            patch("run_external_review._default_quota_fetcher", return_value=healthy),
         ):
             cli, model, _lvl = resolve_review_settings(
                 root=self.root,
@@ -1458,9 +1775,27 @@ class TestReviewConfigAndHeader(ReviewCase):
         rows = [
             ["1", "Minor", "docs/readme.md:5", "typo in comment", ""],
             ["2", "Important", "tests/test_a.py:12", "missing assertion", ""],
-            ["3", "Critical", "src/core/worker.py:44", "race condition and deadlock on cancel", ""],
-            ["4", "Important", "src/core/step.py:88", "unbound variable contract mismatch", ""],
-            ["5", "Critical", "src/api/bridge.py:19", "shared-contracts payload corruption", ""],
+            [
+                "3",
+                "Critical",
+                "src/core/worker.py:44",
+                "race condition and deadlock on cancel",
+                "",
+            ],
+            [
+                "4",
+                "Important",
+                "src/core/step.py:88",
+                "unbound variable contract mismatch",
+                "",
+            ],
+            [
+                "5",
+                "Critical",
+                "src/api/bridge.py:19",
+                "shared-contracts payload corruption",
+                "",
+            ],
         ]
         top3 = "\n".join(top_risk_findings_section(rows, limit=3))
         self.assertIn("## Top 3 Highest-Risk Findings (Executive Report)", top3)
@@ -1475,12 +1810,16 @@ class TestReviewConfigAndHeader(ReviewCase):
         self.install("codex")
         code1, _o1, _e1 = self.run_review(cli="claude", mode="blocking")
         self.assertEqual(code1, 1)
-        text = self.results.read_text(encoding="utf-8").replace(
-            "| 1 | Critical | demo.en.md:3 | evidence missing |  |",
-            "| 1 | Critical | demo.en.md:3 | evidence missing | fixed in 1111111 |",
-        ).replace(
-            "| 2 | Important | task_1_demo.md:9 | row too weak |  |",
-            "| 2 | Important | task_1_demo.md:9 | row too weak | dismissed: matches approved HLD |",
+        text = (
+            self.results.read_text(encoding="utf-8")
+            .replace(
+                "| 1 | Critical | demo.en.md:3 | evidence missing |  |",
+                "| 1 | Critical | demo.en.md:3 | evidence missing | fixed in 1111111 |",
+            )
+            .replace(
+                "| 2 | Important | task_1_demo.md:9 | row too weak |  |",
+                "| 2 | Important | task_1_demo.md:9 | row too weak | dismissed: matches approved HLD |",
+            )
         )
         self.results.write_text(text, encoding="utf-8")
         self.write("src/fix1.py", "def fix1() -> int:\n    return 1\n")
@@ -1490,7 +1829,9 @@ class TestReviewConfigAndHeader(ReviewCase):
         code2, _o2, _e2 = self.run_review(cli="codex", mode="minor")
         self.assertEqual(code2, 0)
         prompt_r2 = self.stdin.read_text(encoding="utf-8")
-        self.assertIn("### Cross-Provider Handoff & Anti-Ping-Pong Guardrail", prompt_r2)
+        self.assertIn(
+            "### Cross-Provider Handoff & Anti-Ping-Pong Guardrail", prompt_r2
+        )
         self.assertIn("- **Previous Reviewer**: `claude`", prompt_r2)
         self.assertIn("- **Current Reviewer**: `codex`", prompt_r2)
         self.assertIn("Approved-Design Anchoring", prompt_r2)
@@ -1501,7 +1842,9 @@ class TestReviewConfigAndHeader(ReviewCase):
         code3, _o3, _e3 = self.run_review(cli="codex", mode="pass")
         self.assertEqual(code3, 0)
         prompt_r3 = self.stdin.read_text(encoding="utf-8")
-        self.assertIn("### Earlier Rounds Shared Context Ledger (Cumulative Memory)", prompt_r3)
+        self.assertIn(
+            "### Earlier Rounds Shared Context Ledger (Cumulative Memory)", prompt_r3
+        )
         self.assertIn("#### Round 1 (claude /", prompt_r3)
         self.assertIn("dismissed: matches approved HLD", prompt_r3)
 
@@ -1552,7 +1895,9 @@ class TestReviewConfigAndHeader(ReviewCase):
             auto_triage_section(1, [(1, [])], mixed_rows, kind="code", epic_dir="demo")
         )
         self.assertIn("AUTO_PASS_FINAL_MINOR_SWEEP", mixed_gate)
-        self.assertIn("1 out-of-scope `.devtool/epic/` Minor item(s) auto-deferred", mixed_gate)
+        self.assertIn(
+            "1 out-of-scope `.devtool/epic/` Minor item(s) auto-deferred", mixed_gate
+        )
 
         # All epic-doc minors (empty or canonical token) -> AUTO_PASS_CLEAN
         epic_only_rows = [
@@ -1628,6 +1973,5 @@ class TestReviewConfigAndHeader(ReviewCase):
         self.assertIn("undecided: #2 Important", chk_out.getvalue())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
-

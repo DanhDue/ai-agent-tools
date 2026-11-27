@@ -1,13 +1,13 @@
 ---
 id: "task_03_external_review_layered_config_and_runtime_state"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "unified_review_config"
 dueDate: null
 created: "2026-11-28T03:12:00+07:00"
-modified: "2026-11-28T03:12:00+07:00"
-completedAt: null
+modified: "2026-11-27T21:16:52Z"
+completedAt: "2026-11-27T21:16:52Z"
 labels: ["architecture", "contract", "principal-review", "cross-model-review"]
 order: "a03"
 review_tier: "full"
@@ -122,10 +122,10 @@ And configuration falls back cleanly to global/kit defaults with last_used_provi
 
 ## Definition of Done
 
-- [ ] `run_external_review.py` loads layered config from `persona_config.py` relative to plugin install path, resolves kind-specific default `max_rounds`, applies resolved `quota_thresholds`, and isolates `last_used_provider` in `.devtool/state/review_runtime.json` without mutating `.devtool/review_config.json` (V2, V5)
-- [ ] All 5 assigned scenarios (`URC-HP-04`, `URC-EC-04`, `URC-ST-03`, `URC-AR-02`, `URC-FR-03`) pass in `tests/test_urc_external_review_integration.py` with JUnit XML written to `build/test-results/task_03.xml` (V2, V5)
-- [ ] Updated `test_run_external_review.py` and `tests/test_tto_external_review.py` regression suites pass without regressions (V3)
-- [ ] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4)
+- [x] `run_external_review.py` loads layered config from `persona_config.py` relative to plugin install path, resolves kind-specific default `max_rounds`, applies resolved `quota_thresholds`, and isolates `last_used_provider` in `.devtool/state/review_runtime.json` without mutating `.devtool/review_config.json` (V2, V5) — PASS (exit 0)
+- [x] All 5 assigned scenarios (`URC-HP-04`, `URC-EC-04`, `URC-ST-03`, `URC-AR-02`, `URC-FR-03`) pass in `tests/test_urc_external_review_integration.py` with JUnit XML written to `build/test-results/task_03.xml` (V2, V5) — PASS (5 passed; `build/test-results/task_03.xml` written)
+- [x] Updated `test_run_external_review.py` and `tests/test_tto_external_review.py` regression suites pass without regressions (V3) — PASS (81 passed, 3 subtests passed)
+- [x] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4) — PASS (exit 0)
 
 ## Dependencies & Blockers
 
