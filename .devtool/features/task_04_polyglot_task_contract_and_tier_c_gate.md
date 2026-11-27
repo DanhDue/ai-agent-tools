@@ -21,8 +21,8 @@ Epic: [polyglot_lifecycle_and_quality_architecture](../epic/polyglot_lifecycle_a
 
 Wire `skills/dev-implementation/resources/scripts/check_task_contract.py` and `skills/dev-implementation/resources/scripts/task_contract.py` to Task 01's `_stack_lifecycle_registry.py` (`TierBContractAdapter` and `TierCTaxonomy`):
 
-1. Replace the Python-only `if is_python_task(text, rows): check_python_tier_b(...)` branch in `check_task_contract.py::check_task` with `TierBContractAdapter` polyglot dispatch (intersecting `Allowed files` extensions with active `.agents/quality/*-quality.json` manifests; falling back to `check_python_tier_b` only when zero manifests exist in `check.root`).
-2. Add `parse_integration_test_roots(hld_text: str) -> list[str]` to `task_contract.py`, and wire `TierCTaxonomy` in `check_task_contract.py::check_task` and `check_hld`: hard-fail explicit `Tier C2`/`TIER-C2` rows missing `Needs:` and unsafe/missing-target HLD `Integration test roots:`; emit non-blocking warnings to `check.warnings` for heuristic ungated heavy-runtime `TIER-C` commands (`integration_test/`, `connected*AndroidTest`, `xcodebuild test`, `playwright test`).
+1. Always run `check_python_tier_b(...)` when `is_python_task(text, rows)` is true (preserving both `python-quality.json` and fallback ruff/mypy enforcement even when only non-Python manifests such as `flutter-quality.json` exist), and independently dispatch active non-Python stacks (plus custom manifests declaring `"extensions"`) via `TierBContractAdapter.validate_tier_b(...)` in `check_task_contract.py::check_task`.
+2. Add `parse_integration_test_roots(hld_text: str) -> list[str]` to `task_contract.py`, and wire `TierCTaxonomy` in `check_task_contract.py::check_task` and `check_hld`: hard-fail `TIER-C` rows carrying the canonical `# tier: C2` command comment (`#\s*tier:\s*C2\b`, case-insensitive) with empty `Needs:` and unsafe/missing-target HLD `Integration test roots:`; emit non-blocking warnings to `check.warnings` for heuristic ungated heavy-runtime `TIER-C` commands (`integration_test/`, `connected*AndroidTest`, `xcodebuild test`, `playwright test`).
 3. Enforce the compact 1-line `PASS` stdout invariant in `check_task_contract.py::main`: default `PASS` emits exactly `Result: 0 problems — PASS`; `--verbose` prints `Implicit protected paths: ...` before the Result line; `--json` emits structured JSON; `FAIL` emits all problem lines + `Implicit protected paths: ...` + `Result: <n> problems — FAIL`. Update the 3 existing `Implicit protected paths:` tests in `test_check_task_contract.py` (`L113`, `L122`, `L618`) to pass `--verbose` per `[SE-03]`.
 
 ## Files
@@ -122,8 +122,8 @@ Then check_task_contract.py exits with code 1 and reports explicit problems for 
 
 ## Definition of Done
 
-- [ ] `check_task_contract.py` delegates polyglot Tier B checks to `TierBContractAdapter` while preserving legacy Python fallback when no manifests exist (V2, V3, V5)
-- [ ] `TierCTaxonomy` hard-fails explicit `Tier C2` rows missing `Needs:` and invalid HLD `Integration test roots:`, and warns on heuristic ungated heavy-runtime `TIER-C` commands (V2, V5)
+- [ ] `check_task_contract.py` always runs `check_python_tier_b` when `is_python_task(text, rows)` is true and independently dispatches active non-Python stacks via `TierBContractAdapter.validate_tier_b(...)` (V2, V3, V5)
+- [ ] `TierCTaxonomy` hard-fails `TIER-C` rows carrying `# tier: C2` (`#\s*tier:\s*C2\b`) with empty `Needs:` and invalid HLD `Integration test roots:`, and warns on heuristic ungated heavy-runtime `TIER-C` commands (V2, V5)
 - [ ] `check_task_contract.py` emits 1-line `Result: 0 problems — PASS` by default with `--verbose` and `--json` opt-in (V2, V3, V5)
 - [ ] Existing `test_check_task_contract.py`, `test_check_epic_readiness.py`, and `test_ohk_cmr_and_contracts.py` pass without regressions (V3)
 - [ ] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4)
