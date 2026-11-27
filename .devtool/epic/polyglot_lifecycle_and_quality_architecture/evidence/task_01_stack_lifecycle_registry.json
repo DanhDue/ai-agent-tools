@@ -1,0 +1,188 @@
+{
+  "schema": 1,
+  "task": "task_01_stack_lifecycle_registry",
+  "runs": {
+    "red": {
+      "head": "251735d7ebd4fbafa807442a72c3038964ba650d",
+      "tree": "d4cfa238a61b40e393ec58b86277357529f69bad",
+      "patch_id": "29729ed6d8f5a0efddf2293167cebef98b1f0591",
+      "started": "2026-11-27T02:50:48Z",
+      "finished": "2026-11-27T02:50:49Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_stack_lifecycle_registry.py::test_plq_hp_01_registry_resolves_six_stacks_and_custom_override",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T02:50:48Z",
+          "finished": "2026-11-27T02:50:49Z",
+          "output_tail": [
+            "=================================== FAILURES ===================================",
+            "_______ test_plq_hp_01_registry_resolves_six_stacks_and_custom_override ________",
+            "tests/test_stack_lifecycle_registry.py:46: in _load_registry",
+            "    return importlib.import_module(\"_stack_lifecycle_registry\")",
+            "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/importlib/__init__.py:88: in import_module",
+            "    return _bootstrap._gcd_import(name[level:], package, level)",
+            "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "<frozen importlib._bootstrap>:1389: in _gcd_import",
+            "    ???",
+            "<frozen importlib._bootstrap>:1353: in _find_and_load",
+            "    ???",
+            "<frozen importlib._bootstrap>:1242: in _find_and_load_unlocked",
+            "    ???",
+            "E   ModuleNotFoundError: No module named '_stack_lifecycle_registry'. Did you mean: 'test_stack_lifecycle_registry'?",
+            "During handling of the above exception, another exception occurred:",
+            "tests/test_stack_lifecycle_registry.py:148: in test_plq_hp_01_registry_resolves_six_stacks_and_custom_override",
+            "    reg = _load_registry()",
+            "          ^^^^^^^^^^^^^^^^",
+            "tests/test_stack_lifecycle_registry.py:48: in _load_registry",
+            "    pytest.fail(f\"_stack_lifecycle_registry module is not implemented yet: {exc}\")",
+            "E   Failed: _stack_lifecycle_registry module is not implemented yet: No module named '_stack_lifecycle_registry'",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_stack_lifecycle_registry.py::test_plq_hp_01_registry_resolves_six_stacks_and_custom_override",
+            "1 failed in 0.27s"
+          ],
+          "output_sha256": "a9632bbb332f509405a18450bf067bee231c2d3e9bf02f441d5605058db3886c"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "251735d7ebd4fbafa807442a72c3038964ba650d",
+      "tree": "38b0e035cfbb913e3b3e47638462b8ce66761762",
+      "patch_id": "b38a482095aa4e672eed9241cd4f68c4f4fd50b5",
+      "started": "2026-11-27T03:01:21Z",
+      "finished": "2026-11-27T03:01:44Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_stack_lifecycle_registry.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T03:01:21Z",
+          "finished": "2026-11-27T03:01:23Z",
+          "output_tail": [
+            "...........                                                              [100%]",
+            "11 passed in 1.33s"
+          ],
+          "output_sha256": "0088996f65287d02c47b01b3b445140500e0cf78999b39b0f42c0928c345dc92"
+        },
+        {
+          "id": "V3",
+          "phase": "REGRESSION",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 skills/dev-implementation/resources/scripts/test_check_task_contract.py skills/dev-implementation/resources/scripts/test_manage_worker_pool.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T03:01:23Z",
+          "finished": "2026-11-27T03:01:42Z",
+          "output_tail": [
+            "....................................................................     [100%]",
+            "68 passed in 19.16s"
+          ],
+          "output_sha256": "df3845dbcf33f18111bfc31c5bc507d919b70f8cb50820d3d1351ec79e6893eb"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/_stack_lifecycle_registry.py tests/test_stack_lifecycle_registry.py && ruff format --check skills/dev-implementation/resources/scripts/_stack_lifecycle_registry.py tests/test_stack_lifecycle_registry.py && mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/_stack_lifecycle_registry.py tests/test_stack_lifecycle_registry.py --ignore-missing-imports --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T03:01:42Z",
+          "finished": "2026-11-27T03:01:42Z",
+          "output_tail": [
+            "All checks passed!",
+            "2 files already formatted",
+            "Success: no issues found in 9 source files"
+          ],
+          "output_sha256": "88f62f30e45198e4961729af35529871cdfbb6cb180a6993f105420861f55ed6"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_stack_lifecycle_registry.py --junitxml=build/test-results/task_01.xml",
+          "expect": "exit 0; results build/test-results/task_01.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T03:01:42Z",
+          "finished": "2026-11-27T03:01:44Z",
+          "output_tail": [
+            "...........                                                              [100%]",
+            "11 passed in 1.32s"
+          ],
+          "output_sha256": "3b05dbb1f34aeaa99d7b1074f95fcdfaa6a426f3f4932e3d917604e3aa37a70d",
+          "results": {
+            "path": "build/test-results/task_01.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 6,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_plq_hp_01_registry_resolves_six_stacks_and_custom_override",
+                  "classname": "tests.test_stack_lifecycle_registry",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_hp_01_registry_resolves_six_stacks_and_custom_override",
+                  "classname": "tests.test_stack_lifecycle_registry.TestStackLifecycleRegistry_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_ec_01_untouched_stack_manifests_incur_zero_tier_b_checks",
+                  "classname": "tests.test_stack_lifecycle_registry.TestStackLifecycleRegistry_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_ec_02_flutter_new_files_require_explicit_format_coverage",
+                  "classname": "tests.test_stack_lifecycle_registry.TestStackLifecycleRegistry_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_ar_01_suffix_scoped_triage_surface_registry_and_baselines",
+                  "classname": "tests.test_stack_lifecycle_registry.TestStackLifecycleRegistry_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_fr_01_path_traversal_and_malformed_regex_rejected_safely",
+                  "classname": "tests.test_stack_lifecycle_registry.TestStackLifecycleRegistry_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/_stack_lifecycle_registry.py",
+            "tests/test_stack_lifecycle_registry.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

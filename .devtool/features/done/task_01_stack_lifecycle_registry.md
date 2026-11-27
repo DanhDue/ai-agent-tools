@@ -1,13 +1,13 @@
 ---
 id: "task_01_stack_lifecycle_registry"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "polyglot_lifecycle_and_quality_architecture"
 dueDate: null
 created: "2026-11-27T09:18:00+07:00"
-modified: "2026-11-27T09:18:00+07:00"
-completedAt: null
+modified: "2026-11-27T03:05:01Z"
+completedAt: "2026-11-27T03:05:01Z"
 labels: ["architecture", "polyglot", "registry", "dev-implementation"]
 order: "a01"
 review_tier: "full"
@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 01: Declarative 6-Stack Lifecycle Registry and Four Open Contracts
 
-Epic: [polyglot_lifecycle_and_quality_architecture](../epic/polyglot_lifecycle_and_quality_architecture/polyglot_lifecycle_and_quality_architecture.md)
+Epic: [polyglot_lifecycle_and_quality_architecture](../../epic/polyglot_lifecycle_and_quality_architecture/polyglot_lifecycle_and_quality_architecture.md)
 
 ## Requirement Analysis
 
@@ -134,11 +134,11 @@ And TriageSurfaceRegistry skips or surfaces a clear validation error for "[unclo
 
 ## Definition of Done
 
-- [ ] `skills/dev-implementation/resources/scripts/_stack_lifecycle_registry.py` implements all 6 built-in stacks and 4 open contracts using Python 3 stdlib only (V2, V5)
-- [ ] All unit tests in `tests/test_stack_lifecycle_registry.py` pass covering `PLQ-HP-01`, `PLQ-EC-01`, `PLQ-EC-02`, `PLQ-AR-01`, `PLQ-FR-01` (V2, V5)
-- [ ] Downstream task contract and worker pool regression suites pass without regressions (V3)
-- [ ] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4)
-- [ ] Fresh JUnit XML report written to `build/test-results/task_01.xml` containing all 5 assigned scenario IDs (V5)
+- [x] `skills/dev-implementation/resources/scripts/_stack_lifecycle_registry.py` implements all 6 built-in stacks and 4 open contracts using Python 3 stdlib only (V2, V5) — exit 0, 11 passed, 95.4% stmt coverage
+- [x] All unit tests in `tests/test_stack_lifecycle_registry.py` pass covering `PLQ-HP-01`, `PLQ-EC-01`, `PLQ-EC-02`, `PLQ-AR-01`, `PLQ-FR-01` (V2, V5) — exit 0, 11 passed, 5/5 BDD covered
+- [x] Downstream task contract and worker pool regression suites pass without regressions (V3) — exit 0, 68 passed
+- [x] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4) — exit 0, 0 issues
+- [x] Fresh JUnit XML report written to `build/test-results/task_01.xml` containing all 5 assigned scenario IDs (V5) — exit 0, 5/5 scenarios PASS
 
 ## Dependencies & Blockers
 
@@ -146,5 +146,5 @@ And TriageSurfaceRegistry skips or surfaces a clear validation error for "[unclo
 
 ## References & Rollback
 
-- Reference HLD: [polyglot_lifecycle_and_quality_architecture.md](../epic/polyglot_lifecycle_and_quality_architecture/polyglot_lifecycle_and_quality_architecture.md)
+- Reference HLD: [polyglot_lifecycle_and_quality_architecture.md](../../epic/polyglot_lifecycle_and_quality_architecture/polyglot_lifecycle_and_quality_architecture.md)
 - Rollback: Delete `skills/dev-implementation/resources/scripts/_stack_lifecycle_registry.py` and `tests/test_stack_lifecycle_registry.py`.
