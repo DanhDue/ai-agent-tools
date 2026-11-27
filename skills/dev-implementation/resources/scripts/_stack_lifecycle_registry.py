@@ -231,7 +231,9 @@ BUILTIN_STACKS: dict[str, StackDescriptor] = {
                 re.compile(r"\bcancel_event\b"),
             ),
             test_weakening=(
-                re.compile(r"(?:pytest\.mark\.(?:skip|xfail)|@unittest\.skip)"),
+                re.compile(
+                    r"(?:pytest\.mark\.(?:skip|xfail)|@unittest\.skip|\.skip\()"
+                ),
             ),
             test_assertion=(
                 re.compile(
@@ -284,7 +286,10 @@ BUILTIN_STACKS: dict[str, StackDescriptor] = {
         tier_c_policy=TierCPolicy(
             tier_c1_examples=("flutter test test/integration/*_integration_test.dart",),
             tier_c2_command_patterns=(
-                re.compile(r"\bflutter\s+test\b.*integration_test", re.IGNORECASE),
+                re.compile(
+                    r"""\bflutter\s+test\b.*(?:^|[\s/"'])integration_test(?:/|[\s"'&;]|$)""",
+                    re.IGNORECASE,
+                ),
             ),
             default_needs_hint="FLUTTER_DEVICE",
         ),

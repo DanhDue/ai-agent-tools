@@ -148,6 +148,11 @@
             }
           }
         },
+        "diff_coverage": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
         "architecture": {
           "type": "array",
           "minItems": 1,

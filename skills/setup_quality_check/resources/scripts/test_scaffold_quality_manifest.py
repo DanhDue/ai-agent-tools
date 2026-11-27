@@ -280,6 +280,28 @@ class TestScaffoldQualityManifests(unittest.TestCase):
             scaffold_quality_manifests(self.root, self.out_dir)
         self.assertIn("No supported platform detected", str(ctx.exception))
 
+    def test_pr_includes_diff_coverage_and_release_is_superset_of_epic(self) -> None:
+        all_platforms = ["flutter", "android", "ios", "rust", "python", "web"]
+        scaffold_quality_manifests(self.root, self.out_dir, platforms=all_platforms)
+        for platform in all_platforms:
+            manifest_data = json.loads(
+                (self.out_dir / f"{platform}-quality.json").read_text(encoding="utf-8")
+            )
+            caps = manifest_data["capabilities"]
+            profiles = manifest_data["profiles"]
+            self.assertIn("diff_coverage", caps, platform)
+            self.assertIn("diff_coverage", profiles["pr"], platform)
+            self.assertTrue(
+                any("check_diff_coverage.py" in tok for tok in caps["diff_coverage"]),
+                platform,
+            )
+            missing_in_release = set(profiles["epic"]) - set(profiles["release"])
+            self.assertEqual(
+                set(),
+                missing_in_release,
+                f"{platform} release missing epic capabilities: {sorted(missing_in_release)}",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

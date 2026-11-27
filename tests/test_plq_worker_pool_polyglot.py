@@ -638,6 +638,12 @@ def _verify_plq_ar_04_polyglot_is_test_file_and_assertion_weakening(
             "final class WalletTests: XCTestCase {\n    func testAdds() {\n        XCTAssertEqual(1 + 1, 2)\n    }\n}\n",
             'final class WalletTests: XCTestCase {\n    func testAdds() throws {\n        throw XCTSkip("flaky")\n        XCTAssertEqual(1 + 1, 2)\n    }\n}\n',
         ),
+        (
+            "python_add_inline_pytest_skip",
+            "tests/test_calc.py",
+            "import pytest\n\n\ndef test_adds() -> None:\n    assert 1 + 1 == 2\n",
+            'import pytest\n\n\ndef test_adds() -> None:\n    pytest.skip("flaky")\n    assert 1 + 1 == 2\n',
+        ),
     )
 
     for case_name, rel_path, before_text, after_text in cases:

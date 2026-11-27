@@ -593,6 +593,12 @@ def _verify_plq_ar_01_suffix_scoped_triage_surface_registry_and_baselines() -> N
     assert registry.match_line(
         "tests/test_service.py", "+", "@pytest.mark.skip(reason='wip')"
     ) == {"TEST_ASSERTION_WEAKENED"}
+    assert registry.match_test_line(
+        "tests/test_service.py", "+", '    pytest.skip("flaky")'
+    ) == (False, True)
+    assert registry.match_line(
+        "tests/test_service.py", "+", '    pytest.skip("flaky")'
+    ) == {"TEST_ASSERTION_WEAKENED"}
 
     # Polyglot is_test_file classification
     assert (
@@ -931,6 +937,31 @@ def test_tier_c_taxonomy_explicit_c2_heuristic_warning_and_roots(
     assert problems_h == []
     assert len(warnings_h) == 1
     assert "PLAYWRIGHT_BROWSER" in warnings_h[0]
+
+    # Flutter Tier C1 filename containing "integration_test" must NOT trigger a Tier C2 warning
+    flutter_c1_row = _FakeRow(
+        "V5",
+        "TIER-C",
+        "flutter test test/integration/cart_integration_test.dart",
+        needs=(),
+    )
+    probs_fl_c1, warns_fl_c1 = reg.TierCTaxonomy.check_tier_c_rows(
+        "task_01", [flutter_c1_row], []
+    )
+    assert probs_fl_c1 == []
+    assert warns_fl_c1 == []
+
+    # Flutter integration_test directory arg (path or standalone dir) DOES trigger Tier C2 warning
+    for fl_c2_cmd in (
+        "flutter test integration_test/app_test.dart",
+        "flutter test integration_test",
+    ):
+        probs_fl_c2, warns_fl_c2 = reg.TierCTaxonomy.check_tier_c_rows(
+            "task_01", [_FakeRow("V5", "TIER-C", fl_c2_cmd, needs=())], []
+        )
+        assert probs_fl_c2 == []
+        assert len(warns_fl_c2) == 1
+        assert "FLUTTER_DEVICE" in warns_fl_c2[0]
 
     # validate_integration_test_roots: bare directory, glob, traversal, and missing targets
     tracked = ["tests/test_alpha.py", "packages/core/test/integration/flow_test.dart"]

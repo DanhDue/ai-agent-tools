@@ -536,6 +536,64 @@ class TestPLQTaskContractPolyglot_Integration:
         assert res3.returncode == 0, res3.stdout + res3.stderr
         assert res3.stdout.splitlines() == ["Result: 0 problems — PASS"]
 
+        # 4. Flutter Tier C1 filename (`cart_integration_test.dart`) produces NO Tier C2 warning,
+        # while Flutter `integration_test/` directory DOES emit a FLUTTER_DEVICE Tier C2 warning.
+        _write_manifest(repo, "flutter")
+        _write(repo, "lib/cart.dart", "class Cart {}\n")
+        _write(
+            repo,
+            "test/integration/cart_integration_test.dart",
+            "void main() {}\n",
+        )
+        _write(
+            repo,
+            "integration_test/app_test.dart",
+            "void main() {}\n",
+        )
+        flutter_c1 = _write(
+            repo,
+            ".devtool/epic/demo/task_04_flutter_c1.md",
+            _task_md(
+                allowed=["lib/cart.dart"],
+                rows=[
+                    "| V1 | RED | `python3 tool.py red` | exit 1 | — |",
+                    "| V2 | GREEN | `python3 tool.py green` | exit 0 | — |",
+                    "| V3 | TIER-B | `dart format --output=none --set-exit-if-changed lib/cart.dart && dart analyze` | exit 0 | — |",
+                    "| V4 | TIER-C | `flutter test test/integration/cart_integration_test.dart` | exit 0; results build/c1.xml | — |",
+                ],
+            ),
+        )
+        flutter_c2 = _write(
+            repo,
+            ".devtool/epic/demo/task_05_flutter_c2.md",
+            _task_md(
+                allowed=["lib/cart.dart"],
+                rows=[
+                    "| V1 | RED | `python3 tool.py red` | exit 1 | — |",
+                    "| V2 | GREEN | `python3 tool.py green` | exit 0 | — |",
+                    "| V3 | TIER-B | `dart format --output=none --set-exit-if-changed lib/cart.dart && dart analyze` | exit 0 | — |",
+                    "| V4 | TIER-C | `flutter test integration_test/app_test.dart` | exit 0; results build/c2.xml | — |",
+                ],
+            ),
+        )
+        _commit(repo, "flutter tier c1 vs c2 tasks")
+
+        res4_json = _run_contract(
+            repo, "--design", "--json", "--hld", str(hld), "--tasks", str(flutter_c1)
+        )
+        assert res4_json.returncode == 0, res4_json.stdout + res4_json.stderr
+        j4 = json.loads(res4_json.stdout)
+        assert j4["status"] == "PASS"
+        assert j4["warnings"] == []
+
+        res5 = _run_contract(
+            repo, "--design", "--hld", str(hld), "--tasks", str(flutter_c2)
+        )
+        assert res5.returncode == 0, res5.stdout + res5.stderr
+        assert res5.stdout.splitlines() == ["Result: 0 problems — PASS"]
+        assert "Tier C2" in res5.stderr
+        assert "FLUTTER_DEVICE" in res5.stderr
+
     def test_plq_ar_03_conditional_boundary_checks_activate_only_for_boundary_files(
         self, tmp_path: Path
     ) -> None:

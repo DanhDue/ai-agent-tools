@@ -173,6 +173,9 @@ def test_plq_ar_02_all_six_schemas_have_unified_parity() -> None:
             assert cap_name in cap_props, (
                 f"{stack}: missing unified capability '{cap_name}'"
             )
+        assert "diff_coverage" in cap_props, (
+            f"{stack}: missing 'diff_coverage' capability in schema"
+        )
 
         cov = cap_props["coverage"]
         assert cov["type"] == "object", stack
@@ -270,6 +273,35 @@ def test_plq_hp_03_scaffolder_generates_4_profile_manifests_and_compact_validato
         assert "min_package_coverage" in cov
         assert "min_diff_coverage" in cov
         assert "diff_base" in cov
+
+        # pr profile must include a diff-coverage capability invoking check_diff_coverage.py
+        assert "diff_coverage" in caps, f"{stack}: missing diff_coverage capability"
+        diff_cov_cmd = caps["diff_coverage"]
+        assert isinstance(diff_cov_cmd, list), stack
+        assert any("check_diff_coverage.py" in tok for tok in diff_cov_cmd), stack
+        assert "--min-coverage" in diff_cov_cmd and "0" in diff_cov_cmd, stack
+        assert "--min-diff-coverage" in diff_cov_cmd, stack
+        assert "diff_coverage" in manifest["profiles"]["pr"], (
+            f"{stack}: pr profile missing diff_coverage"
+        )
+
+        # release profile must be a true superset of epic (including pr_diff_audit and pr_impact)
+        epic_caps = set(manifest["profiles"]["epic"])
+        release_caps = set(manifest["profiles"]["release"])
+        assert epic_caps.issubset(release_caps), (
+            f"{stack}: release profile missing epic capabilities: {sorted(epic_caps - release_caps)}"
+        )
+        for release_extra in ("security_deps", "workspace_audit", "workspace_impact"):
+            assert release_extra in release_caps, (
+                f"{stack}: release profile missing {release_extra}"
+            )
+
+        # Every scaffolded capability key must be permitted by the stack's JSON Schema
+        schema = json.loads(_schema_file(stack).read_text(encoding="utf-8"))
+        allowed_schema_caps = set(schema["properties"]["capabilities"]["properties"])
+        assert set(caps.keys()).issubset(allowed_schema_caps), (
+            f"{stack}: scaffolded capabilities not in schema: {sorted(set(caps.keys()) - allowed_schema_caps)}"
+        )
 
         if stack == "android":
             assert "cleanup" not in caps
@@ -436,6 +468,16 @@ def test_plq_hp_03_scaffolder_generates_4_profile_manifests_and_compact_validato
     templates_dir = SKILLS_DIR / "setup_quality_check" / "resources" / "templates"
     polyglot_tpl = templates_dir / "polyglot-check-quality.template.json"
     web_tpl = templates_dir / "web-quality.template.json"
+    web_tpl_data = json.loads(web_tpl.read_text(encoding="utf-8"))
+    assert "diff_coverage" in web_tpl_data["capabilities"]
+    assert any(
+        "check_diff_coverage.py" in tok
+        for tok in web_tpl_data["capabilities"]["diff_coverage"]
+    )
+    assert "diff_coverage" in web_tpl_data["profiles"]["pr"]
+    assert set(web_tpl_data["profiles"]["epic"]).issubset(
+        set(web_tpl_data["profiles"]["release"])
+    )
     for profile in ALL_PROFILES:
         tpl_reg = _run_cli(
             [
