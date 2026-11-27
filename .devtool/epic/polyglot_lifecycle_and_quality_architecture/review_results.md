@@ -39,7 +39,7 @@ Verdict: CHANGES REQUIRED
 
 | # | Severity | Location | Problem | Decision |
 |---|----------|----------|---------|----------|
-| 1 | Minor | skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py:140 | In every stack, the `pr` profile's `test` command does not produce the coverage report that `diff_coverage` reads, so on a clean checkout `pr` stops with BLOCKED (exit 2, "Coverage report not found"); this matches how the existing `epic` `coverage` capability behaves. Proposed: document in the setup_quality_check skill that the project's `test` capability must write the coverage report, or put a step that generates the report before `diff_coverage` in `pr`. |  |
+| 1 | Minor | skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py:140 | In every stack, the `pr` profile's `test` command does not produce the coverage report that `diff_coverage` reads, so on a clean checkout `pr` stops with BLOCKED (exit 2, "Coverage report not found"); this matches how the existing `epic` `coverage` capability behaves. Proposed: document in the setup_quality_check skill that the project's `test` capability must write the coverage report, or put a step that generates the report before `diff_coverage` in `pr`. | fixed in abf3c53 |
 
 Raw output:
 
