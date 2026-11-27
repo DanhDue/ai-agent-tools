@@ -819,6 +819,45 @@ def check_regression_coverage(
         )
 
 
+_SEQUENTIAL_CHAIN_TOKENS = frozenset({"&&", ";"})
+_CONDITIONAL_OR_PIPE_TOKENS = frozenset({"||", "|"})
+
+
+def _split_sequential_subcommands(command: str) -> list[list[str]]:
+    """Split a shell command into unconditionally sequenced subcommands (`&&` / `;`).
+
+    Subcommands following `||` (failure-only fallback) or `|` (pipe consumer) are
+    excluded until the next `&&` or `;` so conditional/piped tails cannot satisfy
+    required static verification gates.
+    """
+    try:
+        lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+        lexer.whitespace_split = True
+        tokens = list(lexer)
+    except ValueError:
+        tokens = command.split()
+
+    subcommands: list[list[str]] = []
+    current: list[str] = []
+    skip_until_seq = False
+    for token in tokens:
+        if token in _SEQUENTIAL_CHAIN_TOKENS:
+            if current and not skip_until_seq:
+                subcommands.append(current)
+            current = []
+            skip_until_seq = False
+        elif token in _CONDITIONAL_OR_PIPE_TOKENS:
+            if current and not skip_until_seq:
+                subcommands.append(current)
+            current = []
+            skip_until_seq = True
+        elif not skip_until_seq:
+            current.append(token)
+    if current and not skip_until_seq:
+        subcommands.append(current)
+    return subcommands
+
+
 def check_python_tier_b(
     check: Checker,
     stem: str,
@@ -852,20 +891,17 @@ def check_python_tier_b(
             return
 
         def matches_cap(cap: list[str], command: str) -> bool:
-            try:
-                row_toks = shlex.split(command)
-            except ValueError:
-                row_toks = command.split()
-            if row_toks == cap:
-                return True
-            if len(cap) > 1 and row_toks[:len(cap) - 1] == cap[:-1]:
-                return True
-            if len(row_toks) >= len(cap) and row_toks[:len(cap)] == cap:
-                return True
-            if allow_historical_prefix:
-                prefix = _cap_tool_prefix(cap)
-                if prefix and len(row_toks) > len(prefix) and row_toks[:len(prefix)] == prefix:
+            for sub in _split_sequential_subcommands(command):
+                if sub == cap:
                     return True
+                if len(cap) > 1 and sub[: len(cap) - 1] == cap[:-1]:
+                    return True
+                if len(sub) >= len(cap) and sub[: len(cap)] == cap:
+                    return True
+                if allow_historical_prefix:
+                    prefix = _cap_tool_prefix(cap)
+                    if prefix and len(sub) > len(prefix) and sub[: len(prefix)] == prefix:
+                        return True
             return False
 
         has_lint = any(matches_cap(lint_cmd, r.command) for r in tier_b_rows)
@@ -878,20 +914,17 @@ def check_python_tier_b(
             _check_python_tier_b_allowed_coverage(check, stem, text, tier_b_rows)
         return
 
-    # Fallback tooling: ruff + (mypy / pyright / ty)
+    # Fallback tooling: ruff + (mypy / pyright / ty) across sequential subcommands
     has_ruff = False
     has_type_checker = False
     for r in tier_b_rows:
-        try:
-            tokens = shlex.split(r.command)
-        except ValueError:
-            tokens = r.command.split()
-        prog = tc.strip_wrappers([t for t in tokens if t not in tc.CONTROL_TOKENS])
-        first = prog[0] if prog else ""
-        if first == "ruff" or "ruff" in tokens:
-            has_ruff = True
-        if first in ("mypy", "pyright", "ty") or any(t in ("mypy", "pyright", "ty") for t in tokens):
-            has_type_checker = True
+        for sub in _split_sequential_subcommands(r.command):
+            prog = tc.strip_wrappers(list(sub))
+            first = Path(prog[0]).name if prog else ""
+            if first == "ruff":
+                has_ruff = True
+            if first in ("mypy", "pyright", "ty"):
+                has_type_checker = True
 
     if not has_ruff or not has_type_checker:
         missing_tools: list[str] = []
@@ -938,11 +971,7 @@ def _check_python_tier_b_allowed_coverage(
     lint_targets: list[str] = []
     type_targets: list[str] = []
     for r in tier_b_rows:
-        try:
-            tokens = shlex.split(r.command)
-        except ValueError:
-            tokens = r.command.split()
-        for sub in _split_subcommands(tokens):
+        for sub in _split_sequential_subcommands(r.command):
             unwrapped = tc.strip_wrappers(list(sub))
             if not unwrapped:
                 continue

@@ -1010,6 +1010,128 @@ class MechanicalVerificationHardeningTest(ContractCase):
         self.assertTrue(tc.has_completed_at("---\ncompletedAt: \"2026-11-20T12:00:00Z\"\nstatus: \"todo\"\n---\n"))
 
 
+class CompoundTierBMatchingTest(ContractCase):
+    """#20: Verify TIER-B capability matching across && / ; sequential chains while rejecting || / | bypasses."""
+
+    def _uv_manifest(self) -> None:
+        manifest = json.dumps({
+            "schema_version": 1,
+            "capabilities": {
+                "lint": ["uv", "run", "ruff", "check", "."],
+                "type_check": ["uv", "run", "mypy", "--strict", "src"],
+            },
+        })
+        self.write(".agents/quality/python-quality.json", manifest)
+        self.write("src/mod.py", "def f() -> int:\n    return 1\n")
+        self.commit()
+
+    def test_chained_and_tier_b_row_matches_both_lint_and_type_check(self) -> None:
+        self._uv_manifest()
+        rows = (
+            RED + GREEN
+            + "| V3 | TIER-B | `uv run ruff check src/mod.py && uv run ruff format --check src/mod.py && uv run mypy --strict src/mod.py && uv run lint-imports` | exit 0 | — |\n"
+            + TIER_C
+        )
+        t = self.task("1_chain_and", allowed="- `src/mod.py`", rows=rows, dod="- [ ] done (V2, V3, V5)\n", decisions="- Chained TIER-B.\n")
+        code, out, _ = self.check(t, design=True)
+        self.assertEqual(code, 0, out)
+
+    def test_semicolon_chained_tier_b_row_with_and_without_spaces_passes(self) -> None:
+        self._uv_manifest()
+        for suffix, cmd in (
+            ("unspaced", "uv run ruff check src/mod.py;uv run mypy --strict src/mod.py"),
+            ("spaced", "uv run ruff check src/mod.py ; uv run mypy --strict src/mod.py"),
+        ):
+            rows = RED + GREEN + f"| V3 | TIER-B | `{cmd}` | exit 0 | — |\n" + TIER_C
+            t = self.task(f"1_chain_{suffix}", allowed="- `src/mod.py`", rows=rows, dod="- [ ] done (V2, V3, V5)\n", decisions="- Semicolon chain.\n")
+            code, out, _ = self.check(t, design=True)
+            self.assertEqual(code, 0, out)
+
+    def test_or_and_pipe_chains_do_not_satisfy_registered_type_check(self) -> None:
+        self._uv_manifest()
+        for suffix, cmd in (
+            ("or", r"uv run ruff check src/mod.py \|\| uv run mypy --strict src/mod.py"),
+            ("pipe", r"uv run ruff check src/mod.py \| uv run mypy --strict src/mod.py"),
+        ):
+            rows = RED + GREEN + f"| V3 | TIER-B | `{cmd}` | exit 0 | — |\n" + TIER_C
+            t = self.task(f"1_bypass_{suffix}", allowed="- `src/mod.py`", rows=rows, dod="- [ ] done (V2, V3, V5)\n", decisions="- Bypass guard.\n")
+            code, out, _ = self.check(t, design=True)
+            self.assertEqual(code, 1, out)
+            self.assertNotIn("expected 5 cells", out)
+            self.assertNotIn("missing registered lint capability", out)
+            self.assertIn("missing registered type_check capability", out)
+
+    def test_chained_wrong_runner_still_rejected(self) -> None:
+        self._uv_manifest()
+        rows = (
+            RED + GREEN
+            + "| V3 | TIER-B | `uv run ruff check src/mod.py && mypy --strict src/mod.py` | exit 0 | — |\n"
+            + TIER_C
+        )
+        t = self.task("1_wrong_runner", allowed="- `src/mod.py`", rows=rows, dod="- [ ] done (V2, V3, V5)\n", decisions="- Wrong runner.\n")
+        code, out, _ = self.check(t, design=True)
+        self.assertEqual(code, 1, out)
+        self.assertNotIn("missing registered lint capability", out)
+        self.assertIn("missing registered type_check capability", out)
+
+    def test_chained_historical_prefix_with_expanded_manifest_passes_for_done_task(self) -> None:
+        self.write("pkg/a.py", "x = 1\n")
+        self.write("scripts/b.py", "y = 2\n")
+        manifest = json.dumps({
+            "schema_version": 1,
+            "capabilities": {
+                "lint": ["ruff", "check", "pkg", "tests", "scripts/b.py"],
+                "type_check": ["mypy", "pkg/a.py", "scripts/b.py"],
+            },
+        })
+        self.write(".agents/quality/python-quality.json", manifest)
+        self.commit()
+        rows = RED + GREEN + "| V3 | TIER-B | `ruff check pkg && mypy pkg/a.py` | exit 0 | — |\n" + TIER_C
+        t = self.task("1_hist_chain", status="done", allowed="- `tool.py`", rows=rows, dod="- done (V2, V3, V5)\n")
+        code, out, _ = self.check(t, design=True)
+        self.assertEqual(code, 0, out)
+
+    def test_fallback_without_manifest_accepts_and_rejects_or(self) -> None:
+        self.write("src/mod.py", "def f() -> int:\n    return 1\n")
+        self.commit()
+        good_rows = RED + GREEN + "| V3 | TIER-B | `ruff check src/mod.py && mypy --strict src/mod.py` | exit 0 | — |\n" + TIER_C
+        t_good = self.task("1_fb_ok", allowed="- `src/mod.py`", rows=good_rows, dod="- [ ] done (V2, V3, V5)\n", decisions="- Fallback ok.\n")
+        code, out, _ = self.check(t_good, design=True)
+        self.assertEqual(code, 0, out)
+
+        bad_rows = RED + GREEN + r"| V3 | TIER-B | `ruff check src/mod.py \|\| mypy --strict src/mod.py` | exit 0 | — |" + "\n" + TIER_C
+        t_bad = self.task("1_fb_bad", allowed="- `src/mod.py`", rows=bad_rows, dod="- [ ] done (V2, V3, V5)\n", decisions="- Fallback reject.\n")
+        code2, out2, _ = self.check(t_bad, design=True)
+        self.assertEqual(code2, 1, out2)
+        self.assertNotIn("expected 5 cells", out2)
+        self.assertNotIn("lint (ruff)", out2)
+        self.assertIn("type-check", out2)
+
+    def test_allowed_coverage_handles_unspaced_semicolon_and_excludes_or_tail(self) -> None:
+        self._uv_manifest()
+        allowed = "- `src/mod.py`\n- `tests/test_mod.py` (new)"
+        ok_rows = (
+            RED + GREEN
+            + "| V3 | TIER-B | `uv run ruff check src/mod.py tests/test_mod.py;uv run mypy --strict src/mod.py tests/test_mod.py` | exit 0 | — |\n"
+            + TIER_C
+        )
+        t_ok = self.task("1_cov_semi", allowed=allowed, rows=ok_rows, dod="- [ ] done (V2, V3, V5)\n", decisions="- Unspaced semicolon coverage.\n")
+        code, out, _ = self.check(t_ok, design=True)
+        self.assertEqual(code, 0, out)
+
+        bad_rows = (
+            RED + GREEN
+            + r"| V3 | TIER-B | `uv run ruff check src/mod.py tests/test_mod.py && uv run mypy --strict src/mod.py \|\| uv run mypy --strict tests/test_mod.py` | exit 0 | — |" + "\n"
+            + TIER_C
+        )
+        t_bad = self.task("1_cov_or", allowed=allowed, rows=bad_rows, dod="- [ ] done (V2, V3, V5)\n", decisions="- Or tail excluded from coverage.\n")
+        code2, out2, _ = self.check(t_bad, design=True)
+        self.assertEqual(code2, 1, out2)
+        self.assertNotIn("expected 5 cells", out2)
+        self.assertIn("TIER-B type-check must cover all Allowed Python files", out2)
+        self.assertIn("tests/test_mod.py", out2)
+
+
 if __name__ == "__main__":
     unittest.main()
 

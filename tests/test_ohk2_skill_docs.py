@@ -73,3 +73,19 @@ def test_obs18_docs_contain_zero_personal_paths_and_preserve_skill_contract() ->
         assert set(keys) == {"name", "description"}, (
             f"{rel}: invalid frontmatter keys {keys!r}"
         )
+
+
+def test_obs20_verification_rows_documents_tier_b_sequential_chaining() -> None:
+    """#20: verification-rows.md documents && / ; sequential TIER-B chaining and || / | exclusion."""
+    text = _read("skills/dev-designer/references/verification-rows.md")
+    assert "check_task_contract.py" in text
+    assert "`&&`" in text
+    assert "`;`" in text
+    assert "`||`" in text
+    assert "`|`" in text
+    assert "excluded" in text
+    assert "TIER-B" in text
+    for pat in PERSONAL_LEAK_PATTERNS:
+        assert pat.search(text) is None, (
+            f"verification-rows.md leaked personal pattern {pat.pattern!r}"
+        )

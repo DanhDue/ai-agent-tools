@@ -56,6 +56,8 @@ produces the test report a `TIER-C` row names after `results`. The table grammar
 
 Report: `pytest --junitxml=<path>`.
 
+> **Chained vs. split `TIER-B` rows:** `check_task_contract.py` splits unconditional sequential shell chains (`&&` and `;`) when matching registered `lint` and `type_check` capabilities (tails after `||` or `|` are excluded). Both a single chained `V4 | TIER-B` row and separate `V4`/`V5` `TIER-B` rows are valid.
+
 ## Android
 
 | ID | Phase | Command | Expect | Needs |
