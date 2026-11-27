@@ -65,6 +65,21 @@ Run an initial check to certify that the repository passes the baseline PR profi
 python3 skills/quality_check/resources/scripts/validate_quality_contract.py registry .agents/quality/check_quality.json --profile pr --compact
 ```
 
+## Coverage Report Prerequisite
+
+Scaffolded `test` (`test_unit` on Web) commands are intentionally minimal defaults and do not emit coverage artifacts on their own. Both `diff_coverage` (in the `pr` profile) and `coverage` (in `epic`, `scheduled`, and `release`) invoke `check_diff_coverage.py`, which fails closed with exit code `2` (`BLOCKED`) on a clean checkout when the expected report file is missing.
+
+Before running `pr`, `epic`, `scheduled`, or `release`, update the project's `test` / `test_unit` capability (or add a prior coverage-producing step before `diff_coverage` / `coverage`) so the stack's expected report is written first:
+
+| Platform | Expected Report Path | Format | Example Coverage Producer |
+|---|---|---|---|
+| **Flutter** | `coverage_report/lcov.info` | `lcov` | Emit `--coverage` in `melos run test` and merge LCOV into `coverage_report/lcov.info` |
+| **Android** | `build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml` | `jacoco` | `./gradlew testDebugUnitTest jacocoTestReport` |
+| **iOS** | `build/coverage/lcov.info` | `lcov` | `swift test --enable-code-coverage` + `llvm-cov export --format=lcov` |
+| **Rust** | `target/llvm-cov/lcov.info` | `lcov` | `cargo llvm-cov --workspace --lcov --output-path target/llvm-cov/lcov.info` |
+| **Python** | `coverage.xml` | `cobertura` | Add `--cov --cov-report=xml:coverage.xml` to `pytest` |
+| **Web** | `coverage/lcov.info` | `lcov` | Configure `npm run test:unit` with `--coverage` and an LCOV reporter |
+
 ## CLI Reference
 
 `scaffold_quality_manifest.py` accepts the following arguments:
