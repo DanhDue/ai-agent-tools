@@ -2,7 +2,7 @@
 
 - **Date**: 2026-11-27
 - **Epic Slug**: `polyglot_lifecycle_and_quality_architecture`
-- **Status**: Draft (Pending Gate 1 Approval — Reconciled against `polyglot-quality-lifecycle-handoff.md`)
+- **Status**: Approved (Gate 1 Approved at `ac6f972`)
 - **PIC**: duvthinh403
 - **Selected Approach**: Approach A — Typed Python Registry with Manifest Overlays and Shared Additive Validator Helper
 - **Reference Inputs (Read-Only)**: `nexus` commit `49a6ee7a` (`polyglot-quality-lifecycle-handoff.md` and `scripts/check_lcov_threshold.py`)
