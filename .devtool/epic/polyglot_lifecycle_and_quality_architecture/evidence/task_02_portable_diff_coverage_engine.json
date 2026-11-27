@@ -1,0 +1,184 @@
+{
+  "schema": 1,
+  "task": "task_02_portable_diff_coverage_engine",
+  "runs": {
+    "red": {
+      "head": "251735d7ebd4fbafa807442a72c3038964ba650d",
+      "tree": "6a3800c079d90ad2371eb5fdddf1127d08c594d4",
+      "patch_id": "8d0f843ed306c101c77fd8cfe776f3b227d9f16f",
+      "started": "2026-11-27T02:49:32Z",
+      "finished": "2026-11-27T02:49:33Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_check_diff_coverage.py::test_plq_hp_02_multiformat_compact_pass_and_json",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T02:49:32Z",
+          "finished": "2026-11-27T02:49:33Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "_______________ test_plq_hp_02_multiformat_compact_pass_and_json _______________",
+            "tests/test_check_diff_coverage.py:163: in test_plq_hp_02_multiformat_compact_pass_and_json",
+            "    _require_script()",
+            "tests/test_check_diff_coverage.py:28: in _require_script",
+            "    pytest.fail(f\"Expected implementation script does not exist yet: {SCRIPT}\")",
+            "E   Failed: Expected implementation script does not exist yet: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/polyglot_lifecycle_and_quality_architecture-slot-2/skills/quality_check/resources/scripts/check_diff_coverage.py",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_check_diff_coverage.py::test_plq_hp_02_multiformat_compact_pass_and_json",
+            "1 failed in 0.30s"
+          ],
+          "output_sha256": "9f81cfe256f1cd96d5904e22dd0eb4d011cb914a3128fcaa1c71877a678a34f8"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "251735d7ebd4fbafa807442a72c3038964ba650d",
+      "tree": "34e16b704794921757762a65ebf2c0e3a9a6f886",
+      "patch_id": "827d0e3988ad645a77bb6003f1721fa7635ff722",
+      "started": "2026-11-27T02:53:30Z",
+      "finished": "2026-11-27T02:53:38Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_check_diff_coverage.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T02:53:30Z",
+          "finished": "2026-11-27T02:53:33Z",
+          "output_tail": [
+            ".............                                                            [100%]",
+            "13 passed in 2.65s"
+          ],
+          "output_sha256": "66a0f5c188a77844b8328a17a82a36443934e08023e065fd51aebbeab5b0c4c1"
+        },
+        {
+          "id": "V3",
+          "phase": "REGRESSION",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 skills/quality_check/resources/scripts/test_validate_quality_contract.py skills/setup_quality_check/resources/scripts/test_scaffold_quality_manifest.py skills/quality_check/resources/scripts/test_quality_provider_acceptance.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T02:53:33Z",
+          "finished": "2026-11-27T02:53:35Z",
+          "output_tail": [
+            ".......................................................        [100%]",
+            "55 passed, 10 subtests passed in 1.98s"
+          ],
+          "output_sha256": "458b5fc0a2420de8d10ecc2df21ec55d1f67a4c80a0aabe66b17645d7cfe81af"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/quality_check/resources/scripts/check_diff_coverage.py tests/test_check_diff_coverage.py && ruff format --check skills/quality_check/resources/scripts/check_diff_coverage.py tests/test_check_diff_coverage.py && mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/quality_check/resources/scripts/check_diff_coverage.py tests/test_check_diff_coverage.py --ignore-missing-imports --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T02:53:35Z",
+          "finished": "2026-11-27T02:53:35Z",
+          "output_tail": [
+            "All checks passed!",
+            "2 files already formatted",
+            "Success: no issues found in 9 source files"
+          ],
+          "output_sha256": "88f62f30e45198e4961729af35529871cdfbb6cb180a6993f105420861f55ed6"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_check_diff_coverage.py --junitxml=build/test-results/task_02.xml",
+          "expect": "exit 0; results build/test-results/task_02.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T02:53:35Z",
+          "finished": "2026-11-27T02:53:38Z",
+          "output_tail": [
+            ".............                                                            [100%]",
+            "13 passed in 2.65s"
+          ],
+          "output_sha256": "66a0f5c188a77844b8328a17a82a36443934e08023e065fd51aebbeab5b0c4c1",
+          "results": {
+            "path": "build/test-results/task_02.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 8,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_plq_hp_02_multiformat_compact_pass_and_json",
+                  "classname": "tests.test_check_diff_coverage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_ec_03_untested_new_file_fallback_failure",
+                  "classname": "tests.test_check_diff_coverage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_ec_04_generated_files_and_excluded_package_floor",
+                  "classname": "tests.test_check_diff_coverage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_fr_02_malformed_or_missing_reports_return_blocked_exit_2",
+                  "classname": "tests.test_check_diff_coverage",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_hp_02_integration",
+                  "classname": "tests.test_check_diff_coverage.TestCheckDiffCoverage_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_ec_03_integration",
+                  "classname": "tests.test_check_diff_coverage.TestCheckDiffCoverage_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_ec_04_integration",
+                  "classname": "tests.test_check_diff_coverage.TestCheckDiffCoverage_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_plq_fr_02_integration",
+                  "classname": "tests.test_check_diff_coverage.TestCheckDiffCoverage_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/quality_check/resources/scripts/check_diff_coverage.py",
+            "tests/test_check_diff_coverage.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}
