@@ -76,7 +76,12 @@ Read-only context:
   - `skills/quality_check/resources/scripts/test_validate_quality_contract.py` (`QualityContractTests` `L1-L416`)
   - `skills/web-quality-check/resources/scripts/validate_web_quality.py` (`validate_manifest` `L40-L215`, `main` `L679-L720`)
   - `skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py` (`detect_platforms` `L166-L225`, `build_registry_data` `L226-L243`, `scaffold_quality_manifests` `L244-L314`, `main` `L315-L378`)
-  - `skills/setup_quality_check/resources/scripts/test_scaffold_quality_manifest.py` (`ScaffoldQualityManifestTests` `L1-L292`)
+  - `skills/flutter-quality-check/resources/schemas/flutter-quality.schema.json` (`L1-L240`), `skills/flutter-quality-check/resources/scripts/validate_flutter_quality.py` (`validate_flutter_config` `L1-L260`)
+  - `skills/rust-quality-check/resources/schemas/rust-quality.schema.json` (`L1-L280`), `skills/rust-quality-check/resources/scripts/validate_rust_quality.py` (`validate_rust_config` `L1-L240`)
+  - `skills/python-quality-check/resources/schemas/python-quality.schema.json` (`L1-L275`), `skills/python-quality-check/resources/scripts/validate_python_quality.py` (`validate_python_config` `L1-L265`), `skills/python-quality-check/resources/scripts/test_validate_python_quality.py` (`L1-L205`)
+  - `skills/android-quality-check/resources/scripts/validate_android_quality.py` (`validate_android_config` `L1-L260`)
+  - `skills/ios-quality-check/resources/schemas/ios-quality.schema.json` (`L1-L245`), `skills/ios-quality-check/resources/scripts/validate_ios_quality.py` (`validate_ios_config` `L1-L255`)
+  - `skills/setup_quality_check/resources/scripts/test_scaffold_quality_manifest.py` (`L1-L280`)
   - `skills/quality_check/resources/scripts/_provider_manifest_common.py` (new): `validate_additive_provider_fields`, `validate_dual_floor_coverage`, `validate_pool_mounts`, `format_validator_cli_output`.
   - `skills/web-quality-check/resources/schemas/web-quality.schema.json` (new).
   - `tests/test_plq_quality_contracts_and_scaffolder.py` (new).
