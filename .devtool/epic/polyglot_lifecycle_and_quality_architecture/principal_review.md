@@ -34,3 +34,30 @@ Raw output:
 ```text
 Verdict: CHANGES REQUIRED
 ```
+
+## Round 2
+
+- **Date**: 2026-11-27T02:39:26Z
+- **SHA**: 756c6ec0daea1027aaf0a8a795d7274c722d491f
+- **Base**: main
+- **CLI**: claude
+- **Model**: Opus 5.5
+- **Thinking**: high
+- **Status**: completed
+- **Verdict**: CHANGES REQUIRED
+- **Kind**: principal
+- **Scope**: delta from round 1 (26c1504)
+- **Raw log**: `build/reviews/polyglot_lifecycle_and_quality_architecture_principal_round2_756c6ec.raw.log`
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Important | task_04_polyglot_task_contract_and_tier_c_gate.md:Requirement Analysis item 1 and DoD | [INCOMPLETE_FIX #2] Still described check_python_tier_b as running only when zero manifests exist instead of always running when is_python_task is true. | fixed in 32affe7 |
+| 2 | Important | task_03_quality_schemas_validators_and_scaffolder.md:Requirement Analysis item 2 and DoD | [INCOMPLETE_FIX #7] Still stated all 7 validator CLIs emit 1-line PASS by default instead of preserving JSON default stdout on registry/invocation/reconcile. | fixed in 32affe7 |
+| 3 | Minor | task_04_polyglot_task_contract_and_tier_c_gate.md:Requirement Analysis item 2 and DoD | Still named generic Tier C2 instead of canonical `# tier: C2` command comment marker. | fixed in 32affe7 |
+| 4 | Minor | 2026-11-27-polyglot-lifecycle-and-quality-architecture-design.md & polyglot_lifecycle_and_quality_architecture.md | Spec Component 1/Risks and HLD Goals still echoed Round 1 Python fallback and Tier C2 phrasing. | fixed in 32affe7 |
+
+Raw output:
+
+```text
+Verdict: CHANGES REQUIRED
+```
