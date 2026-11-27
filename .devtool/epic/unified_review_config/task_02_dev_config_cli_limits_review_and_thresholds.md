@@ -1,13 +1,13 @@
 ---
 id: "task_02_dev_config_cli_limits_review_and_thresholds"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "unified_review_config"
 dueDate: null
 created: "2026-11-28T03:12:00+07:00"
-modified: "2026-11-28T03:12:00+07:00"
-completedAt: null
+modified: "2026-11-27T20:57:33Z"
+completedAt: "2026-11-27T20:57:33Z"
 labels: ["architecture", "contract", "dev-config", "cli"]
 order: "a02"
 review_tier: "full"
@@ -130,11 +130,11 @@ And running "review set ollama --model gemma4 --host ftp://bad-host" or "limits 
 
 ## Definition of Done
 
-- [ ] `scripts/dev_config.py` implements `limits` (read/set/reset), `review` (`status`/`priority`/`set`/`thresholds`/`reset`), updated `status [--json]`, global-masked-by-project warnings, and `models remove` protection for `review.providers.*` (V2, V5)
-- [ ] `scripts/dev_config.py` and `scripts/agy_dispatch.py` resolve `quota_thresholds` via `persona_config.resolve_review_config()` (V2, V3, V5)
-- [ ] All 6 assigned scenarios (`URC-HP-02`, `URC-HP-03`, `URC-EC-03`, `URC-ST-01`, `URC-ST-02`, `URC-FR-02`) pass in `tests/test_urc_dev_config_cli.py` with JUnit XML written to `build/test-results/task_02.xml` (V2, V5)
-- [ ] Downstream `agy_dispatch`, `set_provider_model_profile`, `agy_profile_pool`, and `persona_limits` regression suites pass without regressions (V3)
-- [ ] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4)
+- [x] `scripts/dev_config.py` implements `limits` (read/set/reset), `review` (`status`/`priority`/`set`/`thresholds`/`reset`), updated `status [--json]`, global-masked-by-project warnings, and `models remove` protection for `review.providers.*` (V2, V5) — PASS (exit 0)
+- [x] `scripts/dev_config.py` and `scripts/agy_dispatch.py` resolve `quota_thresholds` via `persona_config.resolve_review_config()` (V2, V3, V5) — PASS (exit 0)
+- [x] All 6 assigned scenarios (`URC-HP-02`, `URC-HP-03`, `URC-EC-03`, `URC-ST-01`, `URC-ST-02`, `URC-FR-02`) pass in `tests/test_urc_dev_config_cli.py` with JUnit XML written to `build/test-results/task_02.xml` (V2, V5) — PASS (8 passed; JUnit written)
+- [x] Downstream `agy_dispatch`, `set_provider_model_profile`, `agy_profile_pool`, and `persona_limits` regression suites pass without regressions (V3) — PASS (exit 0)
+- [x] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4) — PASS (exit 0)
 
 ## Dependencies & Blockers
 
