@@ -397,7 +397,7 @@ def cmd_status(
     limits = review_cfg.limits
     review_payload = _serialize_review_config(project_root, review_cfg)
 
-    warnings = _pc.detect_legacy_warnings(project_root)
+    warnings = _pc.detect_legacy_warnings(project_root, real_home=real_home)
     personas_payload: dict[str, Any] = {}
     for persona, binding in bindings.items():
         on_path = _pc.resolve_cli_binary(binding.cli) is not None
@@ -457,8 +457,6 @@ def cmd_status(
     for persona in PERSONAS:
         b = bindings[persona]
         src_str = f"model={b.sources['model']}, effort={b.sources['effort']}"
-        if b.profile is not None:
-            src_str += f", profile={b.profile} ({b.sources['profile']})"
         cli_tag = b.cli if personas_payload[persona]["cli_on_path"] else f"{b.cli}(!)"
         fb = b.fallback_alias or "-"
         print(
@@ -825,32 +823,6 @@ def _is_effortless_target(
     return len(matches) == 1 and list(matches[0].get("efforts", [])) == ["none"]
 
 
-def _checked_set_profile(
-    profile: str | None,
-    *,
-    alias: str,
-    cli: str,
-    real_home: Path | None,
-) -> str | None:
-    """Validate `--profile` against the resolved cli and the agy pool allow-list."""
-    if profile is None or profile == "auto":
-        return None
-    if cli != "agy":
-        raise PersonaConfigError(
-            f"--profile applies only to agy models; '{alias}' uses '{cli}'"
-        )
-    _pool.validate_profile_name(profile)
-    pool_names = {
-        str(item["profile"])
-        for item in _pool.load_pool_config(real_home=real_home)["pool"]
-    }
-    if profile not in pool_names:
-        raise PersonaConfigError(
-            f"Profile '{profile}' is not in the agy pool; add it first with 'profiles add {profile}'"
-        )
-    return profile
-
-
 def _resolve_set_request(
     project_root: Path,
     *,
@@ -859,10 +831,9 @@ def _resolve_set_request(
     provider: str | None,
     flag_model: str | None,
     flag_effort: str | None,
-    profile: str | None,
     real_home: Path | None,
-) -> tuple[str, str, str | None]:
-    """Turn the `set` arguments into a checked (alias, effort, profile) triple."""
+) -> tuple[str, str]:
+    """Turn the `set` arguments into a checked (alias, effort) pair."""
     flagged = flag_model is not None or flag_effort is not None
     if flagged and (model is not None or effort is not None):
         raise PersonaConfigError(
@@ -906,13 +877,8 @@ def _resolve_set_request(
         effort = "none"
         inferred_effortless = True
 
-    if (
-        not flagged
-        and provider is None
-        and (profile is None or profile == "auto")
-        and not inferred_effortless
-    ):
-        return model, effort, None
+    if not flagged and provider is None and not inferred_effortless:
+        return model, effort
 
     if models is None:
         models = _pc.load_persona_config(project_root, real_home=real_home)["models"]
@@ -926,10 +892,7 @@ def _resolve_set_request(
             f"Unsupported effort '{effort}' for model '{alias}'; "
             f"allowed: {', '.join(allowed_efforts)}"
         )
-    checked = _checked_set_profile(
-        profile, alias=alias, cli=str(entry["cli"]), real_home=real_home
-    )
-    return alias, effort, checked
+    return alias, effort
 
 
 def cmd_set(
@@ -944,19 +907,17 @@ def cmd_set(
     provider: str | None = None,
     flag_model: str | None = None,
     flag_effort: str | None = None,
-    profile: str | None = None,
 ) -> int:
-    """Set the persona override (model, effort, optional fallback and agy profile) in a scope."""
+    """Set the persona override (model, effort, and optional fallback) in a scope."""
     _validate_scope(scope)
     _validate_persona_name(persona)
-    alias, resolved_effort, stored_profile = _resolve_set_request(
+    alias, resolved_effort = _resolve_set_request(
         project_root,
         model=model,
         effort=effort,
         provider=provider,
         flag_model=flag_model,
         flag_effort=flag_effort,
-        profile=profile,
         real_home=real_home,
     )
 
@@ -969,13 +930,10 @@ def cmd_set(
         entry: dict[str, Any] = {"model": alias, "effort": resolved_effort}
         if fallback is not None:
             entry["fallback_model"] = fallback
-        if stored_profile is not None:
-            entry["profile"] = stored_profile
         overrides[persona] = entry
 
     _pc.locked_update_layer(project_root, scope, _mutate, real_home=real_home)
-    suffix = f" profile {stored_profile}" if stored_profile is not None else ""
-    print(f"Set {persona} -> {alias} ({resolved_effort}){suffix} in {scope} scope.")
+    print(f"Set {persona} -> {alias} ({resolved_effort}) in {scope} scope.")
     return 0
 
 
@@ -1188,7 +1146,7 @@ def cmd_review_status(
 ) -> int:
     """Show resolved external review priority, providers, quota thresholds, and warnings."""
     review_cfg = _pc.resolve_review_config(project_root, real_home=real_home)
-    warnings = _pc.detect_legacy_warnings(project_root)
+    warnings = _pc.detect_legacy_warnings(project_root, real_home=real_home)
     payload = _serialize_review_config(project_root, review_cfg)
     payload["limits"] = asdict(review_cfg.limits)
     payload["warnings"] = warnings
@@ -1499,7 +1457,6 @@ def _check_agy_pool_quota(
         resident_probe=resident_probe,
         wait_seconds=0,
         dry_run=True,
-        preferred_profile=binding.profile,
     )
     if acq.profile is not None:
         chosen = fetched_by_profile.get(acq.profile)
@@ -2073,7 +2030,6 @@ def _build_parser() -> _DevConfigParser:
     p_set.add_argument("--provider", dest="set_provider", default=None)
     p_set.add_argument("--model", dest="flag_model", default=None)
     p_set.add_argument("--effort", dest="flag_effort", default=None)
-    p_set.add_argument("--profile", dest="set_profile", default=None)
     p_set.add_argument("--fallback", default=None)
     p_set.add_argument("--scope", default=argparse.SUPPRESS)
 
@@ -2327,7 +2283,6 @@ def _dispatch_args(args: argparse.Namespace, project_root: Path) -> int:
             provider=args.set_provider,
             flag_model=args.flag_model,
             flag_effort=args.flag_effort,
-            profile=args.set_profile,
         )
     if cmd == "reset":
         return cmd_reset(project_root, persona=args.persona, scope=scope)

@@ -2827,7 +2827,7 @@ def record_checkpoint_event(
     is_low_quota = (
         pc.low_quota_state(repo_root, profile, real_home=real_home_path) is not None
     )
-    legacy_warnings = pc.detect_legacy_warnings(repo_root)
+    legacy_warnings = pc.detect_legacy_warnings(repo_root, real_home=real_home_path)
 
     checkpoint_payload: dict[str, Any] = {
         "event": event,

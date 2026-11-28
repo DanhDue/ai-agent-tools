@@ -69,6 +69,9 @@ _LAYER_RANK: dict[str, int] = {
 _ALLOWED_OVERRIDE_FIELDS: frozenset[str] = frozenset(
     {"model", "effort", "fallback_model", "profile"}
 )
+_ALLOWED_CLI_OVERRIDE_FIELDS: frozenset[str] = frozenset(
+    {"model", "effort", "fallback_model"}
+)
 _PROFILE_NAME_RE: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9_-]+$")
 _ALLOWED_TOP_KEYS: frozenset[str] = frozenset(
     {
@@ -834,17 +837,17 @@ def _resolve_from_layers(
         ov = layer_data.get("overrides", {}).get(persona)
         if not isinstance(ov, Mapping):
             continue
-        for field in ("model", "effort", "fallback_model", "profile"):
+        for field in ("model", "effort", "fallback_model"):
             if field in ov:
                 values[field] = ov[field]
                 sources[field] = layer_name
 
     if cli_overrides:
-        bad_cli_keys = set(cli_overrides) - _ALLOWED_OVERRIDE_FIELDS
+        bad_cli_keys = set(cli_overrides) - _ALLOWED_CLI_OVERRIDE_FIELDS
         if bad_cli_keys:
             bad = min(bad_cli_keys)
             raise PersonaConfigError(f"Unknown CLI override field '{bad}'")
-        for field in ("model", "effort", "fallback_model", "profile"):
+        for field in ("model", "effort", "fallback_model"):
             if field in cli_overrides and cli_overrides[field] is not None:
                 values[field] = cli_overrides[field]
                 sources[field] = "cli"
@@ -873,23 +876,6 @@ def _resolve_from_layers(
 
     model_id = str(entry["id"]).replace("{effort}", effort)
     quota_pool = derive_quota_pool(entry, alias)
-    profile = values.get("profile")
-    if profile is not None:
-        _validate_profile_name(profile, f"persona '{persona}'")
-        if (
-            entry["cli"] != "agy"
-            and _LAYER_RANK[sources["profile"]] < _LAYER_RANK[sources["model"]]
-        ):
-            # SE-15: a profile inherited from a lower layer is ignored when a higher layer
-            # binds a model that is not an agy model; it leaves the binding and `sources`.
-            profile = None
-            del sources["profile"]
-        elif entry["cli"] != "agy":
-            raise PersonaConfigError(
-                f"Invalid profile '{profile}' for persona '{persona}' "
-                f"(set by the {sources['profile']} layer): a profile applies only to "
-                f"an agy model, but '{alias}' uses '{entry['cli']}'"
-            )
     return PersonaBinding(
         persona=persona,
         alias=alias,
@@ -899,7 +885,7 @@ def _resolve_from_layers(
         quota_pool=quota_pool,
         fallback_alias=fallback_alias,
         sources=sources,
-        profile=profile,
+        profile=None,
     )
 
 
@@ -1408,9 +1394,34 @@ def classify_dispatch_failure(exit_code: int, stdout: str, stderr: str) -> str |
 def detect_legacy_warnings(
     project_root: Path,
     env: Mapping[str, str] | None = None,
+    *,
+    real_home: Path | str | None = None,
 ) -> list[str]:
-    """Report legacy review_config.json settings and AGY_* env vars."""
+    """Report legacy personas.json profile keys, review_config.json settings, and AGY_* env vars."""
     warnings: list[str] = []
+    for layer_label, cfg_path in (
+        ("global", global_config_path(real_home)),
+        ("project", project_config_path(project_root)),
+    ):
+        if not cfg_path.is_file():
+            continue
+        try:
+            layer_doc = json.loads(cfg_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if not isinstance(layer_doc, Mapping):
+            continue
+        ov_map = layer_doc.get("overrides")
+        if not isinstance(ov_map, Mapping):
+            continue
+        for persona_key in PERSONAS:
+            ov_entry = ov_map.get(persona_key)
+            if isinstance(ov_entry, Mapping) and "profile" in ov_entry:
+                warnings.append(
+                    f"Legacy setting '{layer_label} personas.json overrides.{persona_key}.profile' "
+                    "is ignored; configure pool priority and concurrency on Task Dashboard "
+                    "or via 'dev-config profiles set'."
+                )
     review_cfg = Path(project_root) / ".devtool" / "review_config.json"
     if review_cfg.is_file():
         try:
