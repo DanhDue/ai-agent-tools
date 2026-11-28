@@ -67,12 +67,20 @@ DEFAULT_PORT = 8766
 DEFAULT_QUOTA_PORT = 8765
 DEFAULT_PID_FILE = Path("/tmp/agy_tasks_server.pid")
 _STATE_ENVELOPE_MOD: Any | None = None
+_AGY_PROFILE_POOL_SIG: tuple[str, int, int] | None = None
 _AGY_PROFILE_POOL_MOD: Any | None = None
 
 
 def _load_state_envelope() -> Any | None:
     """Lazily import shared `scripts/_state_envelope.py` without failing on standalone copies."""
     global _STATE_ENVELOPE_MOD
+    with contextlib.suppress(Exception):
+        from check_tasks import _load_kit_module
+
+        _STATE_ENVELOPE_MOD = _load_kit_module(
+            "_state_envelope", "scripts", "_state_envelope.py"
+        )
+        return _STATE_ENVELOPE_MOD
     if _STATE_ENVELOPE_MOD is not None:
         return _STATE_ENVELOPE_MOD
     for parent in [SCRIPT_DIR, *SCRIPT_DIR.parents]:
@@ -90,9 +98,7 @@ def _load_state_envelope() -> Any | None:
 
 def _load_agy_profile_pool() -> Any:
     """Lazily load shared `scripts/agy_profile_pool.py` via check_tasks loader or kit path."""
-    global _AGY_PROFILE_POOL_MOD
-    if _AGY_PROFILE_POOL_MOD is not None:
-        return _AGY_PROFILE_POOL_MOD
+    global _AGY_PROFILE_POOL_MOD, _AGY_PROFILE_POOL_SIG
     with contextlib.suppress(Exception):
         from check_tasks import _AGY_POOL_REL, _load_kit_module
 
@@ -102,6 +108,10 @@ def _load_agy_profile_pool() -> Any:
         candidate = parent / "scripts" / "agy_profile_pool.py"
         if not candidate.is_file():
             continue
+        st = candidate.stat()
+        sig = (str(candidate.resolve()), st.st_mtime_ns, st.st_size)
+        if _AGY_PROFILE_POOL_MOD is not None and _AGY_PROFILE_POOL_SIG == sig:
+            return _AGY_PROFILE_POOL_MOD
         spec = importlib.util.spec_from_file_location("agy_profile_pool", str(candidate))
         if spec is None or spec.loader is None:
             continue
@@ -109,6 +119,7 @@ def _load_agy_profile_pool() -> Any:
         sys.modules["agy_profile_pool"] = module
         spec.loader.exec_module(module)
         _AGY_PROFILE_POOL_MOD = module
+        _AGY_PROFILE_POOL_SIG = sig
         return module
     raise RuntimeError("agy_profile_pool module unavailable")
 
@@ -235,11 +246,31 @@ def pid_meta_path(pid_file: Path = DEFAULT_PID_FILE) -> Path:
 
 
 def compute_server_code_fingerprint() -> str:
-    """Compute a deterministic digest of the server and harvester Python sources on disk."""
+    """Compute a deterministic digest of the server, harvester, kit modules, and dashboard UI."""
     hasher = hashlib.sha256()
-    for rel_name in ("tasks_server.py", "check_tasks.py"):
-        src = SCRIPT_DIR / rel_name
-        hasher.update(rel_name.encode("utf-8"))
+    candidates: list[tuple[str, Path]] = [
+        ("tasks_server.py", SCRIPT_DIR / "tasks_server.py"),
+        ("check_tasks.py", SCRIPT_DIR / "check_tasks.py"),
+        (
+            "dashboard/tasks_dashboard.html",
+            SCRIPT_DIR.parent / "dashboard" / "tasks_dashboard.html",
+        ),
+    ]
+    for parent in [SCRIPT_DIR, *SCRIPT_DIR.parents]:
+        cand_scripts = parent / "scripts"
+        if (cand_scripts / "persona_config.py").is_file() or (
+            cand_scripts / "agy_profile_pool.py"
+        ).is_file():
+            for rel_mod in (
+                "persona_config.py",
+                "personas.default.json",
+                "agy_profile_pool.py",
+                "_state_envelope.py",
+            ):
+                candidates.append((f"scripts/{rel_mod}", cand_scripts / rel_mod))
+            break
+    for label, src in candidates:
+        hasher.update(label.encode("utf-8"))
         hasher.update(b"\0")
         if src.is_file():
             with contextlib.suppress(OSError):

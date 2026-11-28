@@ -211,7 +211,11 @@ def _get_claude_access_token() -> str | None:
         return env_tok
     if Path(REAL_HOME).resolve() == Path(_derive_real_home()).resolve():
         try:
-            user = os.environ.get("USER", "danhdueexoictif")
+            user = (
+                os.environ.get("USER")
+                or os.environ.get("LOGNAME")
+                or Path(REAL_HOME).name
+            )
             proc = subprocess.run(
                 ["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
                 capture_output=True,

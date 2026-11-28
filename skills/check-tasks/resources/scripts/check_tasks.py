@@ -75,6 +75,7 @@ def _real_home() -> Path:
 get_real_home = _real_home
 
 _KIT_LOAD_LOCK = threading.Lock()
+_KIT_MODULE_SIGNATURES: dict[str, tuple[str, int, int]] = {}
 _EPIC_DOCS_REL = (
     "skills",
     "dev-implementation",
@@ -87,15 +88,30 @@ _AGY_POOL_REL = ("scripts", "agy_profile_pool.py")
 
 
 def _load_kit_module(name: str, *rel_parts: str) -> Any:
-    """Load a kit module by file path (never via sys.path); raise RuntimeError when absent."""
+    """Load a kit module by file path (never via sys.path), reloading when its disk file changes."""
     with _KIT_LOAD_LOCK:
         cached = sys.modules.get(name)
-        if cached is not None:
+        if cached is not None and getattr(cached, "__file__", None) is None:
             return cached
         for parent in [SCRIPT_DIR, *SCRIPT_DIR.parents]:
             candidate = parent.joinpath(*rel_parts)
             if not candidate.is_file():
                 continue
+            resolved_str = str(candidate.resolve())
+            st = candidate.stat()
+            sig = (resolved_str, st.st_mtime_ns, st.st_size)
+            if cached is not None:
+                cached_file = getattr(cached, "__file__", None)
+                cached_resolved = (
+                    str(Path(cached_file).resolve()) if cached_file else ""
+                )
+                prev_sig = _KIT_MODULE_SIGNATURES.get(name)
+                if cached_resolved == resolved_str:
+                    if prev_sig is None or prev_sig[0] != resolved_str:
+                        _KIT_MODULE_SIGNATURES[name] = sig
+                        return cached
+                    if prev_sig == sig:
+                        return cached
             spec = importlib.util.spec_from_file_location(name, str(candidate))
             if spec is None or spec.loader is None:
                 raise RuntimeError(f"Failed to create module spec for {candidate}")
@@ -105,8 +121,12 @@ def _load_kit_module(name: str, *rel_parts: str) -> Any:
                 spec.loader.exec_module(module)
             except Exception:
                 sys.modules.pop(name, None)
+                _KIT_MODULE_SIGNATURES.pop(name, None)
                 raise
+            _KIT_MODULE_SIGNATURES[name] = sig
             return module
+        if cached is not None:
+            return cached
     raise RuntimeError(f"Required kit module not found: {'/'.join(rel_parts)}")
 
 

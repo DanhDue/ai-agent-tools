@@ -105,7 +105,7 @@ class TestKiroQuotaProvider(unittest.TestCase):
     @patch("urllib.request.urlopen")
     def test_fetch_kiro_quota_success(self, mock_urlopen, mock_run, mock_get_bin):
         """Mock successful end-to-end token acquisition and AWS API response."""
-        mock_get_bin.return_value = "/Users/danhdueexoictif/.local/bin/kiro-cli"
+        mock_get_bin.return_value = "/Users/testuser/.local/bin/kiro-cli"
 
         # Mock whoami
         whoami_proc = MagicMock()

@@ -77,13 +77,17 @@ if command -v claude >/dev/null 2>&1; then
   claude plugin update d3nexus@danhdue-agent-tools 2>/dev/null || true
 fi
 
-python3 - <<'PY'
-import os, glob, subprocess
+REAL_HOME_DIR="${REAL_HOME:-${HOME%%/antigravity_homes/*}}"
+
+python3 - "$REAL_HOME_DIR" <<'PY'
+import glob, os, subprocess, sys
+
+real_home = sys.argv[1]
 
 paths = [
     os.path.expanduser("~/.gemini/config/plugins/d3nexus"),
-    "/Users/danhdueexoictif/.gemini/config/plugins/d3nexus",
-    *glob.glob("/Users/danhdueexoictif/antigravity_homes/*/.gemini/config/plugins/d3nexus"),
+    os.path.join(real_home, ".gemini/config/plugins/d3nexus"),
+    *glob.glob(os.path.join(real_home, "antigravity_homes/*/.gemini/config/plugins/d3nexus")),
 ]
 
 seen = set()
@@ -101,8 +105,8 @@ for p in paths:
 
 codex_paths = [
     os.path.expanduser("~/.codex/.tmp/marketplaces/danhdue-agent-tools"),
-    "/Users/danhdueexoictif/.codex/.tmp/marketplaces/danhdue-agent-tools",
-    *glob.glob("/Users/danhdueexoictif/antigravity_homes/*/.codex/.tmp/marketplaces/danhdue-agent-tools"),
+    os.path.join(real_home, ".codex/.tmp/marketplaces/danhdue-agent-tools"),
+    *glob.glob(os.path.join(real_home, "antigravity_homes/*/.codex/.tmp/marketplaces/danhdue-agent-tools")),
 ]
 seen_codex = set()
 for p in codex_paths:
@@ -120,7 +124,10 @@ PY
 
 if command -v codex >/dev/null 2>&1; then
   echo "  updating codex plugin"
-  for h in "/Users/danhdueexoictif" "$HOME"; do
+  seen_homes=""
+  for h in "$REAL_HOME_DIR" "$HOME"; do
+    case " $seen_homes " in *" $h "*) continue ;; esac
+    seen_homes="$seen_homes $h"
     if [ -d "$h/.codex" ]; then
       HOME="$h" codex plugin add d3nexus@danhdue-agent-tools 2>/dev/null || true
     fi
@@ -129,7 +136,10 @@ fi
 
 if command -v kiro-cli >/dev/null 2>&1; then
   echo "  updating kiro-cli power"
-  for h in "/Users/danhdueexoictif" "$HOME"; do
+  seen_homes=""
+  for h in "$REAL_HOME_DIR" "$HOME"; do
+    case " $seen_homes " in *" $h "*) continue ;; esac
+    seen_homes="$seen_homes $h"
     if [ -d "$h/.kiro" ]; then
       HOME="$h" kiro-cli powers install . 2>/dev/null || true
     fi

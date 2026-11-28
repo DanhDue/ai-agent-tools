@@ -166,9 +166,9 @@ python3 scripts/remediate_profiles.py
 
 # Step 3: Verify identity parity
 python3 -c "
-import sqlite3, json, subprocess, base64
+import os, sqlite3, json, subprocess, base64
 profile = '<profile>'
-home = f'/Users/danhdue/antigravity_homes/{profile}'
+home = os.path.expanduser(f'~/antigravity_homes/{profile}')
 kc = f'{home}/Library/Keychains/{profile}.keychain-db'
 subprocess.run(['security', 'unlock-keychain', '-p', 'H@No!a@12345', kc], capture_output=True)
 res = subprocess.run(['security', 'find-generic-password', '-s', 'gemini', '-a', 'antigravity', '-g', kc], capture_output=True, text=True)

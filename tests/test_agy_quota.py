@@ -398,7 +398,7 @@ class TestAgyQuotaServer(unittest.TestCase):
     def test_build_clean_host_env_strips_ide_and_profile_vars(self):
         """build_clean_host_env strips all leaked IDE/profile variables and restores REAL_HOME."""
         dirty = {
-            "HOME": "/Users/danhdueexoictif/antigravity_homes/hau",
+            "HOME": "/Users/testuser/antigravity_homes/hau",
             "PATH": "/opt/homebrew/bin:/usr/bin",
             "TERM_PROGRAM": "vscode",
             "TERM_PROGRAM_VERSION": "1.99.0",
@@ -439,7 +439,7 @@ class TestAgyQuotaServer(unittest.TestCase):
     def test_start_server_daemon_uses_clean_host_env(self):
         """start_server_daemon passes sanitized host env to detached server process."""
         dirty_env = {
-            "HOME": "/Users/danhdueexoictif/antigravity_homes/danhdue",
+            "HOME": "/Users/testuser/antigravity_homes/danhdue",
             "TERM_PROGRAM": "vscode",
             "VSCODE_PID": "1463",
             "ELECTRON_RUN_AS_NODE": "1",
@@ -482,7 +482,7 @@ class TestAgyQuotaServer(unittest.TestCase):
         handler.send_json = MagicMock()
 
         dirty_env = {
-            "HOME": "/Users/danhdueexoictif/antigravity_homes/danhdue",
+            "HOME": "/Users/testuser/antigravity_homes/danhdue",
             "TERM_PROGRAM": "vscode",
             "VSCODE_IPC_HOOK": "/tmp/hook",
             "ELECTRON_RUN_AS_NODE": "1",
@@ -1166,7 +1166,7 @@ class TestAgyQuotaServer(unittest.TestCase):
         }
         dirty_env = {
             "PATH": "/opt/homebrew/bin:/usr/bin",
-            "HOME": "/Users/danhdueexoictif",
+            "HOME": "/Users/testuser",
             "VSCODE_PID": "999",
             "ANTIGRAVITY_AGENT": "1",
             "AGY_PROFILE": "phungthuy8901",
@@ -1411,6 +1411,25 @@ class TestAgyQuotaServer(unittest.TestCase):
                         for call_args in mock_run.call_args_list
                     )
                 )
+
+    def test_claude_keychain_fallback_derives_username_without_hardcoding(self) -> None:
+        """Keychain account fallback derives username from REAL_HOME when USER/LOGNAME are unset."""
+        seen_accounts: list[str] = []
+
+        def fake_run(cmd, **kwargs):
+            if "-a" in cmd:
+                seen_accounts.append(cmd[cmd.index("-a") + 1])
+            return MagicMock(returncode=44, stdout="", stderr="")
+
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(agy_quota, "REAL_HOME", "/Users/portable_dev"),
+            patch("subprocess.run", side_effect=fake_run),
+        ):
+            agy_quota.get_claude_oauth_token()
+            agy_quota._read_claude_oauth_hints()
+
+        self.assertEqual(seen_accounts, ["portable_dev", "portable_dev"])
 
 
 if __name__ == "__main__":

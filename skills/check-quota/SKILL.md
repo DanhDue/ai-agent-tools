@@ -19,9 +19,9 @@ Displays an executive, interactive Dark Mode dashboard and terminal status cards
 ### 1. In AI Agent Chat (Skill Invocations)
 
 When this skill is invoked via `/check-quota` or natural language (e.g., *"check quota"*, *"hiển thị dashboard quota"*), the AI assistant will:
-1. Render the interactive Dark Mode Visual Companion HTML dashboard inline:
+1. Render the interactive Dark Mode Visual Companion HTML dashboard inline (resolve `<skill_dir>` to the absolute path of this `check-quota` skill directory):
    ```html
-   <agent-embed src="file:///Users/danhdueexoictif/Projects/ai-agent-tools/skills/check-quota/resources/dashboard/quota_dashboard.html"></agent-embed>
+   <agent-embed src="file://<skill_dir>/resources/dashboard/quota_dashboard.html"></agent-embed>
    ```
 2. Present a brief summary of the active profile quota state.
 
