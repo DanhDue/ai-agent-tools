@@ -1,0 +1,312 @@
+{
+  "schema": 1,
+  "task": "task_02_receipt_hygiene_diff_coverage_and_scaffolder",
+  "runs": {
+    "red": {
+      "head": "abc5a54cc60752c318869603a8aa7f29b2b7a7b4",
+      "tree": "29d9b50214b4d62fbd37ff57539d4b86de45c31d",
+      "patch_id": "753b3a18e716ff81b624631f95352d2bba293fe4",
+      "started": "2026-11-28T04:10:45Z",
+      "finished": "2026-11-28T04:10:46Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_receipt_coverage_and_scaffolder.py::test_slqr_st_01_non_passing_epic_or_release_unlinks_stale_gate4_receipt",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T04:10:45Z",
+          "finished": "2026-11-28T04:10:46Z",
+          "output_tail": [
+            "E             \"finished_head\": \"4a69b3215b1ad523e9314510a1be43847e342dc1\",",
+            "E             \"duration\": 0.0,",
+            "E             \"blockers\": [",
+            "E               {",
+            "E                 \"code\": \"missing_architecture_authority\",",
+            "E                 \"message\": \"Epic profile requires an authoritative architecture or boundaries command in capabilities\",",
+            "E                 \"capability\": \"architecture\"",
+            "E               }",
+            "E             ],",
+            "E             \"warnings\": []",
+            "E           }",
+            "E         ],",
+            "E         \"blockers\": [",
+            "E           \"{'code': 'missing_architecture_authority', 'message': 'Epic profile requires an authoritative architecture or boundaries command in capabilities', 'capability': 'architecture'}\"",
+            "E         ],",
+            "E         \"warnings\": [],",
+            "E         \"coverage_summary\": {}",
+            "E       }",
+            "E     }",
+            "E     ",
+            "E   assert 1 == 0",
+            "E    +  where 1 = CompletedProcess(args=['/opt/homebrew/opt/python@3.15/bin/python3.15', '/Users/danhdueexoictif/AllProjects/ai-agent-to...s\\', \\'capability\\': \\'architecture\\'}\"\\n    ],\\n    \"warnings\": [],\\n    \"coverage_summary\": {}\\n  }\\n}\\n', stderr='').returncode",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_slqr_receipt_coverage_and_scaffolder.py::test_slqr_st_01_non_passing_epic_or_release_unlinks_stale_gate4_receipt",
+            "1 failed in 0.36s"
+          ],
+          "output_sha256": "25ed433e28f7dbae9dc66d4dcd59414d1d66c1a0c6cd560b65eba722007488a2"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "abc5a54cc60752c318869603a8aa7f29b2b7a7b4",
+      "tree": "77097f74e6f3e824a38e67d9c55de971957829b9",
+      "patch_id": "2227a3bb6c7bf6e482874a2efdb8742ee8cdeb94",
+      "started": "2026-11-28T04:16:46Z",
+      "finished": "2026-11-28T04:17:50Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_receipt_coverage_and_scaffolder.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T04:16:46Z",
+          "finished": "2026-11-28T04:17:05Z",
+          "output_tail": [
+            "..............................                                           [100%]",
+            "30 passed in 17.91s"
+          ],
+          "output_sha256": "6faf84ce79647300660783e9ed6993810db3c784421942458865b53a54cded5d"
+        },
+        {
+          "id": "V3",
+          "phase": "REGRESSION",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_check_diff_coverage.py skills/setup_quality_check/resources/scripts/test_scaffold_quality_manifest.py tests/test_plq_quality_contracts_and_scaffolder.py tests/test_polyglot_gate4.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T04:17:05Z",
+          "finished": "2026-11-28T04:17:32Z",
+          "output_tail": [
+            ".....................................................                    [100%]",
+            "53 passed in 26.49s"
+          ],
+          "output_sha256": "a56e3af148470655ca3f190a58c3b55f001bc001981c0a1fcf39aa0d7f507119"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/quality_check/resources/scripts/check_diff_coverage.py skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py skills/finishing-a-development-branch/resources/scripts/integrate_branch.py tests/test_slqr_receipt_coverage_and_scaffolder.py && ruff format --check skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/quality_check/resources/scripts/check_diff_coverage.py skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py skills/finishing-a-development-branch/resources/scripts/integrate_branch.py tests/test_slqr_receipt_coverage_and_scaffolder.py && mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/quality_check/resources/scripts/check_diff_coverage.py skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py skills/finishing-a-development-branch/resources/scripts/integrate_branch.py tests/test_slqr_receipt_coverage_and_scaffolder.py --ignore-missing-imports --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T04:17:32Z",
+          "finished": "2026-11-28T04:17:32Z",
+          "output_tail": [
+            "All checks passed!",
+            "5 files already formatted",
+            "Success: no issues found in 11 source files"
+          ],
+          "output_sha256": "17d5b1a627abd23c3f6e8439de500c053e3953997ee9b4aca56f6af0e62fef71"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_receipt_coverage_and_scaffolder.py --junitxml=build/test-results/slqr_task_02.xml",
+          "expect": "exit 0; results build/test-results/slqr_task_02.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T04:17:32Z",
+          "finished": "2026-11-28T04:17:49Z",
+          "output_tail": [
+            "..............................                                           [100%]",
+            "30 passed in 16.50s"
+          ],
+          "output_sha256": "36d52b98a73db09a7c62643748e51226d333bbc1e5f36b71e056b1abc3b33100",
+          "results": {
+            "path": "build/test-results/slqr_task_02.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 30,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_slqr_st_01_non_passing_epic_or_release_unlinks_stale_gate4_receipt",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_st_01_integration",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_02_missing_or_ununlinkable_receipt_does_not_mask_fail_verdict",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_st_02_integrate_branch_verify_tier_warns_on_dirty_noop_worktree",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_scaffolder_and_web_template_deduplicate_profiles[flutter]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_scaffolder_and_web_template_deduplicate_profiles[android]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_scaffolder_and_web_template_deduplicate_profiles[ios]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_scaffolder_and_web_template_deduplicate_profiles[rust]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_scaffolder_and_web_template_deduplicate_profiles[python]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_scaffolder_and_web_template_deduplicate_profiles[web]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_scaffolder_and_web_template_deduplicate_profiles[web_template]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_stack_specific_offline_and_tool_hardening",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_check_diff_coverage_package_floors_ratchets[9-11-0-PASS:]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_check_diff_coverage_package_floors_ratchets[8-11-1-src/pkg/align]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_check_diff_coverage_package_floors_ratchets[9-9-1-src/web/studio.js]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_package_floors_flat_packages_and_basename_matching",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[missing-None]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[corrupt_json-{not valid json]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[non_object_json-[0.8, 0.9]]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[negative_floor-{\"python\": {\"adapters\": {\"src/a\": -0.1}}}]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[over_100_floor-{\"web_modules\": {\"src/a.js\": 101}}]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[bool_floor-{\"packages\": {\"src/a\": true}}]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[string_floor-{\"src/a\": \"80%\"}]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[dict_without_floor-{\"web_modules\": {\"src/a.js\": {\"note\": \"x\"}}}]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[bad_python_section-{\"python\": \"invalid\"}]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[bad_adapters_section-{\"python\": {\"adapters\": [\"src/a\"]}}]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[bad_web_modules_section-{\"web_modules\": 42}]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[bad_packages_section-{\"packages\": \"none\"}]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[traversal_key-{\"packages\": {\"../outside\": 0.8}}]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_unmeasured_package_floors_exempted_cleanly",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/finishing-a-development-branch/resources/scripts/integrate_branch.py",
+            "skills/quality_check/resources/scripts/check_diff_coverage.py",
+            "skills/quality_check/resources/scripts/verify_polyglot_registry.py",
+            "skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py",
+            "skills/setup_quality_check/resources/templates/web-quality.template.json",
+            "tests/test_slqr_receipt_coverage_and_scaffolder.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

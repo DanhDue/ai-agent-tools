@@ -24,7 +24,7 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, NoReturn
@@ -118,10 +118,22 @@ _STRUCTURAL_KEYWORD_RE = re.compile(
 )
 _PY_DOCSTRING_PREFIX_RE = re.compile(r'^[rRbBuUfF]{0,2}("""|\'\'\')')
 _FLOAT_EPS = 1e-9
+_FLOOR_METADATA_KEYS: frozenset[str] = frozenset(
+    {"schema_version", "description", "default_core_floor"}
+)
+_FILE_FLOOR_EXTRA_EXTS: frozenset[str] = frozenset({".jsx", ".cjs", ".vue", ".svelte"})
 
 
 class BlockedError(Exception):
     """Raised when execution cannot proceed cleanly (exit code 2)."""
+
+
+@dataclass(frozen=True)
+class CustomFloorSpec:
+    """Normalized adapter/package prefix and file-level coverage ratchets."""
+
+    prefix_floors: dict[str, float] = field(default_factory=dict)
+    file_floors: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -161,6 +173,7 @@ class EvaluationResult:
     file_results: list[dict[str, Any]]
     diff_files: list[dict[str, Any]]
     failures: list[str]
+    custom_floor_results: list[dict[str, Any]] = field(default_factory=list)
 
     def to_json_dict(self) -> dict[str, Any]:
         """Serialize into the canonical machine-readable JSON contract."""
@@ -179,6 +192,7 @@ class EvaluationResult:
                 else None
             ),
             "package_results": self.package_results,
+            "custom_floor_results": self.custom_floor_results,
             "diff_files": self.diff_files,
             "failures": self.failures,
         }
@@ -1047,6 +1061,142 @@ def _fallback_executable_lines(file_path: Path, candidate_lines: set[int]) -> li
     return detected
 
 
+def _is_file_floor_key(norm_key: str) -> bool:
+    suffix = Path(norm_key).suffix.lower()
+    return suffix in DEFAULT_SOURCE_EXTS or suffix in _FILE_FLOOR_EXTRA_EXTS
+
+
+def _normalize_floor_key(raw_key: Any, section: str, source: Path | str) -> str:
+    if not isinstance(raw_key, str) or not raw_key.strip():
+        raise BlockedError(
+            f"Invalid empty or non-string floor key in '{section}' of '{source}'"
+        )
+    cleaned = raw_key.strip().replace("\\", "/")
+    if cleaned.startswith("/") or ".." in cleaned.split("/"):
+        raise BlockedError(f"Unsafe floor key '{raw_key}' in '{section}' of '{source}'")
+    norm = _normalize_rel_path(cleaned)
+    if not norm or norm.startswith(".."):
+        raise BlockedError(
+            f"Invalid floor key '{raw_key}' in '{section}' of '{source}'"
+        )
+    return norm
+
+
+def _extract_floor_pct(raw_val: Any, label: str) -> float:
+    if isinstance(raw_val, dict):
+        if "floor" not in raw_val:
+            raise BlockedError(f"Missing 'floor' key for {label}")
+        val = raw_val["floor"]
+    else:
+        val = raw_val
+    if isinstance(val, bool) or not isinstance(val, (int, float)):
+        raise BlockedError(
+            f"Invalid floor value for {label}: {val!r} (expected numeric 0..1 or 0..100)"
+        )
+    return _normalize_threshold(float(val), label)
+
+
+def _load_package_floors(path: Path) -> CustomFloorSpec:
+    """Load adapter/package prefix and web module coverage ratchets from JSON."""
+    if not path.is_file():
+        raise BlockedError(f"Package floors file not found: {path}")
+    try:
+        raw_text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise BlockedError(
+            f"Unable to read package floors file '{path}': {exc}"
+        ) from None
+    try:
+        data = json.loads(raw_text)
+    except json.JSONDecodeError as exc:
+        raise BlockedError(
+            f"Malformed JSON in package floors file '{path}': {exc}"
+        ) from None
+    if not isinstance(data, dict):
+        raise BlockedError(f"Package floors file '{path}' must contain a JSON object")
+
+    prefix_floors: dict[str, float] = {}
+    file_floors: dict[str, float] = {}
+
+    for key, val in data.items():
+        if key in _FLOOR_METADATA_KEYS:
+            continue
+        if key == "python":
+            if not isinstance(val, dict):
+                raise BlockedError(
+                    f"'python' section in '{path}' must be a JSON object"
+                )
+            for py_key, py_val in val.items():
+                if py_key in _FLOOR_METADATA_KEYS:
+                    continue
+                if py_key == "adapters":
+                    if not isinstance(py_val, dict):
+                        raise BlockedError(
+                            f"'python.adapters' in '{path}' must be a JSON object"
+                        )
+                    for adapter_key, adapter_val in py_val.items():
+                        norm = _normalize_floor_key(
+                            adapter_key, "python.adapters", path
+                        )
+                        pct = _extract_floor_pct(adapter_val, f"python.adapters.{norm}")
+                        if _is_file_floor_key(norm):
+                            file_floors[norm] = pct
+                        else:
+                            prefix_floors[norm] = pct
+                else:
+                    raise BlockedError(
+                        f"Unsupported key '{py_key}' in 'python' section of '{path}'"
+                    )
+        elif key == "web_modules":
+            if not isinstance(val, dict):
+                raise BlockedError(
+                    f"'web_modules' section in '{path}' must be a JSON object"
+                )
+            for mod_key, mod_val in val.items():
+                norm = _normalize_floor_key(mod_key, "web_modules", path)
+                file_floors[norm] = _extract_floor_pct(mod_val, f"web_modules.{norm}")
+        elif key == "packages":
+            if not isinstance(val, dict):
+                raise BlockedError(
+                    f"'packages' section in '{path}' must be a JSON object"
+                )
+            for pkg_key, pkg_val in val.items():
+                norm = _normalize_floor_key(pkg_key, "packages", path)
+                pct = _extract_floor_pct(pkg_val, f"packages.{norm}")
+                if _is_file_floor_key(norm):
+                    file_floors[norm] = pct
+                else:
+                    prefix_floors[norm] = pct
+        else:
+            norm = _normalize_floor_key(key, "package_floors", path)
+            pct = _extract_floor_pct(val, f"package_floors.{norm}")
+            if _is_file_floor_key(norm):
+                file_floors[norm] = pct
+            else:
+                prefix_floors[norm] = pct
+
+    return CustomFloorSpec(prefix_floors=prefix_floors, file_floors=file_floors)
+
+
+def _coerce_custom_floors(
+    custom_floors: CustomFloorSpec | Mapping[str, float] | None,
+) -> CustomFloorSpec:
+    if custom_floors is None:
+        return CustomFloorSpec()
+    if isinstance(custom_floors, CustomFloorSpec):
+        return custom_floors
+    prefix_floors: dict[str, float] = {}
+    file_floors: dict[str, float] = {}
+    for raw_key, raw_val in custom_floors.items():
+        norm = _normalize_floor_key(raw_key, "custom_floors", "<in-memory>")
+        pct = _extract_floor_pct(raw_val, f"custom_floors.{norm}")
+        if _is_file_floor_key(norm):
+            file_floors[norm] = pct
+        else:
+            prefix_floors[norm] = pct
+    return CustomFloorSpec(prefix_floors=prefix_floors, file_floors=file_floors)
+
+
 def evaluate_coverage(
     dataset: CoverageDataset,
     repo_root: Path,
@@ -1058,10 +1208,14 @@ def evaluate_coverage(
     package_groups: tuple[str, ...] = DEFAULT_PACKAGE_GROUPS,
     changed_by_file: dict[str, set[int]] | None = None,
     min_diff_coverage_pct: float | None = None,
+    custom_floors: CustomFloorSpec | Mapping[str, float] | None = None,
 ) -> EvaluationResult:
-    """Evaluate workspace, per-package, and hunk-level diff coverage floors."""
+    """Evaluate workspace, per-package, custom ratchet, and hunk-level diff coverage floors."""
     excluded = excluded_package_floors or set()
+    floor_spec = _coerce_custom_floors(custom_floors)
     module_stats: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+    file_stats: dict[str, tuple[int, int]] = {}
+    file_bucket_by_sf: dict[str, str] = {}
     file_results: list[dict[str, Any]] = []
     total_lh = 0
     total_lf = 0
@@ -1090,6 +1244,8 @@ def evaluate_coverage(
         bucket = _bucket_for_path(canonical_sf, package_groups)
         module_stats[bucket][0] += lh
         module_stats[bucket][1] += lf
+        file_stats[canonical_sf] = (lh, lf)
+        file_bucket_by_sf[canonical_sf] = bucket
         total_lh += lh
         total_lf += lf
         file_pct = (lh / lf * 100.0) if lf > 0 else 0.0
@@ -1117,20 +1273,134 @@ def evaluate_coverage(
                 f"{min_coverage_pct:.1f}%."
             )
 
+    custom_floor_results: list[dict[str, Any]] = []
+    custom_floor_failures: list[str] = []
+    custom_governed_files: set[str] = set()
+
+    for prefix, floor_pct in sorted(floor_spec.prefix_floors.items()):
+        matched = [
+            sf for sf in all_files if sf == prefix or sf.startswith(f"{prefix}/")
+        ]
+        if not matched and "/" not in prefix:
+            matched = [
+                sf
+                for sf in all_files
+                if file_bucket_by_sf[sf] == prefix
+                or file_bucket_by_sf[sf].rsplit("/", 1)[-1] == prefix
+            ]
+        agg_lh = sum(file_stats[sf][0] for sf in matched)
+        agg_lf = sum(file_stats[sf][1] for sf in matched)
+        if agg_lf == 0:
+            custom_floor_results.append(
+                {
+                    "target": prefix,
+                    "kind": "prefix",
+                    "matched_files": matched,
+                    "covered": 0,
+                    "total": 0,
+                    "coverage_pct": None,
+                    "floor_pct": round(floor_pct, 2),
+                    "measured": False,
+                    "passed": True,
+                }
+            )
+            continue
+        custom_governed_files.update(matched)
+        agg_pct = agg_lh / agg_lf * 100.0
+        passed = not (floor_pct > 0.0 and agg_pct + _FLOAT_EPS < floor_pct)
+        if not passed:
+            custom_floor_failures.append(
+                f"Adapter/package floor '{prefix}' coverage {agg_pct:.1f}% is below "
+                f"floor {floor_pct:.1f}%."
+            )
+        custom_floor_results.append(
+            {
+                "target": prefix,
+                "kind": "prefix",
+                "matched_files": matched,
+                "covered": agg_lh,
+                "total": agg_lf,
+                "coverage_pct": round(agg_pct, 2),
+                "floor_pct": round(floor_pct, 2),
+                "measured": True,
+                "passed": passed,
+            }
+        )
+
+    for file_key, floor_pct in sorted(floor_spec.file_floors.items()):
+        matched_sf: str | None = None
+        if file_key in file_stats:
+            matched_sf = file_key
+        else:
+            suffix_matches = [sf for sf in all_files if sf.endswith(f"/{file_key}")]
+            if len(suffix_matches) == 1:
+                matched_sf = suffix_matches[0]
+        if matched_sf is None or file_stats[matched_sf][1] == 0:
+            custom_floor_results.append(
+                {
+                    "target": file_key,
+                    "kind": "file",
+                    "matched_files": [matched_sf] if matched_sf is not None else [],
+                    "covered": 0,
+                    "total": 0,
+                    "coverage_pct": None,
+                    "floor_pct": round(floor_pct, 2),
+                    "measured": False,
+                    "passed": True,
+                }
+            )
+            continue
+        custom_governed_files.add(matched_sf)
+        flh, flf = file_stats[matched_sf]
+        fpct = flh / flf * 100.0
+        passed = not (floor_pct > 0.0 and fpct + _FLOAT_EPS < floor_pct)
+        if not passed:
+            label = (
+                f"'{file_key}'"
+                if file_key == matched_sf
+                else f"'{file_key}' ({matched_sf})"
+            )
+            custom_floor_failures.append(
+                f"Module floor {label} coverage {fpct:.1f}% is below "
+                f"floor {floor_pct:.1f}%."
+            )
+        custom_floor_results.append(
+            {
+                "target": file_key,
+                "kind": "file",
+                "matched_files": [matched_sf],
+                "covered": flh,
+                "total": flf,
+                "coverage_pct": round(fpct, 2),
+                "floor_pct": round(floor_pct, 2),
+                "measured": True,
+                "passed": passed,
+            }
+        )
+
+    unmatched_module_stats: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+    for canonical_sf, (lh, lf) in file_stats.items():
+        if canonical_sf not in custom_governed_files:
+            bucket = file_bucket_by_sf[canonical_sf]
+            unmatched_module_stats[bucket][0] += lh
+            unmatched_module_stats[bucket][1] += lf
+
     package_results: list[dict[str, Any]] = []
     for bucket in sorted(module_stats.keys()):
         if bucket == "root":
             continue
         lh, lf = module_stats[bucket]
+        un_lh, un_lf = unmatched_module_stats[bucket]
         short_name = bucket.rsplit("/", 1)[-1]
         is_excluded = bucket in excluded or short_name in excluded
         pkg_pct = (lh / lf * 100.0) if lf > 0 else 0.0
         pkg_passed = True
-        if min_package_coverage_pct > 0.0 and not is_excluded and lf > 0:
-            if pkg_pct + _FLOAT_EPS < min_package_coverage_pct:
+        if min_package_coverage_pct > 0.0 and not is_excluded and un_lf > 0:
+            check_pct = un_lh / un_lf * 100.0
+            if check_pct + _FLOAT_EPS < min_package_coverage_pct:
                 pkg_passed = False
                 failures.append(
-                    f"Package {bucket} coverage {pkg_pct:.1f}% is below floor "
+                    f"Package {bucket} coverage {check_pct:.1f}% is below floor "
                     f"{min_package_coverage_pct:.1f}%."
                 )
         package_results.append(
@@ -1144,6 +1414,8 @@ def evaluate_coverage(
                 "passed": pkg_passed,
             }
         )
+
+    failures.extend(custom_floor_failures)
 
     diff_files: list[dict[str, Any]] = []
     diff_lh = 0
@@ -1213,6 +1485,7 @@ def evaluate_coverage(
         file_results=file_results,
         diff_files=diff_files,
         failures=failures,
+        custom_floor_results=custom_floor_results,
     )
 
 
@@ -1267,6 +1540,21 @@ def format_output(
                 f"  {pkg['package']:<32} {pkg['covered']:>5}/{pkg['total']:<5} "
                 f"({pkg['coverage_pct']:5.1f}%){note}"
             )
+
+    if result.custom_floor_results:
+        lines.append("Custom Floor Ratchets:")
+        for item in result.custom_floor_results:
+            if not item["measured"]:
+                lines.append(
+                    f"  {item['target']:<40}     0/0     (  n/a) "
+                    f"[floor>={item['floor_pct']:.1f}%, unmeasured]"
+                )
+            else:
+                note = "" if item["passed"] else " [BELOW FLOOR]"
+                lines.append(
+                    f"  {item['target']:<40} {item['covered']:>5}/{item['total']:<5} "
+                    f"({item['coverage_pct']:5.1f}%, floor>={item['floor_pct']:.1f}%){note}"
+                )
 
     if verbose and result.file_results:
         lines.append("File Coverage:")
@@ -1348,6 +1636,12 @@ def _build_parser() -> _BlockedArgumentParser:
         action="append",
         default=[],
         help="Repeatable top-level package group directory name.",
+    )
+    parser.add_argument(
+        "--package-floors",
+        type=Path,
+        default=None,
+        help="Optional JSON file defining adapter prefix and module coverage floor ratchets.",
     )
     parser.add_argument(
         "--diff-base",
@@ -1489,6 +1783,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             for e in _split_csv_args(args.exclude_package_floor)
             if _normalize_rel_path(e)
         }
+        custom_floors: CustomFloorSpec | None = None
+        if args.package_floors is not None:
+            floors_path: Path = args.package_floors
+            if not floors_path.is_file() and not floors_path.is_absolute():
+                repo_candidate = repo_root / floors_path
+                if repo_candidate.is_file():
+                    floors_path = repo_candidate
+            custom_floors = _load_package_floors(floors_path)
 
         merged = CoverageDataset()
         inferred_subpkgs: set[str] = set()
@@ -1547,6 +1849,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             package_groups=package_groups,
             changed_by_file=changed_by_file,
             min_diff_coverage_pct=min_diff_pct,
+            custom_floors=custom_floors,
         )
         print(format_output(result, verbose=bool(args.verbose), as_json=as_json))
         return 0 if result.status == "PASS" else 1
