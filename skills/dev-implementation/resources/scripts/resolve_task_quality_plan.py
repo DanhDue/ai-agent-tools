@@ -408,7 +408,9 @@ def find_cache_bust_templates(
         return []
 
     patterns = [
-        re.compile(rf"""(?:src|href)=['"][^'"]*?{re.escape(name)}(\?[^'"]*)?['"]""")
+        re.compile(
+            rf"""(?:src|href)=['"](?:[^'"]*/)?{re.escape(name)}(\?[^'"]*)?['"]"""
+        )
         for name in asset_names
     ]
 
@@ -1174,6 +1176,9 @@ def format_compact_plan(plan: ResolvedQualityPlan) -> str:
     for sp in plan.stack_plans:
         joined_cmds = " && ".join(sp.scoped_tier_b_commands) or "none configured"
         lines.append(f"TIER-B [{sp.stack_id}]: {joined_cmds}")
+
+    if plan.unmatched_files:
+        lines.append(f"UNMATCHED: {', '.join(plan.unmatched_files)}")
 
     lines.append(
         "VERIFY: scope intermediate TIER-B to Allowed files; "

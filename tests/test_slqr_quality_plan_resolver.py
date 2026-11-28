@@ -751,6 +751,57 @@ def test_find_cache_bust_templates_discovers_templates_and_ignores_es_imports_an
     ) == ["pages/view.astro"]
 
 
+def test_find_cache_bust_templates_does_not_false_match_asset_substring(
+    tmp_path: Path,
+) -> None:
+    """Verify app.js does not false-match /static/webapp.js?v=1 or webapp.js?v=1."""
+    resolver = _load_resolver_module()
+    _write_text(
+        tmp_path / "templates" / "false_pos.html",
+        '<script src="/static/webapp.js?v=1"></script>\n',
+    )
+    _write_text(
+        tmp_path / "templates" / "false_pos_rel.html",
+        '<script src="webapp.js?v=1"></script>\n',
+    )
+    _write_text(
+        tmp_path / "templates" / "true_pos.html",
+        '<script src="/static/app.js?v=1"></script>\n',
+    )
+    _write_text(
+        tmp_path / "templates" / "true_pos_rel.html",
+        '<script src="app.js?v=1"></script>\n',
+    )
+
+    web_manifest = {"capabilities": {"ui_review": ["python3", "audit.py"]}}
+    matched = resolver.find_cache_bust_templates(
+        tmp_path, ["src/static/app.js"], web_manifest
+    )
+    assert matched == ["templates/true_pos.html", "templates/true_pos_rel.html"]
+
+
+def test_format_compact_plan_prints_unmatched_files_alongside_active_stacks(
+    tmp_path: Path,
+) -> None:
+    """Verify format_compact_plan prints UNMATCHED whenever unmatched_files is non-empty even if another stack matched."""
+    resolver = _load_resolver_module()
+    _write_json(
+        tmp_path / ".agents" / "quality" / "python-quality.json",
+        {
+            "schema_version": 1,
+            "capabilities": {"lint": ["uv", "run", "ruff", "check", "."]},
+            "profiles": {"pr": ["lint"]},
+        },
+    )
+    plan = resolver.resolve_quality_plan(
+        tmp_path, ["src/pkg/service.py", "src/web/app.js"]
+    )
+    assert plan.active_stacks == ("python",)
+    assert plan.unmatched_files == ("src/web/app.js",)
+    compact = resolver.format_compact_plan(plan)
+    assert "UNMATCHED: src/web/app.js" in compact
+
+
 # ---------------------------------------------------------------------------
 # Unit tests for --directory / --project / --prefix path rewriting & annotations
 # ---------------------------------------------------------------------------

@@ -1155,11 +1155,118 @@ def _split_sequential_subcommands(command: str) -> list[list[str]]:
     return subcommands
 
 
+@dataclass(frozen=True)
+class _AllowedPyEntry:
+    pattern: str
+    root: str
+    kind: str  # "glob" or "dir"
+
+
+def _glob_static_root(pattern: str) -> str:
+    norm = pattern.strip().replace("\\", "/").removeprefix("./").rstrip("/")
+    if not norm:
+        return "."
+    parts: list[str] = []
+    for seg in norm.split("/"):
+        if GLOB_CHARS.search(seg):
+            break
+        parts.append(seg)
+    return "/".join(parts) if parts else "."
+
+
+def _dir_contains_python(repo_root: Path | None, rel_dir: str) -> bool:
+    if repo_root is None:
+        return True
+    target = repo_root if rel_dir in ("", ".") else repo_root / rel_dir
+    if not target.is_dir():
+        return True
+    has_any_file = False
+    for _, dirnames, filenames in os.walk(target):
+        dirnames[:] = [
+            d
+            for d in dirnames
+            if d not in (".git", "__pycache__", ".venv", "venv", "node_modules")
+        ]
+        for fname in filenames:
+            has_any_file = True
+            if fname.lower().endswith(".py"):
+                return True
+    return not has_any_file
+
+
+def _collect_allowed_py_entries(
+    entries: Sequence[Any], repo_root: Path | None = None
+) -> tuple[list[str], list[_AllowedPyEntry]]:
+    """Return concrete allowed `.py` paths plus glob/directory Python coverage roots."""
+    concrete: list[str] = []
+    globs_and_dirs: list[_AllowedPyEntry] = []
+    seen_roots: set[tuple[str, str]] = set()
+    for entry in entries:
+        raw = (
+            str(getattr(entry, "pattern", entry))
+            .strip()
+            .replace("\\", "/")
+            .removeprefix("./")
+        )
+        if not raw:
+            continue
+        if GLOB_CHARS.search(raw):
+            suffix = Path(raw).suffix.lower()
+            if raw.lower().endswith(".py") or (
+                not suffix and _dir_contains_python(repo_root, _glob_static_root(raw))
+            ):
+                root = _glob_static_root(raw)
+                key = (raw, "glob")
+                if key not in seen_roots:
+                    seen_roots.add(key)
+                    globs_and_dirs.append(
+                        _AllowedPyEntry(pattern=raw, root=root, kind="glob")
+                    )
+            continue
+        if raw.lower().endswith(".py"):
+            if raw not in concrete:
+                concrete.append(raw)
+            continue
+        norm_dir = raw.rstrip("/")
+        is_dir = raw.endswith("/") or (
+            repo_root is not None and bool(norm_dir) and (repo_root / norm_dir).is_dir()
+        )
+        if is_dir and _dir_contains_python(repo_root, norm_dir or "."):
+            dir_root = norm_dir or "."
+            key = (dir_root, "dir")
+            if key not in seen_roots:
+                seen_roots.add(key)
+                globs_and_dirs.append(
+                    _AllowedPyEntry(pattern=dir_root, root=dir_root, kind="dir")
+                )
+    return concrete, globs_and_dirs
+
+
+def _target_matches_allowed_py_root(target_tok: str, entry: _AllowedPyEntry) -> bool:
+    clean_tok = (
+        target_tok.split("::", 1)[0]
+        .strip()
+        .replace("\\", "/")
+        .removeprefix("./")
+        .rstrip("/")
+    )
+    if not clean_tok or clean_tok.startswith("-"):
+        return False
+    if clean_tok == entry.pattern or _target_covers_path(clean_tok, entry.root):
+        return True
+    if entry.kind == "dir":
+        return _target_covers_path(entry.root, clean_tok)
+    if _glob_matches(entry.pattern, clean_tok):
+        return True
+    return "**" in entry.pattern and _target_covers_path(entry.root, clean_tok)
+
+
 def _matches_python_cap(
     cap: list[str],
     command: str,
     *,
     allowed_py: Sequence[str],
+    allowed_py_roots: Sequence[_AllowedPyEntry] = (),
     allow_historical_prefix: bool,
 ) -> bool:
     """Match a Python static capability against sequential subcommands, supporting scoped Allowed files."""
@@ -1178,7 +1285,7 @@ def _matches_python_cap(
         if prefix and len(sub) > len(prefix) and sub[: len(prefix)] == prefix:
             if allow_historical_prefix:
                 return True
-            if not allowed_py:
+            if not allowed_py and not allowed_py_roots:
                 continue
             wrapper_dir = registry._extract_monorepo_dir_wrapper(sub)
             pos_targets = _extract_py_positional_targets(sub[len(prefix) :])
@@ -1192,8 +1299,20 @@ def _matches_python_cap(
                 for p in allowed_py
             ):
                 continue
+            if not all(
+                any(
+                    _target_matches_allowed_py_root(rt, entry)
+                    for rt in resolved_targets
+                )
+                for entry in allowed_py_roots
+            ):
+                continue
             if all(
                 any(_target_covers_path(rt, p) for p in allowed_py)
+                or any(
+                    _target_matches_allowed_py_root(rt, entry)
+                    for entry in allowed_py_roots
+                )
                 or (
                     (t.strip().replace("\\", "/").removeprefix("./").rstrip("/") or ".")
                     in cap_tail_norm
@@ -1214,15 +1333,10 @@ def check_python_tier_b(
     allow_historical_prefix: bool = False,
 ) -> None:
     tier_b_rows = [r for r in rows if r.phase == "TIER-B"]
-    allowed_py = (
-        [
-            entry.pattern.removeprefix("./")
-            for entry in tc.parse_allowed_files(text)
-            if entry.pattern.lower().endswith(".py")
-            and not GLOB_CHARS.search(entry.pattern)
-        ]
+    allowed_py, allowed_py_roots = (
+        _collect_allowed_py_entries(tc.parse_allowed_files(text), check.root)
         if text
-        else []
+        else ([], [])
     )
     manifest_path = check.root / ".agents" / "quality" / "python-quality.json"
     if manifest_path.exists():
@@ -1275,6 +1389,7 @@ def check_python_tier_b(
                 lint_cmd,
                 r.command,
                 allowed_py=allowed_py,
+                allowed_py_roots=allowed_py_roots,
                 allow_historical_prefix=allow_historical_prefix,
             )
             for r in tier_b_rows
@@ -1284,6 +1399,7 @@ def check_python_tier_b(
                 type_check_cmd,
                 r.command,
                 allowed_py=allowed_py,
+                allowed_py_roots=allowed_py_roots,
                 allow_historical_prefix=allow_historical_prefix,
             )
             for r in tier_b_rows
@@ -1707,14 +1823,105 @@ def _is_stack_test_path(path: str, desc: registry.StackDescriptor) -> bool:
     )
 
 
-def _read_optional_manifest_json(path: Path) -> dict[str, Any] | None:
+_TEST_ROUTING_KEYS = frozenset(
+    {
+        "canonical_test_globs",
+        "forbidden_test_globs",
+        "paired_source_globs",
+        "lcov_unit_test_globs",
+        "cache_bust_extensions",
+    }
+)
+_WEB_TOUCHED_EXTENSIONS = frozenset(
+    {
+        ".js",
+        ".mjs",
+        ".cjs",
+        ".ts",
+        ".tsx",
+        ".jsx",
+        ".css",
+        ".html",
+        ".astro",
+        ".jinja",
+        ".jinja2",
+    }
+)
+_EXT_PATTERN_RE = re.compile(r"^\.[a-z0-9]+$")
+
+
+def _read_manifest_json(path: Path) -> tuple[dict[str, Any] | None, str | None]:
     if not path.is_file():
-        return None
+        return None, None
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return None, f"malformed {path.name}: {exc}"
+    if not isinstance(raw, dict):
+        return None, f"invalid {path.name}: root must be a JSON object"
+    return raw, None
+
+
+def _validate_manifest_test_routing(
+    manifest: Mapping[str, Any], manifest_name: str
+) -> str | None:
+    if "test_routing" not in manifest:
         return None
-    return raw if isinstance(raw, dict) else None
+    routing = manifest["test_routing"]
+    if not isinstance(routing, dict):
+        return f"malformed {manifest_name}: 'test_routing' must be an object"
+    for key, val in sorted(routing.items()):
+        if key not in _TEST_ROUTING_KEYS:
+            return f"malformed {manifest_name}: unknown test_routing field '{key}'"
+        if not isinstance(val, list) or not val:
+            return f"malformed {manifest_name}: test_routing.{key} must be a non-empty array of strings"
+        if key == "cache_bust_extensions":
+            for ext in val:
+                if not isinstance(ext, str) or not _EXT_PATTERN_RE.match(ext):
+                    return (
+                        f"malformed {manifest_name}: test_routing.cache_bust_extensions "
+                        f"entry {ext!r} must match ^\\.[a-z0-9]+$"
+                    )
+        else:
+            for pat in val:
+                if (
+                    not isinstance(pat, str)
+                    or not pat.strip()
+                    or pat.strip().startswith(("/", "\\", "~"))
+                    or ".." in pat.replace("\\", "/").split("/")
+                ):
+                    return (
+                        f"malformed {manifest_name}: test_routing.{key} "
+                        f"contains invalid relative glob {pat!r}"
+                    )
+    return None
+
+
+def _stack_touched_by_files(
+    sid: str,
+    file_patterns: Sequence[str],
+    desc: registry.StackDescriptor | None,
+) -> bool:
+    if desc is not None and any(
+        registry._path_matches_stack(p, desc) for p in file_patterns
+    ):
+        return True
+    if sid == "web":
+        for pat in file_patterns:
+            norm = pat.strip().replace("\\", "/").removeprefix("./")
+            if Path(norm).suffix.lower() in _WEB_TOUCHED_EXTENSIONS:
+                return True
+    if sid == "python":
+        for pat in file_patterns:
+            norm = pat.strip().replace("\\", "/").removeprefix("./")
+            if norm.lower().endswith(".py") or Path(norm).name in (
+                "pyproject.toml",
+                "setup.py",
+                "requirements.txt",
+                "Pipfile",
+            ):
+                return True
+    return False
 
 
 def _check_unexpanded_placeholders(check: Checker, where: str, command: str) -> None:
@@ -2042,8 +2249,9 @@ def check_shift_left_quality_guards(
         _check_unexpanded_placeholders(check, f"{stem}:{row.id}", row.command)
 
     quality_dir = check.root / ".agents" / "quality"
-    py_manifest = _read_optional_manifest_json(quality_dir / "python-quality.json")
-    web_manifest = _read_optional_manifest_json(quality_dir / "web-quality.json")
+    py_manifest, _ = _read_manifest_json(quality_dir / "python-quality.json")
+    web_manifest, _ = _read_manifest_json(quality_dir / "web-quality.json")
+    file_patterns = [str(entry.pattern) for entry in allowed_entries]
 
     if is_intermediate_task:
         tier_b_items = [
@@ -2053,12 +2261,44 @@ def check_shift_left_quality_guards(
             check,
             stem,
             tier_b_items,
-            [str(entry.pattern) for entry in allowed_entries],
+            file_patterns,
             py_manifest,
         )
 
     if not quality_dir.is_dir():
         return
+
+    loaded_descs, manifest_paths, manifest_errors = registry._load_repo_manifests(
+        check.root
+    )
+    reported_manifests: set[str] = set()
+
+    def _already_reported(manifest_name: str) -> bool:
+        return manifest_name in reported_manifests or any(
+            p.startswith(f"{stem}:") and manifest_name in p for p in check.problems
+        )
+
+    for sid, mpath in sorted(manifest_paths.items()):
+        desc_for_match = loaded_descs.get(sid) or registry.BUILTIN_STACKS.get(sid)
+        if not _stack_touched_by_files(sid, file_patterns, desc_for_match):
+            continue
+        m_data, m_err = _read_manifest_json(mpath)
+        if m_err is not None:
+            if not _already_reported(mpath.name):
+                check.problem(f"{stem}:Files", f"invalid .agents/quality/{m_err}")
+                reported_manifests.add(mpath.name)
+            continue
+        matching_reg_err = next((e for e in manifest_errors if mpath.name in e), None)
+        if matching_reg_err is not None and not _already_reported(mpath.name):
+            check.problem(
+                f"{stem}:Files", f"invalid .agents/quality/{matching_reg_err}"
+            )
+            reported_manifests.add(mpath.name)
+        if m_data is not None:
+            tr_err = _validate_manifest_test_routing(m_data, mpath.name)
+            if tr_err is not None:
+                check.problem(f"{stem}:Files", f"invalid .agents/quality/{tr_err}")
+                reported_manifests.add(mpath.name)
 
     green_reg_cmds = [
         row.command for row in rows if row.phase in ("GREEN", "REGRESSION")
@@ -2067,27 +2307,26 @@ def check_shift_left_quality_guards(
         check, f"{stem}:Verification", allowed_entries, green_reg_cmds, web_manifest
     )
 
-    loaded_descs, _, _ = registry._load_repo_manifests(check.root)
     if loaded_descs:
         _check_test_routing_rules(check, f"{stem}:Files", allowed_entries, loaded_descs)
 
     _check_cache_bust_templates(check, f"{stem}:Files", allowed_entries, web_manifest)
 
 
-def _task_order_key(path: Path, text: str) -> tuple[int, int, str]:
-    m_stem = re.search(r"\btask[_-]?0*(\d+)\b", path.stem, re.IGNORECASE)
+def _task_order_key(path: Path, text: str) -> tuple[int, str, int, str]:
+    m_stem = re.match(r"^task[_-]?0*(\d+)(?=[_-]|$)", path.stem, re.IGNORECASE)
     if m_stem:
-        return (1, int(m_stem.group(1)), path.stem)
+        return (2, "", int(m_stem.group(1)), path.stem)
     if text.startswith("---"):
         fm = text.split("\n---", 1)[0]
         m_ord = re.search(r'^order:\s*"?([A-Za-z0-9_-]+)"?\s*$', fm, re.MULTILINE)
         if m_ord:
             val = m_ord.group(1)
-            m_num = re.search(r"(\d+)$", val)
-            if m_num:
-                return (1, int(m_num.group(1)), path.stem)
-            return (0, 0, val)
-    return (0, 0, path.stem)
+            m_parts = re.match(r"^([A-Za-z_-]*?)(\d+)$", val)
+            if m_parts:
+                return (1, m_parts.group(1), int(m_parts.group(2)), path.stem)
+            return (1, val, -1, path.stem)
+    return (0, path.stem, 0, path.stem)
 
 
 def _extract_plan_paths(raw_rest: str) -> list[str]:
@@ -2260,21 +2499,22 @@ def check_standalone_plan(
         check.root
     )
     raw_manifests: dict[str, dict[str, Any]] = {}
+    raw_manifest_errs: dict[str, str] = {}
     for sid, mpath in manifest_paths.items():
-        data = _read_optional_manifest_json(mpath)
+        data, err = _read_manifest_json(mpath)
         if data is not None:
             raw_manifests[sid] = data
+        elif err is not None:
+            raw_manifest_errs[sid] = err
 
     py_manifest_path = quality_dir / "python-quality.json"
     py_manifest = raw_manifests.get("python")
     web_manifest = raw_manifests.get("web")
 
     final_task = max(plan_tasks, key=lambda t: (t.number, t.index))
-    final_py_files = [
-        f.pattern
-        for f in final_task.files
-        if f.pattern.lower().endswith(".py") and not GLOB_CHARS.search(f.pattern)
-    ]
+    final_py_files, final_py_roots = _collect_allowed_py_entries(
+        final_task.files, check.root
+    )
     program_provenance: dict[str, list[str]] = {}
 
     for pt in plan_tasks:
@@ -2300,14 +2540,13 @@ def check_standalone_plan(
             candidate_cmds = list(pt.commands) + (
                 list(final_task.commands) if pt is not final_task else []
             )
-            task_py_files = [
-                f.pattern
-                for f in pt.files
-                if f.pattern.lower().endswith(".py")
-                and not GLOB_CHARS.search(f.pattern)
-            ]
-            touches_python = bool(task_py_files) or any(
-                Path(f.pattern).name == "pyproject.toml" for f in pt.files
+            task_py_files, task_py_roots = _collect_allowed_py_entries(
+                pt.files, check.root
+            )
+            touches_python = (
+                bool(task_py_files)
+                or bool(task_py_roots)
+                or any(Path(f.pattern).name == "pyproject.toml" for f in pt.files)
             )
             if touches_python and py_manifest_path.is_file():
                 if py_manifest is None:
@@ -2315,6 +2554,11 @@ def check_standalone_plan(
                         where, "malformed .agents/quality/python-quality.json manifest"
                     )
                 else:
+                    py_tr_err = _validate_manifest_test_routing(
+                        py_manifest, "python-quality.json"
+                    )
+                    if py_tr_err is not None:
+                        check.problem(where, f"invalid .agents/quality/{py_tr_err}")
                     caps = (
                         py_manifest.get("capabilities")
                         if isinstance(py_manifest.get("capabilities"), Mapping)
@@ -2323,12 +2567,16 @@ def check_standalone_plan(
                     lint_cap = _extract_cap_tokens(caps, "lint")
                     type_cap = _extract_cap_tokens(caps, "type_check")
                     union_py = list(dict.fromkeys([*task_py_files, *final_py_files]))
+                    union_py_roots = list(
+                        dict.fromkeys([*task_py_roots, *final_py_roots])
+                    )
                     if lint_cap is not None:
                         has_lint = any(
                             _matches_python_cap(
                                 lint_cap,
                                 cmd,
                                 allowed_py=task_py_files,
+                                allowed_py_roots=task_py_roots,
                                 allow_historical_prefix=False,
                             )
                             for cmd in pt.commands
@@ -2339,6 +2587,7 @@ def check_standalone_plan(
                                     lint_cap,
                                     cmd,
                                     allowed_py=union_py,
+                                    allowed_py_roots=union_py_roots,
                                     allow_historical_prefix=False,
                                 )
                                 for cmd in final_task.commands
@@ -2355,6 +2604,7 @@ def check_standalone_plan(
                                 type_cap,
                                 cmd,
                                 allowed_py=task_py_files,
+                                allowed_py_roots=task_py_roots,
                                 allow_historical_prefix=False,
                             )
                             for cmd in pt.commands
@@ -2365,6 +2615,7 @@ def check_standalone_plan(
                                     type_cap,
                                     cmd,
                                     allowed_py=union_py,
+                                    allowed_py_roots=union_py_roots,
                                     allow_historical_prefix=False,
                                 )
                                 for cmd in final_task.commands
@@ -2376,18 +2627,29 @@ def check_standalone_plan(
                                 f"Python plan task missing registered type_check capability ({' '.join(type_cap)})",
                             )
 
-            # Surface malformed non-Python manifests if touched
+            # Surface malformed non-Python manifests or invalid test_routing if touched
             file_patterns = [f.pattern for f in pt.files]
             for sid, mpath in sorted(manifest_paths.items()):
-                if sid in loaded_descs or sid == "python":
+                if sid == "python":
                     continue
-                builtin = registry.BUILTIN_STACKS.get(sid)
-                if builtin is not None and any(
-                    registry._path_matches_stack(p, builtin) for p in file_patterns
-                ):
-                    err = next((e for e in manifest_errors if mpath.name in e), None)
-                    if err:
-                        check.problem(where, f"invalid .agents/quality/{err}")
+                desc_for_match = loaded_descs.get(sid) or registry.BUILTIN_STACKS.get(
+                    sid
+                )
+                if not _stack_touched_by_files(sid, file_patterns, desc_for_match):
+                    continue
+                if sid in raw_manifest_errs:
+                    check.problem(
+                        where, f"invalid .agents/quality/{raw_manifest_errs[sid]}"
+                    )
+                    continue
+                err = next((e for e in manifest_errors if mpath.name in e), None)
+                if err:
+                    check.problem(where, f"invalid .agents/quality/{err}")
+                raw_m_data = raw_manifests.get(sid)
+                if raw_m_data is not None:
+                    tr_err = _validate_manifest_test_routing(raw_m_data, mpath.name)
+                    if tr_err is not None:
+                        check.problem(where, f"invalid .agents/quality/{tr_err}")
 
             # Non-Python active stack lint / type_check presence
             subcommands = [

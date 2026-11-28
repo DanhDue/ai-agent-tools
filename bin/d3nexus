@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Portable entrypoint for d3nexus tools."""
-
 from __future__ import annotations
 
 import subprocess
@@ -40,9 +39,7 @@ def main() -> int:
     rel_path = SUBCOMMANDS.get(subcmd)
     if not rel_path:
         sys.stderr.write(f"d3nexus: unknown subcommand '{subcmd}'\n")
-        sys.stderr.write(
-            "Available subcommands: " + ", ".join(sorted(SUBCOMMANDS.keys())) + "\n"
-        )
+        sys.stderr.write("Available subcommands: " + ", ".join(sorted(SUBCOMMANDS.keys())) + "\n")
         return 2
 
     target = KIT_ROOT / rel_path

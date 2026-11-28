@@ -1089,3 +1089,265 @@ def test_cap_tool_prefix_wrappers_flags_and_explicit_manifest_non_false_positive
     assert res_npx.returncode == 1, res_npx.stdout
     assert "bare 'npx'" in res_npx.stdout
     assert "Result: 1 problems — FAIL" in res_npx.stdout
+
+
+def test_python_glob_and_dir_allowed_entries_pass_scoped_tier_b_on_intermediate_task(
+    tmp_path: Path,
+) -> None:
+    """Non-final Python task with glob Allowed entry (`src/pkg/*.py`) accepts scoped `src/pkg` TIER-B and rejects unrelated targets."""
+    import check_task_contract as ctc
+
+    repo = tmp_path / "glob_py_repo"
+    _init_repo(repo)
+    _write_json(
+        repo,
+        ".agents/quality/python-quality.json",
+        {
+            "schema_version": 1,
+            "capabilities": {
+                "lint": ["uv", "run", "ruff", "check", "."],
+                "type_check": ["uv", "run", "mypy", "--strict", "src", "tests"],
+            },
+            "profiles": {"pr": ["lint", "type_check"], "epic": ["lint", "type_check"]},
+        },
+    )
+    _write(repo, "src/pkg/a.py", "def a() -> int:\n    return 1\n")
+    _write(repo, "src/pkg/b.py", "def b() -> int:\n    return 2\n")
+    _write(repo, "src/other.py", "def other() -> int:\n    return 3\n")
+    _write(repo, "unrelated.py", "def u() -> int:\n    return 4\n")
+    hld = _write(repo, ".devtool/epic/demo/demo.md", _hld_text())
+
+    t1_glob = _write(
+        repo,
+        ".devtool/epic/demo/task_01_glob.md",
+        _task_md(
+            allowed=["src/pkg/*.py"],
+            rows=[
+                "| V1 | RED | `python3 tool.py red` | exit 1 | — |",
+                "| V2 | GREEN | `python3 tool.py green` | exit 0 | — |",
+                "| V3 | TIER-B | `uv run ruff check src/pkg && uv run mypy --strict src/pkg` | exit 0 | — |",
+                "| V4 | TIER-C | `python3 tool.py int` | exit 0; results build/out.xml | — |",
+            ],
+        ),
+    )
+    t2_final = _write(
+        repo,
+        ".devtool/epic/demo/task_02_final.md",
+        _task_md(
+            allowed=["src/other.py"],
+            rows=[
+                "| V1 | RED | `python3 tool.py red` | exit 1 | — |",
+                "| V2 | GREEN | `python3 tool.py green` | exit 0 | — |",
+                "| V3 | TIER-B | `uv run ruff check . && uv run mypy --strict src tests` | exit 0 | — |",
+                "| V4 | TIER-C | `python3 tool.py int` | exit 0; results build/out.xml | — |",
+            ],
+        ),
+    )
+    _commit(repo, "glob intermediate pass")
+
+    res_ok = _run_contract(
+        repo, "--design", "--hld", str(hld), "--tasks", str(t1_glob), str(t2_final)
+    )
+    assert res_ok.returncode == 0, res_ok.stdout + res_ok.stderr
+    assert res_ok.stdout.splitlines() == ["Result: 0 problems — PASS"]
+
+    # Unrelated target must still be rejected for glob Allowed entry
+    t1_bad = _write(
+        repo,
+        ".devtool/epic/demo/task_01_glob.md",
+        _task_md(
+            allowed=["src/pkg/*.py"],
+            rows=[
+                "| V1 | RED | `python3 tool.py red` | exit 1 | — |",
+                "| V2 | GREEN | `python3 tool.py green` | exit 0 | — |",
+                "| V3 | TIER-B | `uv run ruff check src/pkg && uv run mypy --strict unrelated.py` | exit 0 | — |",
+                "| V4 | TIER-C | `python3 tool.py int` | exit 0; results build/out.xml | — |",
+            ],
+        ),
+    )
+    _commit(repo, "glob unrelated target fail")
+    res_bad = _run_contract(
+        repo, "--design", "--hld", str(hld), "--tasks", str(t1_bad), str(t2_final)
+    )
+    assert res_bad.returncode == 1, res_bad.stdout
+    assert "missing registered type_check capability" in res_bad.stdout
+
+    # Unit checks on directory and recursive glob roots
+    _, dir_roots = ctc._collect_allowed_py_entries(["src/pkg", "src/pkg/**/*.py"], repo)
+    assert any(r.kind == "dir" and r.root == "src/pkg" for r in dir_roots)
+    assert any(r.kind == "glob" and r.pattern == "src/pkg/**/*.py" for r in dir_roots)
+    assert ctc._matches_python_cap(
+        ["uv", "run", "mypy", "--strict", "src", "tests"],
+        "uv run mypy --strict src/pkg",
+        allowed_py=[],
+        allowed_py_roots=dir_roots,
+        allow_historical_prefix=False,
+    )
+    assert not ctc._matches_python_cap(
+        ["uv", "run", "mypy", "--strict", "src", "tests"],
+        "uv run mypy --strict unrelated.py",
+        allowed_py=[],
+        allowed_py_roots=dir_roots,
+        allow_historical_prefix=False,
+    )
+
+
+def test_task_order_key_handles_slugged_stems_and_alphanumeric_orders(
+    tmp_path: Path,
+) -> None:
+    """Verify _task_order_key ranks `task_01_alpha` < `task_02_beta` and `order: a9` < `order: b1`."""
+    import check_task_contract as ctc
+
+    k_stem_1 = ctc._task_order_key(Path("task_01_alpha.md"), "")
+    k_stem_2 = ctc._task_order_key(Path("task_02_beta.md"), "")
+    k_stem_10 = ctc._task_order_key(Path("task_10_gamma.md"), "")
+    assert k_stem_1 < k_stem_2 < k_stem_10
+
+    k_a9 = ctc._task_order_key(Path("alpha.md"), '---\norder: "a9"\n---\n')
+    k_a10 = ctc._task_order_key(Path("alpha2.md"), '---\norder: "a10"\n---\n')
+    k_b1 = ctc._task_order_key(Path("beta.md"), '---\norder: "b1"\n---\n')
+    assert k_a9 < k_a10 < k_b1
+
+    # End-to-end verification: `order: "b1"` is the final task, while `order: "a9"` is intermediate
+    repo = tmp_path / "order_repo"
+    _init_repo(repo)
+    _write_json(
+        repo,
+        ".agents/quality/python-quality.json",
+        {
+            "schema_version": 1,
+            "capabilities": {
+                "lint": ["uv", "run", "ruff", "check", "."],
+                "type_check": ["uv", "run", "mypy", "--strict", "src", "tests"],
+            },
+            "profiles": {"pr": ["lint", "type_check"], "epic": ["lint", "type_check"]},
+        },
+    )
+    _write(repo, "src/pkg/a.py", "def a() -> int:\n    return 1\n")
+    _write(repo, "src/pkg/b.py", "def b() -> int:\n    return 2\n")
+    hld = _write(repo, ".devtool/epic/demo/demo.md", _hld_text())
+
+    t_a9 = _write(
+        repo,
+        ".devtool/epic/demo/alpha.md",
+        _task_md(
+            allowed=["src/pkg/a.py"],
+            rows=[
+                "| V1 | RED | `python3 tool.py red` | exit 1 | — |",
+                "| V2 | GREEN | `python3 tool.py green` | exit 0 | — |",
+                "| V3 | TIER-B | `uv run ruff check src/pkg/a.py && uv run mypy --strict src/pkg/a.py` | exit 0 | — |",
+                "| V4 | TIER-C | `python3 tool.py int` | exit 0; results build/out.xml | — |",
+            ],
+            order="a9",
+        ),
+    )
+    t_b1 = _write(
+        repo,
+        ".devtool/epic/demo/beta.md",
+        _task_md(
+            allowed=["src/pkg/b.py"],
+            rows=[
+                "| V1 | RED | `python3 tool.py red` | exit 1 | — |",
+                "| V2 | GREEN | `python3 tool.py green` | exit 0 | — |",
+                "| V3 | TIER-B | `uv run ruff check . && uv run mypy --strict src tests` | exit 0 | — |",
+                "| V4 | TIER-C | `python3 tool.py int` | exit 0; results build/out.xml | — |",
+            ],
+            order="b1",
+        ),
+    )
+    _commit(repo, "a9 before b1 pass")
+
+    res_pass = _run_contract(
+        repo, "--design", "--hld", str(hld), "--tasks", str(t_a9), str(t_b1)
+    )
+    assert res_pass.returncode == 0, res_pass.stdout + res_pass.stderr
+
+    # If a9 tries to run full-repo TIER-B, it must fail as intermediate
+    t_a9_full = _write(
+        repo,
+        ".devtool/epic/demo/alpha.md",
+        _task_md(
+            allowed=["src/pkg/a.py"],
+            rows=[
+                "| V1 | RED | `python3 tool.py red` | exit 1 | — |",
+                "| V2 | GREEN | `python3 tool.py green` | exit 0 | — |",
+                "| V3 | TIER-B | `uv run ruff check . && uv run mypy --strict src tests` | exit 0 | — |",
+                "| V4 | TIER-C | `python3 tool.py int` | exit 0; results build/out.xml | — |",
+            ],
+            order="a9",
+        ),
+    )
+    _commit(repo, "a9 full repo fail")
+    res_fail = _run_contract(
+        repo, "--design", "--hld", str(hld), "--tasks", str(t_a9_full), str(t_b1)
+    )
+    assert res_fail.returncode == 1, res_fail.stdout
+    assert "alpha:V3:" in res_fail.stdout
+    assert "intermediate task" in res_fail.stdout
+    assert "beta:V3:" not in res_fail.stdout
+
+
+def test_malformed_web_manifest_and_test_routing_fail_closed(tmp_path: Path) -> None:
+    """Malformed web-quality.json JSON or invalid test_routing fails closed in --design and --check-plan."""
+    repo = tmp_path / "malformed_manifest_repo"
+    _init_repo(repo)
+    _write(repo, "src/static/theme.css", "body { color: #000; }\n")
+    _write(repo, "src/static/app.js", "export const ok = 1;\n")
+    hld = _write(repo, ".devtool/epic/demo/demo.md", _hld_text())
+
+    # 1. Malformed web-quality.json touching .css (not in BUILTIN_STACKS["web"].extensions)
+    _write(repo, ".agents/quality/web-quality.json", "{ broken json")
+    t_css = _write(
+        repo,
+        ".devtool/epic/demo/task_01_css.md",
+        _task_md(
+            allowed=["src/static/theme.css"],
+            rows=[
+                "| V1 | RED | `python3 tool.py red` | exit 1 | — |",
+                "| V2 | GREEN | `python3 tool.py green` | exit 0 | — |",
+                "| V3 | TIER-B | `echo ok` | exit 0 | — |",
+                "| V4 | TIER-C | `python3 tool.py int` | exit 0; results build/out.xml | — |",
+            ],
+        ),
+    )
+    plan_css = _write(
+        repo,
+        "docs/css_plan.md",
+        "# CSS Plan\n\n### Task 1: Update theme\n\n- Modify: `src/static/theme.css`\nRun: `echo ok`\n",
+    )
+    _commit(repo, "malformed web-quality json")
+
+    res_design_bad = _run_contract(
+        repo, "--design", "--hld", str(hld), "--tasks", str(t_css)
+    )
+    assert res_design_bad.returncode == 1, res_design_bad.stdout
+    assert "web-quality.json" in res_design_bad.stdout
+
+    res_plan_bad = _run_contract(repo, "--check-plan", str(plan_css))
+    assert res_plan_bad.returncode == 1, res_plan_bad.stdout
+    assert "web-quality.json" in res_plan_bad.stdout
+
+    # 2. Valid JSON web-quality.json with malformed test_routing
+    _write_json(
+        repo,
+        ".agents/quality/web-quality.json",
+        {
+            "schema_version": 1,
+            "capabilities": {"lint": ["eslint", "."]},
+            "profiles": {"pr": ["lint"], "epic": ["lint"]},
+            "test_routing": {"forbidden_test_globs": "not-a-list"},
+        },
+    )
+    _commit(repo, "malformed web test_routing")
+
+    res_design_tr = _run_contract(
+        repo, "--design", "--hld", str(hld), "--tasks", str(t_css)
+    )
+    assert res_design_tr.returncode == 1, res_design_tr.stdout
+    assert "web-quality.json" in res_design_tr.stdout
+    assert "test_routing" in res_design_tr.stdout
+
+    res_plan_tr = _run_contract(repo, "--check-plan", str(plan_css))
+    assert res_plan_tr.returncode == 1, res_plan_tr.stdout
+    assert "web-quality.json" in res_plan_tr.stdout
+    assert "test_routing" in res_plan_tr.stdout

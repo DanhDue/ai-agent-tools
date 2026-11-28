@@ -426,14 +426,18 @@ def _validate_ecosystem_root(root_dir: Path) -> int:
             if not manifest_path.is_file():
                 continue
             manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
-            schema_caps = set(
-                schemas[stack]
-                .get("properties", {})
-                .get("capabilities", {})
-                .get("properties", {})
-            )
+            caps_schema = schemas[stack].get("properties", {}).get("capabilities", {})
+            schema_caps = set(caps_schema.get("properties", {}))
+            schema_patterns = [
+                re.compile(pat) for pat in caps_schema.get("patternProperties", {})
+            ]
             manifest_caps = set(manifest_data.get("capabilities", {}).keys())
-            missing_caps = sorted(manifest_caps - schema_caps)
+            missing_caps = sorted(
+                cap_key
+                for cap_key in manifest_caps
+                if cap_key not in schema_caps
+                and not any(pat.search(cap_key) for pat in schema_patterns)
+            )
             assert not missing_caps, (
                 f"{manifest_path} capabilities missing from {stack}-quality.schema.json: "
                 f"{missing_caps}"
@@ -745,3 +749,25 @@ class TestSLQREndToEndAcceptance_Integration:
     def test_slqr_ar_04_integration(self) -> None:
         """[SLQR-AR-04] Tier C integration verification of lean resolver hooks in authoring skills."""
         test_slqr_ar_04_authoring_skills_integrate_cli_resolver_without_prose_matrices()
+
+
+def test_ecosystem_capability_parity_honors_schema_pattern_properties(
+    tmp_path: Path,
+) -> None:
+    """Verify _validate_ecosystem_root accepts patternProperties capabilities (e.g. contracts_lyrics_sync) and rejects unknown ones."""
+    eco_root = tmp_path / "pattern_eco"
+    repo = eco_root / "repo_rust_contracts"
+    qdir = _scaffold_repo(repo, ["rust"])
+    rust_manifest = qdir / "rust-quality.json"
+    data = json.loads(rust_manifest.read_text(encoding="utf-8"))
+    data["capabilities"]["contracts_lyrics_sync"] = ["true"]
+    data["capabilities"]["contracts_nexus"] = ["true"]
+    _write_json(rust_manifest, data)
+
+    validated = _validate_ecosystem_root(eco_root)
+    assert validated >= 4
+
+    data["capabilities"]["unknown_unmatched_cap"] = ["true"]
+    _write_json(rust_manifest, data)
+    with pytest.raises(AssertionError, match="unknown_unmatched_cap"):
+        _validate_ecosystem_root(eco_root)

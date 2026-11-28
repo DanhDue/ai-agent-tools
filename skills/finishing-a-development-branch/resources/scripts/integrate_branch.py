@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-
 """Integrate a development branch with its base: rebase it, measure the result, land it.
 
 `finishing-a-development-branch` and `dev-implementation` both rebase a branch onto
@@ -42,37 +41,13 @@ MIN_GIT = (2, 38)  # git merge-tree --write-tree
 
 # Never hand-merged: taken from the base during the rebase, regenerated once afterwards.
 REGENERATE_PATTERNS = (
-    "*.g.dart",
-    "*.freezed.dart",
-    "*.mocks.dart",
-    "*.gr.dart",
-    "pubspec.lock",
-    "Podfile.lock",
-    "Package.resolved",
-    "gradle.lockfile",
-    "*.lockfile",
-    "package-lock.json",
-    "yarn.lock",
-    "Cargo.lock",
-    "uv.lock",
-    "poetry.lock",
-    "Pipfile.lock",
+    "*.g.dart", "*.freezed.dart", "*.mocks.dart", "*.gr.dart", "pubspec.lock", "Podfile.lock",
+    "Package.resolved", "gradle.lockfile", "*.lockfile", "package-lock.json", "yarn.lock", "Cargo.lock", "uv.lock", "poetry.lock", "Pipfile.lock",
 )
 # A change to any of these upstream means the worktree needs a fresh bootstrap.
 MANIFEST_PATTERNS = (
-    "pubspec.yaml",
-    "melos.yaml",
-    "build.gradle",
-    "build.gradle.kts",
-    "settings.gradle",
-    "settings.gradle.kts",
-    "gradle/libs.versions.toml",
-    "Package.swift",
-    "Project.swift",
-    "Podfile",
-    "Cargo.toml",
-    "pyproject.toml",
-    "requirements.txt",
+    "pubspec.yaml", "melos.yaml", "build.gradle", "build.gradle.kts", "settings.gradle",
+    "settings.gradle.kts", "gradle/libs.versions.toml", "Package.swift", "Project.swift", "Podfile", "Cargo.toml", "pyproject.toml", "requirements.txt",
 )
 
 
@@ -93,20 +68,9 @@ class Refusal(Exception):
 
 # --- git plumbing -------------------------------------------------------------------------
 
-
-def git(
-    *args: str, cwd: Path | None = None, check: bool = True
-) -> subprocess.CompletedProcess:
-    env = dict(
-        os.environ, GIT_EDITOR="true"
-    )  # rebase --continue must never open an editor
-    result = subprocess.run(
-        ["git", "-c", "core.quotePath=false", *args],
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        env=env,
-    )
+def git(*args: str, cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess:
+    env = dict(os.environ, GIT_EDITOR="true")  # rebase --continue must never open an editor
+    result = subprocess.run(["git", "-c", "core.quotePath=false", *args], cwd=cwd, capture_output=True, text=True, env=env)
     if check and result.returncode != 0:
         raise GitError(f"git {' '.join(args)} failed: {result.stderr.strip()}")
     return result
@@ -131,19 +95,12 @@ def is_ancestor(ancestor: str, descendant: str) -> bool:
 def check_git_version() -> None:
     match = re.search(r"(\d+)\.(\d+)", out("--version"))
     if not match or (int(match.group(1)), int(match.group(2))) < MIN_GIT:
-        raise Refusal(
-            f"git {MIN_GIT[0]}.{MIN_GIT[1]} or newer is required for merge-tree --write-tree"
-        )
+        raise Refusal(f"git {MIN_GIT[0]}.{MIN_GIT[1]} or newer is required for merge-tree --write-tree")
 
 
 def upstream_of(branch: str) -> str | None:
-    result = git(
-        "rev-parse",
-        "--abbrev-ref",
-        "--symbolic-full-name",
-        f"{branch}@{{upstream}}",
-        check=False,
-    )
+    result = git("rev-parse", "--abbrev-ref", "--symbolic-full-name", f"{branch}@{{upstream}}",
+                 check=False)
     return result.stdout.strip() if result.returncode == 0 else None
 
 
@@ -166,11 +123,7 @@ def merge_base(a: str, b: str) -> str:
 
 
 def changed_files(a: str, b: str) -> list[str]:
-    return [
-        line
-        for line in out("diff", "--name-only", "--no-renames", a, b).splitlines()
-        if line
-    ]
+    return [line for line in out("diff", "--name-only", "--no-renames", a, b).splitlines() if line]
 
 
 def git_path(name: str, cwd: Path | None = None) -> Path:
@@ -179,9 +132,7 @@ def git_path(name: str, cwd: Path | None = None) -> Path:
 
 
 def rebase_in_progress(cwd: Path | None = None) -> bool:
-    return (
-        git_path("rebase-merge", cwd).exists() or git_path("rebase-apply", cwd).exists()
-    )
+    return git_path("rebase-merge", cwd).exists() or git_path("rebase-apply", cwd).exists()
 
 
 def branch_name() -> str:
@@ -200,9 +151,7 @@ def integrating_branch(base: str) -> str:
     """The branch to integrate -- never the base itself, which has nothing to integrate."""
     branch = branch_name()
     if branch == base:
-        raise Refusal(
-            f"the current branch is the base '{base}'; run this from the branch's worktree"
-        )
+        raise Refusal(f"the current branch is the base '{base}'; run this from the branch's worktree")
     return branch
 
 
@@ -220,9 +169,7 @@ def dirty_files(cwd: Path | None = None, untracked: bool = True) -> list[str]:
         entry = entries[index]
         if entry:
             files.append(entry[3:])
-            if (
-                entry[0] in "RC"
-            ):  # a rename or copy carries its source path as the next entry
+            if entry[0] in "RC":  # a rename or copy carries its source path as the next entry
                 index += 1
                 files.append(entries[index])
         index += 1
@@ -231,10 +178,7 @@ def dirty_files(cwd: Path | None = None, untracked: bool = True) -> list[str]:
 
 def matches(path: str, patterns: tuple[str, ...]) -> bool:
     name = Path(path).name
-    return any(
-        fnmatch.fnmatch(path if "/" in pattern else name, pattern)
-        for pattern in patterns
-    )
+    return any(fnmatch.fnmatch(path if "/" in pattern else name, pattern) for pattern in patterns)
 
 
 def tag(path: str) -> str:
@@ -254,7 +198,6 @@ def merge_in_progress(cwd: Path | None = None) -> bool:
 
 
 # --- resolve base -------------------------------------------------------------------------
-
 
 @dataclass
 class BaseState:
@@ -305,9 +248,7 @@ def sync_base(base: str, fetch: bool) -> BaseState:
     """Resolve the base, fast-forwarding a local base that is strictly behind its upstream."""
     state = read_base(base, fetch)
     if state.relation == "diverged":
-        raise Refusal(
-            f"{base} and {state.upstream} have diverged; reconcile {base} before integrating"
-        )
+        raise Refusal(f"{base} and {state.upstream} have diverged; reconcile {base} before integrating")
     if state.relation == "behind" and state.upstream is not None:
         fast_forward(base, state.upstream)
         state.fast_forwarded = True
@@ -321,34 +262,20 @@ def fast_forward(base: str, upstream: str) -> None:
         return
     result = git("merge", "--ff-only", "--quiet", upstream, cwd=checkout, check=False)
     if result.returncode != 0:
-        raise Refusal(
-            f"cannot fast-forward {base} in {checkout}: {result.stderr.strip()}"
-        )
+        raise Refusal(f"cannot fast-forward {base} in {checkout}: {result.stderr.strip()}")
 
 
 # --- reports ------------------------------------------------------------------------------
 
-
 def upstream_commits(since: str, until: str) -> list[str]:
-    return [
-        line
-        for line in out(
-            "log", "--reverse", "--format=%h %s", f"{since}..{until}"
-        ).splitlines()
-        if line
-    ]
+    return [line for line in out("log", "--reverse", "--format=%h %s", f"{since}..{until}").splitlines() if line]
 
 
 def upstream_epics(since: str, until: str) -> list[dict]:
     """Epic directories changed upstream, each with its BDD scenarios when present."""
     paths = changed_files(since, until)
-    epic_dirs = sorted(
-        {
-            Path(p).parts[2]
-            for p in paths
-            if p.startswith(".devtool/epic/") and len(Path(p).parts) > 3
-        }
-    )
+    epic_dirs = sorted({Path(p).parts[2] for p in paths
+                        if p.startswith(".devtool/epic/") and len(Path(p).parts) > 3})
     root = Path.cwd()
     epics = []
     for epic_dir in epic_dirs:
@@ -366,46 +293,28 @@ def upstream_context(since: str, onto: str, head: str) -> dict:
         "upstream_commits": upstream_commits(since, onto),
         "upstream_epics": upstream_epics(since, onto),
         "overlap_files": sorted(branch_files.intersection(upstream_files)),
-        "bootstrap_required": any(
-            matches(p, MANIFEST_PATTERNS) for p in upstream_files
-        ),
+        "bootstrap_required": any(matches(p, MANIFEST_PATTERNS) for p in upstream_files),
     }
 
 
 def predict(target: str, head: str) -> tuple[str, list[str]]:
     if is_ancestor(target, head):
         return "noop", []
-    result = git(
-        "merge-tree",
-        "--write-tree",
-        "--name-only",
-        "--no-messages",
-        target,
-        head,
-        check=False,
-    )
+    result = git("merge-tree", "--write-tree", "--name-only", "--no-messages", target, head, check=False)
     if result.returncode == 0:
         return "clean", []
     if result.returncode == 1:
-        return "conflicts", sorted(
-            {line for line in result.stdout.splitlines()[1:] if line}
-        )
+        return "conflicts", sorted({line for line in result.stdout.splitlines()[1:] if line})
     raise GitError(f"git merge-tree failed: {result.stderr.strip()}")
 
 
 # --- commands -----------------------------------------------------------------------------
 
-
 def cmd_sync_base(args) -> tuple[int, dict]:
     state = sync_base(args.base, args.fetch)
-    return EXIT_OK, {
-        "command": "sync-base",
-        "base": state.base,
-        "upstream": state.upstream,
-        "relation": state.relation,
-        "fast_forwarded": state.fast_forwarded,
-        "warnings": state.warnings,
-    }
+    return EXIT_OK, {"command": "sync-base", "base": state.base, "upstream": state.upstream,
+                     "relation": state.relation, "fast_forwarded": state.fast_forwarded,
+                     "warnings": state.warnings}
 
 
 def cmd_preflight(args) -> tuple[int, dict]:
@@ -423,55 +332,30 @@ def cmd_preflight(args) -> tuple[int, dict]:
     tier, conflicts = ("rebase-in-progress", []) if stopped else predict(target, head)
     warnings = list(state.warnings)
     if state.relation == "diverged":
-        warnings.append(
-            f"{args.base} and {state.upstream} have diverged; reconcile {args.base} first"
-        )
+        warnings.append(f"{args.base} and {state.upstream} have diverged; reconcile {args.base} first")
     if stopped:
-        warnings.append(
-            "a rebase is in progress; run rebase --continue or rebase --abort"
-        )
+        warnings.append("a rebase is in progress; run rebase --continue or rebase --abort")
     if dirty_files(untracked=False):
         warnings.append("the worktree has uncommitted changes")
     if pushed(branch):
         warnings.append(f"{branch} has already been pushed; it will not be rebased")
-    return EXIT_OK, {
-        "command": "preflight",
-        "branch": branch,
-        "base": args.base,
-        "upstream": state.upstream,
-        "relation": state.relation,
-        "target": target,
-        "merge_base": since,
-        "predicted_tier": tier,
-        "conflicts": [{"path": p, "tag": tag(p)} for p in conflicts],
-        **upstream_context(since, target, head),
-        "warnings": warnings,
-    }
+    return EXIT_OK, {"command": "preflight", "branch": branch, "base": args.base,
+                     "upstream": state.upstream, "relation": state.relation, "target": target,
+                     "merge_base": since, "predicted_tier": tier,
+                     "conflicts": [{"path": p, "tag": tag(p)} for p in conflicts],
+                     **upstream_context(since, target, head), "warnings": warnings}
 
 
-def rebase_outcome(
-    branch: str, result: subprocess.CompletedProcess
-) -> tuple[int, dict]:
+def rebase_outcome(branch: str, result: subprocess.CompletedProcess) -> tuple[int, dict]:
     if rebase_in_progress():
         conflicted = out("diff", "--name-only", "--diff-filter=U").splitlines()
-        replaying = git(
-            "log", "-1", "--format=%h %s", "REBASE_HEAD", check=False
-        ).stdout.strip()
-        return EXIT_CONFLICT, {
-            "command": "rebase",
-            "branch": branch,
-            "result": "stopped",
-            "replaying": replaying,
-            "conflicts": [{"path": p, "tag": tag(p)} for p in conflicted if p],
-        }
+        replaying = git("log", "-1", "--format=%h %s", "REBASE_HEAD", check=False).stdout.strip()
+        return EXIT_CONFLICT, {"command": "rebase", "branch": branch, "result": "stopped",
+                               "replaying": replaying,
+                               "conflicts": [{"path": p, "tag": tag(p)} for p in conflicted if p]}
     if result.returncode != 0:
         raise GitError(f"git rebase failed: {result.stderr.strip()}")
-    return EXIT_OK, {
-        "command": "rebase",
-        "branch": branch,
-        "result": "complete",
-        "head": rev("HEAD"),
-    }
+    return EXIT_OK, {"command": "rebase", "branch": branch, "result": "complete", "head": rev("HEAD")}
 
 
 def cmd_rebase(args) -> tuple[int, dict]:
@@ -482,63 +366,30 @@ def cmd_rebase(args) -> tuple[int, dict]:
         if args.abort:
             git("rebase", "--abort")
             restored = rev("HEAD") == rev(backup_ref(branch))
-            return EXIT_OK, {
-                "command": "rebase",
-                "branch": branch,
-                "result": "aborted",
-                "restored_to_backup": restored,
-            }
-        result = git(
-            "-c",
-            "rerere.enabled=true",
-            "-c",
-            "rerere.autoUpdate=false",
-            "rebase",
-            "--continue",
-            check=False,
-        )
+            return EXIT_OK, {"command": "rebase", "branch": branch, "result": "aborted",
+                             "restored_to_backup": restored}
+        result = git("-c", "rerere.enabled=true", "-c", "rerere.autoUpdate=false", "rebase", "--continue", check=False)
         return rebase_outcome(branch, result)
     if rebase_in_progress():
-        raise Refusal(
-            "a rebase is already in progress; use rebase --continue or rebase --abort"
-        )
+        raise Refusal("a rebase is already in progress; use rebase --continue or rebase --abort")
     if dirty_files(untracked=False):
-        raise Refusal(
-            "the worktree has uncommitted changes; commit them before rebasing"
-        )
+        raise Refusal("the worktree has uncommitted changes; commit them before rebasing")
     if pushed(branch):
-        raise Refusal(
-            f"{branch} has already been pushed; rebasing it would need a force-push"
-        )
+        raise Refusal(f"{branch} has already been pushed; rebasing it would need a force-push")
     sync_base(args.base, args.fetch)
     head = rev("HEAD")
     git("branch", "--force", backup_ref(branch), head)
     if is_ancestor(args.base, head):
-        return EXIT_OK, {
-            "command": "rebase",
-            "branch": branch,
-            "result": "noop",
-            "head": head,
-        }
-    result = git(
-        "-c",
-        "rerere.enabled=true",
-        "-c",
-        "rerere.autoUpdate=false",
-        "rebase",
-        "--no-update-refs",
-        args.base,
-        check=False,
-    )
+        return EXIT_OK, {"command": "rebase", "branch": branch, "result": "noop", "head": head}
+    result = git("-c", "rerere.enabled=true", "-c", "rerere.autoUpdate=false", "rebase",
+               "--no-update-refs", args.base, check=False)
     return rebase_outcome(branch, result)
 
 
 def normalised_diff(a: str, b: str) -> list[str]:
     """A zero-context diff without blob ids or line numbers: what changed, not where."""
     lines = []
-    for line in git(
-        "diff", "--binary", "-U0", "--no-color", "--no-ext-diff", a, b
-    ).stdout.splitlines():
+    for line in git("diff", "--binary", "-U0", "--no-color", "--no-ext-diff", a, b).stdout.splitlines():
         if line.startswith("index "):
             continue
         lines.append("@@" if line.startswith("@@") else line)
@@ -546,15 +397,12 @@ def normalised_diff(a: str, b: str) -> list[str]:
 
 
 VERIFICATION = {
-    "noop": {"finish": "keep the existing verdict", "task_boundary": "none"},
-    "clean": {
-        "finish": "full test suite, impact-analysis Check 2, regression checklist",
-        "task_boundary": "analyze, build, Tier A unit tests",
-    },
-    "conflicts": {
-        "finish": "the invoking lifecycle's full gate",
-        "task_boundary": "full 3-tier test suite",
-    },
+    "noop": {"finish": "keep the existing verdict",
+             "task_boundary": "none"},
+    "clean": {"finish": "full test suite, impact-analysis Check 2, regression checklist",
+              "task_boundary": "analyze, build, Tier A unit tests"},
+    "conflicts": {"finish": "the invoking lifecycle's full gate",
+                  "task_boundary": "full 3-tier test suite"},
 }
 
 
@@ -574,15 +422,9 @@ def cmd_verify_tier(args) -> tuple[int, dict]:
     warnings: list[str] = []
     if dirty_files(untracked=False):
         warnings.append("the worktree has uncommitted changes")
-    return EXIT_OK, {
-        "command": "verify-tier",
-        "branch": branch,
-        "tier": tier,
-        "verification": VERIFICATION[tier],
-        "candidate_sha": head,
-        **upstream_context(since, onto, head),
-        "warnings": warnings,
-    }
+    return EXIT_OK, {"command": "verify-tier", "branch": branch, "tier": tier,
+                     "verification": VERIFICATION[tier], "candidate_sha": head,
+                     **upstream_context(since, onto, head), "warnings": warnings}
 
 
 def cmd_land(args) -> tuple[int, dict]:
@@ -590,9 +432,7 @@ def cmd_land(args) -> tuple[int, dict]:
         raise Refusal("title must look like '[SCOPE] Title', with no trailing period")
     lease_path = Path("build/quality/.gate4_active.lease")
     if lease_path.is_file():
-        raise Refusal(
-            "a Gate 4 quality verification lease is currently active (build/quality/.gate4_active.lease); wait for it to finish before landing"
-        )
+        raise Refusal("a Gate 4 quality verification lease is currently active (build/quality/.gate4_active.lease); wait for it to finish before landing")
     branch = integrating_branch(args.base)
     if rebase_in_progress():
         raise Refusal("a rebase is in progress; finish or abort it first")
@@ -602,81 +442,37 @@ def cmd_land(args) -> tuple[int, dict]:
     sha = rev(args.verified)
     tip = rev(branch)
     if tip != sha:
-        raise Refusal(
-            f"{branch} is at {tip[:12]}, not the verified {sha[:12]}; verify the current tip"
-        )
+        raise Refusal(f"{branch} is at {tip[:12]}, not the verified {sha[:12]}; verify the current tip")
     old_base = rev(args.base)
     if old_base == sha:
-        raise Refusal(
-            f"{branch} has no commits that {args.base} lacks; nothing to land"
-        )
+        raise Refusal(f"{branch} has no commits that {args.base} lacks; nothing to land")
     if not is_ancestor(old_base, sha):
-        raise Refusal(
-            f"{args.base} has moved since the rebase; run preflight and rebase again"
-        )
-    message = [
-        "-m",
-        args.title,
-        "-m",
-        out(
-            "log",
-            "--no-show-signature",
-            "--reverse",
-            "--format=- %s",
-            f"{old_base}..{sha}",
-        ),
-    ]
+        raise Refusal(f"{args.base} has moved since the rebase; run preflight and rebase again")
+    message = ["-m", args.title, "-m", out("log", "--no-show-signature", "--reverse", "--format=- %s", f"{old_base}..{sha}")]
     checkout = checkout_of(args.base)
     if checkout is None:
-        merge = out(
-            "commit-tree", f"{sha}^{{tree}}", "-p", old_base, "-p", sha, *message
-        )
+        merge = out("commit-tree", f"{sha}^{{tree}}", "-p", old_base, "-p", sha, *message)
         git("update-ref", f"refs/heads/{args.base}", merge, old_base)
     else:
         guard_checkout(checkout, changed_files(old_base, sha))
-        result = git(
-            "merge",
-            "--no-ff",
-            "--no-edit",
-            "--no-log",
-            *message,
-            branch,
-            cwd=checkout,
-            check=False,
-        )
-        if (
-            result.returncode != 0
-        ):  # a hook can reject the merge after git has staged it
+        result = git("merge", "--no-ff", "--no-edit", "--no-log", *message, branch, cwd=checkout, check=False)
+        if result.returncode != 0:  # a hook can reject the merge after git has staged it
             git("merge", "--abort", cwd=checkout, check=False)
-            raise GitError(
-                f"git merge failed in {checkout} and was aborted: {result.stderr.strip()}"
-            )
+            raise GitError(f"git merge failed in {checkout} and was aborted: {result.stderr.strip()}")
     check_landed(args.base, old_base, sha, checkout)
     pool_cleanup = cleanup_landed_worker_branches(branch, args.base)
-    return EXIT_OK, {
-        "command": "land",
-        "branch": branch,
-        "base": args.base,
-        "merge_commit": rev(args.base),
-        "verified_sha": sha,
-        "checkout": str(checkout) if checkout else None,
-        "pool_cleanup": pool_cleanup,
-    }
+    return EXIT_OK, {"command": "land", "branch": branch, "base": args.base,
+                     "merge_commit": rev(args.base), "verified_sha": sha,
+                     "checkout": str(checkout) if checkout else None,
+                     "pool_cleanup": pool_cleanup}
 
 
 def cleanup_landed_worker_branches(branch: str, base: str) -> dict[str, list[str]]:
     """Safely prune stale worktrees and delete merged slot/orphan branches for a landed epic."""
     epic_raw = branch.removeprefix("epic/").strip("/")
-    variants = list(
-        dict.fromkeys(
-            [epic_raw, epic_raw.replace("-", "_"), epic_raw.replace("_", "-")]
-        )
-    )
+    variants = list(dict.fromkeys([epic_raw, epic_raw.replace("-", "_"), epic_raw.replace("_", "-")]))
     prefixes = tuple(
-        prefix
-        for v in variants
-        if v
-        for prefix in (f"epic/{v}-slot-", f"worker/{v}/slot-")
+        prefix for v in variants if v for prefix in (f"epic/{v}-slot-", f"worker/{v}/slot-")
     )
     removed: list[str] = []
     preserved: list[str] = []
@@ -723,9 +519,7 @@ def guard_checkout(checkout: Path, touched: list[str]) -> None:
         raise Refusal(f"{checkout} has staged changes; a merge would record them")
     collisions = sorted(set(touched).intersection(dirty_files(checkout)))
     if collisions:
-        raise Refusal(
-            f"dirty files in {checkout} collide with the merge: {', '.join(collisions)}"
-        )
+        raise Refusal(f"dirty files in {checkout} collide with the merge: {', '.join(collisions)}")
 
 
 def check_landed(base: str, old_base: str, sha: str, checkout: Path | None) -> None:
@@ -734,23 +528,17 @@ def check_landed(base: str, old_base: str, sha: str, checkout: Path | None) -> N
     if out("rev-parse", f"{new_base}^{{tree}}") != out("rev-parse", f"{sha}^{{tree}}"):
         problems.append("the merge tree differs from the verified tree")
     if rev(f"{new_base}^1") != old_base or rev(f"{new_base}^2") != sha:
-        problems.append(
-            "the merge commit's parents are not the old base and the verified sha"
-        )
+        problems.append("the merge commit's parents are not the old base and the verified sha")
     if not problems:
         return
     if checkout is None:
         git("update-ref", f"refs/heads/{base}", old_base, new_base)
     else:
         git("reset", "--keep", old_base, cwd=checkout)
-    raise Refusal(
-        "; ".join(problems) + f"; {base} rolled back to {old_base[:12]}",
-        EXIT_POSTCONDITION,
-    )
+    raise Refusal("; ".join(problems) + f"; {base} rolled back to {old_base[:12]}", EXIT_POSTCONDITION)
 
 
 # --- entry point --------------------------------------------------------------------------
-
 
 def to_markdown(report: dict) -> str:
     lines = [f"## integrate_branch {report['command']}", ""]
@@ -761,11 +549,7 @@ def to_markdown(report: dict) -> str:
         if isinstance(value, list):
             lines.append(f"- **{label}**:" + ("" if value else " none"))
             for item in value:
-                text = (
-                    ", ".join(f"{k}: {v}" for k, v in item.items())
-                    if isinstance(item, dict)
-                    else item
-                )
+                text = ", ".join(f"{k}: {v}" for k, v in item.items()) if isinstance(item, dict) else item
                 lines.append(f"  - {text}")
         elif isinstance(value, dict):
             lines.append(f"- **{label}**:")
@@ -776,9 +560,7 @@ def to_markdown(report: dict) -> str:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Rebase, measure and land a development branch."
-    )
+    parser = argparse.ArgumentParser(description="Rebase, measure and land a development branch.")
     commands = parser.add_subparsers(dest="command", required=True)
 
     def add(name: str, fetch: bool = True) -> argparse.ArgumentParser:
@@ -802,13 +584,8 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-COMMANDS = {
-    "sync-base": cmd_sync_base,
-    "preflight": cmd_preflight,
-    "rebase": cmd_rebase,
-    "verify-tier": cmd_verify_tier,
-    "land": cmd_land,
-}
+COMMANDS = {"sync-base": cmd_sync_base, "preflight": cmd_preflight, "rebase": cmd_rebase,
+            "verify-tier": cmd_verify_tier, "land": cmd_land}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -822,9 +599,7 @@ def main(argv: list[str] | None = None) -> int:
     except GitError as error:
         print(f"error: {error}", file=sys.stderr)
         return EXIT_GIT
-    print(
-        json.dumps(report, indent=2) if args.format == "json" else to_markdown(report)
-    )
+    print(json.dumps(report, indent=2) if args.format == "json" else to_markdown(report))
     return code
 
 
