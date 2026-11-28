@@ -46,6 +46,16 @@ TASK_TIER_B_ALLOWED_KEYS: frozenset[str] = frozenset(
     (*TASK_TIER_B_LIST_KEYS, "require_all_allowed_files_in_format")
 )
 COVERAGE_PATH_KEYS: tuple[str, ...] = ("lcov_path", "report_path", "profdata_path")
+TEST_ROUTING_GLOB_KEYS: tuple[str, ...] = (
+    "canonical_test_globs",
+    "forbidden_test_globs",
+    "paired_source_globs",
+    "lcov_unit_test_globs",
+)
+TEST_ROUTING_KEYS: tuple[str, ...] = (
+    *TEST_ROUTING_GLOB_KEYS,
+    "cache_bust_extensions",
+)
 
 
 def _finding(code: str, message: str, **extra: Any) -> dict[str, Any]:
@@ -183,6 +193,18 @@ def validate_dual_floor_coverage(
                     )
                 )
 
+    if "package_floors" in coverage_val:
+        pf_val = coverage_val["package_floors"]
+        if not is_safe_relative_path(pf_val):
+            findings.append(
+                _finding(
+                    "invalid_coverage_config",
+                    f"Coverage 'package_floors' path '{pf_val}' must be a non-empty relative path without '..' traversal",
+                    capability=capability,
+                    field="coverage.package_floors",
+                )
+            )
+
     return findings
 
 
@@ -314,6 +336,59 @@ def validate_additive_provider_fields(config: dict[str, Any]) -> list[dict[str, 
                                 field=f"triage_surfaces.{category}[{idx}]",
                             )
                         )
+
+    if "test_routing" in config:
+        routing = config["test_routing"]
+        if not isinstance(routing, dict):
+            findings.append(
+                _finding(
+                    "invalid_test_routing",
+                    "Optional 'test_routing' must be an object",
+                    field="test_routing",
+                )
+            )
+        else:
+            allowed_routing_keys = frozenset(TEST_ROUTING_KEYS)
+            for key in sorted(routing.keys()):
+                if key not in allowed_routing_keys:
+                    findings.append(
+                        _finding(
+                            "invalid_test_routing",
+                            f"Unknown field '{key}' in 'test_routing'; allowed: {', '.join(TEST_ROUTING_KEYS)}",
+                            field=f"test_routing.{key}",
+                        )
+                    )
+                    continue
+                val = routing[key]
+                if not isinstance(val, list) or len(val) == 0:
+                    findings.append(
+                        _finding(
+                            "invalid_test_routing",
+                            f"test_routing.{key} must be a non-empty array of strings",
+                            field=f"test_routing.{key}",
+                        )
+                    )
+                    continue
+                if key == "cache_bust_extensions":
+                    for idx, ext in enumerate(val):
+                        if not isinstance(ext, str) or not EXTENSION_PATTERN.match(ext):
+                            findings.append(
+                                _finding(
+                                    "invalid_test_routing",
+                                    f"test_routing.cache_bust_extensions[{idx}] must be a lowercase dot-prefixed extension matching ^\\.[a-z0-9]+$",
+                                    field=f"test_routing.cache_bust_extensions[{idx}]",
+                                )
+                            )
+                else:
+                    for idx, glob_pat in enumerate(val):
+                        if not is_safe_relative_path(glob_pat):
+                            findings.append(
+                                _finding(
+                                    "invalid_test_routing",
+                                    f"test_routing.{key}[{idx}] '{glob_pat}' must be a non-empty relative glob without '..' traversal",
+                                    field=f"test_routing.{key}[{idx}]",
+                                )
+                            )
 
     return findings
 

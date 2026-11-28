@@ -88,6 +88,49 @@ _VALUE_TAKING_FORMAT_FLAGS = frozenset(
         "--project",
     }
 )
+_FULL_REPO_TARGETS = frozenset({".", "src", "tests"})
+_MONOREPO_DIR_FLAGS = frozenset({"--directory", "--project", "--prefix"})
+_VALUE_TAKING_PATH_FLAGS = frozenset(
+    {
+        "--target-dir",
+        "--directory",
+        "--project",
+        "--prefix",
+        "--root",
+        "--dir",
+        "--config",
+        "--config-file",
+        "-c",
+        "-p",
+        "-C",
+        "--chdir",
+        "--output",
+        "-o",
+        "--path",
+    }
+)
+_VALUE_TAKING_CLI_FLAGS = _VALUE_TAKING_FORMAT_FLAGS | frozenset(
+    {
+        "--config-file",
+        "--extend-select",
+        "--select",
+        "--ignore",
+        "--extend-ignore",
+        "--per-file-ignores",
+        "--target-version",
+        "--python-version",
+        "--target-dir",
+        "--directory",
+        "--prefix",
+        "--format",
+        "--output-format",
+        "--cache-dir",
+        "--exclude",
+        "--extend-exclude",
+        "--reporter",
+        "--filter",
+    }
+)
 _TEST_DIR_MARKERS = frozenset(
     {
         "tests",
@@ -156,6 +199,17 @@ class PoolMountRule:
 
 
 @dataclass(frozen=True)
+class TestRoutingPolicy:
+    """Optional manifest-driven test routing and cache-busting policy for one stack."""
+
+    canonical_test_globs: tuple[str, ...] = ()
+    forbidden_test_globs: tuple[str, ...] = ()
+    paired_source_globs: tuple[str, ...] = ()
+    lcov_unit_test_globs: tuple[str, ...] = ()
+    cache_bust_extensions: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class StackDescriptor:
     """Immutable lifecycle descriptor for a built-in or custom stack family."""
 
@@ -165,6 +219,7 @@ class StackDescriptor:
     default_tier_b: TierBPolicy
     default_surfaces: SurfaceRuleSet
     tier_c_policy: TierCPolicy
+    test_routing: TestRoutingPolicy = TestRoutingPolicy()
 
 
 BASELINE_SURFACES: SurfaceRuleSet = SurfaceRuleSet(
@@ -357,6 +412,7 @@ BUILTIN_STACKS: dict[str, StackDescriptor] = {
                 "yarn check",
                 "yarn typecheck",
                 "bun run check",
+                "check_vanilla_js.py",
             ),
             boundary_prefixes=(),
             boundary_triggers=(),
@@ -573,8 +629,8 @@ def _target_covers_path(target_tok: str, file_path: str) -> bool:
     return clean_file.startswith(clean_tok + "/")
 
 
-def _strip_command_wrappers(tokens: Sequence[str]) -> list[str]:
-    """Strip common shell/tool wrappers while keeping tool/runner subcommands intact."""
+def _strip_version_manager_wrappers(tokens: Sequence[str]) -> list[str]:
+    """Strip leading env assignments, env invocations, and mise exec/x prefixes."""
     toks = list(tokens)
     while toks:
         head = toks[0]
@@ -601,6 +657,130 @@ def _strip_command_wrappers(tokens: Sequence[str]) -> list[str]:
                     break
             toks = toks[idx:]
             continue
+        if (
+            base == "mise"
+            and len(toks) >= 3
+            and toks[1] in ("exec", "x")
+            and "--" in toks[2:]
+        ):
+            dash_idx = toks.index("--", 2)
+            toks = toks[dash_idx + 1 :]
+            continue
+        break
+    return toks
+
+
+def _normalize_dir_value(raw: str) -> str | None:
+    cleaned = raw.strip().replace("\\", "/").removeprefix("./").rstrip("/")
+    return cleaned or None
+
+
+def _extract_monorepo_dir_wrapper(tokens: Sequence[str]) -> str | None:
+    """Extract normalized --directory/--project/--prefix value from uv/npm wrappers."""
+    toks = _strip_version_manager_wrappers(tokens)
+    if not toks:
+        return None
+    base = Path(toks[0]).name
+    if base == "uv":
+        idx = 1
+        seen_run = False
+        while idx < len(toks):
+            tok = toks[idx]
+            if not seen_run and tok == "run":
+                seen_run = True
+                idx += 1
+                continue
+            if tok in ("--directory", "--project") and idx + 1 < len(toks):
+                return _normalize_dir_value(toks[idx + 1])
+            if tok.startswith(("--directory=", "--project=")):
+                return _normalize_dir_value(tok.split("=", 1)[1])
+            if tok == "--":
+                break
+            if tok.startswith("-"):
+                if tok in (
+                    "--extra",
+                    "--group",
+                    "--python",
+                    "--with",
+                    "--config-file",
+                    "--cache-dir",
+                    "-C",
+                    "-p",
+                    "--package",
+                ) and idx + 1 < len(toks):
+                    idx += 2
+                else:
+                    idx += 1
+                continue
+            break
+        return None
+    if base == "npm":
+        idx = 1
+        seen_sub = False
+        while idx < len(toks):
+            tok = toks[idx]
+            if not seen_sub and tok in ("exec", "run"):
+                seen_sub = True
+                idx += 1
+                continue
+            if tok == "--prefix" and idx + 1 < len(toks):
+                return _normalize_dir_value(toks[idx + 1])
+            if tok.startswith("--prefix="):
+                return _normalize_dir_value(tok.split("=", 1)[1])
+            if tok == "--":
+                break
+            if tok.startswith("-"):
+                if tok in ("-C", "--package", "-p") and idx + 1 < len(toks):
+                    idx += 2
+                else:
+                    idx += 1
+                continue
+            break
+    return None
+
+
+def _strip_monorepo_dir_flags(tokens: Sequence[str]) -> list[str]:
+    """Strip --directory/--project/--prefix flag pairs from leading uv/npm wrappers."""
+    toks = list(tokens)
+    if not toks:
+        return toks
+    base = Path(toks[0]).name
+    if base not in ("uv", "npm"):
+        return toks
+    target_flags = ("--directory", "--project") if base == "uv" else ("--prefix",)
+    result = [toks[0]]
+    idx = 1
+    seen_sub = False
+    while idx < len(toks):
+        tok = toks[idx]
+        if not seen_sub and tok in ("run", "exec"):
+            seen_sub = True
+            result.append(tok)
+            idx += 1
+            continue
+        if tok in target_flags and idx + 1 < len(toks):
+            idx += 2
+            continue
+        if any(tok.startswith(f"{flag}=") for flag in target_flags):
+            idx += 1
+            continue
+        if tok == "--" or (seen_sub and not tok.startswith("-")):
+            result.extend(toks[idx:])
+            break
+        result.append(tok)
+        idx += 1
+    return result
+
+
+def _strip_command_wrappers(tokens: Sequence[str]) -> list[str]:
+    """Strip common shell/tool wrappers while keeping tool/runner subcommands intact."""
+    toks = list(tokens)
+    while toks:
+        unwrapped_vm = _strip_version_manager_wrappers(toks)
+        if unwrapped_vm != toks:
+            toks = unwrapped_vm
+            continue
+        base = Path(toks[0]).name
         if base in ("fvm", "bunx"):
             toks = toks[1:]
             continue
@@ -616,20 +796,55 @@ def _strip_command_wrappers(tokens: Sequence[str]) -> list[str]:
                 idx += 1
             toks = toks[idx:]
             continue
-        if base == "uv" and len(toks) >= 2 and toks[1] == "run":
-            idx = 2
-            while idx < len(toks) and toks[idx].startswith("-"):
-                if toks[idx] in (
-                    "--extra",
-                    "--group",
+        if base == "uv" and len(toks) >= 2:
+            idx = 1
+            while idx < len(toks) and toks[idx] != "run" and toks[idx].startswith("-"):
+                tok = toks[idx]
+                if tok in (
+                    "--directory",
+                    "--project",
                     "--python",
-                    "--with",
+                    "--config-file",
+                    "--cache-dir",
+                    "-C",
                 ) and idx + 1 < len(toks):
                     idx += 2
-                else:
+                elif tok.startswith(("--directory=", "--project=")) or tok in (
+                    "-q",
+                    "--quiet",
+                    "--frozen",
+                    "--offline",
+                    "--no-sync",
+                    "--locked",
+                    "-v",
+                    "--verbose",
+                    "--no-config",
+                    "--no-project",
+                ):
                     idx += 1
-            toks = toks[idx:]
-            continue
+                else:
+                    break
+            if idx < len(toks) and toks[idx] == "run":
+                idx += 1
+                while idx < len(toks) and toks[idx].startswith("-"):
+                    if toks[idx] == "--":
+                        idx += 1
+                        break
+                    if toks[idx] in (
+                        "--extra",
+                        "--group",
+                        "--python",
+                        "--with",
+                        "--directory",
+                        "--project",
+                        "-p",
+                        "--package",
+                    ) and idx + 1 < len(toks):
+                        idx += 2
+                    else:
+                        idx += 1
+                toks = toks[idx:]
+                continue
         if (
             base in ("poetry", "bundle")
             and len(toks) >= 2
@@ -640,6 +855,37 @@ def _strip_command_wrappers(tokens: Sequence[str]) -> list[str]:
         if base == "pnpm" and len(toks) >= 2 and toks[1] == "exec":
             toks = toks[2:]
             continue
+        if base == "npm" and len(toks) >= 2:
+            idx = 1
+            while idx < len(toks) and toks[idx] != "exec" and toks[idx].startswith("-"):
+                tok = toks[idx]
+                if tok in ("--prefix", "-C") and idx + 1 < len(toks):
+                    idx += 2
+                elif tok.startswith("--prefix=") or tok in (
+                    "-s",
+                    "--silent",
+                    "-q",
+                    "--quiet",
+                    "--no-audit",
+                    "--no-fund",
+                ):
+                    idx += 1
+                else:
+                    break
+            if idx < len(toks) and toks[idx] == "exec":
+                idx += 1
+                while idx < len(toks) and toks[idx].startswith("-"):
+                    if toks[idx] == "--":
+                        idx += 1
+                        break
+                    if toks[idx] in ("--prefix", "--package", "-p") and idx + 1 < len(
+                        toks
+                    ):
+                        idx += 2
+                    else:
+                        idx += 1
+                toks = toks[idx:]
+                continue
         if base in ("python", "python3") and len(toks) >= 3 and toks[1] == "-m":
             toks = toks[2:]
             continue
@@ -736,6 +982,16 @@ def _string_list(raw: Any) -> tuple[str, ...]:
     return tuple(item.strip() for item in raw if isinstance(item, str) and item.strip())
 
 
+def _join_shell_tokens(tokens: Sequence[str]) -> str:
+    parts: list[str] = []
+    for tok in tokens:
+        if "$D3NEXUS_KIT" in tok and not any(ch in tok for ch in ('"', "`", "\\")):
+            parts.append(f'"{tok}"')
+        else:
+            parts.append(shlex.quote(tok))
+    return " ".join(parts)
+
+
 def _cap_command_str(capabilities: Mapping[str, Any], *keys: str) -> tuple[str, ...]:
     found: list[str] = []
     for key in keys:
@@ -745,7 +1001,32 @@ def _cap_command_str(capabilities: Mapping[str, Any], *keys: str) -> tuple[str, 
             and cmd
             and all(isinstance(x, str) and x.strip() for x in cmd)
         ):
-            joined = shlex.join([x.strip() for x in cmd])
+            normalized: list[str] = []
+            raw_tokens = [x.strip() for x in cmd]
+            idx = 0
+            while idx < len(raw_tokens):
+                tok = raw_tokens[idx]
+                if (
+                    tok == "--base-ref"
+                    and idx + 1 < len(raw_tokens)
+                    and raw_tokens[idx + 1] == "{base_ref}"
+                ):
+                    idx += 2
+                    continue
+                if tok == "--base-ref={base_ref}":
+                    idx += 1
+                    continue
+                normalized.append(tok.replace("{skills_dir}", "$D3NEXUS_KIT/skills"))
+                idx += 1
+            while (
+                len(normalized) > 1
+                and normalized[-1] in _FULL_REPO_TARGETS
+                and normalized[-2] not in _VALUE_TAKING_PATH_FLAGS
+            ):
+                normalized.pop()
+            if not normalized:
+                continue
+            joined = _join_shell_tokens(normalized)
             if joined not in found:
                 found.append(joined)
     return tuple(found)
@@ -872,6 +1153,22 @@ def _merge_surface_ruleset(
     return merged, errors
 
 
+def _parse_test_routing_policy(
+    raw_routing: Any, base: TestRoutingPolicy
+) -> TestRoutingPolicy:
+    if not isinstance(raw_routing, Mapping):
+        return base
+    return TestRoutingPolicy(
+        canonical_test_globs=_string_list(raw_routing.get("canonical_test_globs")),
+        forbidden_test_globs=_string_list(raw_routing.get("forbidden_test_globs")),
+        paired_source_globs=_string_list(raw_routing.get("paired_source_globs")),
+        lcov_unit_test_globs=_string_list(raw_routing.get("lcov_unit_test_globs")),
+        cache_bust_extensions=_normalize_extensions(
+            raw_routing.get("cache_bust_extensions")
+        ),
+    )
+
+
 def _load_repo_manifests(
     repo_root: Path,
 ) -> tuple[dict[str, StackDescriptor], dict[str, Path], list[str]]:
@@ -907,6 +1204,7 @@ def _load_repo_manifests(
             base_tier_b = TierBPolicy()
             base_surfaces = SurfaceRuleSet()
             base_tier_c = TierCPolicy()
+            base_test_routing = TestRoutingPolicy()
         else:
             combined_exts = list(builtin.extensions)
             for ext in declared_exts:
@@ -917,6 +1215,7 @@ def _load_repo_manifests(
             base_tier_b = builtin.default_tier_b
             base_surfaces = builtin.default_surfaces
             base_tier_c = builtin.tier_c_policy
+            base_test_routing = builtin.test_routing
 
         merged_tier_b = _merge_tier_b_policy(
             base_tier_b,
@@ -931,6 +1230,9 @@ def _load_repo_manifests(
             manifest_path.name,
         )
         errors.extend(surf_errors)
+        test_routing = _parse_test_routing_policy(
+            data.get("test_routing"), base_test_routing
+        )
 
         descriptors[stack_id] = StackDescriptor(
             stack_id=stack_id,
@@ -939,6 +1241,7 @@ def _load_repo_manifests(
             default_tier_b=merged_tier_b,
             default_surfaces=merged_surfaces,
             tier_c_policy=base_tier_c,
+            test_routing=test_routing,
         )
 
     return descriptors, manifest_paths, errors
@@ -981,6 +1284,37 @@ def _has_clippy_deny_warnings(sub: Sequence[str]) -> bool:
     return False
 
 
+def _is_script_interpreter(token: str) -> bool:
+    prog = Path(token).name.lower()
+    return prog in ("sh", "bash", "zsh", "dash") or prog.startswith(("python", "pypy"))
+
+
+def _extract_unwrapped_positional_targets(remaining_args: Sequence[str]) -> list[str]:
+    """Extract positional file/dir arguments without defaulting empty args to '.'."""
+    targets: list[str] = []
+    idx = 0
+    in_positional = False
+    while idx < len(remaining_args):
+        tok = remaining_args[idx]
+        if in_positional:
+            targets.append(tok)
+            idx += 1
+            continue
+        if tok == "--":
+            in_positional = True
+            idx += 1
+            continue
+        if tok in _VALUE_TAKING_CLI_FLAGS:
+            idx += 2
+            continue
+        if tok.startswith("-"):
+            idx += 1
+            continue
+        targets.append(tok)
+        idx += 1
+    return targets
+
+
 def _match_prefix_on_tokens(
     cand: Sequence[str],
     ptoks: Sequence[str],
@@ -1008,7 +1342,11 @@ def _match_prefix_on_tokens(
     while head_end < plen and not ptoks[head_end].startswith("-"):
         head_end += 1
     head_nonflags = list(ptoks[:head_end])
-    req_flags = [tok for tok in ptoks[head_end:] if tok.startswith("-")]
+    req_flags = [
+        tok
+        for tok in ptoks[head_end:]
+        if tok.startswith("-") and tok.split("=", 1)[0] not in _MONOREPO_DIR_FLAGS
+    ]
     if head_nonflags and req_flags and len(cand) >= len(head_nonflags):
         head_match = (
             Path(cand[0]).name == Path(head_nonflags[0]).name
@@ -1035,10 +1373,45 @@ def _match_prefix_on_tokens(
             ):
                 return True, len(cand)
 
-    # 4. Script filename match anywhere in subcommand (e.g., python3 scripts/check_vanilla_js.py)
-    if plen == 1 and ptoks[0].endswith((".py", ".sh")):
-        if any(Path(tok).name == ptoks[0] for tok in cand):
-            return True, len(cand)
+    # 4. Script filename + required flags match (e.g., python3 $D3NEXUS_KIT/.../check_vanilla_js.py --target-dir src/preview)
+    script_idx = next(
+        (
+            i
+            for i, tok in enumerate(ptoks)
+            if not tok.startswith("-")
+            and tok.endswith((".py", ".sh"))
+            and (i == 0 or _is_script_interpreter(ptoks[0]))
+        ),
+        None,
+    )
+    if script_idx is not None:
+        script_basename = Path(ptoks[script_idx]).name
+        cand_script_idx = next(
+            (
+                i
+                for i, tok in enumerate(cand)
+                if not tok.startswith("-")
+                and Path(tok).name == script_basename
+                and (i == 0 or _is_script_interpreter(cand[0]))
+            ),
+            None,
+        )
+        if cand_script_idx is not None:
+            ignored_script_flags = _MONOREPO_DIR_FLAGS | frozenset({"--base-ref"})
+            req_script_flags = [
+                tok.split("=", 1)[0]
+                for tok in ptoks[script_idx + 1 :]
+                if tok.startswith("--")
+                and len(tok) > 2
+                and tok.split("=", 1)[0] not in ignored_script_flags
+            ]
+            cand_flag_names = {
+                tok.split("=", 1)[0]
+                for tok in cand[cand_script_idx + 1 :]
+                if tok.startswith("--") and len(tok) > 2
+            }
+            if all(flag in cand_flag_names for flag in req_script_flags):
+                return True, len(cand)
 
     # 5. Boundary-specific filter or keyword matches (e.g. ArchTests, xtask, boundaries, konsist)
     if is_boundary and plen == 1:
@@ -1078,19 +1451,61 @@ def _subcommand_matches_prefix(
     if not ptoks:
         return False, []
 
-    raw = list(sub)
-    unwrapped = _strip_command_wrappers(raw)
-    candidates = [raw] if unwrapped == raw else [raw, unwrapped]
+    raw_sub = _strip_version_manager_wrappers(sub)
+    raw_ptoks = _strip_version_manager_wrappers(ptoks)
+    if not raw_sub or not raw_ptoks:
+        return False, []
 
-    for cand in candidates:
-        matched, consumed = _match_prefix_on_tokens(
-            cand,
-            ptoks,
-            is_boundary=is_boundary,
-            allow_historical_prefix=allow_historical_prefix,
-        )
-        if matched:
-            return True, cand[consumed:]
+    sub_dir = _extract_monorepo_dir_wrapper(raw_sub)
+    ptoks_dir = _extract_monorepo_dir_wrapper(raw_ptoks)
+    if sub_dir is not None and ptoks_dir != sub_dir:
+        return False, []
+
+    def _dedupe_variants(tokens: list[str]) -> list[list[str]]:
+        variants: list[list[str]] = []
+        for candidate in (
+            tokens,
+            _strip_monorepo_dir_flags(tokens),
+            _strip_command_wrappers(tokens),
+        ):
+            if candidate and candidate not in variants:
+                variants.append(candidate)
+        return variants
+
+    sub_candidates = _dedupe_variants(raw_sub)
+    ptoks_candidates = _dedupe_variants(raw_ptoks)
+
+    for cand in sub_candidates:
+        for p_cand in ptoks_candidates:
+            matched, consumed = _match_prefix_on_tokens(
+                cand,
+                p_cand,
+                is_boundary=is_boundary,
+                allow_historical_prefix=allow_historical_prefix,
+            )
+            if not matched:
+                continue
+            remaining = cand[consumed:]
+            if ptoks_dir is not None and sub_dir is None:
+                pos_targets = _extract_unwrapped_positional_targets(remaining)
+                if not pos_targets:
+                    continue
+                if not all(
+                    (
+                        (
+                            clean := target.split("::", 1)[0]
+                            .strip()
+                            .replace("\\", "/")
+                            .removeprefix("./")
+                            .rstrip("/")
+                        )
+                        == ptoks_dir
+                        or clean.startswith(ptoks_dir + "/")
+                    )
+                    for target in pos_targets
+                ):
+                    continue
+            return True, remaining
     return False, []
 
 

@@ -1,13 +1,13 @@
 ---
 id: "task_01_registry_prefix_wrappers_and_provider_schemas"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "shift_left_quality_resolver"
 dueDate: null
 created: "2026-11-28T10:10:00+07:00"
-modified: "2026-11-28T10:10:00+07:00"
-completedAt: null
+modified: "2026-11-28T04:25:36Z"
+completedAt: "2026-11-28T04:25:36Z"
 labels: ["architecture", "contract", "registry", "schema"]
 order: "a01"
 review_tier: "full"
@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 01: Registry Wrapper/Placeholder Normalization and Six-Stack Provider Schema Parity
 
-Epic: [shift_left_quality_resolver](../epic/shift_left_quality_resolver/shift_left_quality_resolver.md)
+Epic: [shift_left_quality_resolver](../../epic/shift_left_quality_resolver/shift_left_quality_resolver.md)
 
 ## Requirement Analysis
 
@@ -115,11 +115,11 @@ Then validation fails closed with status "BLOCKED" and finding code "invalid_tes
 
 ## Definition of Done
 
-- [ ] `_stack_lifecycle_registry.py` implements `TestRoutingPolicy`, Web `"check_vanilla_js.py"` typecheck default, `{skills_dir}` normalization, bidirectional version-manager unwrapping + monorepo directory-wrapper enforcement, and `.py`/`.sh` script basename + required-flag matching (V2, V5)
-- [ ] `_provider_manifest_common.py` and all 6 `*-quality.schema.json` files validate `test_routing`, `coverage.package_floors`, Flutter `architecture`, and Rust/Web/Python `cache_enable`/`cache_purge` cleanly while failing closed on invalid `test_routing` (V2, V5)
-- [ ] All 3 assigned scenarios (`SLQR-HP-01`, `SLQR-EC-01`, `SLQR-FR-01`) pass in `tests/test_slqr_registry_and_schemas.py` with JUnit XML written to `build/test-results/slqr_task_01.xml` (V2, V5)
-- [ ] Existing stack lifecycle registry and provider schema/scaffolder regression suites pass without regressions (V3)
-- [ ] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed Python files (V4)
+- [x] `_stack_lifecycle_registry.py` implements `TestRoutingPolicy`, Web `"check_vanilla_js.py"` typecheck default, `{skills_dir}` normalization, bidirectional version-manager unwrapping + monorepo directory-wrapper enforcement, and `.py`/`.sh` script basename + required-flag matching (V2, V5) — exit 0, 36 passed
+- [x] `_provider_manifest_common.py` and all 6 `*-quality.schema.json` files validate `test_routing`, `coverage.package_floors`, Flutter `architecture`, and Rust/Web/Python `cache_enable`/`cache_purge` cleanly while failing closed on invalid `test_routing` (V2, V5) — exit 0, 36 passed across all 6 stack validators and schemas
+- [x] All 3 assigned scenarios (`SLQR-HP-01`, `SLQR-EC-01`, `SLQR-FR-01`) pass in `tests/test_slqr_registry_and_schemas.py` with JUnit XML written to `build/test-results/slqr_task_01.xml` (V2, V5) — exit 0, 3/3 BDD covered
+- [x] Existing stack lifecycle registry and provider schema/scaffolder regression suites pass without regressions (V3) — exit 0, 22 passed
+- [x] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed Python files (V4) — exit 0, 0 issues
 
 ## Dependencies & Blockers
 
@@ -127,5 +127,5 @@ Then validation fails closed with status "BLOCKED" and finding code "invalid_tes
 
 ## References & Rollback
 
-- Reference HLD: [shift_left_quality_resolver.md](../epic/shift_left_quality_resolver/shift_left_quality_resolver.md)
+- Reference HLD: [shift_left_quality_resolver.md](../../epic/shift_left_quality_resolver/shift_left_quality_resolver.md)
 - Rollback: Revert changes to `_stack_lifecycle_registry.py`, `_provider_manifest_common.py`, and the 6 `*-quality.schema.json` files, and delete `tests/test_slqr_registry_and_schemas.py`.
