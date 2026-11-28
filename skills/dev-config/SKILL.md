@@ -31,7 +31,8 @@ python3 scripts/dev_config.py <args>
 | `quota-check [--personas P1,P2] [--json]` | Evaluate each persona's consumed quota pool against `quota_thresholds` (both 5-hour and weekly Gemini windows for `agy`, and dry-run pool check when a pool is configured); exits `0` when sufficient or `quota_unknown`, `2` when insufficient |
 | `resolve PERSONA [--format json\|argv] [--mode read-only\|write]` | Print the resolved binding JSON or headless dispatch argv |
 | `profiles list [--json]` | Show configured `agy` pool profiles, live leases, exhaustion resets, and cached quota |
-| `profiles add NAME [--priority N] [--max-concurrent N]` | Add an existing non-symlink `$REAL_HOME/antigravity_homes/NAME` directory to the pool |
+| `profiles add NAME [--priority N] [--max-concurrent N] [--allow-concurrent-ag-run]` | Add an existing non-symlink `$REAL_HOME/antigravity_homes/NAME` directory to the pool |
+| `profiles set (NAME\|--all) [--priority N] [--max-concurrent N] [--allow-concurrent-ag-run\|--exclusive]` | Update priority, concurrency (`0` disables the profile without removing it), or cross-host `ag_run` sharing (`--shared` alias) without disturbing live leases |
 | `profiles remove NAME` | Remove a profile from the pool (refused while any live lease exists; release first) |
 | `profiles release NAME [--force]` | Release leases on a profile (requires `--force` when a live lease is held) |
 | `profiles clear [NAME]` | Clear exhaustion timestamps and cached quota for one or all profiles without modifying leases |
@@ -99,7 +100,7 @@ python3 scripts/dev_config.py set programmer codex-gpt xhigh        # positional
 ## Agy Profile Pool and Pooled Dispatch
 
 - **Allow-list (`$REAL_HOME/.d3nexus/agy_profiles.json`)**: An explicit priority-ordered list of `agy` profiles (empty by default). An empty pool dispatches once on the host profile with no lease, leaving non-pool workflows unchanged.
-- **Exclusive Leases (`$REAL_HOME/.d3nexus/agy_profile_leases.json`)**: `ag_run` launches allow one lease per profile; `direct` launches on the profile hosting the session allow up to `max_concurrent` (default `2`) leases. Stale leases expire by heartbeat age (`lease_ttl_seconds`, default `180`) or dead local owner PID.
+- **Exclusive & Shared Leases (`$REAL_HOME/.d3nexus/agy_profile_leases.json`)**: By default, `ag_run` launches allow one exclusive lease per non-host profile and skip profiles with a resident IDE/CLI process, while `direct` launches on the host profile allow up to `max_concurrent` (default `2`) leases. Setting `allow_concurrent_ag_run: true` (per profile or top-level via `profiles set ... --allow-concurrent-ag-run`) applies `max_concurrent` across all host profiles and allows `ag_run cli` alongside a resident IDE. Stale leases expire by heartbeat age (`lease_ttl_seconds`, default `180`) or dead local owner PID.
 - **Launch Safety**: Non-host profiles run via `zsh -ic 'ag_run "$0" cli "$@"'` only after preflight verifies `_ag_link_ok`, `_ag_rel_link`, and `ag_run` are defined; `HOME`, `AGY_PROFILE`, and `TMPDIR` are never exported in the calling process.
 - **Quota Windows & Rotation**: Both Gemini 5-hour (`>= 5h_min_fraction`) and weekly (`> 7d_min_fraction`) windows are checked. On a pre-work quota error (`HEAD` and `git status --porcelain` unchanged, ignoring `.vscode/settings.json`), `dispatch` rotates to the next pool profile; mid-work quota errors return `quota_midrun` (exit `2`) without retrying.
 - **Exhaustion Recovery**: When every profile is exhausted, `dispatch` returns `no_profile` (exit `2`) with an actionable report listing reset times, `/d3nexus:dev-config profiles clear`, and explicit `/d3nexus:dev-config set programmer ...` commands without ever switching models automatically.

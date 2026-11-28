@@ -1835,3 +1835,397 @@ def test_fpg_hp_15_quota_check_dry_run_names_preferred_profile(
     assert entry["sufficient"] is True
     assert entry["quota_line"].startswith(expected_prefix)
     assert fetched == expected_fetched
+
+
+def test_allow_concurrent_ag_run_fills_max_concurrent_across_all_hosts_before_overflow(
+    tmp_path: Path,
+) -> None:
+    """With allow_concurrent_ag_run=True, any host profile fills priority-1 max_concurrent (even with resident IDE) before rotating."""
+    pool_mod = _pool_mod()
+    dc_mod = _dev_config_mod()
+    real_home = tmp_path / "real_home"
+    project = tmp_path / "project"
+    project.mkdir()
+    _make_profile_dirs(real_home, ("p1", "p2"))
+    now = datetime(2026, 11, 28, 1, 0, 0, tzinfo=timezone.utc)
+
+    assert (
+        dc_mod.cmd_profiles_add(
+            project,
+            name="p1",
+            priority=1,
+            max_concurrent=6,
+            allow_concurrent_ag_run=True,
+            real_home=real_home,
+        )
+        == 0
+    )
+    assert (
+        dc_mod.cmd_profiles_add(
+            project,
+            name="p2",
+            priority=2,
+            max_concurrent=2,
+            real_home=real_home,
+        )
+        == 0
+    )
+    assert (
+        dc_mod.cmd_profiles_set(
+            project,
+            name=None,
+            allow_concurrent_ag_run=True,
+            real_home=real_home,
+        )
+        == 0
+    )
+
+    thresholds = {
+        "5h_min_fraction": 0.15,
+        "7d_min_fraction": 0.02,
+        "agy_argon_min_fraction": 0.10,
+    }
+    healthy = lambda _p: {
+        "status": "ACTIVE",
+        "gemini5h": {"fraction": 0.85, "resetTime": "2026-11-28T06:00:00Z"},
+        "geminiWeekly": {"fraction": 0.88, "resetTime": "2026-12-04T00:00:00Z"},
+    }
+
+    # Acquire 6 concurrent leases from mixed host profiles (p1 direct + other hosts via ag_run)
+    # even while resident_probe reports IDE running on both p1 and p2.
+    hosts = ["p1", "tess", "danhdue", "p1", "brother", "other"]
+    acquired = []
+    for idx, host in enumerate(hosts, start=1):
+        acq = pool_mod.acquire(
+            {
+                "repo": f"repo-{idx}",
+                "epic": f"epic-{idx}",
+                "task": f"task_{idx:02d}",
+                "slot": idx,
+                "role": "orchestrator",
+            },
+            real_home=real_home,
+            host_profile=host,
+            quota_pool="gemini5h",
+            thresholds=thresholds,
+            fetcher=healthy,
+            resident_probe=lambda _p: True,
+            now=now,
+        )
+        assert acq.profile == "p1", f"Slot {idx}/6 from host '{host}' must land on p1"
+        assert acq.via_ag_run is (host != "p1")
+        acquired.append(acq)
+
+    # 7th concurrent request from another host overflows cleanly to p2 (priority 2)
+    acq7 = pool_mod.acquire(
+        {
+            "repo": "repo-7",
+            "epic": "epic-7",
+            "task": "task_07",
+            "slot": 7,
+            "role": "orchestrator",
+        },
+        real_home=real_home,
+        host_profile="tess",
+        quota_pool="gemini5h",
+        thresholds=thresholds,
+        fetcher=healthy,
+        resident_probe=lambda _p: True,
+        now=now,
+    )
+    assert acq7.profile == "p2"
+    assert acq7.via_ag_run is True
+    assert acq7.skipped == {"p1": "leased"}
+
+    # Updating p2 back to exclusive works even while live leases exist
+    assert (
+        dc_mod.cmd_profiles_set(
+            project,
+            name="p2",
+            allow_concurrent_ag_run=False,
+            real_home=real_home,
+        )
+        == 0
+    )
+    acq8 = pool_mod.acquire(
+        {
+            "repo": "repo-8",
+            "epic": "epic-8",
+            "task": "task_08",
+            "slot": 8,
+            "role": "orchestrator",
+        },
+        real_home=real_home,
+        host_profile="tess",
+        quota_pool="gemini5h",
+        thresholds=thresholds,
+        fetcher=healthy,
+        resident_probe=lambda _p: False,
+        now=now,
+    )
+    assert acq8.profile is None
+    assert acq8.reason == "pool_busy"
+    assert acq8.skipped == {"p1": "leased", "p2": "leased"}
+
+    # pool_status from non-host reports ok while capacity remains on p1
+    pool_mod.release(acquired[0].owner_id, real_home=real_home, now=now)
+    st = pool_mod.pool_status(real_home=real_home, now=now, host_profile="tess")
+    assert st["state"] == "ok"
+    p1_entry = next(e for e in st["profiles"] if e["profile"] == "p1")
+    assert p1_entry["allow_concurrent_ag_run"] is True
+    assert len(p1_entry["leased_by"]) == 5
+
+    for item in [*acquired[1:], acq7]:
+        pool_mod.release(item.owner_id, real_home=real_home, now=now)
+
+    # Non-boolean allow_concurrent_ag_run is rejected by schema validation
+    with pytest.raises(ValueError, match="allow_concurrent_ag_run"):
+        pool_mod.validate_pool_config(
+            {"schema_version": 1, "pool": [], "allow_concurrent_ag_run": "yes"}
+        )
+
+
+def test_max_concurrent_zero_disables_profile_in_acquire_and_status(
+    tmp_path: Path,
+) -> None:
+    """Setting max_concurrent=0 disables dispatch for that profile without removing it."""
+    pool_mod = _pool_mod()
+    real_home = tmp_path / "real_home"
+    _make_profile_dirs(real_home, ("p1", "p2"))
+    now = datetime(2026, 11, 28, 1, 30, 0, tzinfo=timezone.utc)
+    thresholds = {
+        "5h_min_fraction": 0.15,
+        "7d_min_fraction": 0.02,
+        "agy_argon_min_fraction": 0.10,
+    }
+    fetched_profiles: list[str] = []
+
+    def healthy(profile: str) -> dict[str, Any]:
+        fetched_profiles.append(profile)
+        return {
+            "status": "ACTIVE",
+            "gemini5h": {"fraction": 0.9},
+            "geminiWeekly": {"fraction": 0.9},
+        }
+
+    # Add p1 disabled (max_concurrent=0) and p2 enabled (max_concurrent=2)
+    pool_mod.add_profile("p1", priority=1, max_concurrent=0, real_home=real_home)
+    pool_mod.add_profile("p2", priority=2, max_concurrent=2, real_home=real_home)
+
+    # acquire() skips disabled p1 immediately (even as host_profile and without fetching quota)
+    acq = pool_mod.acquire(
+        {
+            "owner_id": "owner-1",
+            "epic": "ep",
+            "task": "t1",
+            "slot": 1,
+            "role": "orchestrator",
+        },
+        real_home=real_home,
+        host_profile="p1",
+        quota_pool="gemini5h",
+        thresholds=thresholds,
+        fetcher=healthy,
+        resident_probe=lambda _p: False,
+        now=now,
+    )
+    assert acq.profile == "p2"
+    assert acq.skipped == {"p1": "disabled"}
+    assert fetched_profiles == ["p2"]
+    pool_mod.release(acq.owner_id, real_home=real_home, now=now)
+
+    # pool_status is "ok" while p2 has capacity
+    st_ok = pool_mod.pool_status(real_home=real_home, now=now, host_profile="p1")
+    assert st_ok["state"] == "ok"
+
+    # When enabled profile p2 is exhausted, pool_status is "exhausted" (disabled p1 does not make it "busy")
+    pool_mod.mark_exhausted(
+        "p2",
+        until="2026-11-28T06:00:00Z",
+        reason="5h",
+        real_home=real_home,
+        now=now,
+    )
+    st_ex = pool_mod.pool_status(real_home=real_home, now=now, host_profile="p1")
+    assert st_ex["state"] == "exhausted"
+
+    # Disabling p2 too puts the whole pool into "disabled" state and acquire fails fast
+    pool_mod.update_profile("p2", max_concurrent=0, real_home=real_home)
+    st_off = pool_mod.pool_status(real_home=real_home, now=now, host_profile="p1")
+    assert st_off["state"] == "disabled"
+
+    acq_none = pool_mod.acquire(
+        {
+            "owner_id": "owner-2",
+            "epic": "ep",
+            "task": "t2",
+            "slot": 1,
+            "role": "orchestrator",
+        },
+        real_home=real_home,
+        host_profile="p1",
+        quota_pool="gemini5h",
+        thresholds=thresholds,
+        fetcher=healthy,
+        resident_probe=lambda _p: False,
+        wait_seconds=60,
+        now=now,
+    )
+    assert acq_none.profile is None
+    assert acq_none.reason == "pool_exhausted"
+    assert acq_none.skipped == {"p1": "disabled", "p2": "disabled"}
+
+    # Negative max_concurrent is still rejected
+    with pytest.raises(ValueError, match="max_concurrent"):
+        pool_mod.update_profile("p1", max_concurrent=-1, real_home=real_home)
+
+
+def test_same_priority_edf_two_group_staggering_and_weekly_guard(
+    tmp_path: Path,
+) -> None:
+    """Same-priority ties harvest active 5H earliest-reset first, keep fresh 100% idle, and guard low-weekly profiles."""
+    pool_mod = _pool_mod()
+    real_home = tmp_path / "real_home"
+    _make_profile_dirs(
+        real_home,
+        ("brother", "duedd", "khang", "tien", "fresh_hi", "fresh_lo", "p1_top"),
+    )
+    now = datetime(2026, 11, 27, 19, 0, 0, tzinfo=timezone.utc)
+    thresholds = {
+        "5h_min_fraction": 0.15,
+        "7d_min_fraction": 0.02,
+        "agy_argon_min_fraction": 0.10,
+    }
+
+    _write_json(
+        real_home / ".d3nexus" / "agy_profiles.json",
+        {
+            "schema_version": 1,
+            "allow_concurrent_ag_run": True,
+            "pool": [
+                {"profile": "brother", "priority": 2, "max_concurrent": 2},
+                {"profile": "duedd", "priority": 2, "max_concurrent": 2},
+                {"profile": "khang", "priority": 2, "max_concurrent": 2},
+                {"profile": "tien", "priority": 2, "max_concurrent": 2},
+                {"profile": "fresh_hi", "priority": 2, "max_concurrent": 2},
+                {"profile": "fresh_lo", "priority": 2, "max_concurrent": 2},
+            ],
+        },
+    )
+
+    def _rec(f5: float, r5: str, fw: float, rw: str) -> dict[str, Any]:
+        return {
+            "leases": [],
+            "exhausted_until": None,
+            "exhausted_checked_at": None,
+            "exhausted_reason": None,
+            "quota": {
+                "status": "ACTIVE",
+                "gemini5h": {"fraction": f5, "resetTime": r5},
+                "geminiWeekly": {"fraction": fw, "resetTime": rw},
+                "fetched_at": "2026-11-27T18:59:30Z",
+            },
+        }
+
+    # Live-like snapshot:
+    # - brother: active 5H resets earliest (20:22Z), BUT weekly 11.2% (<15%) with 6d left -> GUARDED
+    # - duedd:   active 5H resets 20:57Z, weekly 13.1% (<15%) with 6d left -> GUARDED
+    # - khang:   active 5H resets 21:08Z, weekly 84.1% -> HEALTHY ACTIVE #1
+    # - tien:    active 5H resets 22:25Z, weekly 22.8% -> HEALTHY ACTIVE #2
+    # - fresh_hi: already reset (18:00Z <= now), weekly 90% -> HEALTHY FRESH #1
+    # - fresh_lo: 100% idle (future reset), weekly 40% -> HEALTHY FRESH #2
+    leases_doc = {
+        "schema_version": 1,
+        "profiles": {
+            "brother": _rec(
+                0.444, "2026-11-27T20:22:27Z", 0.112, "2026-12-03T12:01:17Z"
+            ),
+            "duedd": _rec(0.314, "2026-11-27T20:57:40Z", 0.131, "2026-12-03T07:30:14Z"),
+            "khang": _rec(0.445, "2026-11-27T21:08:38Z", 0.841, "2026-12-04T16:08:38Z"),
+            "tien": _rec(0.588, "2026-11-27T22:25:39Z", 0.228, "2026-12-03T09:07:44Z"),
+            "fresh_hi": _rec(
+                0.25, "2026-11-27T18:00:00Z", 0.90, "2026-12-04T10:00:00Z"
+            ),
+            "fresh_lo": _rec(1.0, "2026-11-28T00:00:00Z", 0.40, "2026-12-04T10:00:00Z"),
+        },
+    }
+    _write_json(real_home / ".d3nexus" / "agy_profile_leases.json", leases_doc)
+
+    cfg = pool_mod.load_pool_config(real_home=real_home)
+    ordered = pool_mod._order_pool_candidates(
+        cfg["pool"],
+        snap_profiles=leases_doc["profiles"],
+        quota_pool="gemini5h",
+        thresholds=thresholds,
+        now=now,
+    )
+    assert [e["profile"] for e in ordered] == [
+        "khang",  # healthy weekly, active 5H earliest reset (21:08Z)
+        "tien",  # healthy weekly, active 5H later reset (22:25Z)
+        "fresh_hi",  # healthy weekly, fresh 5H (past resetTime), highest weekly (90%)
+        "fresh_lo",  # healthy weekly, fresh 5H (100%), lower weekly (40%)
+        "brother",  # weekly-guarded (11.2% < 15%, 6d left), earliest 5H reset (20:22Z)
+        "duedd",  # weekly-guarded (13.1% < 15%, 6d left), later 5H reset (20:57Z)
+    ]
+
+    # Weekly guard exemption: if brother's weekly resets in 4h (<= 12h), do NOT guard it — harvest it #1!
+    leases_doc["profiles"]["brother"]["quota"]["geminiWeekly"]["resetTime"] = (
+        "2026-11-27T23:00:00Z"
+    )
+    ordered_exempt = pool_mod._order_pool_candidates(
+        cfg["pool"],
+        snap_profiles=leases_doc["profiles"],
+        quota_pool="gemini5h",
+        thresholds=thresholds,
+        now=now,
+    )
+    assert ordered_exempt[0]["profile"] == "brother"
+
+    # End-to-end acquire() actually picks khang (not alphabetical brother) when brother is guarded
+    leases_doc["profiles"]["brother"]["quota"]["geminiWeekly"]["resetTime"] = (
+        "2026-12-03T12:01:17Z"
+    )
+    _write_json(real_home / ".d3nexus" / "agy_profile_leases.json", leases_doc)
+    acq = pool_mod.acquire(
+        {
+            "owner_id": "stagger-1",
+            "epic": "ep",
+            "task": "t1",
+            "slot": 1,
+            "role": "orchestrator",
+        },
+        real_home=real_home,
+        host_profile="tess",
+        quota_pool="gemini5h",
+        thresholds=thresholds,
+        fetcher=lambda _p: {
+            "status": "ACTIVE",
+            "gemini5h": {"fraction": 0.5, "resetTime": "2026-11-27T21:08:38Z"},
+            "geminiWeekly": {"fraction": 0.84, "resetTime": "2026-12-04T16:08:38Z"},
+        },
+        resident_probe=lambda _p: False,
+        now=now,
+    )
+    assert acq.profile == "khang"
+    pool_mod.release(acq.owner_id, real_home=real_home, now=now)
+
+    # Priority still strictly dominates: a P1 fresh/guarded profile beats P2 active healthy profiles
+    pool_mod.add_profile("p1_top", priority=1, max_concurrent=2, real_home=real_home)
+    leases_doc["profiles"]["p1_top"] = _rec(
+        1.0, "2026-11-28T00:00:00Z", 0.10, "2026-12-04T10:00:00Z"
+    )
+    cfg2 = pool_mod.load_pool_config(real_home=real_home)
+    ordered_p1 = pool_mod._order_pool_candidates(
+        cfg2["pool"],
+        snap_profiles=leases_doc["profiles"],
+        quota_pool="gemini5h",
+        thresholds=thresholds,
+        now=now,
+    )
+    assert ordered_p1[0]["profile"] == "p1_top"
+
+    # Config validation rejects out-of-range weekly_soft_guard_fraction
+    with pytest.raises(ValueError, match="weekly_soft_guard_fraction"):
+        pool_mod.validate_pool_config(
+            {"schema_version": 1, "pool": [], "weekly_soft_guard_fraction": 1.5}
+        )

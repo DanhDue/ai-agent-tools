@@ -1077,3 +1077,298 @@ def test_cqra_ar_02_quota_score_excludes_argon_and_preserves_filter(
     assert "hoangcongtam690" not in eval_out["sharedText"]
 
     quota_cdp_harness.assert_zero_console_errors()
+
+
+def test_refresh_all_filtered_profiles_only_scans_requested_targets() -> None:
+    """GET /api/refresh-all?profiles=... scans ONLY requested providers/profiles and preserves last_refresh_all."""
+    import sys as _sys
+    from unittest.mock import patch as _patch
+    import urllib.error as _urlerr
+
+    scripts_dir = str(REPO_ROOT / "scripts")
+    if scripts_dir not in _sys.path:
+        _sys.path.insert(0, scripts_dir)
+    import agy_quota  # type: ignore[import-not-found]
+
+    assert agy_quota.parse_refresh_profiles_query({}) is None
+    assert agy_quota.parse_refresh_profiles_query(
+        {"profiles": ["p1, p2", "p2,claude"]}
+    ) == ["p1", "p2", "claude"]
+    with pytest.raises(ValueError, match="Invalid profile name"):
+        agy_quota.parse_refresh_profiles_query({"profiles": ["good,bad;drop"]})
+
+    provider_calls: list[str] = []
+    scanned_batches: list[list[str]] = []
+    recorded_full_times: list[int] = []
+    cached_updates: list[str] = []
+
+    def _mock_provider(name: str) -> dict[str, object]:
+        provider_calls.append(name)
+        return {"isProvider": True, "status": "ACTIVE", "displayName": name}
+
+    def _mock_scan(profiles: list[str]) -> list[dict[str, object]]:
+        scanned_batches.append(list(profiles))
+        return [{"profile": p, "groups": []} for p in profiles]
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), agy_quota.QuotaDashboardHandler)
+    port = int(server.server_address[1])
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        with (
+            _patch.object(
+                agy_quota, "get_last_refresh_all_time", return_value=1700000000
+            ),
+            _patch.object(
+                agy_quota,
+                "record_refresh_all_time",
+                side_effect=lambda ts=None: recorded_full_times.append(int(ts or 0)),
+            ),
+            _patch.object(
+                agy_quota,
+                "update_cached_profile",
+                side_effect=lambda name, _d: cached_updates.append(name),
+            ),
+            _patch.object(
+                agy_quota,
+                "fetch_claude_quota",
+                side_effect=lambda: _mock_provider("claude"),
+            ),
+            _patch.object(
+                agy_quota,
+                "fetch_codex_quota",
+                side_effect=lambda: _mock_provider("codex"),
+            ),
+            _patch.object(
+                agy_quota,
+                "fetch_kiro_quota",
+                side_effect=lambda: _mock_provider("kiro"),
+            ),
+            _patch.object(
+                agy_quota,
+                "get_all_profiles",
+                return_value=["argon_a", "argon_b", "free_c"],
+            ),
+            _patch.object(
+                agy_quota, "scan_all_profiles_parallel", side_effect=_mock_scan
+            ),
+            _patch.object(
+                agy_quota,
+                "format_profile_for_dashboard",
+                side_effect=lambda p, _r: {"status": "ACTIVE", "profile": p},
+            ),
+        ):
+            # 1. Filtered Argon subset -> scans ONLY argon_a, argon_b; skips all providers & free_c
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{port}/api/refresh-all?manual=1&profiles=argon_a,argon_b",
+                timeout=5,
+            ) as resp:
+                data_argon = json.loads(resp.read().decode("utf-8"))
+            assert data_argon["success"] is True
+            assert data_argon["filtered"] is True
+            assert data_argon["refreshed_profiles"] == ["argon_a", "argon_b"]
+            assert provider_calls == []
+            assert scanned_batches == [["argon_a", "argon_b"]]
+            assert recorded_full_times == []
+
+            # 2. Filtered Providers subset -> fetches ONLY claude & codex; skips Antigravity scan
+            scanned_batches.clear()
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{port}/api/refresh-all?manual=1&profiles=claude,codex",
+                timeout=5,
+            ) as resp:
+                data_prov = json.loads(resp.read().decode("utf-8"))
+            assert data_prov["success"] is True
+            assert data_prov["filtered"] is True
+            assert data_prov["refreshed_profiles"] == ["claude", "codex"]
+            assert provider_calls == ["claude", "codex"]
+            assert scanned_batches == []
+            assert recorded_full_times == []
+
+            # 3. Unfiltered full refresh -> fetches all providers + all Antigravity profiles and records time
+            provider_calls.clear()
+            scanned_batches.clear()
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{port}/api/refresh-all?manual=1",
+                timeout=5,
+            ) as resp:
+                data_full = json.loads(resp.read().decode("utf-8"))
+            assert data_full["success"] is True
+            assert data_full["filtered"] is False
+            assert set(data_full["refreshed_profiles"]) == {
+                "claude",
+                "codex",
+                "kiro",
+                "argon_a",
+                "argon_b",
+                "free_c",
+            }
+            assert len(recorded_full_times) == 1
+
+            # 4. Empty profiles= parameter is treated as explicit empty subset (0 scans)
+            provider_calls.clear()
+            scanned_batches.clear()
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{port}/api/refresh-all?manual=1&profiles=",
+                timeout=5,
+            ) as resp:
+                data_empty = json.loads(resp.read().decode("utf-8"))
+            assert data_empty["success"] is True
+            assert data_empty["filtered"] is True
+            assert data_empty["refreshed_count"] == 0
+            assert provider_calls == []
+            assert scanned_batches == []
+
+            # 5. Invalid profile name rejected with HTTP 400
+            with pytest.raises(_urlerr.HTTPError) as exc_info:
+                urllib.request.urlopen(
+                    f"http://127.0.0.1:{port}/api/refresh-all?manual=1&profiles=ok,bad;evil",
+                    timeout=5,
+                )
+            assert exc_info.value.code == 400
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+def test_quota_dashboard_filtered_refresh_only_refreshes_visible_items(
+    quota_cdp_harness: CdpHarness,
+) -> None:
+    """Clicking globalRefreshBtn sends ONLY currently filtered items for every filter & search."""
+    eval_out = quota_cdp_harness.eval_js(
+        """(async () => {
+          const origFetch = window.fetch;
+          const prevStatus = document.getElementById('statusFilter').value;
+          const prevSearch = document.getElementById('searchInput').value;
+          const addedProbes = [];
+          const ensureProbe = (id, obj) => {
+            if (!PROFILES_DATA[id]) {
+              PROFILES_DATA[id] = obj;
+              addedProbes.push(id);
+            }
+          };
+          ensureProbe('probe_provider_claude', {
+            isProvider: true,
+            displayName: 'Claude',
+            status: 'ACTIVE',
+          });
+          ensureProbe('probe_auth_needed', {
+            email: 'auth@gmail.com',
+            status: 'AUTH NEEDED',
+            isAppeal: false,
+            hasArgon: false,
+          });
+          ensureProbe('probe_disabled_blocked', {
+            email: 'blocked@gmail.com',
+            status: 'DISABLED',
+            isAppeal: true,
+            hasArgon: false,
+          });
+          const recordedCalls = [];
+          window.fetch = async (url) => {
+            recordedCalls.push(String(url));
+            const u = new URL(String(url), window.location.origin);
+            const profParam = u.searchParams.get('profiles');
+            const names = profParam ? profParam.split(',').filter(Boolean) : Object.keys(PROFILES_DATA);
+            const updated = {};
+            names.forEach((n) => {
+              if (PROFILES_DATA[n]) updated[n] = { ...PROFILES_DATA[n] };
+            });
+            return {
+              ok: true,
+              status: 200,
+              json: async () => ({
+                success: true,
+                skipped: false,
+                filtered: Boolean(profParam),
+                refreshed_count: Object.keys(updated).length,
+                refreshed_profiles: Object.keys(updated),
+                profiles: updated,
+                last_refresh_all: 1763424000,
+              }),
+            };
+          };
+
+          const runFilterCase = async (statusVal, searchVal) => {
+            recordedCalls.length = 0;
+            document.getElementById('statusFilter').value = statusVal;
+            document.getElementById('searchInput').value = searchVal;
+            filterProfiles();
+            const btnBefore = document.getElementById('globalRefreshBtn').textContent.trim();
+            const visibleBefore = Array.from(document.querySelectorAll('#profilesGrid [id^="card-"]'))
+              .map((el) => el.id.replace(/^card-/, ''));
+            await triggerGlobalRefresh(false);
+            const visibleAfter = Array.from(document.querySelectorAll('#profilesGrid [id^="card-"]'))
+              .map((el) => el.id.replace(/^card-/, ''));
+            const btnAfter = document.getElementById('globalRefreshBtn').textContent.trim();
+            return {
+              statusVal,
+              searchVal,
+              btnBefore,
+              btnAfter,
+              callUrl: recordedCalls[0] || null,
+              visibleBefore,
+              visibleAfter,
+            };
+          };
+
+          try {
+            const results = [];
+            for (const [st, q] of [
+              ['ALL', ''],
+              ['ARGON', ''],
+              ['PROVIDERS', ''],
+              ['ACTIVE', ''],
+              ['AUTH NEEDED', ''],
+              ['DISABLED', ''],
+              ['ALL', 'nguyenhieu'],
+            ]) {
+              results.push(await runFilterCase(st, q));
+            }
+            return results;
+          } finally {
+            window.fetch = origFetch;
+            addedProbes.forEach((id) => { delete PROFILES_DATA[id]; });
+            document.getElementById('statusFilter').value = prevStatus;
+            document.getElementById('searchInput').value = prevSearch;
+            filterProfiles();
+          }
+        })()"""
+    )
+
+    by_key = {(item["statusVal"], item["searchVal"]): item for item in eval_out}
+
+    # Unfiltered ALL -> full refresh (no profiles= param), original button label
+    all_case = by_key[("ALL", "")]
+    assert "Refresh tất cả" in all_case["btnBefore"]
+    assert all_case["callUrl"] == "/api/refresh-all?manual=1"
+
+    # Every filtered case (ARGON, PROVIDERS, ACTIVE, AUTH NEEDED, DISABLED, search) -> ONLY matching visible profiles sent!
+    for key in [
+        ("ARGON", ""),
+        ("PROVIDERS", ""),
+        ("ACTIVE", ""),
+        ("AUTH NEEDED", ""),
+        ("DISABLED", ""),
+        ("ALL", "nguyenhieu"),
+    ]:
+        item = by_key[key]
+        expected_visible = item["visibleBefore"]
+        assert len(expected_visible) > 0, f"Fixture must have visible items for {key}"
+        assert f"Refresh đã lọc ({len(expected_visible)})" in item["btnBefore"]
+        assert f"Refresh đã lọc ({len(expected_visible)})" in item["btnAfter"]
+        parsed = urllib.parse.urlparse(item["callUrl"])
+        params = urllib.parse.parse_qs(parsed.query)
+        assert parsed.path == "/api/refresh-all"
+        assert params.get("manual") == ["1"]
+        sent_profiles = params.get("profiles", [""])[0].split(",")
+        assert set(sent_profiles) == set(expected_visible), (
+            key,
+            sent_profiles,
+            expected_visible,
+        )
+        assert item["visibleAfter"] == expected_visible
+
+    quota_cdp_harness.assert_zero_console_errors()

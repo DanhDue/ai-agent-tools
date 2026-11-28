@@ -388,8 +388,10 @@ class TestLifecycleTelemetryAndStageProgress_Integration:
         """LTSP-HP-06: End-to-end headless Chrome CDP verifies live stage and micro-step transitions."""
         test_ltsp_hp_06_chrome_cdp_live_stage_and_microstep_transitions(tmp_path)
 
-    def test_ltsp_ec_04_expandable_event_log_preserves_state_across_polls(self) -> None:
-        """LTSP-EC-04: Expandable event log drawer preserves expanded state across live pollDashboard ticks."""
+    def test_ltsp_ec_04_collapsed_event_log_copies_all_events_across_polls(
+        self,
+    ) -> None:
+        """LTSP-EC-04: Execution logs stay collapsed to 4 latest rows across polls and Copy button copies all events."""
         res = _eval_dashboard_js(
             r"""
             let eventsCount = 8;
@@ -431,40 +433,51 @@ class TestLifecycleTelemetryAndStageProgress_Integration:
               };
             }
 
+            const copiedPayloads = [];
             const { sandbox, doc } = createFakeDomHarness(async (url) => {
               if (String(url).includes('/api/tasks')) {
                 return { async json() { return makeSnapshot(eventsCount); } };
               }
               return { async json() { return {}; } };
             });
+            sandbox.navigator.clipboard.writeText = async (txt) => {
+              copiedPayloads.push(String(txt));
+            };
 
             await sandbox.pollDashboard();
             const tier2El = doc.getElementById('tier2-execution-epics-wrapper-ai-agent-tools');
             assert.ok(tier2El, 'Tier 2 wrapper rendered');
-            // Initially collapsed to 4 latest events (5..8)
+            // Always collapsed to 4 latest events (5..8) with Copy button and no expand/collapse button
             assert.doesNotMatch(tier2El.innerHTML, /Event log line #1\b/, 'Collapsed log must only show latest 4 events');
             assert.match(tier2El.innerHTML, /Event log line #8\b/);
+            assert.match(tier2El.innerHTML, /data-action="copy-event-logs"/);
+            assert.doesNotMatch(tier2El.innerHTML, /View all \d+ logs|Collapse ▴/);
 
-            // Click toggle to expand all event logs, then force re-render
-            sandbox.toggleEpicEventLogs('ai-agent-tools:log_epic');
-            sandbox.renderRepoDetailView('ai-agent-tools', true);
-            const tier2Expanded = doc.getElementById('tier2-execution-epics-wrapper-ai-agent-tools');
-            assert.match(tier2Expanded.innerHTML, /Event log line #1\b/, 'Expanded log must display Event #1');
-            assert.match(tier2Expanded.innerHTML, /Event log line #8\b/, 'Expanded log must display Event #8');
+            // Copy all 8 logs via copyEpicEventLogs
+            await sandbox.copyEpicEventLogs('ai-agent-tools:log_epic', null);
+            assert.equal(copiedPayloads.length, 1);
+            assert.match(copiedPayloads[0], /Event log line #1\b/, 'Copy must include oldest Event #1');
+            assert.match(copiedPayloads[0], /Event log line #8\b/, 'Copy must include latest Event #8');
 
-            // Next poll tick adds 9th event -> drawer must stay expanded and show all 9 events
+            // Next poll tick adds 9th event -> panel remains collapsed to 4 latest, Copy includes all 9
             eventsCount = 9;
             await sandbox.pollDashboard();
             const tier2AfterPoll = doc.getElementById('tier2-execution-epics-wrapper-ai-agent-tools');
-            assert.match(tier2AfterPoll.innerHTML, /Event log line #1\b/, 'Drawer must remain expanded on next poll tick');
-            assert.match(tier2AfterPoll.innerHTML, /Event log line #9\b/, 'Drawer must render new 9th event');
+            assert.doesNotMatch(tier2AfterPoll.innerHTML, /Event log line #1\b/, 'Panel must remain collapsed on next poll tick');
+            assert.match(tier2AfterPoll.innerHTML, /Event log line #9\b/, 'Panel must render new 9th event');
 
-            console.log(JSON.stringify({ status: 'ok', html: tier2AfterPoll.innerHTML }));
+            await sandbox.copyEpicEventLogs('ai-agent-tools:log_epic', null);
+            assert.equal(copiedPayloads.length, 2);
+            assert.match(copiedPayloads[1], /Event log line #1\b/, 'Updated copy must include Event #1');
+            assert.match(copiedPayloads[1], /Event log line #9\b/, 'Updated copy must include Event #9');
+
+            console.log(JSON.stringify({ status: 'ok', html: tier2AfterPoll.innerHTML, copied: copiedPayloads[1] }));
             """
         )
         assert res["status"] == "ok"
-        assert "Event log line #1" in res["html"]
         assert "Event log line #9" in res["html"]
+        assert "Event log line #1" in res["copied"]
+        assert "Event log line #9" in res["copied"]
 
     def test_ltsp_st_04_commit_based_fix_and_verifying_inference(
         self, tmp_path: Path

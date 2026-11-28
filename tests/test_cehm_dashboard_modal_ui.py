@@ -1433,13 +1433,13 @@ class TestCehmDashboardModalUi_Integration:
 
             // 1. Verify data-attribute onclick/onchange handlers (no single-quoted string interpolation)
             const detailView = doc.getElementById('repo-detail-view');
-            const logToggleBtn = findAllByPredicate(detailView, (el) => el.hasAttribute('data-epic-key'))[0];
-            assert.ok(logToggleBtn, 'Execution logs toggle button must carry data-epic-key attribute');
+            const logCopyBtn = findAllByPredicate(detailView, (el) => el.hasAttribute('data-epic-key'))[0];
+            assert.ok(logCopyBtn, 'Execution logs copy button must carry data-epic-key attribute');
             assert.ok(
-              (logToggleBtn.getAttribute('onclick') || '').includes("this.getAttribute('data-epic-key')"),
-              'toggleEpicEventLogs must read data-epic-key via this.getAttribute',
+              (logCopyBtn.getAttribute('onclick') || '').includes("this.getAttribute('data-epic-key')"),
+              'copyEpicEventLogs must read data-epic-key via this.getAttribute',
             );
-            simulateDomClick(logToggleBtn, sandbox);
+            simulateDomClick(logCopyBtn, sandbox);
 
             const picSelect = detailView.querySelectorAll('.select-pic-roadmap')[0];
             assert.ok(picSelect, 'Roadmap PIC select must exist');

@@ -360,6 +360,107 @@
       justify-content: center;
       width: fit-content;
       max-width: 100%;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, padding 0.2s ease;
+    }
+
+    .repo-tab-bar.edit-mode {
+      border-color: rgba(56, 189, 248, 0.75);
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.16), 0 6px 20px rgba(0, 0, 0, 0.45);
+      padding: 10px 16px;
+    }
+
+    .repo-tab-close-btn {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 18px;
+      height: 18px;
+      border-radius: 9999px;
+      background: #1e293b;
+      border: 1.5px solid #ef4444;
+      color: #fca5a5;
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 20;
+      transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+    }
+
+    .repo-tab-close-btn:hover {
+      background: #ef4444;
+      color: #ffffff;
+      transform: scale(1.1);
+    }
+
+    .repo-tab-add-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      align-self: center;
+      flex-shrink: 0;
+      padding: 8px 14px;
+      border-radius: 10px;
+      border: 1.5px dashed rgba(56, 189, 248, 0.75);
+      background: rgba(56, 189, 248, 0.1);
+      color: #38bdf8;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+
+    .repo-tab-add-btn:hover {
+      background: rgba(56, 189, 248, 0.22);
+      border-color: #7dd3fc;
+      color: #f0f9ff;
+      transform: translateY(-1px);
+    }
+
+    .toast-action-btn {
+      margin-left: 6px;
+      padding: 2px 9px;
+      border-radius: 5px;
+      border: 1px solid rgba(56, 189, 248, 0.55);
+      background: rgba(56, 189, 248, 0.16);
+      color: #7dd3fc;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+
+    .toast-action-btn:hover {
+      background: rgba(56, 189, 248, 0.3);
+      color: #ffffff;
+    }
+
+    .project-suggestion-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: 6px;
+      background: #131b2e;
+      border: 1px solid #283347;
+      color: #cbd5e1;
+      font-size: 11px;
+      font-family: monospace;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .project-suggestion-chip:hover {
+      background: rgba(56, 189, 248, 0.14);
+      border-color: #38bdf8;
+      color: #f0f9ff;
     }
 
     .repo-tab-btn {
@@ -670,6 +771,20 @@
       margin-bottom: 8px;
     }
 
+    .epics-overview-grid {
+      display: grid;
+      grid-template-columns: max-content minmax(0, 1fr);
+      gap: 14px;
+      margin-bottom: 18px;
+      align-items: stretch;
+    }
+
+    @media (max-width: 1100px) {
+      .epics-overview-grid {
+        grid-template-columns: 1fr !important;
+      }
+    }
+
     .roadmap-notes-grid {
       display: grid;
       grid-template-columns: 1.6fr 1fr;
@@ -940,6 +1055,85 @@
       font-size: 11px;
       font-family: monospace;
       width: 100%;
+    }
+
+    .select-agy-priority {
+      background-color: rgba(56, 189, 248, 0.12);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%2338bdf8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='m1 1 4 4 4-4'/%3E%3C/svg%3E");
+      background-position: right 4px center;
+      background-size: 7px 4px;
+      color: #7dd3fc;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      border-radius: 4px;
+      padding: 2px 13px 2px 5px;
+      width: 46px;
+      font-size: 10.5px;
+      line-height: 1.25;
+      font-family: monospace;
+      font-weight: 700;
+      text-align: center;
+      text-align-last: center;
+      transition: all 0.15s ease;
+    }
+    .select-agy-priority:hover,
+    .select-agy-priority:focus {
+      border-color: #38bdf8;
+      background-color: rgba(56, 189, 248, 0.2);
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.2);
+    }
+    .select-agy-priority.priority-top {
+      background-color: rgba(16, 185, 129, 0.14);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%2334d399' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='m1 1 4 4 4-4'/%3E%3C/svg%3E");
+      color: #34d399;
+      border-color: rgba(16, 185, 129, 0.45);
+    }
+    .select-agy-priority.priority-top:hover,
+    .select-agy-priority.priority-top:focus {
+      border-color: #34d399;
+      background-color: rgba(16, 185, 129, 0.22);
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.2);
+    }
+    .select-agy-priority:disabled,
+    .select-agy-concurrency:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+
+    .select-agy-concurrency {
+      background-color: rgba(168, 85, 247, 0.12);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%23c084fc' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='m1 1 4 4 4-4'/%3E%3C/svg%3E");
+      background-position: right 4px center;
+      background-size: 7px 4px;
+      color: #d8b4fe;
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      border-radius: 4px;
+      padding: 2px 13px 2px 5px;
+      width: 46px;
+      font-size: 10.5px;
+      line-height: 1.25;
+      font-family: monospace;
+      font-weight: 700;
+      text-align: center;
+      text-align-last: center;
+      transition: all 0.15s ease;
+    }
+    .select-agy-concurrency:hover,
+    .select-agy-concurrency:focus {
+      border-color: #c084fc;
+      background-color: rgba(168, 85, 247, 0.22);
+      box-shadow: 0 0 8px rgba(192, 132, 252, 0.2);
+    }
+    .select-agy-concurrency.concurrency-off {
+      background-color: rgba(100, 116, 139, 0.16);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%23f87171' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='m1 1 4 4 4-4'/%3E%3C/svg%3E");
+      color: #fca5a5;
+      border-color: rgba(248, 113, 113, 0.45);
+    }
+    .select-agy-concurrency.concurrency-off:hover,
+    .select-agy-concurrency.concurrency-off:focus {
+      border-color: #f87171;
+      background-color: rgba(248, 113, 113, 0.16);
+      box-shadow: 0 0 8px rgba(248, 113, 113, 0.2);
     }
   </style>
 </head>
@@ -1258,10 +1452,68 @@ Loading evidence data...
     </div>
   </div>
 
+  <!-- MODAL 6: ADD TRACKED PROJECT DIALOG -->
+  <div id="modal-add-project" class="modal-backdrop" onclick="if (event.target === this) closeAddProjectModal();">
+    <div class="modal-box" style="max-width: 560px; width: 92%; border-color: #38bdf8;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 18px;">📁</span>
+          <div>
+            <div style="font-size: 15px; font-weight: 700; color: #f8fafc;">Add Project to Track</div>
+            <div style="font-size: 11px; color: #94a3b8; font-family: monospace;">Choose a local Git repository folder or pick from workspace suggestions</div>
+          </div>
+        </div>
+        <button type="button" onclick="closeAddProjectModal()" class="modal-close-btn" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <label for="add-project-path-input" style="font-size: 11px; font-weight: 700; color: #e2e8f0; text-transform: uppercase; letter-spacing: 0.04em;">
+            Repository Folder Path
+          </label>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="text"
+                   id="add-project-path-input"
+                   placeholder="~/AllProjects/my-repository"
+                   autocomplete="off"
+                   oninput="clearAddProjectError()"
+                   onkeydown="if (event.key === 'Enter') { event.preventDefault(); submitAddProjectModal(); }"
+                   style="flex: 1; min-width: 0; background: #0b0e17; border: 1px solid #334155; border-radius: 6px; padding: 8px 12px; color: #f8fafc; font-size: 12px; font-family: monospace; outline: none;" />
+            <button type="button"
+                    id="btn-browse-project-folder"
+                    onclick="browseProjectFolder()"
+                    class="btn-action-neutral"
+                    style="padding: 8px 12px; font-size: 11px; white-space: nowrap;"
+                    title="Open macOS Finder folder chooser">
+              <span>📂</span> Browse Finder
+            </button>
+          </div>
+          <div id="add-project-error" style="display: none; font-size: 11px; color: #f87171; font-weight: 600;"></div>
+        </div>
+
+        <div id="add-project-suggestions-wrap" style="display: none; flex-direction: column; gap: 8px;">
+          <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em;">
+            Untracked Git Repos in Workspace (Click to Add)
+          </div>
+          <div id="add-project-suggestions" style="display: flex; flex-wrap: wrap; gap: 6px; max-height: 150px; overflow-y: auto;"></div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; padding-top: 10px; border-top: 1px solid #1e293b;">
+          <button type="button" onclick="closeAddProjectModal()" class="btn-action-neutral" style="font-size: 12px; padding: 6px 14px; border-radius: 5px;">
+            Cancel
+          </button>
+          <button type="button" id="btn-submit-add-project" onclick="submitAddProjectModal()" class="btn-action-primary" style="font-size: 12px; padding: 6px 14px; border-radius: 5px;">
+            + Add Project
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div id="toast">
     <span id="toast-icon">ℹ️</span>
     <span id="toast-text">Notification</span>
+    <button type="button" id="toast-action-btn" class="toast-action-btn" style="display: none;"></button>
   </div>
 
   <script>
@@ -1312,6 +1564,9 @@ Loading evidence data...
         if (modalId === 'modal-epic-history' && typeof abortEpicHistoryModalState === 'function') {
           abortEpicHistoryModalState();
         }
+        if (modalId === 'modal-add-project' && typeof cancelActiveProjectFolderPicker === 'function') {
+          cancelActiveProjectFolderPicker();
+        }
         const anyOpen = Array.from(document.querySelectorAll('.modal-backdrop')).some(m => m.style.display === 'flex' || m.style.display === 'block');
         if (!anyOpen) {
           document.body.style.overflow = '';
@@ -1348,11 +1603,16 @@ Loading evidence data...
         document._cehmEscModalBound = true;
         document.addEventListener('keydown', (e) => {
           if (e.key === 'Escape') {
+            let closedModal = false;
             document.querySelectorAll('.modal-backdrop').forEach(m => {
               if (m.style.display === 'flex' || m.style.display === 'block') {
                 closeLiveModal(m.id);
+                closedModal = true;
               }
             });
+            if (!closedModal && typeof isRepoBarEditMode !== 'undefined' && isRepoBarEditMode) {
+              setRepoBarEditMode(false);
+            }
           }
         });
       }
@@ -1624,18 +1884,53 @@ Loading evidence data...
     /* API & MODAL CONTENT POPULATION                                 */
     /* ============================================================== */
 
-    function showToast(text, type) {
+    let toastHideTimer = null;
+
+    function showToast(text, type, options) {
       const toast = document.getElementById('toast');
       const toastText = document.getElementById('toast-text');
       const toastIcon = document.getElementById('toast-icon');
+      const actionBtn = document.getElementById('toast-action-btn');
       if (!toast) return;
+
+      if (toastHideTimer) {
+        clearTimeout(toastHideTimer);
+        toastHideTimer = null;
+      }
 
       toastText.textContent = text;
       toastIcon.textContent = type === 'success' ? '✅' : type === 'warning' ? '⚠️' : type === 'danger' ? '❌' : 'ℹ️';
+
+      const opts = options && typeof options === 'object' ? options : null;
+      if (actionBtn) {
+        if (opts && opts.actionLabel && typeof opts.onAction === 'function') {
+          actionBtn.textContent = String(opts.actionLabel);
+          actionBtn.style.display = 'inline-flex';
+          actionBtn.onclick = () => {
+            if (toastHideTimer) {
+              clearTimeout(toastHideTimer);
+              toastHideTimer = null;
+            }
+            toast.style.display = 'none';
+            actionBtn.style.display = 'none';
+            opts.onAction();
+          };
+        } else {
+          actionBtn.style.display = 'none';
+          actionBtn.onclick = null;
+        }
+      }
+
       toast.style.display = 'flex';
-      setTimeout(() => {
+      const durationMs = (opts && Number(opts.durationMs) > 0) ? Number(opts.durationMs) : 3000;
+      toastHideTimer = setTimeout(() => {
         toast.style.display = 'none';
-      }, 3000);
+        if (actionBtn) {
+          actionBtn.style.display = 'none';
+          actionBtn.onclick = null;
+        }
+        toastHideTimer = null;
+      }, durationMs);
     }
 
     function getApiUrl(path) {
@@ -1740,7 +2035,44 @@ Loading evidence data...
     }
 
     const pendingRoadmapRenderRepos = {};
+    const pendingOrchestrationRenderRepos = {};
     const pendingPicSelections = {};
+    const pendingAgyPoolUpdates = {};
+
+    function sortAgyProfilesInPlace(profiles) {
+      if (!Array.isArray(profiles)) return;
+      profiles.sort((a, b) => {
+        const pa = Number.isInteger(Number(a?.priority)) && Number(a.priority) >= 1 ? Number(a.priority) : 9999;
+        const pb = Number.isInteger(Number(b?.priority)) && Number(b.priority) >= 1 ? Number(b.priority) : 9999;
+        if (pa !== pb) return pa - pb;
+        return String(a?.profile || '').localeCompare(String(b?.profile || ''));
+      });
+    }
+
+    function applyAgyPoolSettingsToRepoModel(repo, settingsMap) {
+      if (!repo || !Array.isArray(repo.agy_profiles) || !settingsMap) return;
+      let priorityChanged = false;
+      repo.agy_profiles.forEach(entry => {
+        if (!entry || !entry.profile) return;
+        const patch = settingsMap[entry.profile];
+        if (!patch || typeof patch !== 'object') return;
+        if (Number.isInteger(patch.priority) && patch.priority >= 1 && entry.priority !== patch.priority) {
+          entry.priority = patch.priority;
+          priorityChanged = true;
+        }
+        if (Number.isInteger(patch.max_concurrent) && patch.max_concurrent >= 0 && entry.max_concurrent !== patch.max_concurrent) {
+          entry.max_concurrent = patch.max_concurrent;
+        }
+      });
+      if (priorityChanged) {
+        sortAgyProfilesInPlace(repo.agy_profiles);
+      }
+    }
+
+    function applyPendingAgyPoolUpdates(repo) {
+      if (!repo || !Object.keys(pendingAgyPoolUpdates).length) return;
+      applyAgyPoolSettingsToRepoModel(repo, pendingAgyPoolUpdates);
+    }
 
     function applyPicToRepoModel(repo, epicSlug, newPic) {
       if (!repo) return;
@@ -2078,13 +2410,411 @@ Loading evidence data...
     /* 4-REPO FOCUS TABS & 2-TIER REPO DETAILED VIEW                  */
     /* ============================================================== */
 
-    const FOCUSED_REPOS = ['D3Nexus', 'lyrics-sync', 'nexus', 'ai-agent-tools'];
+    const DEFAULT_FOCUSED_REPOS = ['D3Nexus', 'lyrics-sync', 'nexus', 'ai-agent-tools'];
+    let FOCUSED_REPOS = [...DEFAULT_FOCUSED_REPOS];
+    let hasExplicitTrackedProjects = false;
+    let isRepoBarEditMode = false;
+    let suppressNextTabClickUntil = 0;
+    let isRepoBarLongPressBound = false;
+    const REPO_BAR_LONG_PRESS_MS = 500;
     const REPO_THEMES = {
       'D3Nexus': { color: '#065f46', icon: '🟢', name: 'D3Nexus', border: '#10b981', title: 'D3Nexus' },
       'lyrics-sync': { color: '#7f1d1d', icon: '🔴', name: 'lyrics-sync', border: '#ef4444', title: 'lyrics-sync' },
       'nexus': { color: '#0d47a1', icon: '🔵', name: 'nexus', border: '#3b82f6', title: 'nexus' },
       'ai-agent-tools': { color: '#b45309', icon: '🟠', name: 'ai-agent-tools', border: '#f59e0b', title: 'ai-agent-tools' }
     };
+
+    function getRepoTheme(name, repoObj) {
+      if (REPO_THEMES[name]) return REPO_THEMES[name];
+      const rawColor = (repoObj && repoObj.theme_color) ? String(repoObj.theme_color) : '#0284c7';
+      const safeColor = /^#[0-9a-fA-F]{3,8}$/.test(rawColor) ? rawColor : '#0284c7';
+      return {
+        color: safeColor,
+        border: safeColor,
+        icon: `<span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${safeColor}; box-shadow: 0 0 6px ${safeColor};"></span>`,
+        name: name || 'repo',
+        title: name || 'repo',
+      };
+    }
+
+    function setRepoBarEditMode(enabled) {
+      const next = Boolean(enabled);
+      if (isRepoBarEditMode === next) return;
+      isRepoBarEditMode = next;
+      const bar = document.getElementById('repo-tab-bar');
+      if (bar) {
+        if (isRepoBarEditMode) {
+          bar.classList.add('edit-mode');
+        } else {
+          bar.classList.remove('edit-mode');
+        }
+        bar.dataset.sig = '';
+      }
+      renderRepoTabs(currentReposData);
+    }
+
+    function handleRepoTabClick(ev, tabId) {
+      if (Date.now() < suppressNextTabClickUntil) {
+        if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+        return;
+      }
+      switchRepoTab(tabId);
+    }
+
+    function initRepoTabBarLongPress() {
+      if (isRepoBarLongPressBound || typeof document === 'undefined' || typeof document.addEventListener !== 'function') {
+        return;
+      }
+      const bar = document.getElementById('repo-tab-bar');
+      if (!bar) return;
+      isRepoBarLongPressBound = true;
+
+      let pressTimer = null;
+      let startX = 0;
+      let startY = 0;
+
+      const cancelPress = () => {
+        if (pressTimer) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
+        }
+      };
+
+      const startPress = (e) => {
+        if (e && typeof e.button === 'number' && e.button !== 0) return;
+        const target = e && e.target && typeof e.target.closest === 'function' ? e.target : null;
+        if (target && (target.closest('.repo-tab-close-btn') || target.closest('#btn-add-project'))) {
+          return;
+        }
+        cancelPress();
+        startX = Number((e && (e.clientX ?? (e.touches && e.touches[0]?.clientX))) || 0);
+        startY = Number((e && (e.clientY ?? (e.touches && e.touches[0]?.clientY))) || 0);
+        pressTimer = setTimeout(() => {
+          pressTimer = null;
+          suppressNextTabClickUntil = Date.now() + 350;
+          setRepoBarEditMode(!isRepoBarEditMode);
+        }, REPO_BAR_LONG_PRESS_MS);
+      };
+
+      const movePress = (e) => {
+        if (!pressTimer) return;
+        const curX = Number((e && (e.clientX ?? (e.touches && e.touches[0]?.clientX))) || 0);
+        const curY = Number((e && (e.clientY ?? (e.touches && e.touches[0]?.clientY))) || 0);
+        if (Math.hypot(curX - startX, curY - startY) > 10) {
+          cancelPress();
+        }
+      };
+
+      bar.addEventListener('pointerdown', startPress);
+      bar.addEventListener('pointermove', movePress);
+      bar.addEventListener('pointerup', cancelPress);
+      bar.addEventListener('pointercancel', cancelPress);
+      bar.addEventListener('pointerleave', cancelPress);
+
+      document.addEventListener('pointerdown', (e) => {
+        if (!isRepoBarEditMode) return;
+        const target = e && e.target;
+        const addModal = document.getElementById('modal-add-project');
+        const toastEl = document.getElementById('toast');
+        if (target && typeof bar.contains === 'function' && bar.contains(target)) return;
+        if (addModal && target && typeof addModal.contains === 'function' && addModal.contains(target)) return;
+        if (toastEl && target && typeof toastEl.contains === 'function' && toastEl.contains(target)) return;
+        setRepoBarEditMode(false);
+      });
+    }
+
+    function clearAddProjectError() {
+      const errEl = document.getElementById('add-project-error');
+      if (errEl) {
+        errEl.textContent = '';
+        errEl.style.display = 'none';
+      }
+    }
+
+    function showAddProjectError(msg) {
+      const errEl = document.getElementById('add-project-error');
+      if (errEl) {
+        errEl.textContent = String(msg || 'Failed to add project.');
+        errEl.style.display = 'block';
+      }
+    }
+
+    function renderAddProjectSuggestions(suggestions) {
+      const wrap = document.getElementById('add-project-suggestions-wrap');
+      const listEl = document.getElementById('add-project-suggestions');
+      if (!wrap || !listEl) return;
+      if (!Array.isArray(suggestions) || suggestions.length === 0) {
+        wrap.style.display = 'none';
+        listEl.innerHTML = '';
+        return;
+      }
+      wrap.style.display = 'flex';
+      listEl.innerHTML = suggestions.map(s => `
+        <button type="button"
+                class="project-suggestion-chip"
+                data-project-path="${escapeHtml(String(s.path || ''))}"
+                onclick="submitAddProjectModal(this.getAttribute('data-project-path'))"
+                title="${escapeHtml(String(s.path || ''))}">
+          <span>+</span>
+          <span>${escapeHtml(String(s.name || ''))}</span>
+        </button>
+      `).join('');
+    }
+
+    function openAddProjectModal() {
+      clearAddProjectError();
+      const input = document.getElementById('add-project-path-input');
+      if (input) input.value = '';
+      renderAddProjectSuggestions([]);
+      openLiveModal('modal-add-project');
+      if (input && typeof input.focus === 'function') {
+        setTimeout(() => input.focus(), 30);
+      }
+      return fetch(getApiUrl('/api/projects'))
+        .then(res => res.json())
+        .then(data => {
+          if (data && Array.isArray(data.suggestions)) {
+            renderAddProjectSuggestions(data.suggestions);
+          }
+        })
+        .catch(() => {});
+    }
+
+    let activeBrowseAbortController = null;
+    let isProjectBrowseInFlight = false;
+
+    function resetBrowseProjectFolderButton() {
+      const btn = document.getElementById('btn-browse-project-folder');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span>📂</span> Browse Finder';
+      }
+    }
+
+    function cancelActiveProjectFolderPicker(useBeacon) {
+      if (!isProjectBrowseInFlight && !activeBrowseAbortController) return;
+      isProjectBrowseInFlight = false;
+      const ctrl = activeBrowseAbortController;
+      activeBrowseAbortController = null;
+      if (ctrl && typeof ctrl.abort === 'function') {
+        try { ctrl.abort(); } catch (e) {}
+      }
+      resetBrowseProjectFolderButton();
+      const cancelUrl = getApiUrl('/api/projects/browse/cancel');
+      if (useBeacon && typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+        try {
+          navigator.sendBeacon(cancelUrl, new Blob(['{}'], { type: 'application/json' }));
+          return;
+        } catch (e) {}
+      }
+      fetch(cancelUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+        keepalive: true,
+      }).catch(() => {});
+    }
+
+    if (typeof window !== 'undefined' && !window._checkTasksBrowsePageHideBound) {
+      window._checkTasksBrowsePageHideBound = true;
+      window.addEventListener('pagehide', () => cancelActiveProjectFolderPicker(true));
+    }
+
+    function closeAddProjectModal() {
+      clearAddProjectError();
+      closeLiveModal('modal-add-project');
+    }
+
+    function browseProjectFolder() {
+      clearAddProjectError();
+      if (isProjectBrowseInFlight || activeBrowseAbortController) {
+        cancelActiveProjectFolderPicker(false);
+      }
+      const btn = document.getElementById('btn-browse-project-folder');
+      const origHtml = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳</span> Opening Finder...';
+      }
+      const controller = typeof AbortController === 'function' ? new AbortController() : null;
+      activeBrowseAbortController = controller;
+      isProjectBrowseInFlight = true;
+
+      const winX = Number(typeof window.screenX === 'number' ? window.screenX : (window.screenLeft || 0));
+      const winY = Number(typeof window.screenY === 'number' ? window.screenY : (window.screenTop || 0));
+      const winW = Number(window.outerWidth || window.innerWidth || 0);
+      const winH = Number(window.outerHeight || window.innerHeight || 0);
+      const bodyPayload = (Number.isFinite(winX) && Number.isFinite(winY) && winW > 0 && winH > 0)
+        ? { windowBounds: { x: winX, y: winY, width: winW, height: winH } }
+        : {};
+
+      const fetchOpts = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyPayload),
+      };
+      if (controller) {
+        fetchOpts.signal = controller.signal;
+      }
+
+      return fetch(getApiUrl('/api/projects/browse'), fetchOpts)
+        .then(async res => {
+          if (res.status === 404) {
+            throw new Error("Local check-tasks daemon is outdated (missing folder picker API). Run 'check-tasks --restart' and refresh this page.");
+          }
+          const data = await res.json().catch(() => null);
+          if (!data) {
+            throw new Error(`Unexpected response from local check-tasks daemon (HTTP ${res.status}). Run 'check-tasks --restart'.`);
+          }
+          if (!res.ok && data.status !== 'cancelled') {
+            throw new Error(data.error || `Folder picker failed (HTTP ${res.status}).`);
+          }
+          return data;
+        })
+        .then(data => {
+          if (controller && activeBrowseAbortController !== controller) return;
+          if (data && data.status === 'ok' && data.path) {
+            const input = document.getElementById('add-project-path-input');
+            if (input) {
+              input.value = data.path;
+              if (typeof input.focus === 'function') input.focus();
+            }
+          } else if (data && data.status === 'error') {
+            showAddProjectError(data.error || 'Could not open Finder folder picker.');
+          }
+        })
+        .catch(err => {
+          if ((err && err.name === 'AbortError') || (controller && activeBrowseAbortController !== controller)) {
+            return;
+          }
+          const msg = (err && err.message && !/failed to fetch|networkerror|load failed/i.test(err.message))
+            ? err.message
+            : "Could not reach local check-tasks daemon. Run 'check-tasks --ui' to start it.";
+          showAddProjectError(msg);
+        })
+        .finally(() => {
+          if (!controller || activeBrowseAbortController === controller) {
+            activeBrowseAbortController = null;
+            isProjectBrowseInFlight = false;
+            if (btn) {
+              btn.disabled = false;
+              btn.innerHTML = origHtml || '<span>📂</span> Browse Finder';
+            }
+          }
+        });
+    }
+
+    function submitAddProjectModal(explicitPath, options) {
+      clearAddProjectError();
+      const input = document.getElementById('add-project-path-input');
+      const pathVal = String(explicitPath !== undefined ? explicitPath : (input ? input.value : '')).trim();
+      if (!pathVal) {
+        showAddProjectError('Please choose or enter a repository folder path.');
+        return Promise.resolve(false);
+      }
+
+      const opts = options && typeof options === 'object' ? options : {};
+      const submitBtn = document.getElementById('btn-submit-add-project');
+      const origLabel = submitBtn ? submitBtn.textContent : '';
+      if (submitBtn && !opts.silentModal) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Adding...';
+      }
+
+      const body = { path: pathVal };
+      if (typeof opts.index === 'number') {
+        body.index = opts.index;
+      }
+
+      return fetch(getApiUrl('/api/projects/add'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+        .then(async res => {
+          if (res.status === 404) {
+            throw new Error("Local check-tasks daemon is outdated. Run 'check-tasks --restart' and refresh.");
+          }
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data.status !== 'ok') {
+            throw new Error(data.error || `Failed to add project (HTTP ${res.status})`);
+          }
+          return data;
+        })
+        .then(data => {
+          const addedName = data.project && data.project.name ? data.project.name : '';
+          if (!opts.silentModal) {
+            closeAddProjectModal();
+          }
+          if (addedName) {
+            activeFocusTab = addedName;
+            try {
+              localStorage.setItem('check_tasks_active_focus_tab', addedName);
+            } catch (e) {}
+          }
+          showToast(
+            opts.toastMessage || `✅ Added project "${addedName || pathVal}" to tracking`,
+            'success'
+          );
+          return fetchTasks().then(() => true);
+        })
+        .catch(err => {
+          const msg = err && err.message ? err.message : 'Failed to add project.';
+          if (!opts.silentModal) {
+            showAddProjectError(msg);
+          } else {
+            showToast(`❌ ${msg}`, 'danger');
+          }
+          return false;
+        })
+        .finally(() => {
+          if (submitBtn && !opts.silentModal) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = origLabel || '+ Add Project';
+          }
+        });
+    }
+
+    function removeTrackedProject(repoName) {
+      const name = String(repoName || '').trim();
+      if (!name) return Promise.resolve(false);
+      return fetch(getApiUrl('/api/projects/remove'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      })
+        .then(async res => {
+          if (res.status === 404) {
+            throw new Error("Local check-tasks daemon is outdated. Run 'check-tasks --restart' and refresh.");
+          }
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data.status !== 'ok') {
+            throw new Error(data.error || `Failed to remove project (HTTP ${res.status})`);
+          }
+          return data;
+        })
+        .then(data => {
+          const removed = data.removed || { name, path: '', index: undefined };
+          showToast(`Removed "${removed.name || name}" from tracking`, 'info', {
+            actionLabel: 'Undo',
+            durationMs: 6000,
+            onAction: () => {
+              if (removed.path) {
+                submitAddProjectModal(removed.path, {
+                  index: removed.index,
+                  silentModal: true,
+                  toastMessage: `↩️ Restored "${removed.name || name}" to tracking`,
+                });
+              }
+            },
+          });
+          return fetchTasks().then(() => true);
+        })
+        .catch(err => {
+          showToast(`❌ ${(err && err.message) || 'Failed to remove project'}`, 'danger');
+          return false;
+        });
+    }
 
     
     /* ============================================================== */
@@ -2165,24 +2895,40 @@ Loading evidence data...
       }
     }
 
-    let activeFocusTab = localStorage.getItem('check_tasks_active_focus_tab');
-    if (!activeFocusTab || activeFocusTab === 'all' || !FOCUSED_REPOS.includes(activeFocusTab)) {
-      activeFocusTab = 'D3Nexus';
+    let activeFocusTab = null;
+    try {
+      activeFocusTab = localStorage.getItem('check_tasks_active_focus_tab');
+    } catch (e) {}
+    if (!activeFocusTab || activeFocusTab === 'all') {
+      activeFocusTab = DEFAULT_FOCUSED_REPOS[0];
     }
 
     function switchRepoTab(tabId) {
-      if (!tabId || tabId === 'all' || !FOCUSED_REPOS.includes(tabId)) {
-        tabId = 'D3Nexus';
+      if (!tabId || tabId === 'all' || (FOCUSED_REPOS.length > 0 && !FOCUSED_REPOS.includes(tabId))) {
+        tabId = FOCUSED_REPOS[0] || '';
       }
       activeFocusTab = tabId;
       try {
-        localStorage.setItem('check_tasks_active_focus_tab', tabId);
+        if (tabId) localStorage.setItem('check_tasks_active_focus_tab', tabId);
       } catch(e) {}
 
       document.querySelectorAll('.repo-tab-btn').forEach(btn => {
+        const btnTab = btn.getAttribute('data-tab') || '';
         btn.classList.remove('active', 'active-D3Nexus', 'active-lyrics-sync', 'active-nexus', 'active-ai-agent-tools');
-        if (btn.getAttribute('data-tab') === tabId) {
-          btn.classList.add('active', 'active-' + tabId);
+        btn.style.background = '';
+        btn.style.borderColor = '';
+        btn.style.boxShadow = '';
+        if (btnTab === tabId) {
+          btn.classList.add('active');
+          if (REPO_THEMES[tabId]) {
+            btn.classList.add('active-' + tabId);
+          } else {
+            const repoObj = (currentReposData || []).find(r => r.name === tabId);
+            const theme = getRepoTheme(tabId, repoObj);
+            btn.style.background = theme.color;
+            btn.style.borderColor = theme.border;
+            btn.style.boxShadow = `0 4px 20px -2px ${theme.color}aa`;
+          }
         }
       });
 
@@ -2193,6 +2939,10 @@ Loading evidence data...
       if (detailView) {
         detailView.style.display = 'block';
         renderRepoDetailView(tabId);
+      }
+
+      if (tabId && !(currentReposData || []).some(r => r.name === tabId)) {
+        fetchTasks({ focusRepo: tabId });
       }
     }
 
@@ -2220,6 +2970,100 @@ Loading evidence data...
       if (!win || typeof win !== 'object' || typeof win.fraction !== 'number') return '—';
       const pct = `${Math.round(win.fraction * 1000) / 10}%`;
       return win.resetTime ? `${pct} (resets ${win.resetTime})` : pct;
+    }
+
+    function getQuotaColorTheme(pct) {
+      if (pct >= 50.0) {
+        return {
+          barBg: '#10b981',
+          barGlow: '0 0 8px rgba(16, 185, 129, 0.5)',
+          trackBg: 'rgba(6, 78, 59, 0.7)',
+          trackBorder: 'rgba(6, 95, 70, 0.6)',
+          textColor: '#34d399',
+        };
+      }
+      if (pct >= 10.0) {
+        return {
+          barBg: '#f59e0b',
+          barGlow: '0 0 8px rgba(245, 158, 11, 0.5)',
+          trackBg: 'rgba(69, 26, 3, 0.7)',
+          trackBorder: 'rgba(120, 53, 15, 0.6)',
+          textColor: '#fbbf24',
+        };
+      }
+      return {
+        barBg: '#ef4444',
+        barGlow: '0 0 8px rgba(239, 68, 68, 0.5)',
+        trackBg: 'rgba(69, 10, 10, 0.7)',
+        trackBorder: 'rgba(127, 29, 29, 0.6)',
+        textColor: '#f87171',
+      };
+    }
+
+    function formatQuotaCountdown(resetTimeStr) {
+      if (!resetTimeStr || String(resetTimeStr).startsWith('1970')) return '⏱ --';
+      const dt = new Date(resetTimeStr);
+      const diffMs = dt.getTime() - Date.now();
+      if (Number.isNaN(diffMs) || diffMs <= 0) return '⏱ --';
+      const totalSec = Math.floor(diffMs / 1000);
+      const days = Math.floor(totalSec / 86400);
+      const hours = Math.floor((totalSec % 86400) / 3600);
+      const minutes = Math.floor((totalSec % 3600) / 60);
+      if (days > 0) return `⏱ ${days}d ${hours}h`;
+      if (hours > 0) return `⏱ ${hours}h ${minutes}m`;
+      if (minutes > 0) return `⏱ ${minutes}m`;
+      return '⏱ 0m';
+    }
+
+    function updateAgyQuotaCountdowns() {
+      if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return;
+      document.querySelectorAll('.agy-quota-countdown').forEach(el => {
+        const resetStr = el.getAttribute('data-reset-time');
+        if (!resetStr) return;
+        const nextText = formatQuotaCountdown(resetStr);
+        if (el.textContent !== nextText) {
+          el.textContent = nextText;
+        }
+      });
+    }
+
+    function renderQuotaProgressCell(label, win) {
+      const safeLabel = escapeHtml(label);
+      if (!win || typeof win !== 'object' || typeof win.fraction !== 'number' || !Number.isFinite(win.fraction)) {
+        return `
+          <div data-quota-window="${safeLabel}" data-quota-pct="" style="min-width: 155px; display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 10px; line-height: 1.2;">
+              <span style="color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;">${safeLabel}</span>
+              <span style="color: #64748b; font-weight: 600;">—</span>
+            </div>
+            <div class="agy-quota-progress-track" style="width: 100%; height: 7px; border-radius: 9999px; overflow: hidden; background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(51, 65, 85, 0.55);">
+              <div class="agy-quota-progress-fill" style="width: 0%; height: 100%; border-radius: 9999px; background: #475569;"></div>
+            </div>
+          </div>
+        `;
+      }
+      const safeFraction = Math.max(0, Math.min(1, Number(win.fraction)));
+      const pctRaw = (safeFraction * 100).toFixed(1);
+      const pctDisplay = pctRaw.endsWith('.0') ? pctRaw.slice(0, -2) : pctRaw;
+      const theme = getQuotaColorTheme(parseFloat(pctRaw));
+      const resetTime = String(win.resetTime || '');
+      const countdown = formatQuotaCountdown(resetTime);
+      const titleText = resetTime ? `${label}: ${pctDisplay}% (resets ${resetTime})` : `${label}: ${pctDisplay}%`;
+
+      return `
+        <div data-quota-window="${safeLabel}" data-quota-pct="${pctDisplay}" title="${escapeHtml(titleText)}" style="min-width: 155px; display: flex; flex-direction: column; gap: 4px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 10px; line-height: 1.2;">
+            <span style="color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;">${safeLabel}</span>
+            <span style="display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;">
+              <span class="agy-quota-countdown" data-reset-time="${escapeHtml(resetTime)}" style="color: #fbbf24; font-weight: 500;">${escapeHtml(countdown)}</span>
+              <span style="color: ${theme.textColor}; font-weight: 700;">${pctDisplay}%</span>
+            </span>
+          </div>
+          <div class="agy-quota-progress-track" style="width: 100%; height: 7px; border-radius: 9999px; overflow: hidden; background: ${theme.trackBg}; border: 1px solid ${theme.trackBorder};">
+            <div class="agy-quota-progress-fill" style="width: ${pctRaw}%; height: 100%; border-radius: 9999px; background: ${theme.barBg}; box-shadow: ${theme.barGlow}; transition: width 0.5s ease;"></div>
+          </div>
+        </div>
+      `;
     }
 
     function buildPersonaBindingsHtml(repo) {
@@ -2288,6 +3132,190 @@ Loading evidence data...
         </div>`;
     }
 
+    function renderAgyPrioritySelect(profileName, currentPriority) {
+      const parsed = Number.parseInt(currentPriority, 10);
+      const hasValid = Number.isInteger(parsed) && parsed >= 1;
+      const choices = [1, 2, 3, 4, 5, 6];
+      if (hasValid && !choices.includes(parsed)) {
+        choices.push(parsed);
+      }
+      let optionsHtml = hasValid
+        ? ''
+        : '<option value="" selected disabled>—</option>';
+      optionsHtml += choices.map(val => {
+        const sel = hasValid && parsed === val ? ' selected' : '';
+        return `<option value="${val}"${sel}>P${val}</option>`;
+      }).join('');
+      const topClass = hasValid && parsed === 1 ? ' priority-top' : '';
+      return `
+        <select
+          class="custom-select select-agy-priority${topClass}"
+          data-agy-priority-profile="${escapeHtml(profileName)}"
+          data-current-priority="${hasValid ? String(parsed) : ''}"
+          aria-label="Priority for ${escapeHtml(profileName)}"
+          title="Dispatch priority for ${escapeHtml(profileName)} (1 = highest)"
+          onchange="updateAgyProfilePriority(this.getAttribute('data-agy-priority-profile'), this.value, this)"
+          onclick="event.stopPropagation()"
+          onmousedown="event.stopPropagation()">
+          ${optionsHtml}
+        </select>`;
+    }
+
+    function renderAgyConcurrencySelect(profileName, currentMaxConcurrent) {
+      const parsed = Number.parseInt(currentMaxConcurrent, 10);
+      const hasValid = Number.isInteger(parsed) && parsed >= 0;
+      const choices = [0, 1, 2, 3, 4, 5, 6];
+      if (hasValid && !choices.includes(parsed)) {
+        choices.push(parsed);
+      }
+      let optionsHtml = hasValid
+        ? ''
+        : '<option value="" selected disabled>—</option>';
+      optionsHtml += choices.map(val => {
+        const sel = hasValid && parsed === val ? ' selected' : '';
+        const label = `${val}x`;
+        return `<option value="${val}"${sel}>${label}</option>`;
+      }).join('');
+      const offClass = hasValid && parsed === 0 ? ' concurrency-off' : '';
+      return `
+        <select
+          class="custom-select select-agy-concurrency${offClass}"
+          data-agy-concurrency-profile="${escapeHtml(profileName)}"
+          data-current-concurrency="${hasValid ? String(parsed) : ''}"
+          aria-label="Max concurrencies for ${escapeHtml(profileName)}"
+          title="Max concurrent slots for ${escapeHtml(profileName)} (0 = disabled)"
+          onchange="updateAgyProfileConcurrency(this.getAttribute('data-agy-concurrency-profile'), this.value, this)"
+          onclick="event.stopPropagation()"
+          onmousedown="event.stopPropagation()">
+          ${optionsHtml}
+        </select>`;
+    }
+
+    function updateAgyProfilePriority(profileName, newPriority, selectEl) {
+      return updateAgyProfileSetting(profileName, 'priority', newPriority, selectEl);
+    }
+
+    function updateAgyProfileConcurrency(profileName, newMaxConcurrent, selectEl) {
+      return updateAgyProfileSetting(profileName, 'max_concurrent', newMaxConcurrent, selectEl);
+    }
+
+    function updateAgyProfileSetting(profileName, field, rawValue, selectEl) {
+      const cleanProfile = String(profileName || '').trim();
+      const parsedVal = Number.parseInt(rawValue, 10);
+      const minVal = field === 'max_concurrent' ? 0 : 1;
+      if (!cleanProfile || !Number.isInteger(parsedVal) || parsedVal < minVal) return;
+
+      const attrName = field === 'max_concurrent' ? 'data-current-concurrency' : 'data-current-priority';
+      const prevAttr = selectEl ? selectEl.getAttribute(attrName) : '';
+      const prevParsed = Number.parseInt(prevAttr, 10);
+      const prevVal = Number.isInteger(prevParsed) && prevParsed >= minVal ? prevParsed : null;
+
+      if (selectEl) {
+        selectEl.disabled = true;
+        if (typeof selectEl.blur === 'function') {
+          selectEl.blur();
+        }
+      }
+
+      const patch = { [field]: parsedVal };
+      pendingAgyPoolUpdates[cleanProfile] = Object.assign({}, pendingAgyPoolUpdates[cleanProfile] || {}, patch);
+      const optimisticMap = { [cleanProfile]: patch };
+      (currentReposData || []).forEach(r => applyAgyPoolSettingsToRepoModel(r, optimisticMap));
+      Object.values(pendingOrchestrationRenderRepos).forEach(r => applyAgyPoolSettingsToRepoModel(r, optimisticMap));
+
+      const progressLabel = field === 'max_concurrent'
+        ? (parsedVal === 0 ? `Disabling @${cleanProfile} (0 concurrencies)...` : `Updating @${cleanProfile} concurrency to ${parsedVal}x...`)
+        : `Updating @${cleanProfile} priority to P${parsedVal}...`;
+      showToast(`⏳ ${progressLabel}`, 'info');
+
+      return fetch(getApiUrl('/api/agy-pool/settings'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile: cleanProfile, [field]: parsedVal }),
+      })
+      .then(async res => {
+        const rawText = await res.text();
+        let data = {};
+        try {
+          data = rawText ? JSON.parse(rawText) : {};
+        } catch (e) {
+          data = { status: 'error', error: res.status === 404 ? 'Pool settings endpoint unavailable (restart tasks server)' : `HTTP ${res.status}` };
+        }
+        return { ok: res.ok, status: res.status, data };
+      })
+      .then(({ ok, data }) => {
+        if (pendingAgyPoolUpdates[cleanProfile]) {
+          delete pendingAgyPoolUpdates[cleanProfile][field];
+          if (Object.keys(pendingAgyPoolUpdates[cleanProfile]).length === 0) {
+            delete pendingAgyPoolUpdates[cleanProfile];
+          }
+        }
+        if (ok && data && data.status === 'ok') {
+          const confirmedMap = {};
+          if (Array.isArray(data.pool)) {
+            data.pool.forEach(entry => {
+              if (!entry || !entry.profile) return;
+              const entryPatch = {};
+              if (Number.isInteger(Number(entry.priority)) && Number(entry.priority) >= 1) {
+                entryPatch.priority = Number(entry.priority);
+              }
+              if (Number.isInteger(Number(entry.max_concurrent)) && Number(entry.max_concurrent) >= 0) {
+                entryPatch.max_concurrent = Number(entry.max_concurrent);
+              }
+              confirmedMap[entry.profile] = entryPatch;
+            });
+          } else {
+            confirmedMap[cleanProfile] = patch;
+          }
+          (currentReposData || []).forEach(r => applyAgyPoolSettingsToRepoModel(r, confirmedMap));
+          Object.values(pendingOrchestrationRenderRepos).forEach(r => applyAgyPoolSettingsToRepoModel(r, confirmedMap));
+          if (activeFocusTab) {
+            const liveRepo = (currentReposData || []).find(r => r.name === activeFocusTab);
+            const panel = document.getElementById('orchestration-panel-' + activeFocusTab);
+            if (liveRepo && panel) {
+              delete pendingOrchestrationRenderRepos[activeFocusTab];
+              panel.innerHTML = renderOrchestrationPanel(liveRepo);
+              panel.dataset.sig = buildOrchestrationSig(liveRepo);
+            }
+          }
+          const doneLabel = field === 'max_concurrent'
+            ? (parsedVal === 0 ? `Disabled @${cleanProfile} (0 concurrencies)` : `Updated @${cleanProfile} concurrency to ${parsedVal}x`)
+            : `Updated @${cleanProfile} priority to P${parsedVal}`;
+          showToast(`✅ ${doneLabel}`, 'success');
+          pollDashboard();
+        } else {
+          if (prevVal !== null) {
+            const revertMap = { [cleanProfile]: { [field]: prevVal } };
+            (currentReposData || []).forEach(r => applyAgyPoolSettingsToRepoModel(r, revertMap));
+            Object.values(pendingOrchestrationRenderRepos).forEach(r => applyAgyPoolSettingsToRepoModel(r, revertMap));
+          }
+          if (selectEl) {
+            selectEl.value = prevVal !== null ? String(prevVal) : '';
+            selectEl.disabled = false;
+          }
+          showToast(`❌ Failed to update pool setting: ${(data && data.error) || 'Unknown error'}`, 'danger');
+        }
+      })
+      .catch(() => {
+        if (pendingAgyPoolUpdates[cleanProfile]) {
+          delete pendingAgyPoolUpdates[cleanProfile][field];
+          if (Object.keys(pendingAgyPoolUpdates[cleanProfile]).length === 0) {
+            delete pendingAgyPoolUpdates[cleanProfile];
+          }
+        }
+        if (prevVal !== null) {
+          const revertMap = { [cleanProfile]: { [field]: prevVal } };
+          (currentReposData || []).forEach(r => applyAgyPoolSettingsToRepoModel(r, revertMap));
+          Object.values(pendingOrchestrationRenderRepos).forEach(r => applyAgyPoolSettingsToRepoModel(r, revertMap));
+        }
+        if (selectEl) {
+          selectEl.value = prevVal !== null ? String(prevVal) : '';
+          selectEl.disabled = false;
+        }
+        showToast('❌ Could not connect to server to update pool setting', 'danger');
+      });
+    }
+
     function buildAgyProfilesHtml(repo) {
       const profiles = Array.isArray(repo?.agy_profiles) ? repo.agy_profiles : [];
       const rows = profiles.map(p => {
@@ -2298,19 +3326,29 @@ Loading evidence data...
           const where = [h.role, h.repo].filter(Boolean).join(', ');
           return `${bits || 'unnamed'}${where ? ` (${where})` : ''}`;
         }).join('; ');
+        const isDisabled = Number.isInteger(Number(p.max_concurrent)) && Number(p.max_concurrent) === 0;
         let state = '<span style="color: #34d399;">✓ free</span>';
-        if (p.is_exhausted) {
+        if (isDisabled) {
+          if (holders.length > 0) {
+            state = '<span style="color: #fbbf24;">🔒 in use (draining)</span>';
+          } else {
+            state = '<span style="color: #94a3b8;">⏸ disabled</span>';
+          }
+        } else if (p.is_exhausted) {
           state = `<span style="color: #f87171;">⛔ ${escapeHtml(p.exhausted_reason || 'exhausted')} until ${escapeHtml(p.exhausted_until || '?')}</span>`;
         } else if (holders.length > 0) {
           state = '<span style="color: #fbbf24;">🔒 in use</span>';
         }
+        const rowOpacity = isDisabled && holders.length === 0 ? ' opacity: 0.65;' : '';
         return `
-          <tr>
-            <td style="padding: 3px 8px 3px 0; color: #f1f5f9; font-weight: 700;">${escapeHtml(p.profile || '')}</td>
-            <td style="padding: 3px 8px;">${state}</td>
-            <td style="padding: 3px 8px; color: #cbd5e1;">${escapeHtml(holderText || '—')}</td>
-            <td style="padding: 3px 8px; color: #94a3b8;">5h ${escapeHtml(formatQuotaWindow(p.quota_5h))}</td>
-            <td style="padding: 3px 0 3px 8px; color: #94a3b8;">weekly ${escapeHtml(formatQuotaWindow(p.quota_weekly))}</td>
+          <tr data-agy-profile-row="${escapeHtml(p.profile || '')}" data-agy-disabled="${isDisabled ? '1' : '0'}" style="border-bottom: 1px solid rgba(30, 38, 56, 0.55);${rowOpacity}">
+            <td data-agy-col="profile" style="padding: 6px 12px 6px 0; color: #f1f5f9; font-weight: 700; white-space: nowrap; vertical-align: middle;">${escapeHtml(p.profile || '')}</td>
+            <td data-agy-col="status" style="padding: 6px 12px; white-space: nowrap; vertical-align: middle;">${state}</td>
+            <td data-agy-col="priority" style="padding: 6px 4px 6px 8px; white-space: nowrap; text-align: center; vertical-align: middle;">${renderAgyPrioritySelect(p.profile || '', p.priority)}</td>
+            <td data-agy-col="concurrency" style="padding: 6px 10px 6px 4px; white-space: nowrap; text-align: center; vertical-align: middle;">${renderAgyConcurrencySelect(p.profile || '', p.max_concurrent)}</td>
+            <td data-agy-col="quota-5h" style="padding: 6px 10px; vertical-align: middle;">${renderQuotaProgressCell('5h', p.quota_5h)}</td>
+            <td data-agy-col="quota-weekly" style="padding: 6px 12px 6px 10px; vertical-align: middle;">${renderQuotaProgressCell('weekly', p.quota_weekly)}</td>
+            <td data-agy-col="task" style="padding: 6px 0 6px 12px; color: #cbd5e1; width: 100%; overflow-wrap: anywhere; word-break: break-word; vertical-align: middle;">${escapeHtml(holderText || '—')}</td>
           </tr>`;
       }).join('');
       return `<table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: monospace;"><tbody>${rows}</tbody></table>`;
@@ -2431,41 +3469,71 @@ Loading evidence data...
         return { name, repo: r, blockers };
       });
 
-      const tabsSig = tabEntries.map(({ name, repo: r, blockers }) => {
-        const blockerSig = blockers.map(b => `${b.epic}:${b.reason}`).join(',');
-        return [name, r?.epics_summary?.in_progress, r?.active_epic, r?.prompt, r?.is_human_action_required, blockerSig, r?.low_quota?.expires_at || (r?.low_quota ? 'on' : ''), (r?.notices || []).length, activeFocusTab === name, getRepoNoteCount(getRepoNoteText(name))].join('~');
-      }).join('|');
+      const tabsSig = [
+        isRepoBarEditMode ? 'edit=1' : 'edit=0',
+        ...tabEntries.map(({ name, repo: r, blockers }) => {
+          const blockerSig = blockers.map(b => `${b.epic}:${b.reason}`).join(',');
+          return [name, r?.theme_color || '', r?.epics_summary?.in_progress, r?.active_epic, r?.prompt, r?.is_human_action_required, blockerSig, r?.low_quota?.expires_at || (r?.low_quota ? 'on' : ''), (r?.notices || []).length, activeFocusTab === name, getRepoNoteCount(getRepoNoteText(name))].join('~');
+        }),
+      ].join('|');
 
       if (bar.dataset.sig === tabsSig) {
         return; // Zero DOM mutation when tabs data has not changed!
       }
       bar.dataset.sig = tabsSig;
 
+      if (isRepoBarEditMode) {
+        bar.classList.add('edit-mode');
+        bar.title = 'Edit mode active • Click outside or press Esc to finish';
+      } else {
+        bar.classList.remove('edit-mode');
+        bar.title = 'Long-click header bar to add or remove tracked projects';
+      }
+
       let html = '';
       tabEntries.forEach(({ name, repo: r, blockers }) => {
-        const theme = REPO_THEMES[name];
+        const theme = getRepoTheme(name, r);
         const inProgressEpics = r?.epics_summary?.in_progress || (r?.active_epic ? 1 : 0);
         const needsConfirm = blockers.length > 0;
+        const safeName = escapeHtml(name);
 
         const isActive = activeFocusTab === name;
-        const activeClass = isActive ? `active active-${name}` : '';
+        const canonicalActiveClass = isActive && REPO_THEMES[name] ? `active active-${name}` : (isActive ? 'active' : '');
+        const customActiveStyle = (isActive && !REPO_THEMES[name])
+          ? ` style="background: ${theme.color}; border-color: ${theme.border}; box-shadow: 0 4px 20px -2px ${theme.color}aa;"`
+          : '';
 
         html += `
-          <button class="repo-tab-btn ${activeClass}" 
-                  data-tab="${name}" 
-                  onclick="switchRepoTab('${name}')">
+          <button class="repo-tab-btn ${canonicalActiveClass}"${customActiveStyle}
+                  data-tab="${safeName}" 
+                  onclick="handleRepoTabClick(event, this.getAttribute('data-tab'))">
             <span>${theme.icon}</span>
-            <span style="font-weight: 700;">${name}</span>
+            <span style="font-weight: 700;">${safeName}</span>
             <span class="tab-badges">
               <span class="tab-badge-doing">⚡ ${inProgressEpics} Doing</span>
-              <span class="tab-badge-notes" id="tab-note-count-${name}">📝 ${getRepoNoteCount(getRepoNoteText(name))} Notes</span>
+              <span class="tab-badge-notes" id="tab-note-count-${safeName}">📝 ${getRepoNoteCount(getRepoNoteText(name))} Notes</span>
               ${needsConfirm ? `<span class="tab-badge-confirm" title="Confirmation / approval required">⚠️ ${blockers.length} Confirm</span>` : ''}
               ${buildLowQuotaBadgeHtml(r?.low_quota)}
             </span>
-            ${needsConfirm ? `<span class="tab-notification-badge" title="Confirmation / approval required"></span>` : ''}
+            ${needsConfirm && !isRepoBarEditMode ? `<span class="tab-notification-badge" title="Confirmation / approval required"></span>` : ''}
+            ${isRepoBarEditMode ? `<span role="button" tabindex="0" class="repo-tab-close-btn" data-remove-repo="${safeName}" onclick="event.stopPropagation(); removeTrackedProject(this.getAttribute('data-remove-repo'))" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); removeTrackedProject(this.getAttribute('data-remove-repo')); }" title="Remove ${safeName} from tracking">✕</span>` : ''}
           </button>
         `;
       });
+
+      if (isRepoBarEditMode || tabEntries.length === 0) {
+        html += `
+          <button type="button"
+                  id="btn-add-project"
+                  class="repo-tab-add-btn"
+                  data-action="add-project"
+                  onclick="event.stopPropagation(); openAddProjectModal()"
+                  title="Add a local repository folder to track">
+            <span>＋</span>
+            <span>Add Project</span>
+          </button>
+        `;
+      }
 
       bar.innerHTML = html;
     }
@@ -2589,22 +3657,69 @@ Loading evidence data...
       };
     }
 
-    const expandedEventLogsByEpic = new Set();
+    const epicEventLogsByKey = new Map();
 
-    function toggleEpicEventLogs(epicKey) {
-      const key = String(epicKey || '');
-      if (!key) return;
-      if (expandedEventLogsByEpic.has(key)) {
-        expandedEventLogsByEpic.delete(key);
-      } else {
-        expandedEventLogsByEpic.add(key);
+    function formatEpicEventLogsText(events) {
+      if (!Array.isArray(events) || events.length === 0) return '';
+      return events.slice().reverse().map(ev => {
+        const tsRaw = String((ev && ev.ts) || '').trim();
+        const subStep = (ev && ev.sub_step) ? `[${String(ev.sub_step)}] ` : '';
+        const msg = String((ev && ev.message) || '');
+        const tsPart = tsRaw ? `[${tsRaw}] ` : '';
+        return `${tsPart}${subStep}${msg}`.trim();
+      }).filter(Boolean).join('\n');
+    }
+
+    function markCopyLogsSuccess(btn, count) {
+      showToast(`📋 Copied ${count} execution log${count === 1 ? '' : 's'} to clipboard`, 'success');
+      if (btn) {
+        btn.textContent = '✓ Copied';
+        btn.style.color = '#34d399';
+        btn.style.borderColor = 'rgba(52, 211, 153, 0.5)';
+        setTimeout(() => {
+          btn.textContent = 'Copy';
+          btn.style.color = '#38bdf8';
+          btn.style.borderColor = 'rgba(56, 189, 248, 0.35)';
+        }, 1500);
       }
-      if (typeof lastDashboardData !== 'undefined' && lastDashboardData && Array.isArray(lastDashboardData.repos)) {
-        lastDashboardData.repos.forEach(r => {
-          const w = document.getElementById('tier2-execution-epics-wrapper-' + r.name);
-          if (w) w.innerHTML = renderExecutionEpics(r);
+    }
+
+    function fallbackCopyEventLogs(text, btn, count) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        markCopyLogsSuccess(btn, count);
+      } catch (e) {
+        showToast('❌ Could not copy execution logs', 'warning');
+      }
+      document.body.removeChild(ta);
+    }
+
+    function copyEpicEventLogs(epicKey, btn) {
+      const key = String(epicKey || '');
+      const events = key ? epicEventLogsByKey.get(key) : null;
+      const textToCopy = formatEpicEventLogsText(events);
+      if (!textToCopy) {
+        showToast('⚠️ No execution logs to copy', 'warning');
+        return Promise.resolve(false);
+      }
+      const count = events.length;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(textToCopy).then(() => {
+          markCopyLogsSuccess(btn, count);
+          return true;
+        }).catch(() => {
+          fallbackCopyEventLogs(textToCopy, btn, count);
+          return true;
         });
       }
+      fallbackCopyEventLogs(textToCopy, btn, count);
+      return Promise.resolve(true);
     }
 
     function collectEpicQualityRuns(repo, slug, isPrimaryActive) {
@@ -2958,17 +4073,17 @@ Loading evidence data...
           : (Array.isArray(hb?.events) ? hb.events : []);
         const slug = String(opts.slug || telemetry.epic_slug || '');
         const epicKey = `${String(opts.repoName || '')}:${slug}`;
-        const isExpanded = expandedEventLogsByEpic.has(epicKey);
-        const visibleEvents = isExpanded ? events.slice().reverse() : events.slice(-4).reverse();
+        const visibleEvents = events.slice(-4).reverse();
 
         if (events.length > 0) {
+          epicEventLogsByKey.set(epicKey, events.slice());
           eventLogsHtml = `
             <div data-telemetry="event-logs" style="background: rgba(15, 23, 42, 0.55); border: 1px solid #1e293b; border-radius: 4px; padding: 6px 10px; margin-bottom: 10px;">
               <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #94a3b8; margin-bottom: 4px;">
                 <span style="font-weight: 700; color: #cbd5e1;">📋 Execution Logs (${events.length})</span>
-                ${events.length > 4 ? `<button data-epic-key="${escapeHtml(epicKey)}" onclick="toggleEpicEventLogs(this.getAttribute('data-epic-key'))" style="background: transparent; border: none; color: #38bdf8; font-size: 10px; cursor: pointer; font-family: monospace; padding: 0;">${isExpanded ? 'Collapse ▴' : `View all ${events.length} logs ▾`}</button>` : ''}
+                <button type="button" data-action="copy-event-logs" data-epic-key="${escapeHtml(epicKey)}" onclick="copyEpicEventLogs(this.getAttribute('data-epic-key'), this)" title="Copy all ${events.length} execution logs" style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 4px; color: #38bdf8; font-size: 10px; font-weight: 600; cursor: pointer; font-family: monospace; padding: 1px 7px; line-height: 1.4;">Copy</button>
               </div>
-              <div style="display: flex; flex-direction: column; gap: 3px; max-height: ${isExpanded ? '180px' : '90px'}; overflow-y: auto; font-family: monospace; font-size: 10px;">
+              <div style="display: flex; flex-direction: column; gap: 3px; max-height: 90px; overflow-y: auto; font-family: monospace; font-size: 10px;">
                 ${visibleEvents.map(ev => {
                   const tsRaw = String(ev.ts || '');
                   const tsShort = tsRaw.includes('T') ? tsRaw.split('T')[1].slice(0, 8) : tsRaw;
@@ -4286,6 +5401,50 @@ Loading evidence data...
       });
     }
 
+    function isOrchestrationSelectFocused(panelEl, excludeEl = null) {
+      const activeEl = document.activeElement;
+      return Boolean(
+        activeEl &&
+        activeEl !== excludeEl &&
+        panelEl &&
+        panelEl.contains(activeEl) &&
+        activeEl.classList &&
+        (
+          activeEl.classList.contains('select-agy-priority') ||
+          activeEl.classList.contains('select-agy-concurrency')
+        )
+      );
+    }
+
+    function flushPendingOrchestrationRender(repoName, blurredEl = null) {
+      const queuedRepo = pendingOrchestrationRenderRepos[repoName];
+      if (!queuedRepo) return;
+      const panelEl = document.getElementById('orchestration-panel-' + repoName);
+      if (!panelEl) {
+        delete pendingOrchestrationRenderRepos[repoName];
+        return;
+      }
+      if (isOrchestrationSelectFocused(panelEl, blurredEl)) {
+        return;
+      }
+      const liveRepo = (currentReposData || []).find(r => r.name === repoName) || queuedRepo;
+      delete pendingOrchestrationRenderRepos[repoName];
+      applyPendingAgyPoolUpdates(liveRepo);
+      const nextSig = buildOrchestrationSig(liveRepo);
+      if (panelEl.dataset.sig !== nextSig) {
+        panelEl.innerHTML = renderOrchestrationPanel(liveRepo);
+        panelEl.dataset.sig = nextSig;
+      }
+    }
+
+    function bindOrchestrationSelectFocusGuard(selectEl, repoName) {
+      if (!selectEl || selectEl.dataset.focusGuardBound === '1') return;
+      selectEl.dataset.focusGuardBound = '1';
+      selectEl.addEventListener('blur', () => {
+        flushPendingOrchestrationRender(repoName, selectEl);
+      });
+    }
+
     function onFilterKanbanBoard(repoName, epicValue) {
       captureKanbanPanelMinHeight(repoName);
       currentKanbanFilter[repoName] = epicValue;
@@ -4308,45 +5467,45 @@ Loading evidence data...
 
       return `
         <!-- BLOCK 1: EPICS OVERVIEW -->
-        <div style="background: #141722; border: 1px solid #1e2638; border-radius: 8px; padding: 14px 18px; display: flex; flex-direction: column; justify-content: space-between;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #1e2638; padding-bottom: 8px;">
-            <span style="font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+        <div data-overview-card="epics-overview" style="background: #141722; border: 1px solid #1e2638; border-radius: 8px; padding: 14px 18px; display: flex; flex-direction: column; justify-content: flex-start; min-width: 0;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 10px; border-bottom: 1px solid #1e2638; padding-bottom: 8px;">
+            <span style="font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px; white-space: nowrap;">
               <span>📦</span> Epics Overview (${counts.total} Epics)
             </span>
-            <span style="font-size: 11px; color: #64748b; font-family: monospace;">.devtool/epic/ · plans/</span>
+            <span style="font-size: 11px; color: #64748b; font-family: monospace; white-space: nowrap;">.devtool/epic/ · plans/</span>
           </div>
-          <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px;">
+          <div style="display: grid; grid-template-columns: repeat(5, minmax(max-content, 1fr)); gap: 10px; overflow-x: auto;">
             
             <!-- 1. In-Progress (Doing) -->
-            <div data-overview-stat="doing" style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #fbbf24; border-radius: 6px; padding: 8px 12px;">
+            <div data-overview-stat="doing" style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #fbbf24; border-radius: 6px; padding: 8px 12px; white-space: nowrap;">
               <div style="font-size: 10px; color: #fbbf24; font-weight: 700; text-transform: uppercase;">1. In-Progress</div>
               <div data-overview-count="doing" style="font-size: 20px; font-weight: 800; color: #fbbf24; margin-top: 2px;">${counts.doing}</div>
               <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Doing</div>
             </div>
 
             <!-- 2. Pending -->
-            <div data-overview-stat="pending" style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #f59e0b; border-radius: 6px; padding: 8px 12px;">
+            <div data-overview-stat="pending" style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #f59e0b; border-radius: 6px; padding: 8px 12px; white-space: nowrap;">
               <div style="font-size: 10px; color: #f59e0b; font-weight: 700; text-transform: uppercase;">2. Pending</div>
               <div data-overview-count="pending" style="font-size: 20px; font-weight: 800; color: #f59e0b; margin-top: 2px;">${counts.pending}</div>
               <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Paused / Pending</div>
             </div>
 
             <!-- 3. Backlog -->
-            <div data-overview-stat="backlog" style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #38bdf8; border-radius: 6px; padding: 8px 12px;">
+            <div data-overview-stat="backlog" style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #38bdf8; border-radius: 6px; padding: 8px 12px; white-space: nowrap;">
               <div style="font-size: 10px; color: #38bdf8; font-weight: 700; text-transform: uppercase;">3. Backlog</div>
               <div data-overview-count="backlog" style="font-size: 20px; font-weight: 800; color: #38bdf8; margin-top: 2px;">${counts.backlog}</div>
               <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Queued / Backlog</div>
             </div>
 
             <!-- 4. Done -->
-            <div data-overview-stat="done" style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #10b981; border-radius: 6px; padding: 8px 12px;">
+            <div data-overview-stat="done" style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #10b981; border-radius: 6px; padding: 8px 12px; white-space: nowrap;">
               <div style="font-size: 10px; color: #34d399; font-weight: 700; text-transform: uppercase;">4. Done</div>
               <div data-overview-count="done" style="font-size: 20px; font-weight: 800; color: #10b981; margin-top: 2px;">${counts.done}</div>
               <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Completed</div>
             </div>
 
             <!-- 5. Cancelled / Abandon -->
-            <div data-overview-stat="cancelled" style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #ef4444; border-radius: 6px; padding: 8px 12px;">
+            <div data-overview-stat="cancelled" style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #ef4444; border-radius: 6px; padding: 8px 12px; white-space: nowrap;">
               <div style="font-size: 10px; color: #f87171; font-weight: 700; text-transform: uppercase;">5. Cancelled</div>
               <div data-overview-count="cancelled" style="font-size: 20px; font-weight: 800; color: #ef4444; margin-top: 2px;">${counts.cancelled}</div>
               <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Shelved / Cancelled</div>
@@ -4356,23 +5515,23 @@ Loading evidence data...
         </div>
 
         <!-- BLOCK 2: APPROVAL BLOCKERS -->
-        <div style="background: ${needsConfirm ? 'rgba(127, 29, 29, 0.22)' : '#141722'}; border: 1px solid ${needsConfirm ? 'rgba(239, 68, 68, 0.55)' : '#1e2638'}; border-radius: 8px; padding: 14px 18px; display: flex; flex-direction: column; justify-content: space-between;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid ${needsConfirm ? 'rgba(239, 68, 68, 0.35)' : '#1e2638'}; padding-bottom: 8px;">
-            <span style="font-size: 11px; font-weight: 800; color: ${needsConfirm ? '#fca5a5' : '#94a3b8'}; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+        <div data-overview-card="approval-blockers" style="min-width: 0; background: ${needsConfirm ? 'rgba(127, 29, 29, 0.22)' : '#141722'}; border: 1px solid ${needsConfirm ? 'rgba(239, 68, 68, 0.55)' : '#1e2638'}; border-radius: 8px; padding: 14px 18px; display: flex; flex-direction: column; justify-content: flex-start;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; border-bottom: 1px solid ${needsConfirm ? 'rgba(239, 68, 68, 0.35)' : '#1e2638'}; padding-bottom: 8px;">
+            <span style="font-size: 11px; font-weight: 800; color: ${needsConfirm ? '#fca5a5' : '#94a3b8'}; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px; white-space: nowrap;">
               <span>${needsConfirm ? '🚨' : '🛡️'}</span> Approval Blockers
             </span>
-            <span style="font-size: 10px; font-weight: 700; background: ${needsConfirm ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.15)'}; color: ${needsConfirm ? '#fca5a5' : '#34d399'}; border: 1px solid ${needsConfirm ? '#ef4444' : '#10b981'}; padding: 1px 6px; border-radius: 4px;">
+            <span style="font-size: 10px; font-weight: 700; white-space: nowrap; background: ${needsConfirm ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.15)'}; color: ${needsConfirm ? '#fca5a5' : '#34d399'}; border: 1px solid ${needsConfirm ? '#ef4444' : '#10b981'}; padding: 1px 6px; border-radius: 4px;">
               ${needsConfirm ? 'Action Required' : 'Passed'}
             </span>
           </div>
-          <div style="margin-top: 2px;">
+          <div style="margin-top: 2px; min-width: 0;">
             <div style="font-size: 16px; font-weight: 800; color: ${needsConfirm ? '#f87171' : '#34d399'};">
               ${needsConfirm ? 'Confirmation Required' : '✓ Clear'}
             </div>
             ${needsConfirm ? `
-              <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px; max-height: 76px; overflow-y: auto;">
+              <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px; max-height: 76px; overflow-y: auto; min-width: 0;">
                 ${blockers.map(b => `
-                  <div style="font-size: 11px; color: #fecaca; line-height: 1.35; font-family: monospace; white-space: pre-line; background: rgba(127, 29, 29, 0.35); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 4px; padding: 3px 6px;">
+                  <div style="font-size: 11px; color: #fecaca; line-height: 1.35; font-family: monospace; white-space: pre-line; overflow-wrap: anywhere; word-break: break-word; background: rgba(127, 29, 29, 0.35); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 4px; padding: 3px 6px;">
                     <strong style="color: #fef2f2;">${escapeHtml(b.epic || repo.name || 'Epic')}</strong>${b.stage ? ` <span style="color: #fca5a5;">[${escapeHtml(b.stage)}]</span>` : ''}: ${escapeHtml(b.reason || 'Confirmation required')}
                   </div>
                 `).join('')}
@@ -4383,8 +5542,8 @@ Loading evidence data...
               </div>
             `}
             ${notices.length > 0 ? `
-              <div id="repo-notices-${escapeHtml(repo.name)}" style="display: flex; flex-direction: column; gap: 3px; margin-top: 6px;">
-                ${notices.map(n => `<div style="font-size: 10px; color: #fcd34d; font-family: monospace; line-height: 1.35;">ℹ ${escapeHtml(n)}</div>`).join('')}
+              <div id="repo-notices-${escapeHtml(repo.name)}" style="display: flex; flex-direction: column; gap: 3px; margin-top: 6px; min-width: 0;">
+                ${notices.map(n => `<div style="font-size: 10px; color: #fcd34d; font-family: monospace; line-height: 1.35; overflow-wrap: anywhere; word-break: break-word;">ℹ ${escapeHtml(n)}</div>`).join('')}
               </div>
             ` : ''}
           </div>
@@ -4487,6 +5646,16 @@ Loading evidence data...
 
       const repo = (currentReposData || []).find(r => r.name === repoName);
       if (!repo) {
+        if (!repoName && hasExplicitTrackedProjects && FOCUSED_REPOS.length === 0) {
+          container.innerHTML = `
+            <div class="repo-card" style="text-align: center; color: #94a3b8; padding: 48px 24px; display: flex; flex-direction: column; align-items: center; gap: 12px;">
+              <div style="font-size: 15px; font-weight: 700; color: #e2e8f0;">No projects tracked yet</div>
+              <div style="font-size: 12px; color: #94a3b8;">Add a local Git repository folder to start tracking epics, Kanban boards, and execution status.</div>
+              <button type="button" onclick="openAddProjectModal()" class="btn-action-primary" style="margin-top: 4px;">＋ Add Project</button>
+            </div>
+          `;
+          return;
+        }
         container.innerHTML = `<div class="repo-card" style="text-align: center; color: #94a3b8; padding: 40px;">Loading details for ${escapeHtml(repoName)}...</div>`;
         return;
       }
@@ -4535,13 +5704,19 @@ Loading evidence data...
           }
         }
 
-        // 2b. Persona bindings, checkpoint status & agy profile pool (Checked by signature)
+        // 2b. Persona bindings, checkpoint status & agy profile pool (Checked by signature, deferred while priority select has focus)
         const orchestrationPanel = document.getElementById('orchestration-panel-' + repo.name);
         if (orchestrationPanel) {
           const orchestrationSig = buildOrchestrationSig(repo);
           if (orchestrationPanel.dataset.sig !== orchestrationSig) {
-            orchestrationPanel.innerHTML = renderOrchestrationPanel(repo);
-            orchestrationPanel.dataset.sig = orchestrationSig;
+            if (isOrchestrationSelectFocused(orchestrationPanel)) {
+              pendingOrchestrationRenderRepos[repo.name] = repo;
+              bindOrchestrationSelectFocusGuard(document.activeElement, repo.name);
+            } else {
+              delete pendingOrchestrationRenderRepos[repo.name];
+              orchestrationPanel.innerHTML = renderOrchestrationPanel(repo);
+              orchestrationPanel.dataset.sig = orchestrationSig;
+            }
           }
         }
 
@@ -4599,9 +5774,10 @@ Loading evidence data...
 
       // Initial Mount or Tab Switch: Render Complete Shell
       delete pendingRoadmapRenderRepos[repo.name];
+      delete pendingOrchestrationRenderRepos[repo.name];
       const scrollSnapshot = isSwitchingRepo ? null : captureAllScrollPositions(container, true);
 
-      const theme = REPO_THEMES[repoName] || { color: '#38bdf8', icon: '📦', name: repoName, border: '#0284c7' };
+      const theme = getRepoTheme(repoName, repo);
       const color = repo.theme_color || theme.color;
       const activeEpic = repo.active_epic || '';
       const accountId = repo.account_id || 'danhdue';
@@ -4683,8 +5859,8 @@ Loading evidence data...
               ${renderKanbanDashboard(repo, selectedEpicFilter)}
             </div>
 
-            <!-- EPICS OVERVIEW (4 STATUSES) & APPROVAL BLOCKERS -->
-            <div id="epics-overview-counts-${escapeHtml(repo.name)}" data-sig="${escapeHtml(initOverviewSig)}" style="display: grid; grid-template-columns: 2.6fr 1.2fr; gap: 14px; margin-bottom: 18px;">
+            <!-- EPICS OVERVIEW (5 STATUSES) & APPROVAL BLOCKERS -->
+            <div id="epics-overview-counts-${escapeHtml(repo.name)}" class="epics-overview-grid" data-sig="${escapeHtml(initOverviewSig)}" style="display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 14px; margin-bottom: 18px; align-items: stretch;">
               ${renderEpicsOverviewAndApprovalGate(repo)}
             </div>
 
@@ -6077,21 +7253,54 @@ let currentReviewRepo = null;
       });
     }
 
-    function fetchTasks() {
-      return fetch(getApiUrl('/api/tasks'))
+    let activeFetchTasksPromise = null;
+
+    function fetchTasks(options) {
+      const opts = options && typeof options === 'object' ? options : {};
+      const focusRepo = typeof opts.focusRepo === 'string' ? opts.focusRepo.trim() : '';
+      if (!focusRepo && activeFetchTasksPromise) {
+        return activeFetchTasksPromise;
+      }
+      const fetchInit = focusRepo ? { headers: { 'X-Focus-Repo': focusRepo } } : undefined;
+      const reqPromise = (fetchInit ? fetch(getApiUrl('/api/tasks'), fetchInit) : fetch(getApiUrl('/api/tasks')))
         .then(res => res.json())
         .then(data => {
-          if (!data) return;
+          if (!data) return false;
           if (data && data.available_profiles && Array.isArray(data.available_profiles)) {
             updateAvailableProfiles(data.available_profiles);
           }
-          const allRepos = data.repos || [];
-          const focused = allRepos.filter(r => FOCUSED_REPOS.includes(r.name));
-          focused.sort((a, b) => FOCUSED_REPOS.indexOf(a.name) - FOCUSED_REPOS.indexOf(b.name));
-          focused.forEach(r => applyPendingPicSelections(r));
+          const incomingRepos = Array.isArray(data.repos) ? data.repos : [];
+          const isPartial = Boolean(data.partial);
+          let allRepos = incomingRepos;
+          if (isPartial && Array.isArray(currentReposData) && currentReposData.length > 0) {
+            const byName = new Map();
+            currentReposData.forEach(r => { if (r && r.name) byName.set(r.name, r); });
+            incomingRepos.forEach(r => { if (r && r.name) byName.set(r.name, r); });
+            allRepos = Array.from(byName.values());
+          }
+
+          let focused;
+          if (Array.isArray(data.tracked_projects)) {
+            hasExplicitTrackedProjects = true;
+            FOCUSED_REPOS = data.tracked_projects
+              .map(p => (typeof p === 'string' ? p : (p && p.name ? String(p.name) : '')))
+              .filter(Boolean);
+            focused = FOCUSED_REPOS
+              .map(name => allRepos.find(r => r.name === name))
+              .filter(Boolean);
+          } else {
+            hasExplicitTrackedProjects = false;
+            FOCUSED_REPOS = [...DEFAULT_FOCUSED_REPOS];
+            focused = allRepos.filter(r => FOCUSED_REPOS.includes(r.name));
+            focused.sort((a, b) => FOCUSED_REPOS.indexOf(a.name) - FOCUSED_REPOS.indexOf(b.name));
+          }
+          focused.forEach(r => {
+            applyPendingPicSelections(r);
+            applyPendingAgyPoolUpdates(r);
+          });
           currentReposData = focused;
 
-          // Recover activeFocusTab from localStorage or present focused repos before defaulting to D3Nexus
+          // Recover activeFocusTab from localStorage or present focused repos before defaulting
           const savedTab = localStorage.getItem('check_tasks_active_focus_tab');
           if (savedTab && focused.some(r => r.name === savedTab)) {
             activeFocusTab = savedTab;
@@ -6102,7 +7311,7 @@ let currentReviewRepo = null;
           } else if (savedTab && FOCUSED_REPOS.includes(savedTab)) {
             activeFocusTab = savedTab;
           } else if (!activeFocusTab || !FOCUSED_REPOS.includes(activeFocusTab)) {
-            activeFocusTab = 'D3Nexus';
+            activeFocusTab = FOCUSED_REPOS[0] || '';
           }
 
           renderSummary({ repos: currentReposData });
@@ -6116,10 +7325,18 @@ let currentReviewRepo = null;
             detailView.style.display = 'block';
             renderRepoDetailView(activeFocusTab);
           }
+          return isPartial;
         })
-        .catch(() => {
-          // Keep current state gracefully
+        .catch(() => false)
+        .finally(() => {
+          if (!focusRepo && activeFetchTasksPromise === reqPromise) {
+            activeFetchTasksPromise = null;
+          }
         });
+      if (!focusRepo) {
+        activeFetchTasksPromise = reqPromise;
+      }
+      return reqPromise;
     }
 
     function refreshDashboard() {
@@ -6167,7 +7384,9 @@ let currentReviewRepo = null;
       initRepoNotes();
       initDragAndDrop();
       initModalClickOutside();
+      initRepoTabBarLongPress();
       ensureKanbanHorizontalWheelBridge();
+      setInterval(updateAgyQuotaCountdowns, 30000);
       // 1. Fetch from tasks server
       fetch(getApiUrl('/api/profiles'))
         .then(res => res.json())
@@ -6187,7 +7406,15 @@ let currentReviewRepo = null;
           }
         })
         .catch(() => {});
-      pollDashboard();
+      if (activeFocusTab) {
+        fetchTasks({ focusRepo: activeFocusTab }).then(wasPartial => {
+          if (wasPartial) {
+            fetchTasks();
+          }
+        });
+      } else {
+        pollDashboard();
+      }
       setInterval(pollDashboard, 5000);
     }
 

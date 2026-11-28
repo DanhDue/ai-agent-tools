@@ -19,7 +19,9 @@ from datetime import datetime, timezone
 import hashlib
 import http.server
 import importlib
+import importlib.util
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -44,11 +46,19 @@ if str(SCRIPT_DIR) not in sys.path:
 try:
     from check_tasks import (
         DashboardGraph,
+        add_tracked_project,
+        build_initial_tracked_projects,
         design_spec_paths,
         discover_antigravity_profiles,
+        discover_untracked_workspace_repos,
         epic_doc_path,
         harvest_dashboard_graph,
         harvest_epic_history,
+        load_tracked_projects,
+        remove_tracked_project,
+        resolve_projects_config_path,
+        resolve_tracked_repo_dir,
+        scan_repo,
     )
 except ImportError:
     pass
@@ -57,6 +67,7 @@ DEFAULT_PORT = 8766
 DEFAULT_QUOTA_PORT = 8765
 DEFAULT_PID_FILE = Path("/tmp/agy_tasks_server.pid")
 _STATE_ENVELOPE_MOD: Any | None = None
+_AGY_PROFILE_POOL_MOD: Any | None = None
 
 
 def _load_state_envelope() -> Any | None:
@@ -75,6 +86,107 @@ def _load_state_envelope() -> Any | None:
             except Exception:
                 return None
     return None
+
+
+def _load_agy_profile_pool() -> Any:
+    """Lazily load shared `scripts/agy_profile_pool.py` via check_tasks loader or kit path."""
+    global _AGY_PROFILE_POOL_MOD
+    if _AGY_PROFILE_POOL_MOD is not None:
+        return _AGY_PROFILE_POOL_MOD
+    with contextlib.suppress(Exception):
+        from check_tasks import _AGY_POOL_REL, _load_kit_module
+
+        _AGY_PROFILE_POOL_MOD = _load_kit_module("agy_profile_pool", *_AGY_POOL_REL)
+        return _AGY_PROFILE_POOL_MOD
+    for parent in [SCRIPT_DIR, *SCRIPT_DIR.parents]:
+        candidate = parent / "scripts" / "agy_profile_pool.py"
+        if not candidate.is_file():
+            continue
+        spec = importlib.util.spec_from_file_location("agy_profile_pool", str(candidate))
+        if spec is None or spec.loader is None:
+            continue
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["agy_profile_pool"] = module
+        spec.loader.exec_module(module)
+        _AGY_PROFILE_POOL_MOD = module
+        return module
+    raise RuntimeError("agy_profile_pool module unavailable")
+
+
+def _parse_int_field(raw: Any, field_name: str, *, min_value: int) -> int:
+    if type(raw) is int:
+        parsed = raw
+    elif isinstance(raw, str) and raw.strip().isdigit():
+        parsed = int(raw.strip())
+    else:
+        raise ValueError(f"{field_name} must be an integer >= {min_value}")
+    if parsed < min_value:
+        raise ValueError(f"{field_name} must be >= {min_value}")
+    return parsed
+
+
+def update_agy_profile_settings(
+    profile: str,
+    *,
+    priority: Any = None,
+    max_concurrent: Any = None,
+    real_home: Path | str | None = None,
+) -> dict[str, Any]:
+    """Update a pool profile's priority and/or max_concurrent in agy_profiles.json safely under lock."""
+    clean_profile = str(profile or "").strip()
+    if not clean_profile:
+        raise ValueError("Missing required field: profile")
+    if priority is None and max_concurrent is None:
+        raise ValueError("Specify at least one of: priority, max_concurrent")
+
+    parsed_priority = (
+        _parse_int_field(priority, "priority", min_value=1)
+        if priority is not None
+        else None
+    )
+    parsed_max_concurrent = (
+        _parse_int_field(max_concurrent, "max_concurrent", min_value=0)
+        if max_concurrent is not None
+        else None
+    )
+
+    pool_mod = _load_agy_profile_pool()
+    try:
+        updated_cfg = pool_mod.update_profile(
+            clean_profile,
+            priority=parsed_priority,
+            max_concurrent=parsed_max_concurrent,
+            real_home=real_home,
+        )
+    except pool_mod.AgyPoolError as exc:
+        raise ValueError(str(exc)) from exc
+
+    pool_list = updated_cfg.get("pool", [])
+    updated_entry = next(
+        (entry for entry in pool_list if entry.get("profile") == clean_profile),
+        {},
+    )
+    return {
+        "status": "ok",
+        "profile": clean_profile,
+        "priority": updated_entry.get("priority", parsed_priority),
+        "max_concurrent": updated_entry.get("max_concurrent", parsed_max_concurrent),
+        "pool": pool_list,
+    }
+
+
+def update_agy_profile_priority(
+    profile: str,
+    priority: Any,
+    *,
+    real_home: Path | str | None = None,
+) -> dict[str, Any]:
+    """Update a pool profile's dispatch priority in global agy_profiles.json safely under lock."""
+    return update_agy_profile_settings(
+        profile,
+        priority=priority,
+        real_home=real_home,
+    )
 
 
 def _assert_contained(path: Path, boundary: Path, label: str) -> Path:
@@ -1502,6 +1614,178 @@ def _cleanup_epic_worktrees_if_clean(
     return result
 
 
+_ACTIVE_FOLDER_PICKER_LOCK = threading.Lock()
+_ACTIVE_FOLDER_PICKER_PROC: subprocess.Popen[str] | None = None
+_ACTIVE_FOLDER_PICKER_CANCELLED: set[int] = set()
+
+
+def _parse_window_bounds(raw: Any) -> dict[str, float] | None:
+    """Validate optional browser windowBounds payload ({x, y, width, height})."""
+    if not isinstance(raw, dict):
+        return None
+    parsed: dict[str, float] = {}
+    for key in ("x", "y", "width", "height"):
+        val = raw.get(key)
+        if isinstance(val, bool) or not isinstance(val, (int, float)):
+            return None
+        fval = float(val)
+        if not math.isfinite(fval):
+            return None
+        parsed[key] = fval
+    if parsed["width"] <= 0 or parsed["height"] <= 0:
+        return None
+    return parsed
+
+
+def cancel_active_folder_picker() -> bool:
+    """Terminate any currently open macOS folder picker subprocess."""
+    global _ACTIVE_FOLDER_PICKER_PROC
+    with _ACTIVE_FOLDER_PICKER_LOCK:
+        proc = _ACTIVE_FOLDER_PICKER_PROC
+        if proc is None:
+            return False
+        _ACTIVE_FOLDER_PICKER_CANCELLED.add(id(proc))
+        _ACTIVE_FOLDER_PICKER_PROC = None
+    if proc.poll() is not None:
+        return False
+    with contextlib.suppress(Exception):
+        proc.terminate()
+    try:
+        proc.wait(timeout=0.5)
+    except subprocess.TimeoutExpired:
+        with contextlib.suppress(Exception):
+            proc.kill()
+        with contextlib.suppress(Exception):
+            proc.wait(timeout=0.5)
+    return True
+
+
+def pick_folder_macos(
+    prompt: str = "Select Git Repository Folder to Track",
+    *,
+    default_dir: Path | str | None = None,
+    window_bounds: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Open the native macOS NSOpenPanel folder chooser directly via JXA (fast, foreground)."""
+    global _ACTIVE_FOLDER_PICKER_PROC
+    if sys.platform != "darwin":
+        return {
+            "status": "error",
+            "error": "Native Finder folder picker is only supported on macOS. Enter the folder path manually.",
+        }
+    default_path_str = ""
+    if default_dir is not None:
+        cand = Path(default_dir).expanduser()
+        if cand.is_dir():
+            default_path_str = str(cand.resolve())
+
+    bounds = _parse_window_bounds(window_bounds)
+    prompt_js = json.dumps(prompt)
+    default_dir_js = json.dumps(default_path_str)
+    bounds_js = json.dumps(bounds)
+    jxa_script = (
+        'ObjC.import("AppKit");\n'
+        "const app = $.NSApplication.sharedApplication;\n"
+        "app.setActivationPolicy($.NSApplicationActivationPolicyAccessory);\n"
+        "const panel = $.NSOpenPanel.openPanel;\n"
+        "panel.canChooseDirectories = true;\n"
+        "panel.canChooseFiles = false;\n"
+        "panel.allowsMultipleSelection = false;\n"
+        "panel.canCreateDirectories = false;\n"
+        'panel.prompt = "Select";\n'
+        f"panel.message = {prompt_js};\n"
+        f"const defaultDir = {default_dir_js};\n"
+        f"const winBounds = {bounds_js};\n"
+        "if (defaultDir) { panel.directoryURL = $.NSURL.fileURLWithPath(defaultDir); }\n"
+        "panel.center;\n"
+        "const screens = $.NSScreen.screens;\n"
+        "const screenCount = Number(screens.count);\n"
+        "let anchorX = null;\n"
+        "let anchorY = null;\n"
+        "if (winBounds && screenCount > 0) {\n"
+        "  const primaryFrame = screens.objectAtIndex(0).frame;\n"
+        "  const primaryTop = primaryFrame.origin.y + primaryFrame.size.height;\n"
+        "  anchorX = winBounds.x + winBounds.width / 2;\n"
+        "  anchorY = primaryTop - (winBounds.y + winBounds.height / 2);\n"
+        "}\n"
+        "const lookupPt = anchorX !== null && anchorY !== null ? { x: anchorX, y: anchorY } : $.NSEvent.mouseLocation;\n"
+        "let targetFrame = null;\n"
+        "for (let i = 0; i < screenCount; i++) {\n"
+        "  const scr = screens.objectAtIndex(i);\n"
+        "  const sf = scr.frame;\n"
+        "  if (lookupPt.x >= sf.origin.x && lookupPt.x <= sf.origin.x + sf.size.width && "
+        "lookupPt.y >= sf.origin.y && lookupPt.y <= sf.origin.y + sf.size.height) {\n"
+        "    targetFrame = scr.visibleFrame;\n"
+        "    break;\n"
+        "  }\n"
+        "}\n"
+        "if (!targetFrame && screenCount > 0) { targetFrame = screens.objectAtIndex(0).visibleFrame; }\n"
+        "if (targetFrame) {\n"
+        "  const pf = panel.frame;\n"
+        "  let cx = anchorX !== null ? Math.round(anchorX - pf.size.width / 2) : Math.round(targetFrame.origin.x + (targetFrame.size.width - pf.size.width) / 2);\n"
+        "  let cy = anchorY !== null ? Math.round(anchorY - pf.size.height / 2) : Math.round(targetFrame.origin.y + (targetFrame.size.height - pf.size.height) / 2);\n"
+        "  const maxX = Math.round(targetFrame.origin.x + targetFrame.size.width - pf.size.width);\n"
+        "  const maxY = Math.round(targetFrame.origin.y + targetFrame.size.height - pf.size.height);\n"
+        "  if (maxX >= targetFrame.origin.x) { cx = Math.max(Math.round(targetFrame.origin.x), Math.min(cx, maxX)); }\n"
+        "  if (maxY >= targetFrame.origin.y) { cy = Math.max(Math.round(targetFrame.origin.y), Math.min(cy, maxY)); }\n"
+        "  panel.setFrameOrigin($.NSMakePoint(cx, cy));\n"
+        "}\n"
+        "app.activateIgnoringOtherApps(true);\n"
+        "panel.orderFrontRegardless;\n"
+        "const resp = Number(panel.runModal);\n"
+        'resp === Number($.NSModalResponseOK) && panel.URL && !panel.URL.isNil() ? ObjC.unwrap(panel.URL.path) : "";\n'
+    )
+    cancel_active_folder_picker()
+    proc: subprocess.Popen[str] | None = None
+    try:
+        proc = subprocess.Popen(
+            ["osascript", "-l", "JavaScript", "-e", jxa_script],
+            env=build_clean_host_env(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        with _ACTIVE_FOLDER_PICKER_LOCK:
+            _ACTIVE_FOLDER_PICKER_PROC = proc
+        stdout_text, stderr_text_raw = proc.communicate(timeout=120)
+    except subprocess.TimeoutExpired:
+        if proc is not None:
+            with contextlib.suppress(Exception):
+                proc.kill()
+            with contextlib.suppress(Exception):
+                proc.communicate(timeout=2)
+        return {"status": "cancelled", "error": "Folder picker timed out."}
+    except Exception as exc:
+        return {"status": "error", "error": str(exc)}
+    finally:
+        was_cancelled = False
+        if proc is not None:
+            with _ACTIVE_FOLDER_PICKER_LOCK:
+                if _ACTIVE_FOLDER_PICKER_PROC is proc:
+                    _ACTIVE_FOLDER_PICKER_PROC = None
+                was_cancelled = id(proc) in _ACTIVE_FOLDER_PICKER_CANCELLED
+                _ACTIVE_FOLDER_PICKER_CANCELLED.discard(id(proc))
+
+    if was_cancelled:
+        return {"status": "cancelled"}
+
+    if proc.returncode != 0:
+        stderr_text = (stderr_text_raw or "").strip()
+        if "-128" in stderr_text or "user canceled" in stderr_text.lower():
+            return {"status": "cancelled"}
+        return {
+            "status": "error",
+            "error": stderr_text or "Failed to open Finder folder picker.",
+        }
+
+    chosen = (stdout_text or "").strip()
+    if len(chosen) > 1 and chosen.endswith("/"):
+        chosen = chosen.rstrip("/")
+    if not chosen:
+        return {"status": "cancelled"}
+    return {"status": "ok", "path": chosen}
+
+
 def set_epic_execution_state_for_repo(
     workspace_root: Path,
     repo_name: str,
@@ -1510,6 +1794,7 @@ def set_epic_execution_state_for_repo(
     reason: str = "",
     *,
     remove_worktree: bool = False,
+    projects_config_path: Path | None = None,
 ) -> dict[str, Any]:
     """Validate and persist an epic's UI execution state (`doing`, `pending`, or `cancelled`)."""
     if not isinstance(epic_slug, str) or not _EPIC_SLUG_RE.fullmatch(epic_slug):
@@ -1531,10 +1816,13 @@ def set_epic_execution_state_for_repo(
     if norm_state in ("pending", "cancelled") and not clean_reason:
         raise ValueError(f"Reason is required when setting epic state to '{norm_state}'")
 
-    ws_resolved = workspace_root.resolve()
-    repo_path = (ws_resolved / repo_name).resolve()
+    candidate_path, boundary_root = resolve_tracked_repo_dir(
+        workspace_root, repo_name, config_path=projects_config_path
+    )
+    repo_path = candidate_path.resolve()
+    bound_resolved = boundary_root.resolve()
     try:
-        repo_path.relative_to(ws_resolved)
+        repo_path.relative_to(bound_resolved)
     except ValueError as exc:
         raise ValueError(f"Repository path escapes workspace root: {repo_name!r}") from exc
     if not repo_path.is_dir():
@@ -1573,6 +1861,8 @@ def assign_epic_pic(
     repo_name: str,
     epic_slug: str,
     new_pic: str,
+    *,
+    projects_config_path: Path | None = None,
 ) -> dict[str, Any]:
     """Validate and atomically synchronize PIC across root and all matching worktree checkouts."""
     if not isinstance(new_pic, str) or not _PIC_NAME_RE.fullmatch(new_pic):
@@ -1588,11 +1878,14 @@ def assign_epic_pic(
     ):
         raise ValueError(f"Invalid repository name: {repo_name!r}")
 
-    ws_resolved = workspace_root.resolve()
-    repo_dir = _assert_contained(
-        workspace_root / repo_name, ws_resolved, f"Repository {repo_name!r}"
+    candidate_path, boundary_root = resolve_tracked_repo_dir(
+        workspace_root, repo_name, config_path=projects_config_path
     )
-    if repo_dir == ws_resolved:
+    ws_resolved = boundary_root.resolve()
+    repo_dir = _assert_contained(
+        candidate_path, ws_resolved, f"Repository {repo_name!r}"
+    )
+    if ws_resolved == workspace_root.resolve() and repo_dir == ws_resolved:
         raise ValueError(f"Repository path escapes workspace boundary: {repo_name!r}")
     if not repo_dir.is_dir():
         return {"status": "error", "error": f"Repository '{repo_name}' not found"}
@@ -1921,23 +2214,27 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Focus-Repo")
         self.end_headers()
 
     def _resolve_repo_for_query(
         self, repo_name: str
     ) -> tuple[Path | None, tuple[int, str] | None]:
-        """Validate `repo` query param syntax and workspace containment boundary."""
+        """Validate `repo` query param syntax and containment boundary (supporting tracked external repos)."""
         if not repo_name:
             return None, (400, "Missing required 'repo' query parameter.")
         if repo_name in (".", "..") or "/" in repo_name or "\\" in repo_name:
             return None, (400, f"Invalid repository name: {repo_name}")
         ws_root = self.server.workspace_root
+        cfg_path = getattr(self.server, "projects_config_path", None)
+        candidate, boundary = resolve_tracked_repo_dir(
+            ws_root, repo_name, config_path=cfg_path
+        )
         try:
-            resolved_repo = _assert_contained(ws_root / repo_name, ws_root, "repo")
+            resolved_repo = _assert_contained(candidate, boundary, "repo")
         except ValueError as exc:
             return None, (400, str(exc))
-        if resolved_repo == ws_root.resolve():
+        if boundary.resolve() == ws_root.resolve() and resolved_repo == ws_root.resolve():
             return None, (400, f"Invalid repository name: {repo_name}")
         return resolved_repo, None
 
@@ -2084,8 +2381,50 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
         path = parsed.path
 
         if path == "/api/tasks":
-            graph = harvest_dashboard_graph(self.server.workspace_root)
-            self._send_json(200, sanitize_paths_to_tilde(graph))
+            query = urllib.parse.parse_qs(parsed.query)
+            focus_repo = (
+                query.get("repo", [""])[0].strip()
+                or str(self.headers.get("X-Focus-Repo") or "").strip()
+            )
+            if focus_repo:
+                payload = self.server.get_focus_repo_tasks_payload(focus_repo)
+            else:
+                payload = self.server.get_coalesced_tasks_payload()
+            self._send_json(200, payload)
+            return
+
+        if path == "/api/projects":
+            cfg_path = getattr(self.server, "projects_config_path", None)
+            tracked = load_tracked_projects(self.server.workspace_root, cfg_path)
+            config_exists = tracked is not None
+            effective_projects = (
+                tracked
+                if tracked is not None
+                else build_initial_tracked_projects(self.server.workspace_root)
+            )
+            suggestions = discover_untracked_workspace_repos(
+                self.server.workspace_root, effective_projects
+            )
+            projects_payload = [
+                {
+                    "name": p["name"],
+                    "path": p["path"],
+                    "exists": Path(p["path"]).is_dir(),
+                }
+                for p in effective_projects
+            ]
+            self._send_json(
+                200,
+                sanitize_paths_to_tilde(
+                    {
+                        "status": "ok",
+                        "config_exists": config_exists,
+                        "workspace_root": str(self.server.workspace_root.resolve()),
+                        "projects": projects_payload,
+                        "suggestions": suggestions,
+                    }
+                ),
+            )
             return
 
         if path == "/api/epic/history":
@@ -2095,7 +2434,11 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
         if path == "/api/review":
             query = urllib.parse.parse_qs(parsed.query)
             repo_name = query.get("repo", [""])[0]
-            repo_dir = self.server.workspace_root / repo_name
+            repo_dir, repo_err = self._resolve_repo_for_query(repo_name)
+            if repo_err is not None or repo_dir is None:
+                status_code, msg = repo_err or (400, "Invalid repository")
+                self._send_json(status_code, {"success": False, "error": msg})
+                return
             active_epic = query.get("epic", [None])[0]
             kind = query.get("kind", [None])[0]
             strict_epic = query.get("strict", [""])[0].strip().lower() in (
@@ -2191,6 +2534,115 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
         except Exception:
             payload = {}
 
+        if path == "/api/projects/browse/cancel":
+            cancelled = cancel_active_folder_picker()
+            with contextlib.suppress(BrokenPipeError, ConnectionResetError):
+                self._send_json(200, {"status": "ok", "cancelled": cancelled})
+            return
+
+        if path == "/api/projects/browse":
+            prompt = str(
+                payload.get("prompt") or "Select Git Repository Folder to Track"
+            )
+            window_bounds = _parse_window_bounds(payload.get("windowBounds"))
+            result = pick_folder_macos(
+                prompt,
+                default_dir=self.server.workspace_root,
+                window_bounds=window_bounds,
+            )
+            status_code = 200 if result.get("status") in ("ok", "cancelled") else 500
+            with contextlib.suppress(BrokenPipeError, ConnectionResetError):
+                self._send_json(status_code, sanitize_paths_to_tilde(result))
+            return
+
+        if path == "/api/projects/add":
+            raw_path = str(payload.get("path") or "").strip()
+            raw_index = payload.get("index")
+            idx_val: int | None = None
+            if isinstance(raw_index, int) and not isinstance(raw_index, bool):
+                idx_val = raw_index
+            cfg_path = getattr(self.server, "projects_config_path", None)
+            try:
+                result = add_tracked_project(
+                    self.server.workspace_root,
+                    raw_path,
+                    config_path=cfg_path,
+                    index=idx_val,
+                )
+            except ValueError as exc:
+                msg = str(exc)
+                code = 409 if "already tracked" in msg.lower() else 400
+                self._send_json(code, {"status": "error", "error": msg})
+                return
+            self.server.invalidate_warmup_cache()
+            self._send_json(200, sanitize_paths_to_tilde(result))
+            return
+
+        if path == "/api/projects/remove":
+            repo_name = str(payload.get("name") or "").strip()
+            raw_path = str(payload.get("path") or "").strip()
+            cfg_path = getattr(self.server, "projects_config_path", None)
+            try:
+                result = remove_tracked_project(
+                    self.server.workspace_root,
+                    name=repo_name,
+                    path=raw_path,
+                    config_path=cfg_path,
+                )
+            except ValueError as exc:
+                msg = str(exc)
+                code = 404 if "not found" in msg.lower() else 400
+                self._send_json(code, {"status": "error", "error": msg})
+                return
+            self.server.invalidate_warmup_cache()
+            self._send_json(200, sanitize_paths_to_tilde(result))
+            return
+
+        if path in ("/api/agy-pool/priority", "/api/agy-pool/settings"):
+            profile_name = str(payload.get("profile") or "").strip()
+            raw_priority = payload.get("priority")
+            raw_max_concurrent = payload.get("max_concurrent")
+            if path == "/api/agy-pool/priority" and (
+                not profile_name or raw_priority is None
+            ):
+                self._send_json(
+                    400,
+                    {
+                        "status": "error",
+                        "error": "Missing required fields: profile, priority",
+                    },
+                )
+                return
+            if not profile_name or (
+                raw_priority is None and raw_max_concurrent is None
+            ):
+                self._send_json(
+                    400,
+                    {
+                        "status": "error",
+                        "error": "Missing required fields: profile and priority or max_concurrent",
+                    },
+                )
+                return
+            try:
+                result = update_agy_profile_settings(
+                    profile_name,
+                    priority=raw_priority,
+                    max_concurrent=raw_max_concurrent,
+                    real_home=getattr(self.server, "agy_pool_real_home", None),
+                )
+            except ValueError as exc:
+                msg = str(exc)
+                code = 404 if "not in the pool" in msg.lower() else 400
+                self._send_json(code, {"status": "error", "error": msg})
+                return
+            except RuntimeError as exc:
+                self._send_json(500, {"status": "error", "error": str(exc)})
+                return
+            self.server.invalidate_warmup_cache()
+            self._send_json(200, result)
+            return
+
         if path == "/api/epic/execution-state":
             repo_name = payload.get("repo", "")
             epic_slug = payload.get("epic", "")
@@ -2216,6 +2668,9 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
                     state,
                     reason=reason,
                     remove_worktree=remove_worktree,
+                    projects_config_path=getattr(
+                        self.server, "projects_config_path", None
+                    ),
                 )
             except (ValueError, RuntimeError) as exc:
                 self._send_json(400, {"status": "error", "error": str(exc)})
@@ -2241,7 +2696,13 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
 
             try:
                 result = assign_epic_pic(
-                    self.server.workspace_root, repo_name, epic_slug, pic
+                    self.server.workspace_root,
+                    repo_name,
+                    epic_slug,
+                    pic,
+                    projects_config_path=getattr(
+                        self.server, "projects_config_path", None
+                    ),
                 )
             except ValueError as exc:
                 self._send_json(400, {"status": "error", "error": str(exc)})
@@ -2339,12 +2800,151 @@ class TasksServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
         port: int = DEFAULT_PORT,
         workspace_root: Path | None = None,
         pid_file: Path = DEFAULT_PID_FILE,
+        projects_config_path: Path | None = None,
+        warmup_on_start: bool = False,
+        agy_pool_real_home: Path | None = None,
     ) -> None:
         self.workspace_root = workspace_root or Path(get_real_home()) / "AllProjects"
+        self.projects_config_path = resolve_projects_config_path(
+            self.workspace_root, projects_config_path
+        )
+        self.agy_pool_real_home = agy_pool_real_home
         self.pid_file = pid_file
         self.code_fingerprint = compute_server_code_fingerprint()
+        self.warmup_on_start = warmup_on_start
+        self._tasks_inflight_lock = threading.Lock()
+        self._tasks_inflight_event: threading.Event | None = None
+        self._tasks_inflight_result: Any = None
+        self._tasks_inflight_error: BaseException | None = None
+        self._warmup_payload: Any = None
+        self._warmup_expires_at: float = 0.0
         available_port = find_available_port(port)
         super().__init__((host, available_port), TasksHandler)
+
+    def invalidate_warmup_cache(self) -> None:
+        """Clear any startup warmup snapshot immediately after a mutating API call."""
+        with self._tasks_inflight_lock:
+            self._warmup_payload = None
+            self._warmup_expires_at = 0.0
+
+    def get_focus_repo_tasks_payload(self, repo_name: str) -> Any:
+        """Fast single-repo cold-start scan for the active tab, triggering background full warmup."""
+        with self._tasks_inflight_lock:
+            if (
+                self._warmup_payload is not None
+                and time.monotonic() < self._warmup_expires_at
+            ):
+                cached = self._warmup_payload
+                self._warmup_payload = None
+                self._warmup_expires_at = 0.0
+                return cached
+
+        clean_name = str(repo_name or "").strip()
+        if (
+            not clean_name
+            or clean_name in (".", "..")
+            or "/" in clean_name
+            or "\\" in clean_name
+        ):
+            return self.get_coalesced_tasks_payload()
+
+        candidate, boundary = resolve_tracked_repo_dir(
+            self.workspace_root, clean_name, config_path=self.projects_config_path
+        )
+        try:
+            resolved_repo = _assert_contained(candidate, boundary, "repo")
+        except ValueError:
+            return self.get_coalesced_tasks_payload()
+        if not resolved_repo.is_dir() or not (
+            (resolved_repo / ".git").exists() or (resolved_repo / ".devtool").is_dir()
+        ):
+            return self.get_coalesced_tasks_payload()
+
+        tracked = load_tracked_projects(self.workspace_root, self.projects_config_path)
+        if tracked is not None and not any(p["name"] == clean_name for p in tracked):
+            return self.get_coalesced_tasks_payload()
+
+        meta = scan_repo(resolved_repo)
+        meta.name = clean_name
+        total_tasks = meta.task_progress.total_tasks
+        total_done = meta.task_progress.done_tasks
+        dirty_wt = sum(1 for wt in meta.worktrees if wt.is_dirty)
+        graph = DashboardGraph(
+            workspace_root=str(self.workspace_root.resolve()),
+            scanned_at=datetime.now().isoformat(),
+            repos=[meta],
+            metrics_row={
+                "total_repos": len(tracked) if tracked is not None else 1,
+                "active_epics": 1 if meta.active_epic else 0,
+                "dirty_worktrees": dirty_wt,
+                "total_tasks": total_tasks,
+                "done_tasks": total_done,
+                "overall_percentage": round((total_done / total_tasks * 100), 1)
+                if total_tasks > 0
+                else 0.0,
+            },
+            available_profiles=discover_antigravity_profiles(),
+            tracked_projects=tracked,
+        )
+        payload = sanitize_paths_to_tilde(graph)
+        if isinstance(payload, dict):
+            payload["partial"] = True
+            payload["focus_repo"] = clean_name
+
+        # Warm the full multi-repo snapshot in background so the follow-up hydration is instant
+        if self.warmup_on_start:
+            threading.Thread(target=self._run_startup_warmup, daemon=True).start()
+        return payload
+
+    def get_coalesced_tasks_payload(self, *, store_warmup_ttl: float = 0.0) -> Any:
+        """Coalesce concurrent /api/tasks requests into a single in-flight harvest."""
+        with self._tasks_inflight_lock:
+            if (
+                store_warmup_ttl <= 0.0
+                and self._warmup_payload is not None
+                and time.monotonic() < self._warmup_expires_at
+            ):
+                cached = self._warmup_payload
+                self._warmup_payload = None
+                self._warmup_expires_at = 0.0
+                return cached
+            existing_event = self._tasks_inflight_event
+            if existing_event is None:
+                my_event = threading.Event()
+                self._tasks_inflight_event = my_event
+                self._tasks_inflight_result = None
+                self._tasks_inflight_error = None
+                is_leader = True
+            else:
+                my_event = existing_event
+                is_leader = False
+
+        if not is_leader:
+            my_event.wait()
+            if self._tasks_inflight_error is not None:
+                raise self._tasks_inflight_error
+            return self._tasks_inflight_result
+
+        try:
+            graph = harvest_dashboard_graph(
+                self.workspace_root,
+                projects_config_path=self.projects_config_path,
+            )
+            payload = sanitize_paths_to_tilde(graph)
+            with self._tasks_inflight_lock:
+                self._tasks_inflight_result = payload
+                if store_warmup_ttl > 0.0:
+                    self._warmup_payload = payload
+                    self._warmup_expires_at = time.monotonic() + store_warmup_ttl
+            return payload
+        except BaseException as exc:
+            self._tasks_inflight_error = exc
+            raise
+        finally:
+            with self._tasks_inflight_lock:
+                if self._tasks_inflight_event is my_event:
+                    self._tasks_inflight_event = None
+            my_event.set()
 
     def serve_forever(self, poll_interval: float = 0.5) -> None:
         meta_file = pid_meta_path(self.pid_file)
@@ -2370,11 +2970,20 @@ class TasksServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
                     ),
                     encoding="utf-8",
                 )
+            if self.warmup_on_start:
+                threading.Thread(
+                    target=self._run_startup_warmup,
+                    daemon=True,
+                ).start()
             super().serve_forever(poll_interval)
         finally:
             with contextlib.suppress(OSError):
                 self.pid_file.unlink(missing_ok=True)
                 meta_file.unlink(missing_ok=True)
+
+    def _run_startup_warmup(self) -> None:
+        with contextlib.suppress(Exception):
+            self.get_coalesced_tasks_payload(store_warmup_ttl=5.0)
 
     def server_close(self) -> None:
         with contextlib.suppress(OSError):
@@ -2383,35 +2992,107 @@ class TasksServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
         super().server_close()
 
 
-def stop_server(pid_file: Path = DEFAULT_PID_FILE) -> bool:
-    """Stop the running background server by sending SIGTERM (with SIGKILL fallback)."""
-    pid = get_running_pid(pid_file)
-    if not pid:
+def _terminate_pid(pid: int) -> bool:
+    """Terminate a local process by PID using SIGTERM with SIGKILL fallback."""
+    if pid <= 0 or pid == os.getpid():
         return False
-    meta_file = pid_meta_path(pid_file)
     try:
         os.kill(pid, signal.SIGTERM)
-        terminated = False
-        for _ in range(20):
-            threading.Event().wait(0.1)
-            try:
-                os.kill(pid, 0)
-            except OSError:
-                terminated = True
-                break
-        if not terminated:
-            with contextlib.suppress(OSError):
-                os.kill(pid, signal.SIGKILL)
-                threading.Event().wait(0.2)
-        with contextlib.suppress(OSError):
-            pid_file.unlink(missing_ok=True)
-            meta_file.unlink(missing_ok=True)
-        return True
     except OSError:
-        with contextlib.suppress(OSError):
-            pid_file.unlink(missing_ok=True)
-            meta_file.unlink(missing_ok=True)
         return False
+    terminated = False
+    for _ in range(20):
+        threading.Event().wait(0.1)
+        try:
+            os.kill(pid, 0)
+        except OSError:
+            terminated = True
+            break
+    if not terminated:
+        with contextlib.suppress(OSError):
+            os.kill(pid, signal.SIGKILL)
+            threading.Event().wait(0.2)
+    return True
+
+
+def probe_running_server_on_port(port: int) -> dict[str, Any] | None:
+    """Query /api/status on localhost:port; return status dict if a check-tasks daemon responds."""
+    with contextlib.suppress(OSError, ValueError, TimeoutError):
+        req = urllib.request.Request(f"http://127.0.0.1:{port}/api/status")
+        with urllib.request.urlopen(req, timeout=0.6) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode("utf-8"))
+                if (
+                    isinstance(data, dict)
+                    and data.get("status") == "running"
+                    and isinstance(data.get("pid"), int)
+                ):
+                    return data
+    return None
+
+
+def _is_status_payload_stale(
+    status_data: dict[str, Any],
+    expected_workspace: Path,
+    expected_fingerprint: str | None = None,
+) -> bool:
+    """Return True when a live /api/status response comes from older code or another workspace."""
+    expected_fp = expected_fingerprint or compute_server_code_fingerprint()
+    remote_fp = status_data.get("code_fingerprint")
+    if not remote_fp or remote_fp != expected_fp:
+        return True
+    remote_ws = str(status_data.get("workspace_root") or "").strip()
+    if remote_ws:
+        expanded = (
+            Path(get_real_home()) / remote_ws[2:]
+            if remote_ws.startswith("~/")
+            else (Path(get_real_home()) if remote_ws == "~" else Path(remote_ws))
+        )
+        with contextlib.suppress(OSError):
+            if expanded.resolve() != expected_workspace.resolve():
+                return True
+    return False
+
+
+def stop_server_on_port(port: int) -> bool:
+    """Stop an orphan check-tasks daemon listening on localhost:port even if its PID file is missing."""
+    info = probe_running_server_on_port(port)
+    if not info:
+        return False
+    remote_pid = int(info["pid"])
+    with contextlib.suppress(OSError, ValueError, TimeoutError):
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/shutdown",
+            data=b"{}",
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=0.8):
+            pass
+    for _ in range(10):
+        try:
+            os.kill(remote_pid, 0)
+        except OSError:
+            return True
+        threading.Event().wait(0.05)
+    return _terminate_pid(remote_pid)
+
+
+def stop_server(
+    pid_file: Path = DEFAULT_PID_FILE, port: int | None = None
+) -> bool:
+    """Stop the running background server by PID file and optionally reclaim an orphan on port."""
+    stopped = False
+    pid = get_running_pid(pid_file)
+    meta_file = pid_meta_path(pid_file)
+    if pid:
+        stopped = _terminate_pid(pid)
+    with contextlib.suppress(OSError):
+        pid_file.unlink(missing_ok=True)
+        meta_file.unlink(missing_ok=True)
+    if port is not None and stop_server_on_port(port):
+        stopped = True
+    return stopped
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -2445,8 +3126,9 @@ def main(argv: list[str] | None = None) -> int:
     pid_file = DEFAULT_PID_FILE
 
     if args.stop:
-        stopped = stop_server(pid_file)
-        if stopped:
+        stopped_pid = stop_server(pid_file)
+        stopped_port = stop_server_on_port(args.port)
+        if stopped_pid or stopped_port:
             print("Tasks server stopped.")
             return 0
         print("Tasks server is not running.")
@@ -2456,6 +3138,12 @@ def main(argv: list[str] | None = None) -> int:
         pid = get_running_pid(pid_file)
         if pid:
             print(f"Tasks server running (PID {pid}).")
+            return 0
+        port_info = probe_running_server_on_port(args.port)
+        if port_info:
+            print(
+                f"Tasks server running on port {args.port} (PID {port_info['pid']}, untracked PID file)."
+            )
             return 0
         print("Tasks server is stopped.")
         return 1
@@ -2467,9 +3155,31 @@ def main(argv: list[str] | None = None) -> int:
         ):
             print(f"Restarting stale tasks server (PID {existing_pid})...")
             stop_server(pid_file)
+            stop_server_on_port(args.port)
         else:
-            print(f"Tasks server already running (PID {existing_pid}).")
-            return 0
+            port_info = probe_running_server_on_port(args.port)
+            if port_info and int(port_info["pid"]) != existing_pid:
+                print(
+                    f"Reclaiming orphan tasks server on port {args.port} (PID {port_info['pid']})..."
+                )
+                stop_server(pid_file)
+                stop_server_on_port(args.port)
+            else:
+                print(f"Tasks server already running (PID {existing_pid}).")
+                return 0
+    else:
+        port_info = probe_running_server_on_port(args.port)
+        if port_info:
+            if args.restart or _is_status_payload_stale(port_info, args.workspace_root):
+                print(
+                    f"Reclaiming stale orphan tasks server on port {args.port} (PID {port_info['pid']})..."
+                )
+                stop_server_on_port(args.port)
+            else:
+                print(
+                    f"Tasks server already running on port {args.port} (PID {port_info['pid']})."
+                )
+                return 0
 
     if args.daemon:
         # Spawn child process in background
@@ -2499,6 +3209,7 @@ def main(argv: list[str] | None = None) -> int:
         port=args.port,
         workspace_root=args.workspace_root,
         pid_file=pid_file,
+        warmup_on_start=True,
     )
     print(f"Tasks server listening on http://127.0.0.1:{server.server_port}/")
     try:

@@ -374,6 +374,7 @@ class DashboardGraph:
     repos: list[RepoMetadata]
     metrics_row: dict[str, Any] = field(default_factory=dict)
     available_profiles: list[str] = field(default_factory=list)
+    tracked_projects: list[dict[str, str]] | None = None
 
 
 class LifecycleStage(str, Enum):
@@ -459,7 +460,7 @@ def extract_vscode_styling(repo_path: Path) -> tuple[str, str]:
 
 
 def scan_worktrees(repo_path: Path) -> list[WorktreeMetadata]:
-    """Discover all git worktrees and detect uncommitted modifications."""
+    """Discover all git worktrees and detect uncommitted modifications in parallel."""
     cache = getattr(_SCAN_CTX, "cache", None)
     cache_key = ("worktrees", str(repo_path))
     if isinstance(cache, dict) and cache_key in cache:
@@ -478,6 +479,7 @@ def scan_worktrees(repo_path: Path) -> list[WorktreeMetadata]:
             cache[cache_key] = worktrees
         return worktrees
 
+    parsed_entries: list[tuple[str, str | None, str, bool]] = []
     raw_blocks = proc.stdout.strip().split("\n\n")
     for block in raw_blocks:
         if not block.strip():
@@ -501,33 +503,57 @@ def scan_worktrees(repo_path: Path) -> list[WorktreeMetadata]:
 
         if not branch:
             is_detached = True
-
-        # Check dirty status
-        is_dirty = False
-        dirty_file_count = 0
-        if wt_path and Path(wt_path).is_dir():
-            with contextlib.suppress(subprocess.SubprocessError, OSError):
-                st = subprocess.run(
-                    ["git", "-C", wt_path, "status", "--porcelain"],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
-                dirty_lines = [l for l in st.stdout.splitlines() if l.strip()]
-                is_dirty = len(dirty_lines) > 0
-                dirty_file_count = len(dirty_lines)
-
         if wt_path:
-            worktrees.append(
-                WorktreeMetadata(
-                    path=wt_path,
-                    branch=branch,
-                    head_sha=head_sha,
-                    is_dirty=is_dirty,
-                    dirty_file_count=dirty_file_count,
-                    is_detached=is_detached,
-                )
+            parsed_entries.append((wt_path, branch, head_sha, is_detached))
+            if isinstance(cache, dict) and head_sha:
+                cache[("head_sha", str(Path(wt_path)))] = head_sha
+
+    def _probe_dirty(wt_p: str) -> tuple[bool, int, str]:
+        if "/.gemini/antigravity/worktrees/" in wt_p or not Path(wt_p).is_dir():
+            return False, 0, ""
+        with contextlib.suppress(subprocess.SubprocessError, OSError):
+            st = subprocess.run(
+                ["git", "-C", wt_p, "status", "--porcelain"],
+                capture_output=True,
+                text=True,
+                check=True,
             )
+            stdout = st.stdout or ""
+            dirty_lines = [l for l in stdout.splitlines() if l.strip()]
+            return len(dirty_lines) > 0, len(dirty_lines), stdout
+        return False, 0, ""
+
+    dirty_results: dict[str, tuple[bool, int, str]] = {}
+    if len(parsed_entries) > 1:
+        pool_size = min(8, len(parsed_entries))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=pool_size) as pool:
+            futs = {
+                pool.submit(_probe_dirty, wt_p): wt_p
+                for wt_p, _, _, _ in parsed_entries
+            }
+            for fut in concurrent.futures.as_completed(futs):
+                wt_p = futs[fut]
+                dirty_results[wt_p] = fut.result()
+    elif len(parsed_entries) == 1:
+        wt_p = parsed_entries[0][0]
+        dirty_results[wt_p] = _probe_dirty(wt_p)
+
+    for wt_path, branch, head_sha, is_detached in parsed_entries:
+        is_dirty, dirty_file_count, porcelain_stdout = dirty_results.get(
+            wt_path, (False, 0, "")
+        )
+        if isinstance(cache, dict):
+            cache[("git_status_porcelain", str(Path(wt_path)))] = porcelain_stdout
+        worktrees.append(
+            WorktreeMetadata(
+                path=wt_path,
+                branch=branch,
+                head_sha=head_sha,
+                is_dirty=is_dirty,
+                dirty_file_count=dirty_file_count,
+                is_detached=is_detached,
+            )
+        )
 
     if isinstance(cache, dict):
         cache[cache_key] = list(worktrees)
@@ -604,6 +630,12 @@ def _classify_hld_status_value(raw: str) -> str | None:
 
 def extract_epic_hld_status(epic_dir: Path, slug: str) -> str | None:
     """Extract epic lifecycle status from the English HLD (`<slug>.md`, legacy `.en.md`) or other `*.md` files."""
+    cache = getattr(_SCAN_CTX, "cache", None)
+    cache_key = ("hld_status", str(epic_dir), slug)
+    if isinstance(cache, dict) and cache_key in cache:
+        return cache[cache_key]
+
+    result: str | None = None
     primary = epic_doc_path(epic_dir, slug)
     candidates: list[Path] = [primary] if primary is not None else []
     with contextlib.suppress(OSError):
@@ -629,12 +661,23 @@ def extract_epic_hld_status(epic_dir: Path, slug: str) -> str | None:
             for _, raw_val in sorted(matches, key=lambda item: item[0]):
                 classified = _classify_hld_status_value(raw_val)
                 if classified is not None:
-                    return classified
-    return None
+                    result = classified
+                    break
+        if result is not None:
+            break
+
+    if isinstance(cache, dict):
+        cache[cache_key] = result
+    return result
 
 
 def get_completed_epic_slugs(repo_path: Path) -> set[str]:
     """Harvest completed epic slugs from PROJECT_LEDGER.md, archive, and HLD design documents."""
+    cache = getattr(_SCAN_CTX, "cache", None)
+    cache_key = ("completed_slugs", str(repo_path))
+    if isinstance(cache, dict) and cache_key in cache:
+        return _NormalizedSlugSet(cache[cache_key])
+
     completed: set[str] = set()
 
     # 1. Check .devtool/PROJECT_LEDGER.md
@@ -669,11 +712,18 @@ def get_completed_epic_slugs(repo_path: Path) -> set[str]:
                 if extract_epic_hld_status(d, d.name) == "done":
                     completed.add(d.name)
 
-    return completed
+    if isinstance(cache, dict):
+        cache[cache_key] = _NormalizedSlugSet(completed)
+    return _NormalizedSlugSet(completed)
 
 
 def get_abandoned_epic_slugs(repo_path: Path) -> set[str]:
     """Harvest abandoned epic slugs from .devtool/epic/<slug>/ HLD design documents."""
+    cache = getattr(_SCAN_CTX, "cache", None)
+    cache_key = ("abandoned_slugs", str(repo_path))
+    if isinstance(cache, dict) and cache_key in cache:
+        return _NormalizedSlugSet(cache[cache_key])
+
     abandoned: set[str] = set()
     epic_dir = repo_path / ".devtool" / "epic"
     if epic_dir.is_dir():
@@ -683,7 +733,10 @@ def get_abandoned_epic_slugs(repo_path: Path) -> set[str]:
                     continue
                 if extract_epic_hld_status(d, d.name) in ("abandon", "abandoned"):
                     abandoned.add(d.name)
-    return abandoned
+
+    if isinstance(cache, dict):
+        cache[cache_key] = _NormalizedSlugSet(abandoned)
+    return _NormalizedSlugSet(abandoned)
 
 
 def _is_epic_eligible_for_active(
@@ -712,14 +765,47 @@ def _strip_slot_suffix(name: str) -> str:
     return _SLOT_SUFFIX_RE.sub("", name.strip())
 
 
+class _NormalizedSlugSet(set[str]):
+    """set[str] maintaining a synchronized normalized slug index for O(1) lookup."""
+
+    def __init__(self, items: Any = ()) -> None:
+        super().__init__(items)
+        if isinstance(items, _NormalizedSlugSet):
+            self._norm: set[str] = set(items._norm)
+        else:
+            self._norm = {_normalize_slug(s) for s in self}
+
+    def add(self, element: str) -> None:
+        super().add(element)
+        self._norm.add(_normalize_slug(element))
+
+    def update(self, *others: Any) -> None:
+        super().update(*others)
+        self._norm = {_normalize_slug(s) for s in self}
+
+    def discard(self, element: str) -> None:
+        super().discard(element)
+        self._norm = {_normalize_slug(s) for s in self}
+
+    def remove(self, element: str) -> None:
+        super().remove(element)
+        self._norm = {_normalize_slug(s) for s in self}
+
+    def clear(self) -> None:
+        super().clear()
+        self._norm.clear()
+
+
 def _is_completed_epic(slug: str, completed_slugs: set[str]) -> bool:
     """Return True if slug matches any completed epic across dash/underscore forms."""
-    if not slug:
+    if not slug or not completed_slugs:
         return False
+    if slug in completed_slugs:
+        return True
     norm = _normalize_slug(slug)
-    return slug in completed_slugs or any(
-        _normalize_slug(c) == norm for c in completed_slugs
-    )
+    if isinstance(completed_slugs, _NormalizedSlugSet):
+        return norm in completed_slugs._norm
+    return any(_normalize_slug(c) == norm for c in completed_slugs)
 
 
 def _resolve_canonical_epic_slug(repo_path: Path, candidate: str) -> str:
@@ -761,35 +847,54 @@ def _collect_matching_worktrees_with_branches(
     repo_path: Path, epic_slug: str | None = None
 ) -> list[tuple[Path, str | None]]:
     """Discover unique non-root worktrees (with git branch if known) matching `epic_slug`."""
-    results: list[tuple[Path, str | None]] = []
-    seen: set[Path] = set()
-    root_resolved = repo_path.resolve()
     target_norm = _normalize_slug(_strip_slot_suffix(epic_slug)) if epic_slug else None
+    cache = getattr(_SCAN_CTX, "cache", None)
+    match_key = ("matching_wt", str(repo_path), target_norm)
+    if isinstance(cache, dict) and match_key in cache:
+        return list(cache[match_key])
 
-    def _maybe_add(candidate_path: Path, branch_name: str | None = None) -> None:
-        if not candidate_path.is_dir():
-            return
-        resolved = candidate_path.resolve()
-        if resolved == root_resolved or resolved in seen:
-            return
-        if target_norm is not None and not _worktree_matches_slug(
-            candidate_path, target_norm, branch_name
-        ):
-            return
-        seen.add(resolved)
-        results.append((candidate_path, branch_name))
+    all_key = ("all_nonroot_wt", str(repo_path))
+    if isinstance(cache, dict) and all_key in cache:
+        all_worktrees: list[tuple[Path, str | None]] = cache[all_key]
+    else:
+        all_worktrees = []
+        seen: set[Path] = set()
+        root_resolved = repo_path.resolve()
 
-    for wt in scan_worktrees(repo_path):
-        _maybe_add(Path(wt.path), wt.branch)
+        def _maybe_add(candidate_path: Path, branch_name: str | None = None) -> None:
+            if not candidate_path.is_dir():
+                return
+            resolved = candidate_path.resolve()
+            if resolved == root_resolved or resolved in seen:
+                return
+            seen.add(resolved)
+            all_worktrees.append((candidate_path, branch_name))
 
-    wt_dir = repo_path / ".worktrees"
-    if wt_dir.is_dir():
-        with contextlib.suppress(OSError):
-            for d in sorted(wt_dir.iterdir()):
-                if not d.is_dir() or d.name.startswith("."):
-                    continue
-                _maybe_add(d)
+        for wt in scan_worktrees(repo_path):
+            _maybe_add(Path(wt.path), wt.branch)
 
+        wt_dir = repo_path / ".worktrees"
+        if wt_dir.is_dir():
+            with contextlib.suppress(OSError):
+                for d in sorted(wt_dir.iterdir()):
+                    if not d.is_dir() or d.name.startswith("."):
+                        continue
+                    _maybe_add(d)
+
+        if isinstance(cache, dict):
+            cache[all_key] = list(all_worktrees)
+
+    if target_norm is None:
+        results = list(all_worktrees)
+    else:
+        results = [
+            (candidate_path, branch_name)
+            for candidate_path, branch_name in all_worktrees
+            if _worktree_matches_slug(candidate_path, target_norm, branch_name)
+        ]
+
+    if isinstance(cache, dict):
+        cache[match_key] = list(results)
     return results
 
 
@@ -871,6 +976,16 @@ def _read_state_snapshot(
     active_epic: str | None = None,
 ) -> dict[str, Any]:
     """Select the highest-generation state snapshot across root, worktrees, and common dir."""
+    cache = getattr(_SCAN_CTX, "cache", None)
+    cache_key = ("state_snapshot", str(repo_path), filename, active_epic)
+    if isinstance(cache, dict) and cache_key in cache:
+        cached = cache[cache_key]
+        if cached is None:
+            return dict(default)
+        merged_cached = dict(default)
+        merged_cached.update(cached)
+        return merged_cached
+
     state_env = _load_state_envelope()
     collected_dirs = _collect_devtool_dirs(repo_path, active_epic)
     if state_env is not None:
@@ -880,11 +995,16 @@ def _read_state_snapshot(
                 seen.add(extra.resolve())
                 collected_dirs.append(extra)
         if not collected_dirs:
+            if isinstance(cache, dict):
+                cache[cache_key] = None
             return dict(default)
         snapshot, _ = state_env._read_highest_snapshot(
             collected_dirs, filename, default
         )
-        return dict(snapshot)
+        res = dict(snapshot)
+        if isinstance(cache, dict):
+            cache[cache_key] = dict(res)
+        return res
 
     best_snapshot: dict[str, Any] = {}
     best_gen = -1
@@ -902,6 +1022,8 @@ def _read_state_snapshot(
                 if gen_num > best_gen:
                     best_gen = gen_num
                     best_snapshot = parsed
+    if isinstance(cache, dict):
+        cache[cache_key] = dict(best_snapshot) if best_snapshot else None
     merged = dict(default)
     merged.update(best_snapshot)
     return merged
@@ -1170,43 +1292,69 @@ def find_epic_worktree_path(repo_path: Path, active_epic: str | None) -> Path:
     if not active_epic:
         return repo_path
 
+    cache = getattr(_SCAN_CTX, "cache", None)
+    cache_key = ("epic_wt_path", str(repo_path), active_epic)
+    if isinstance(cache, dict) and cache_key in cache:
+        return cache[cache_key]
+
+    resolved: Path = repo_path
     candidates = [
         repo_path / ".worktrees" / active_epic,
         repo_path / ".worktrees" / active_epic.replace("-", "_"),
         repo_path / ".worktrees" / active_epic.replace("_", "-"),
     ]
+    matched_direct = False
     for c in candidates:
         if c.is_dir():
-            return c
+            resolved = c
+            matched_direct = True
+            break
 
-    for wt in scan_worktrees(repo_path):
-        wp = Path(wt.path)
-        if wp.name in (
-            active_epic,
-            active_epic.replace("-", "_"),
-            active_epic.replace("_", "-"),
-        ):
-            return wp
-        if wt.branch and (
-            f"epic/{active_epic}" in wt.branch
-            or f"feat/{active_epic}" in wt.branch
-            or active_epic in wt.branch
-        ):
-            return wp
+    if not matched_direct:
+        for wt in scan_worktrees(repo_path):
+            wp = Path(wt.path)
+            if wp.name in (
+                active_epic,
+                active_epic.replace("-", "_"),
+                active_epic.replace("_", "-"),
+            ):
+                resolved = wp
+                break
+            if wt.branch and (
+                f"epic/{active_epic}" in wt.branch
+                or f"feat/{active_epic}" in wt.branch
+                or active_epic in wt.branch
+            ):
+                resolved = wp
+                break
 
-        # Check if worktree has active changes in .devtool/epic/<active_epic>
-        with contextlib.suppress(Exception):
-            res = subprocess.run(
-                ["git", "-C", str(wp), "status", "--porcelain"],
-                capture_output=True,
-                text=True,
-                timeout=2,
-                check=False,
-            )
-            if f".devtool/epic/{active_epic}" in res.stdout:
-                return wp
+            if not wt.is_dirty:
+                continue
 
-    return repo_path
+            # Check if dirty worktree has active changes in .devtool/epic/<active_epic>
+            porcelain_key = ("git_status_porcelain", str(wp))
+            if isinstance(cache, dict) and porcelain_key in cache:
+                porcelain_out = str(cache[porcelain_key])
+            else:
+                porcelain_out = ""
+                with contextlib.suppress(Exception):
+                    res = subprocess.run(
+                        ["git", "-C", str(wp), "status", "--porcelain"],
+                        capture_output=True,
+                        text=True,
+                        timeout=2,
+                        check=False,
+                    )
+                    porcelain_out = res.stdout or ""
+                if isinstance(cache, dict):
+                    cache[porcelain_key] = porcelain_out
+            if f".devtool/epic/{active_epic}" in porcelain_out:
+                resolved = wp
+                break
+
+    if isinstance(cache, dict):
+        cache[cache_key] = resolved
+    return resolved
 
 
 def _has_epic_active_tasks(repo_path: Path, slug: str) -> bool:
@@ -1363,6 +1511,11 @@ def _discover_standalone_plans(repo_path: Path) -> list[dict[str, Any]]:
 
     Strictly excludes dotfiles and `*.vi.md` mirrors (Rule 11).
     """
+    cache = getattr(_SCAN_CTX, "cache", None)
+    cache_key = ("standalone_plans", str(repo_path))
+    if isinstance(cache, dict) and cache_key in cache:
+        return [dict(p) for p in cache[cache_key]]
+
     worktree_entries = _collect_matching_worktrees_with_branches(repo_path, None)
     worktrees = [wt_path for wt_path, _ in worktree_entries]
     ledger_milestones = _parse_project_ledger_milestones(repo_path)
@@ -1549,11 +1702,34 @@ def _discover_standalone_plans(repo_path: Path) -> list[dict[str, Any]]:
         ):
             selected_by_norm_slug[norm_slug] = plan_record
 
-    return list(selected_by_norm_slug.values())
+    plans_result = list(selected_by_norm_slug.values())
+    if isinstance(cache, dict):
+        cache[cache_key] = [dict(p) for p in plans_result]
+    return plans_result
+
+
+def _clone_epics_summary(summary: EpicsSummary) -> EpicsSummary:
+    """Fast shallow copy of EpicsSummary and its flat per-epic dicts."""
+    return EpicsSummary(
+        total=summary.total,
+        completed=summary.completed,
+        in_progress=summary.in_progress,
+        unstarted=summary.unstarted,
+        abandoned=summary.abandoned,
+        epics=[dict(e) for e in summary.epics],
+        doing_count=summary.doing_count,
+        pending_count=summary.pending_count,
+        cancelled_count=summary.cancelled_count,
+    )
 
 
 def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
     """Harvest high-level project epics summary and status breakdown from the root repository."""
+    cache = getattr(_SCAN_CTX, "cache", None)
+    cache_key = ("epics_overview", str(repo_path))
+    if isinstance(cache, dict) and cache_key in cache:
+        return _clone_epics_summary(cache[cache_key])
+
     epic_dir = repo_path / ".devtool" / "epic"
     completed_slugs = get_completed_epic_slugs(repo_path)
     abandoned_slugs = get_abandoned_epic_slugs(repo_path)
@@ -1788,7 +1964,7 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
         1 for e in epics if e["status"] in ("abandon", "abandoned", "discarded")
     )
     unstarted = total - completed - in_prog - abandoned
-    return EpicsSummary(
+    summary = EpicsSummary(
         total=total,
         completed=completed,
         in_progress=in_prog,
@@ -1796,6 +1972,9 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
         abandoned=abandoned,
         epics=epics,
     )
+    if isinstance(cache, dict):
+        cache[cache_key] = _clone_epics_summary(summary)
+    return summary
 
 
 def format_relative_time(iso_str: str | None) -> str:
@@ -1916,7 +2095,12 @@ def _apply_heartbeat_slot_statuses(
                 task["slot_status"] = raw_slot_status
 
 
-def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgress:
+def extract_task_progress(
+    repo_path: Path,
+    active_epic: str | None,
+    *,
+    include_completed_tasks: bool = True,
+) -> TaskProgress:
     """Harvest comprehensive Kanban tasks across active and backlog epics according to 2-tier governance.
 
     1. Scan epics in .devtool/epic/ in root repo (backlog, todo, in_progress).
@@ -2211,80 +2395,83 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
         pct = min(95.0, round((done / total * 100), 1))
         task_completion_pct = round((done / total * 100.0), 1)
 
-    # Collect completed_tasks for top _RECENTLY_COMPLETED_LIMIT newest completed epics/plans
-    overview = harvest_epics_overview(repo_path)
-    completed_entries = [
-        ep
-        for ep in overview.epics
-        if str(ep.get("status") or "").strip().lower() == "done"
-    ]
-    completed_entries.sort(
-        key=lambda ep: (-float(ep.get("mtime", 0.0)), str(ep.get("slug") or ""))
-    )
-    top_completed = completed_entries[:_RECENTLY_COMPLETED_LIMIT]
-    plans_by_norm = {_normalize_slug(str(p["slug"])): p for p in discovered_plans}
     completed_tasks: list[dict[str, Any]] = []
-    for ep in top_completed:
-        ep_slug = str(ep.get("slug") or "")
-        source_kind = str(ep.get("source_kind") or "epic")
-        comp_time = str(ep.get("completed_date") or ep.get("last_updated_human") or "")
-        if source_kind == "plan":
-            plan = plans_by_norm.get(_normalize_slug(ep_slug))
-            if plan:
-                for pt in plan["tasks"]:
-                    completed_tasks.append(
-                        {
-                            "id": str(pt["id"]),
-                            "title": str(pt["title"]),
-                            "status": "done",
-                            "priority": "medium",
-                            "epic": ep_slug,
-                            "labels": ["plan"],
-                            "time": comp_time,
-                            "source": "plan",
-                        }
-                    )
-        elif source_kind == "epic":
-            ep_dir = epic_dir / ep_slug
-            if ep_dir.is_dir():
-                for tf in sorted(ep_dir.glob("task_*.md"), key=natural_sort_key):
-                    if tf.name.lower().endswith(".vi.md"):
-                        continue
-                    task_id = tf.stem
-                    with contextlib.suppress(OSError, UnicodeDecodeError):
-                        content = tf.read_text(encoding="utf-8")
-                        fm = parse_frontmatter(content)
-                        title = task_id
-                        for line in content.splitlines():
-                            if line.strip().startswith("# "):
-                                title = line.strip().lstrip("# ").strip()
-                                break
-                        labels = fm.get("labels", [])
-                        if isinstance(labels, str):
-                            try:
-                                labels = json.loads(labels)
-                            except Exception:
-                                labels = [labels]
-                        time_val = (
-                            format_relative_time(
-                                fm.get("completedAt")
-                                or fm.get("modified")
-                                or fm.get("created")
-                            )
-                            or comp_time
-                        )
+    if include_completed_tasks:
+        # Collect completed_tasks for top _RECENTLY_COMPLETED_LIMIT newest completed epics/plans
+        overview = harvest_epics_overview(repo_path)
+        completed_entries = [
+            ep
+            for ep in overview.epics
+            if str(ep.get("status") or "").strip().lower() == "done"
+        ]
+        completed_entries.sort(
+            key=lambda ep: (-float(ep.get("mtime", 0.0)), str(ep.get("slug") or ""))
+        )
+        top_completed = completed_entries[:_RECENTLY_COMPLETED_LIMIT]
+        plans_by_norm = {_normalize_slug(str(p["slug"])): p for p in discovered_plans}
+        for ep in top_completed:
+            ep_slug = str(ep.get("slug") or "")
+            source_kind = str(ep.get("source_kind") or "epic")
+            comp_time = str(
+                ep.get("completed_date") or ep.get("last_updated_human") or ""
+            )
+            if source_kind == "plan":
+                plan = plans_by_norm.get(_normalize_slug(ep_slug))
+                if plan:
+                    for pt in plan["tasks"]:
                         completed_tasks.append(
                             {
-                                "id": task_id,
-                                "title": title,
+                                "id": str(pt["id"]),
+                                "title": str(pt["title"]),
                                 "status": "done",
-                                "priority": fm.get("priority", "medium"),
+                                "priority": "medium",
                                 "epic": ep_slug,
-                                "labels": labels,
-                                "time": time_val,
-                                "source": "root",
+                                "labels": ["plan"],
+                                "time": comp_time,
+                                "source": "plan",
                             }
                         )
+            elif source_kind == "epic":
+                ep_dir = epic_dir / ep_slug
+                if ep_dir.is_dir():
+                    for tf in sorted(ep_dir.glob("task_*.md"), key=natural_sort_key):
+                        if tf.name.lower().endswith(".vi.md"):
+                            continue
+                        task_id = tf.stem
+                        with contextlib.suppress(OSError, UnicodeDecodeError):
+                            content = tf.read_text(encoding="utf-8")
+                            fm = parse_frontmatter(content)
+                            title = task_id
+                            for line in content.splitlines():
+                                if line.strip().startswith("# "):
+                                    title = line.strip().lstrip("# ").strip()
+                                    break
+                            labels = fm.get("labels", [])
+                            if isinstance(labels, str):
+                                try:
+                                    labels = json.loads(labels)
+                                except Exception:
+                                    labels = [labels]
+                            time_val = (
+                                format_relative_time(
+                                    fm.get("completedAt")
+                                    or fm.get("modified")
+                                    or fm.get("created")
+                                )
+                                or comp_time
+                            )
+                            completed_tasks.append(
+                                {
+                                    "id": task_id,
+                                    "title": title,
+                                    "status": "done",
+                                    "priority": fm.get("priority", "medium"),
+                                    "epic": ep_slug,
+                                    "labels": labels,
+                                    "time": time_val,
+                                    "source": "root",
+                                }
+                            )
 
     return TaskProgress(
         total_tasks=total,
@@ -2532,13 +2719,28 @@ def parse_gate_ledger_entries(
     repo_path: Path, active_epic: str | None = None
 ) -> list[dict[str, Any]]:
     """Merge gate approval entries from `state/gate_ledger.jsonl` and `GATE_LEDGER.md` across root and worktrees."""
+    norm_active = _normalize_slug(active_epic) if active_epic else None
+    cache = getattr(_SCAN_CTX, "cache", None)
+    all_key = ("gate_ledger_all", str(repo_path))
+    if isinstance(cache, dict) and all_key in cache:
+        all_rows: list[dict[str, Any]] = cache[all_key]
+        if norm_active is None:
+            return [dict(r) for r in all_rows]
+        return [
+            dict(r)
+            for r in all_rows
+            if _normalize_slug(str(r.get("epic", ""))) == norm_active
+        ]
+
     devtool_dirs = _collect_devtool_dirs(repo_path, active_epic=None)
     if not devtool_dirs:
+        if isinstance(cache, dict):
+            cache[all_key] = []
         return []
 
-    norm_active = _normalize_slug(active_epic) if active_epic else None
     merged: list[dict[str, Any]] = []
     seen_keys: set[tuple[str, int, str]] = set()
+    read_filter = None if isinstance(cache, dict) else norm_active
 
     def _append_unique(rows: list[dict[str, Any]]) -> None:
         for row in rows:
@@ -2556,15 +2758,23 @@ def parse_gate_ledger_entries(
     for devtool_dir in devtool_dirs:
         _append_unique(
             _read_jsonl_ledger_file(
-                devtool_dir / "state" / "gate_ledger.jsonl", norm_active
+                devtool_dir / "state" / "gate_ledger.jsonl", read_filter
             )
         )
     for devtool_dir in devtool_dirs:
         _append_unique(
-            _read_markdown_ledger_file(devtool_dir / "GATE_LEDGER.md", norm_active)
+            _read_markdown_ledger_file(devtool_dir / "GATE_LEDGER.md", read_filter)
         )
 
     merged.sort(key=lambda e: (str(e.get("timestamp", "")), int(e.get("gate", 0))))
+    if isinstance(cache, dict):
+        cache[all_key] = [dict(r) for r in merged]
+        if norm_active is not None:
+            return [
+                dict(r)
+                for r in merged
+                if _normalize_slug(str(r.get("epic", ""))) == norm_active
+            ]
     return merged
 
 
@@ -2799,7 +3009,9 @@ def derive_lifecycle_state(
     approved_gate_nums = {int(g["gate"]) for g in gates if "gate" in g}
 
     assistant_state_text = _read_combined_state_text(repo_path, active_epic)
-    task_progress = extract_task_progress(repo_path, active_epic)
+    task_progress = extract_task_progress(
+        repo_path, active_epic, include_completed_tasks=False
+    )
 
     matched_pd: dict[str, Any] | None
     if pending_decision is _UNSET:
@@ -3022,13 +3234,33 @@ def _clean_pic_candidate(raw_value: str) -> str | None:
 def _find_epic_dirs_for_checkout(checkout_root: Path, active_epic: str) -> list[Path]:
     """Locate matching `.devtool/epic/<epic>` directories inside a single checkout."""
     epic_base = checkout_root / ".devtool" / "epic"
+    target_norm = _normalize_slug(active_epic)
+    cache = getattr(_SCAN_CTX, "cache", None)
+    idx_key = ("checkout_epic_idx", str(checkout_root))
+    if isinstance(cache, dict):
+        idx = cache.get(idx_key)
+        if idx is None:
+            idx = {}
+            if epic_base.is_dir():
+                with contextlib.suppress(OSError):
+                    for entry in sorted(epic_base.iterdir()):
+                        if entry.is_dir():
+                            idx.setdefault(_normalize_slug(entry.name), []).append(entry)
+            cache[idx_key] = idx
+        candidates = idx.get(target_norm)
+        if not candidates:
+            return []
+        exact = epic_base / active_epic
+        if exact in candidates and candidates[0] != exact:
+            return [exact, *[c for c in candidates if c != exact]]
+        return list(candidates)
+
     if not epic_base.is_dir():
         return []
     matches: list[Path] = []
     exact = epic_base / active_epic
     if exact.is_dir():
         matches.append(exact)
-    target_norm = _normalize_slug(active_epic)
     with contextlib.suppress(OSError):
         for entry in sorted(epic_base.iterdir()):
             if (
@@ -5602,17 +5834,281 @@ def _scan_repo_impl(repo_path: Path) -> RepoMetadata:
     )
 
 
-def harvest_dashboard_graph(root_path: Path, max_workers: int = 4) -> DashboardGraph:
+DEFAULT_TRACKED_ORDER: tuple[str, ...] = (
+    "D3Nexus",
+    "lyrics-sync",
+    "nexus",
+    "ai-agent-tools",
+)
+PROJECTS_CONFIG_ENV = "CHECK_TASKS_PROJECTS_CONFIG"
+
+
+def _expand_host_path(raw_path: str) -> Path:
+    """Expand leading `~` against the real host HOME rather than an isolated profile HOME."""
+    text = str(raw_path or "").strip()
+    if not text:
+        return Path("")
+    if text == "~":
+        return _real_home()
+    if text.startswith("~/"):
+        return _real_home() / text[2:]
+    return Path(text)
+
+
+def resolve_projects_config_path(
+    workspace_root: Path, explicit_path: Path | None = None
+) -> Path:
+    """Resolve tracked-projects JSON path while keeping non-default test workspaces isolated."""
+    if explicit_path is not None:
+        return explicit_path
+    env_override = os.environ.get(PROJECTS_CONFIG_ENV, "").strip()
+    if env_override:
+        return _expand_host_path(env_override)
+    default_ws = _real_home() / "AllProjects"
+    try:
+        if workspace_root.resolve() == default_ws.resolve():
+            return _real_home() / ".d3nexus" / "check_tasks_projects.json"
+    except OSError:
+        pass
+    return workspace_root / ".check_tasks_projects.json"
+
+
+def _sanitize_project_name(
+    raw_name: str, existing_names: set[str], parent_name: str = ""
+) -> str:
+    """Derive a safe, unique display identifier for a tracked repository."""
+    base = re.sub(r"[^a-zA-Z0-9._-]+", "-", str(raw_name or "").strip()).strip("-")
+    if not base or base in (".", ".."):
+        base = "project"
+    if base not in existing_names:
+        return base
+    clean_parent = re.sub(r"[^a-zA-Z0-9._-]+", "-", str(parent_name or "").strip()).strip("-")
+    if clean_parent and clean_parent not in (".", ".."):
+        prefixed = f"{clean_parent}-{base}"
+        if prefixed not in existing_names:
+            return prefixed
+    idx = 2
+    while f"{base}-{idx}" in existing_names:
+        idx += 1
+    return f"{base}-{idx}"
+
+
+def build_initial_tracked_projects(workspace_root: Path) -> list[dict[str, str]]:
+    """Seed initial tracked project entries matching the default dashboard tab order."""
+    if not workspace_root.is_dir():
+        return []
+    discovered: dict[str, Path] = {}
+    with contextlib.suppress(OSError):
+        for entry in sorted(workspace_root.iterdir(), key=lambda p: p.name.lower()):
+            if entry.is_dir() and not entry.name.startswith(".") and (entry / ".git").exists():
+                discovered[entry.name] = entry.resolve()
+    seeded: list[dict[str, str]] = [
+        {"name": name, "path": str(discovered[name])}
+        for name in DEFAULT_TRACKED_ORDER
+        if name in discovered
+    ]
+    if seeded:
+        return seeded
+    return [{"name": name, "path": str(path)} for name, path in discovered.items()]
+
+
+def load_tracked_projects(
+    workspace_root: Path, config_path: Path | None = None
+) -> list[dict[str, str]] | None:
+    """Load persisted tracked projects list, or return None when unconfigured."""
+    cfg = resolve_projects_config_path(workspace_root, config_path)
+    if not cfg.is_file():
+        return None
+    try:
+        raw = json.loads(cfg.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return None
+    items = raw.get("projects") if isinstance(raw, dict) else None
+    if not isinstance(items, list):
+        return None
+    projects: list[dict[str, str]] = []
+    seen_paths: set[str] = set()
+    seen_names: set[str] = set()
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        raw_p = str(item.get("path") or "").strip()
+        if not raw_p:
+            continue
+        expanded = _expand_host_path(raw_p)
+        try:
+            resolved_str = str(expanded.resolve())
+        except OSError:
+            resolved_str = str(expanded)
+        if resolved_str in seen_paths:
+            continue
+        raw_name = str(item.get("name") or expanded.name).strip()
+        name = _sanitize_project_name(raw_name, seen_names, expanded.parent.name)
+        seen_paths.add(resolved_str)
+        seen_names.add(name)
+        projects.append({"name": name, "path": resolved_str})
+    return projects
+
+
+def save_tracked_projects(
+    projects: list[dict[str, str]],
+    workspace_root: Path,
+    config_path: Path | None = None,
+) -> Path:
+    """Atomically write the tracked projects JSON configuration file."""
+    cfg = resolve_projects_config_path(workspace_root, config_path)
+    cfg.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "version": 1,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "projects": [
+            {"name": str(p["name"]), "path": str(p["path"])}
+            for p in projects
+            if isinstance(p, dict) and p.get("name") and p.get("path")
+        ],
+    }
+    tmp_path = cfg.with_name(f".{cfg.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+    tmp_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    os.replace(tmp_path, cfg)
+    return cfg
+
+
+def discover_untracked_workspace_repos(
+    workspace_root: Path, tracked: list[dict[str, str]]
+) -> list[dict[str, str]]:
+    """Return git repositories directly under workspace_root not currently tracked."""
+    if not workspace_root.is_dir():
+        return []
+    tracked_paths: set[str] = set()
+    for item in tracked:
+        raw_p = str(item.get("path") or "").strip()
+        if not raw_p:
+            continue
+        with contextlib.suppress(OSError):
+            tracked_paths.add(str(_expand_host_path(raw_p).resolve()))
+    suggestions: list[dict[str, str]] = []
+    with contextlib.suppress(OSError):
+        for entry in sorted(workspace_root.iterdir(), key=lambda p: p.name.lower()):
+            if not entry.is_dir() or entry.name.startswith("."):
+                continue
+            if not (entry / ".git").exists():
+                continue
+            resolved = str(entry.resolve())
+            if resolved in tracked_paths:
+                continue
+            suggestions.append({"name": entry.name, "path": resolved})
+    return suggestions
+
+
+def add_tracked_project(
+    workspace_root: Path,
+    raw_path: str,
+    *,
+    config_path: Path | None = None,
+    index: int | None = None,
+) -> dict[str, Any]:
+    """Validate a repository directory and persist it into the tracked projects list."""
+    clean_raw = str(raw_path or "").strip()
+    if not clean_raw:
+        raise ValueError("Project folder path is required.")
+    candidate = _expand_host_path(clean_raw)
+    try:
+        resolved = candidate.resolve()
+    except OSError as exc:
+        raise ValueError(f"Invalid folder path: {clean_raw}") from exc
+    if not resolved.is_dir():
+        raise ValueError(f"Folder does not exist: {clean_raw}")
+    if not ((resolved / ".git").exists() or (resolved / ".devtool").is_dir()):
+        raise ValueError(
+            "Selected folder is not a Git repository (missing .git) or .devtool project."
+        )
+
+    tracked = load_tracked_projects(workspace_root, config_path)
+    if tracked is None:
+        tracked = build_initial_tracked_projects(workspace_root)
+
+    resolved_str = str(resolved)
+    for existing in tracked:
+        if existing["path"] == resolved_str:
+            raise ValueError(f"Project '{existing['name']}' is already tracked.")
+
+    existing_names = {p["name"] for p in tracked}
+    name = _sanitize_project_name(resolved.name, existing_names, resolved.parent.name)
+    entry = {"name": name, "path": resolved_str}
+    if isinstance(index, int):
+        clamped = max(0, min(index, len(tracked)))
+        tracked.insert(clamped, entry)
+    else:
+        tracked.append(entry)
+    save_tracked_projects(tracked, workspace_root, config_path)
+    return {"status": "ok", "project": entry, "projects": tracked}
+
+
+def remove_tracked_project(
+    workspace_root: Path,
+    *,
+    name: str = "",
+    path: str = "",
+    config_path: Path | None = None,
+) -> dict[str, Any]:
+    """Remove a project from the tracked list without modifying files on disk."""
+    target_name = str(name or "").strip()
+    target_path = ""
+    if path:
+        with contextlib.suppress(OSError):
+            target_path = str(_expand_host_path(path).resolve())
+    if not target_name and not target_path:
+        raise ValueError("Either 'name' or 'path' is required to remove a project.")
+
+    tracked = load_tracked_projects(workspace_root, config_path)
+    if tracked is None:
+        tracked = build_initial_tracked_projects(workspace_root)
+
+    match_idx: int | None = None
+    for idx, entry in enumerate(tracked):
+        if (target_name and entry["name"] == target_name) or (
+            target_path and entry["path"] == target_path
+        ):
+            match_idx = idx
+            break
+    if match_idx is None:
+        raise ValueError(f"Tracked project not found: {target_name or path}")
+
+    removed = tracked.pop(match_idx)
+    save_tracked_projects(tracked, workspace_root, config_path)
+    return {
+        "status": "ok",
+        "removed": {**removed, "index": match_idx},
+        "projects": tracked,
+    }
+
+
+def resolve_tracked_repo_dir(
+    workspace_root: Path,
+    repo_name: str,
+    *,
+    config_path: Path | None = None,
+) -> tuple[Path, Path]:
+    """Resolve `repo_name` to `(repo_dir, containment_boundary)`, supporting external tracked repos."""
+    tracked = load_tracked_projects(workspace_root, config_path)
+    if tracked is not None:
+        for entry in tracked:
+            if entry["name"] == repo_name:
+                repo_resolved = Path(entry["path"]).resolve()
+                return repo_resolved, repo_resolved
+    ws_resolved = workspace_root.resolve()
+    return ws_resolved / repo_name, ws_resolved
+
+
+def harvest_dashboard_graph(
+    root_path: Path,
+    max_workers: int = 8,
+    *,
+    projects_config_path: Path | None = None,
+) -> DashboardGraph:
     """Discover all repositories under workspace root in parallel and aggregate metrics."""
     repos: list[RepoMetadata] = []
-    repo_dirs: list[Path] = []
-
-    if root_path.is_dir():
-        for entry in root_path.iterdir():
-            if entry.is_dir() and not entry.name.startswith("."):
-                # Must be a git repo or have .git directory/file
-                if (entry / ".git").exists():
-                    repo_dirs.append(entry)
+    tracked = load_tracked_projects(root_path, projects_config_path)
 
     # Prioritize canonical order
     canonical_order = [
@@ -5622,25 +6118,54 @@ def harvest_dashboard_graph(root_path: Path, max_workers: int = 4) -> DashboardG
         "D3Nexus",
         "digital_wallet",
     ]
-    repo_dirs.sort(
-        key=lambda d: (
-            canonical_order.index(d.name) if d.name in canonical_order else 999
-        )
-    )
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(scan_repo, d): d for d in repo_dirs}
-        for future in concurrent.futures.as_completed(futures):
-            with contextlib.suppress(Exception):
-                meta = future.result()
-                repos.append(meta)
+    if tracked is not None:
+        ordered_specs: list[tuple[str, Path]] = []
+        for entry in tracked:
+            repo_dir = Path(entry["path"])
+            if repo_dir.is_dir():
+                ordered_specs.append((entry["name"], repo_dir))
+        order_index = {name: idx for idx, (name, _) in enumerate(ordered_specs)}
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(scan_repo, repo_dir): name
+                for name, repo_dir in ordered_specs
+            }
+            for future in concurrent.futures.as_completed(futures):
+                display_name = futures[future]
+                with contextlib.suppress(Exception):
+                    meta = future.result()
+                    meta.name = display_name
+                    repos.append(meta)
+        repos.sort(key=lambda r: order_index.get(r.name, 9999))
+    else:
+        repo_dirs: list[Path] = []
+        if root_path.is_dir():
+            for entry in root_path.iterdir():
+                if entry.is_dir() and not entry.name.startswith("."):
+                    # Must be a git repo or have .git directory/file
+                    if (entry / ".git").exists():
+                        repo_dirs.append(entry)
 
-    # Keep canonical sorting in output
-    repos.sort(
-        key=lambda r: (
-            canonical_order.index(r.name) if r.name in canonical_order else 999
+        repo_dirs.sort(
+            key=lambda d: (
+                canonical_order.index(d.name) if d.name in canonical_order else 999
+            )
         )
-    )
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(scan_repo, d): d for d in repo_dirs}
+            for future in concurrent.futures.as_completed(futures):
+                with contextlib.suppress(Exception):
+                    meta = future.result()
+                    repos.append(meta)
+
+        # Keep canonical sorting in output
+        repos.sort(
+            key=lambda r: (
+                canonical_order.index(r.name) if r.name in canonical_order else 999
+            )
+        )
 
     total_tasks = sum(r.task_progress.total_tasks for r in repos)
     total_done = sum(r.task_progress.done_tasks for r in repos)
@@ -5666,6 +6191,7 @@ def harvest_dashboard_graph(root_path: Path, max_workers: int = 4) -> DashboardG
         repos=repos,
         metrics_row=metrics_row,
         available_profiles=available_profiles,
+        tracked_projects=tracked,
     )
 
 
@@ -5898,7 +6424,14 @@ def main(argv: list[str] | None = None) -> int:
         if args.ui and ret == 0 and not args.foreground:
             import webbrowser
 
-            webbrowser.open("http://localhost:8766/")
+            target_port = 8766
+            meta_file = Path("/tmp/agy_tasks_server.pid.meta.json")
+            if meta_file.is_file():
+                with contextlib.suppress(OSError, ValueError, TypeError):
+                    meta = json.loads(meta_file.read_text(encoding="utf-8"))
+                    if isinstance(meta, dict) and isinstance(meta.get("port"), int):
+                        target_port = meta["port"]
+            webbrowser.open(f"http://localhost:{target_port}/")
         return ret
 
     target = args.target or ("all" if args.all else None)

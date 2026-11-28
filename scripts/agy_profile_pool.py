@@ -55,6 +55,9 @@ DEFAULT_HEARTBEAT_SECONDS: int = 30
 DEFAULT_EXHAUSTED_RECHECK_SECONDS: int = 600
 DEFAULT_MAX_CONCURRENT: int = 2
 QUOTA_CACHE_TTL_SECONDS: int = 120
+DEFAULT_WEEKLY_SOFT_GUARD_FRACTION: float = 0.15
+DEFAULT_WEEKLY_GUARD_EXEMPT_HOURS: float = 12.0
+_ACTIVE_WINDOW_FRESH_THRESHOLD: float = 0.99
 
 PROFILE_NAME_RE: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9_-]+$")
 _ALLOWED_CONFIG_KEYS: frozenset[str] = frozenset(
@@ -65,10 +68,12 @@ _ALLOWED_CONFIG_KEYS: frozenset[str] = frozenset(
         "heartbeat_seconds",
         "exhausted_recheck_seconds",
         "agy_extra_args",
+        "allow_concurrent_ag_run",
+        "weekly_soft_guard_fraction",
     }
 )
 _ALLOWED_POOL_ENTRY_KEYS: frozenset[str] = frozenset(
-    {"profile", "priority", "max_concurrent"}
+    {"profile", "priority", "max_concurrent", "allow_concurrent_ag_run"}
 )
 _ALLOWED_ROLES: frozenset[str] = frozenset({"orchestrator", "runner"})
 _NON_AGY_SWITCH_ORDER: tuple[str, ...] = ("codex", "kiro", "claude")
@@ -201,6 +206,28 @@ def _validate_positive_int(value: Any, key: str) -> int:
     return value
 
 
+def _validate_non_negative_int(value: Any, key: str) -> int:
+    if type(value) is not int or value < 0:
+        raise AgyPoolError(f"Invalid '{key}' value '{value}'; expected integer >= 0")
+    return value
+
+
+def _validate_bool(value: Any, key: str) -> bool:
+    if not isinstance(value, bool):
+        raise AgyPoolError(f"Invalid '{key}' value '{value}'; expected boolean")
+    return value
+
+
+def _entry_allows_concurrent_ag_run(
+    entry: Mapping[str, Any], cfg: Mapping[str, Any]
+) -> bool:
+    if "allow_concurrent_ag_run" in entry and isinstance(
+        entry["allow_concurrent_ag_run"], bool
+    ):
+        return bool(entry["allow_concurrent_ag_run"])
+    return bool(cfg.get("allow_concurrent_ag_run", False))
+
+
 def validate_profile_name(name: Any) -> str:
     """Validate profile name format without touching filesystem."""
     if not isinstance(name, str) or not PROFILE_NAME_RE.fullmatch(name):
@@ -273,6 +300,28 @@ def validate_pool_config(raw: Any) -> dict[str, Any]:
             f"Invalid 'agy_extra_args' value '{extra_args_raw}'; expected list of strings"
         )
 
+    top_allow_concurrent: bool | None = None
+    if "allow_concurrent_ag_run" in raw and raw["allow_concurrent_ag_run"] is not None:
+        top_allow_concurrent = _validate_bool(
+            raw["allow_concurrent_ag_run"], "allow_concurrent_ag_run"
+        )
+
+    weekly_soft_guard: float | None = None
+    if (
+        "weekly_soft_guard_fraction" in raw
+        and raw["weekly_soft_guard_fraction"] is not None
+    ):
+        raw_guard = raw["weekly_soft_guard_fraction"]
+        if (
+            isinstance(raw_guard, bool)
+            or not isinstance(raw_guard, (int, float))
+            or not (0.0 <= float(raw_guard) <= 1.0)
+        ):
+            raise AgyPoolError(
+                f"Invalid 'weekly_soft_guard_fraction' value '{raw_guard}'; expected number in [0.0, 1.0]"
+            )
+        weekly_soft_guard = float(raw_guard)
+
     pool_raw = raw.get("pool", [])
     if not isinstance(pool_raw, list):
         raise AgyPoolError(f"Invalid 'pool' value '{pool_raw}'; expected list")
@@ -291,20 +340,26 @@ def validate_pool_config(raw: Any) -> dict[str, Any]:
             raise AgyPoolError(f"Duplicate profile '{profile_name}' in pool")
         seen_profiles.add(profile_name)
         priority = _validate_positive_int(entry.get("priority"), "priority")
-        max_conc = _validate_positive_int(
+        max_conc = _validate_non_negative_int(
             entry.get("max_concurrent", DEFAULT_MAX_CONCURRENT),
             "max_concurrent",
         )
-        normalized_pool.append(
-            {
-                "profile": profile_name,
-                "priority": priority,
-                "max_concurrent": max_conc,
-            }
-        )
+        normalized_entry: dict[str, Any] = {
+            "profile": profile_name,
+            "priority": priority,
+            "max_concurrent": max_conc,
+        }
+        if (
+            "allow_concurrent_ag_run" in entry
+            and entry["allow_concurrent_ag_run"] is not None
+        ):
+            normalized_entry["allow_concurrent_ag_run"] = _validate_bool(
+                entry["allow_concurrent_ag_run"], "allow_concurrent_ag_run"
+            )
+        normalized_pool.append(normalized_entry)
 
     normalized_pool.sort(key=lambda item: (int(item["priority"]), str(item["profile"])))
-    return {
+    result: dict[str, Any] = {
         "schema_version": POOL_SCHEMA_VERSION,
         "pool": normalized_pool,
         "lease_ttl_seconds": int(lease_ttl) if lease_ttl.is_integer() else lease_ttl,
@@ -316,6 +371,11 @@ def validate_pool_config(raw: Any) -> dict[str, Any]:
         else recheck_sec,
         "agy_extra_args": list(extra_args_raw),
     }
+    if top_allow_concurrent is not None:
+        result["allow_concurrent_ag_run"] = top_allow_concurrent
+    if weekly_soft_guard is not None:
+        result["weekly_soft_guard_fraction"] = weekly_soft_guard
+    return result
 
 
 def load_pool_config(real_home: Path | str | None = None) -> dict[str, Any]:
@@ -449,7 +509,12 @@ def _has_capacity(
     *,
     is_host_profile: bool,
     max_concurrent: int,
+    allow_concurrent_ag_run: bool = False,
 ) -> bool:
+    if max_concurrent <= 0:
+        return False
+    if allow_concurrent_ag_run:
+        return len(leases) < max_concurrent
     if is_host_profile:
         if any(lease.get("launch") == "ag_run" for lease in leases):
             return False
@@ -691,6 +756,7 @@ def _claim_tentative_lease(
     current_host: str,
     now: datetime,
     dry_run: bool,
+    allow_concurrent_ag_run: bool = False,
 ) -> tuple[str | None, dict[str, Any] | None, bool]:
     """Purge stale leases and tentatively claim `profile` under lock; returns (skip_reason, cached_quota, recheck_due)."""
 
@@ -703,6 +769,10 @@ def _claim_tentative_lease(
             current_host=current_host,
         )
         rec = _ensure_profile_record(doc, profile)
+        if max_concurrent <= 0:
+            if purged and not dry_run:
+                _pc._atomic_write_json(leases_path, doc)
+            return "disabled", None, False
         skip_exhausted, recheck_due = _is_exhausted_skip(
             rec,
             now=now,
@@ -716,6 +786,7 @@ def _claim_tentative_lease(
             rec["leases"],
             is_host_profile=is_host_profile,
             max_concurrent=max_concurrent,
+            allow_concurrent_ag_run=allow_concurrent_ag_run,
         ):
             if purged and not dry_run:
                 _pc._atomic_write_json(leases_path, doc)
@@ -816,6 +887,188 @@ def _get_quota_for_candidate(
         return {}, False
 
 
+def _extract_cached_window(
+    quota: Mapping[str, Any] | None,
+    key: str,
+) -> tuple[float | None, datetime | None]:
+    if not isinstance(quota, Mapping):
+        return None, None
+    window = quota.get(key)
+    if not isinstance(window, Mapping):
+        return None, None
+    raw_frac = window.get("fraction")
+    frac = (
+        float(raw_frac)
+        if not isinstance(raw_frac, bool) and isinstance(raw_frac, (int, float))
+        else None
+    )
+    reset_dt = _parse_utc(window.get("resetTime"))
+    return frac, reset_dt
+
+
+def _candidate_quota_sort_key(
+    entry: Mapping[str, Any],
+    *,
+    snap_profiles: Mapping[str, Any],
+    quota_pool: str,
+    thresholds: Mapping[str, float],
+    now: datetime,
+    weekly_soft_guard: float,
+) -> tuple[Any, ...]:
+    """Build deterministic tie-breaking key inside the same priority for 5H staggering + weekly guard.
+
+    Within each priority:
+      1. Weekly guard tier: 0 = healthy weekly (or weekly resets <= 12h),
+         1 = low weekly (< weekly_soft_guard and > 12h until weekly reset),
+         2 = cached weekly already at/below hard floor.
+      2. Window tier (gemini5h):
+         0 = Active 5H window (resetTime > now and min_5h <= fraction < 0.99) -> Earliest resetTime first (EDF),
+         1 = Fresh 5H window (resetTime <= now or fraction >= 0.99) -> Highest weekly fraction first,
+         2 = Unknown cached quota -> Highest weekly fraction, then profile name A-Z,
+         3 = Cached 5H already below hard min_5h while resetTime > now -> Earliest resetTime first.
+    """
+    profile = str(entry["profile"])
+    priority = int(entry["priority"])
+    rec = snap_profiles.get(profile)
+    quota = rec.get("quota") if isinstance(rec, Mapping) else None
+    exempt_delta = timedelta(hours=DEFAULT_WEEKLY_GUARD_EXEMPT_HOURS)
+
+    if quota_pool == "argonWeekly":
+        min_argon = float(
+            thresholds.get(
+                "agy_argon_min_fraction",
+                DEFAULT_QUOTA_THRESHOLDS["agy_argon_min_fraction"],
+            )
+        )
+        aw_frac, aw_reset = _extract_cached_window(quota, "argonWeekly")
+        if aw_reset is not None and aw_reset <= now:
+            eff_aw: float | None = 1.0
+            aw_active = False
+            aw_fresh = True
+            aw_far = False
+        else:
+            eff_aw = aw_frac
+            aw_active = (
+                aw_reset is not None
+                and aw_reset > now
+                and eff_aw is not None
+                and eff_aw < _ACTIVE_WINDOW_FRESH_THRESHOLD
+            )
+            aw_fresh = eff_aw is not None and eff_aw >= _ACTIVE_WINDOW_FRESH_THRESHOLD
+            aw_far = aw_reset is None or (aw_reset - now) > exempt_delta
+
+        if eff_aw is None:
+            wk_tier = 0
+        elif eff_aw < min_argon:
+            wk_tier = 2
+        elif eff_aw < weekly_soft_guard and aw_far:
+            wk_tier = 1
+        else:
+            wk_tier = 0
+
+        if aw_active and eff_aw is not None and eff_aw >= min_argon:
+            win_tier = 0
+            edf_ts = aw_reset.timestamp() if aw_reset is not None else float("inf")
+        elif aw_fresh:
+            win_tier = 1
+            edf_ts = 0.0
+        elif eff_aw is None:
+            win_tier = 2
+            edf_ts = 0.0
+        else:
+            win_tier = 3
+            edf_ts = aw_reset.timestamp() if aw_reset is not None else float("inf")
+
+        return (
+            priority,
+            wk_tier,
+            win_tier,
+            edf_ts,
+            -(eff_aw if eff_aw is not None else -1.0),
+            profile,
+        )
+
+    min_5h = float(
+        thresholds.get("5h_min_fraction", DEFAULT_QUOTA_THRESHOLDS["5h_min_fraction"])
+    )
+    min_7d = float(
+        thresholds.get("7d_min_fraction", DEFAULT_QUOTA_THRESHOLDS["7d_min_fraction"])
+    )
+
+    wk_frac, wk_reset = _extract_cached_window(quota, "geminiWeekly")
+    if wk_reset is not None and wk_reset <= now:
+        eff_wk: float | None = 1.0
+        wk_tier = 0
+    elif wk_frac is None:
+        eff_wk = None
+        wk_tier = 0
+    elif wk_frac <= min_7d:
+        eff_wk = wk_frac
+        wk_tier = 2
+    else:
+        eff_wk = wk_frac
+        wk_far = wk_reset is None or (wk_reset - now) > exempt_delta
+        wk_tier = 1 if (wk_frac < weekly_soft_guard and wk_far) else 0
+
+    w5_frac, w5_reset = _extract_cached_window(quota, "gemini5h")
+    if w5_reset is not None and w5_reset <= now:
+        eff_5h: float | None = 1.0
+        win_tier = 1
+        edf_ts = 0.0
+    elif (
+        w5_reset is not None
+        and w5_reset > now
+        and w5_frac is not None
+        and w5_frac < _ACTIVE_WINDOW_FRESH_THRESHOLD
+    ):
+        eff_5h = w5_frac
+        win_tier = 0 if w5_frac >= min_5h else 3
+        edf_ts = w5_reset.timestamp()
+    elif w5_frac is not None and w5_frac >= _ACTIVE_WINDOW_FRESH_THRESHOLD:
+        eff_5h = w5_frac
+        win_tier = 1
+        edf_ts = 0.0
+    else:
+        eff_5h = w5_frac
+        win_tier = 2
+        edf_ts = 0.0
+
+    return (
+        priority,
+        wk_tier,
+        win_tier,
+        edf_ts,
+        -(eff_wk if eff_wk is not None else -1.0),
+        -(eff_5h if eff_5h is not None else -1.0),
+        profile,
+    )
+
+
+def _order_pool_candidates(
+    pool: Sequence[dict[str, Any]],
+    *,
+    snap_profiles: Mapping[str, Any],
+    quota_pool: str,
+    thresholds: Mapping[str, float],
+    now: datetime,
+    preferred_profile: str | None = None,
+    weekly_soft_guard: float = DEFAULT_WEEKLY_SOFT_GUARD_FRACTION,
+) -> list[dict[str, Any]]:
+    """Order candidates: preferred_profile first, then priority, then 2-group EDF + weekly guard."""
+    ordered = sorted(
+        pool,
+        key=lambda entry: _candidate_quota_sort_key(
+            entry,
+            snap_profiles=snap_profiles,
+            quota_pool=quota_pool,
+            thresholds=thresholds,
+            now=now,
+            weekly_soft_guard=weekly_soft_guard,
+        ),
+    )
+    return _preferred_first(ordered, preferred_profile)
+
+
 def _preferred_first(
     pool: list[dict[str, Any]],
     preferred_profile: str | None,
@@ -844,9 +1097,11 @@ def _attempt_acquire_once(
     dry_run: bool,
     preferred_profile: str | None = None,
 ) -> tuple[Acquisition | None, dict[str, str]]:
-    pool: list[dict[str, Any]] = _preferred_first(list(cfg["pool"]), preferred_profile)
     lease_ttl = float(cfg["lease_ttl_seconds"])
     recheck_sec = float(cfg["exhausted_recheck_seconds"])
+    weekly_soft_guard = float(
+        cfg.get("weekly_soft_guard_fraction", DEFAULT_WEEKLY_SOFT_GUARD_FRACTION)
+    )
     skipped: dict[str, str] = {}
 
     snapshot = _snapshot_for_acquire(
@@ -857,10 +1112,23 @@ def _attempt_acquire_once(
         dry_run=dry_run,
     )
     snap_profiles = snapshot.get("profiles", {})
+    pool: list[dict[str, Any]] = _order_pool_candidates(
+        cfg["pool"],
+        snap_profiles=snap_profiles,
+        quota_pool=quota_pool,
+        thresholds=thresholds,
+        now=now,
+        preferred_profile=preferred_profile,
+        weekly_soft_guard=weekly_soft_guard,
+    )
 
     for entry in pool:
         profile = str(entry["profile"])
         max_conc = int(entry["max_concurrent"])
+        if max_conc <= 0:
+            skipped[profile] = "disabled"
+            continue
+        allow_shared = _entry_allows_concurrent_ag_run(entry, cfg)
         is_host = host_profile is not None and profile == host_profile
         via_ag_run = not is_host
         launch = "direct" if is_host else "ag_run"
@@ -873,11 +1141,14 @@ def _attempt_acquire_once(
             skipped[profile] = "exhausted"
             continue
         if not _has_capacity(
-            rec.get("leases", []), is_host_profile=is_host, max_concurrent=max_conc
+            rec.get("leases", []),
+            is_host_profile=is_host,
+            max_concurrent=max_conc,
+            allow_concurrent_ag_run=allow_shared,
         ):
             skipped[profile] = "leased"
             continue
-        if not is_host and resident_probe(profile):
+        if not is_host and not allow_shared and resident_probe(profile):
             skipped[profile] = "resident_process"
             continue
 
@@ -901,6 +1172,7 @@ def _attempt_acquire_once(
             current_host=current_host,
             now=now,
             dry_run=dry_run,
+            allow_concurrent_ag_run=allow_shared,
         )
         if claim_skip is not None:
             skipped[profile] = claim_skip
@@ -1237,12 +1509,15 @@ def add_profile(
     *,
     priority: int = 1,
     max_concurrent: int = DEFAULT_MAX_CONCURRENT,
+    allow_concurrent_ag_run: bool | None = None,
     real_home: Path | str | None = None,
 ) -> dict[str, Any]:
     """Validate and add a profile to global agy_profiles.json under lock."""
     validate_profile_dir(name, real_home=real_home)
     _validate_positive_int(priority, "priority")
-    _validate_positive_int(max_concurrent, "max_concurrent")
+    _validate_non_negative_int(max_concurrent, "max_concurrent")
+    if allow_concurrent_ag_run is not None:
+        _validate_bool(allow_concurrent_ag_run, "allow_concurrent_ag_run")
     cfg_path = profiles_config_path(real_home)
 
     def _op() -> dict[str, Any]:
@@ -1250,9 +1525,65 @@ def add_profile(
         cfg = _default_pool_config() if raw is None else validate_pool_config(raw)
         if any(entry["profile"] == name for entry in cfg["pool"]):
             raise AgyPoolError(f"Profile '{name}' is already in the pool")
-        cfg["pool"].append(
-            {"profile": name, "priority": priority, "max_concurrent": max_concurrent}
-        )
+        entry: dict[str, Any] = {
+            "profile": name,
+            "priority": priority,
+            "max_concurrent": max_concurrent,
+        }
+        if allow_concurrent_ag_run is not None:
+            entry["allow_concurrent_ag_run"] = allow_concurrent_ag_run
+        cfg["pool"].append(entry)
+        validated = validate_pool_config(cfg)
+        _pc._atomic_write_json(cfg_path, validated)
+        return validated
+
+    return dict(_with_file_lock(cfg_path, _op))
+
+
+def update_profile(
+    name: str | None = None,
+    *,
+    priority: int | None = None,
+    max_concurrent: int | None = None,
+    allow_concurrent_ag_run: bool | None = None,
+    real_home: Path | str | None = None,
+) -> dict[str, Any]:
+    """Update pool-wide or per-profile settings in agy_profiles.json without disturbing live leases."""
+    if name is not None:
+        validate_profile_name(name)
+    if priority is not None:
+        _validate_positive_int(priority, "priority")
+    if max_concurrent is not None:
+        _validate_non_negative_int(max_concurrent, "max_concurrent")
+    if allow_concurrent_ag_run is not None:
+        _validate_bool(allow_concurrent_ag_run, "allow_concurrent_ag_run")
+    cfg_path = profiles_config_path(real_home)
+
+    def _op() -> dict[str, Any]:
+        raw = _read_json_object(cfg_path)
+        cfg = _default_pool_config() if raw is None else validate_pool_config(raw)
+        if name is None:
+            if priority is not None or max_concurrent is not None:
+                raise AgyPoolError(
+                    "Profile name is required when updating --priority or --max-concurrent"
+                )
+            if allow_concurrent_ag_run is None:
+                raise AgyPoolError(
+                    "Specify --allow-concurrent-ag-run or --exclusive when updating pool defaults"
+                )
+            cfg["allow_concurrent_ag_run"] = allow_concurrent_ag_run
+        else:
+            target = next(
+                (entry for entry in cfg["pool"] if entry["profile"] == name), None
+            )
+            if target is None:
+                raise AgyPoolError(f"Profile '{name}' is not in the pool")
+            if priority is not None:
+                target["priority"] = priority
+            if max_concurrent is not None:
+                target["max_concurrent"] = max_concurrent
+            if allow_concurrent_ag_run is not None:
+                target["allow_concurrent_ag_run"] = allow_concurrent_ag_run
         validated = validate_pool_config(cfg)
         _pc._atomic_write_json(cfg_path, validated)
         return validated
@@ -1453,7 +1784,8 @@ def probe_outside_pool(
     )
     status_ok = _payload_status_ok(payload)
     verdict = evaluate_agy_quota(payload, "gemini5h", active_thresholds)
-    blocked_by_resident = resident and not is_host
+    allow_top_shared = bool(cfg.get("allow_concurrent_ag_run", False))
+    blocked_by_resident = resident and not is_host and not allow_top_shared
     usable = (
         (not quota_unknown)
         and status_ok
@@ -1565,12 +1897,14 @@ def pool_status(
 
     entries: list[dict[str, Any]] = []
     future_resets: list[datetime] = []
+    any_enabled = False
     all_exhausted = True
     any_non_exhausted_has_capacity = False
 
     for item in pool:
         p_name = str(item["profile"])
         max_conc = int(item["max_concurrent"])
+        allow_shared = _entry_allows_concurrent_ag_run(item, cfg)
         rec = profiles_map.get(p_name, _empty_profile_record())
         raw_leases = [l for l in rec.get("leases", []) if isinstance(l, Mapping)]
         leased_by = [
@@ -1587,29 +1921,37 @@ def pool_status(
         ex_until_raw = rec.get("exhausted_until")
         ex_until_dt = _parse_utc(ex_until_raw)
         is_exhausted = ex_until_dt is not None and ex_until_dt > current_now
-        if is_exhausted and ex_until_dt is not None:
-            future_resets.append(ex_until_dt)
-        else:
-            all_exhausted = False
-            is_host = resolved_host is not None and p_name == resolved_host
-            if _has_capacity(
-                raw_leases, is_host_profile=is_host, max_concurrent=max_conc
-            ):
-                any_non_exhausted_has_capacity = True
+        if max_conc > 0:
+            any_enabled = True
+            if is_exhausted and ex_until_dt is not None:
+                future_resets.append(ex_until_dt)
+            else:
+                all_exhausted = False
+                is_host = resolved_host is not None and p_name == resolved_host
+                if _has_capacity(
+                    raw_leases,
+                    is_host_profile=is_host,
+                    max_concurrent=max_conc,
+                    allow_concurrent_ag_run=allow_shared,
+                ):
+                    any_non_exhausted_has_capacity = True
 
-        entries.append(
-            {
-                "profile": p_name,
-                "priority": int(item["priority"]),
-                "max_concurrent": max_conc,
-                "leased_by": leased_by,
-                "exhausted_until": ex_until_raw,
-                "exhausted_reason": rec.get("exhausted_reason"),
-                "quota": rec.get("quota"),
-            }
-        )
+        status_entry: dict[str, Any] = {
+            "profile": p_name,
+            "priority": int(item["priority"]),
+            "max_concurrent": max_conc,
+            "leased_by": leased_by,
+            "exhausted_until": ex_until_raw,
+            "exhausted_reason": rec.get("exhausted_reason"),
+            "quota": rec.get("quota"),
+        }
+        if allow_shared:
+            status_entry["allow_concurrent_ag_run"] = True
+        entries.append(status_entry)
 
-    if all_exhausted:
+    if not any_enabled:
+        state = "disabled"
+    elif all_exhausted:
         state = "exhausted"
     elif not any_non_exhausted_has_capacity:
         state = "busy"

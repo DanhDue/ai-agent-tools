@@ -1047,12 +1047,21 @@ def cmd_profiles_list(
             else "free"
         )
         ex_str = (
-            f"exhausted({entry['exhausted_reason']} until {entry['exhausted_until']})"
-            if entry["exhausted_until"]
-            else "ok"
+            "disabled"
+            if int(entry["max_concurrent"]) <= 0
+            else (
+                f"exhausted({entry['exhausted_reason']} until {entry['exhausted_until']})"
+                if entry["exhausted_until"]
+                else "ok"
+            )
+        )
+        shared_str = (
+            ", allow_concurrent_ag_run=true"
+            if entry.get("allow_concurrent_ag_run")
+            else ""
         )
         print(
-            f"  {entry['profile']} (priority={entry['priority']}, max_concurrent={entry['max_concurrent']}): "
+            f"  {entry['profile']} (priority={entry['priority']}, max_concurrent={entry['max_concurrent']}{shared_str}): "
             f"leases=[{lease_str}] status={ex_str}"
         )
     return 0
@@ -1064,6 +1073,7 @@ def cmd_profiles_add(
     name: str,
     priority: int = 1,
     max_concurrent: int = _pool.DEFAULT_MAX_CONCURRENT,
+    allow_concurrent_ag_run: bool | None = None,
     real_home: Path | None = None,
 ) -> int:
     """Add an existing isolated Antigravity profile directory to the global pool."""
@@ -1072,9 +1082,50 @@ def cmd_profiles_add(
         name,
         priority=priority,
         max_concurrent=max_concurrent,
+        allow_concurrent_ag_run=allow_concurrent_ag_run,
         real_home=real_home,
     )
-    print(f"Added profile '{name}' (priority={priority}, max_concurrent={max_concurrent}).")
+    suffix = (
+        f", allow_concurrent_ag_run={str(allow_concurrent_ag_run).lower()}"
+        if allow_concurrent_ag_run is not None
+        else ""
+    )
+    print(
+        f"Added profile '{name}' (priority={priority}, max_concurrent={max_concurrent}{suffix})."
+    )
+    return 0
+
+
+def cmd_profiles_set(
+    project_root: Path,
+    *,
+    name: str | None = None,
+    priority: int | None = None,
+    max_concurrent: int | None = None,
+    allow_concurrent_ag_run: bool | None = None,
+    real_home: Path | None = None,
+) -> int:
+    """Update pool-wide or per-profile settings (priority, max_concurrent, cross-host concurrency)."""
+    _ = project_root
+    _pool.update_profile(
+        name,
+        priority=priority,
+        max_concurrent=max_concurrent,
+        allow_concurrent_ag_run=allow_concurrent_ag_run,
+        real_home=real_home,
+    )
+    target = f"profile '{name}'" if name is not None else "pool default"
+    parts: list[str] = []
+    if priority is not None:
+        parts.append(f"priority={priority}")
+    if max_concurrent is not None:
+        parts.append(f"max_concurrent={max_concurrent}")
+    if allow_concurrent_ag_run is not None:
+        parts.append(
+            f"allow_concurrent_ag_run={str(allow_concurrent_ag_run).lower()}"
+        )
+    detail = f" ({', '.join(parts)})" if parts else ""
+    print(f"Updated {target}{detail}.")
     return 0
 
 
@@ -1432,6 +1483,38 @@ def _build_parser() -> _DevConfigParser:
     p_padd.add_argument("name")
     p_padd.add_argument("--priority", type=int, default=1)
     p_padd.add_argument("--max-concurrent", type=int, default=_pool.DEFAULT_MAX_CONCURRENT)
+    p_padd.add_argument(
+        "--allow-concurrent-ag-run",
+        "--shared",
+        dest="allow_concurrent_ag_run",
+        action="store_true",
+        default=None,
+        help="Allow up to max_concurrent leases and IDE coexistence from any host profile.",
+    )
+
+    p_pset = profiles_sub.add_parser(
+        "set",
+        help="Update a pool profile or pool default (--all) without disturbing live leases.",
+    )
+    p_pset.add_argument("name", nargs="?", default=None)
+    p_pset.add_argument("--all", dest="update_all", action="store_true")
+    p_pset.add_argument("--priority", type=int, default=None)
+    p_pset.add_argument("--max-concurrent", type=int, default=None)
+    p_pset_mode = p_pset.add_mutually_exclusive_group()
+    p_pset_mode.add_argument(
+        "--allow-concurrent-ag-run",
+        "--shared",
+        dest="allow_concurrent_ag_run",
+        action="store_true",
+        default=None,
+        help="Allow concurrent ag_run CLI leases alongside IDE across all host profiles.",
+    )
+    p_pset_mode.add_argument(
+        "--exclusive",
+        dest="allow_concurrent_ag_run",
+        action="store_false",
+        help="Require exclusive single-lease ag_run with resident process guard.",
+    )
 
     p_prm = profiles_sub.add_parser("remove", help="Remove a profile from the pool.")
     p_prm.add_argument("name")
@@ -1562,6 +1645,19 @@ def _dispatch_args(args: argparse.Namespace, project_root: Path) -> int:
                 name=args.name,
                 priority=args.priority,
                 max_concurrent=args.max_concurrent,
+                allow_concurrent_ag_run=args.allow_concurrent_ag_run,
+            )
+        if action == "set":
+            if bool(getattr(args, "update_all", False)) and args.name is not None:
+                raise AgyPoolError("Cannot pass both a profile name and --all to 'profiles set'")
+            if not bool(getattr(args, "update_all", False)) and args.name is None:
+                raise AgyPoolError("Specify a profile name or --all for 'profiles set'")
+            return cmd_profiles_set(
+                project_root,
+                name=None if bool(getattr(args, "update_all", False)) else args.name,
+                priority=args.priority,
+                max_concurrent=args.max_concurrent,
+                allow_concurrent_ag_run=args.allow_concurrent_ag_run,
             )
         if action == "remove":
             return cmd_profiles_remove(project_root, name=args.name)

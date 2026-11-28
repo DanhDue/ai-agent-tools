@@ -5339,6 +5339,29 @@ def _check_and_schedule_hot_reload(server: object) -> None:
         threading.Thread(target=server.shutdown, daemon=True).start()
 
 
+def parse_refresh_profiles_query(query: dict[str, list[str]]) -> list[str] | None:
+    """Parse optional `profiles` query parameter for `/api/refresh-all`.
+
+    Returns None when absent (full refresh), or a validated deduplicated list of
+    profile/provider names when provided (filtered refresh).
+    """
+    if "profiles" not in query:
+        return None
+    seen: set[str] = set()
+    targets: list[str] = []
+    for raw_entry in query.get("profiles", []):
+        for part in str(raw_entry or "").split(","):
+            name = part.strip()
+            if not name:
+                continue
+            if not re.fullmatch(r"[a-zA-Z0-9_-]+", name):
+                raise ValueError(f"Invalid profile name: {name}")
+            if name not in seen:
+                seen.add(name)
+                targets.append(name)
+    return targets
+
+
 class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         if "/favicon.ico" in self.path:
@@ -5761,6 +5784,13 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
 
         if path == "/api/refresh-all":
             is_auto = query.get("auto", ["0"])[0] in ("1", "true", "True")
+            raw_query = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
+            try:
+                requested_profiles = parse_refresh_profiles_query(raw_query)
+            except ValueError as exc:
+                self.send_json({"success": False, "error": str(exc)}, status=400)
+                return
+
             now = int(time.time())
             last_rf = get_last_refresh_all_time()
             if last_rf == 0:
@@ -5782,37 +5812,66 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
                 })
                 return
 
+            is_filtered = requested_profiles is not None
+            requested_set = set(requested_profiles or [])
             formatted_all = {}
+
             # 1. AI Providers: Claude, Codex & Kiro
-            c_data = fetch_claude_quota()
-            formatted_all["claude"] = c_data
-            update_cached_profile("claude", c_data)
+            if not is_filtered or "claude" in requested_set:
+                c_data = fetch_claude_quota()
+                formatted_all["claude"] = c_data
+                update_cached_profile("claude", c_data)
 
-            x_data = fetch_codex_quota()
-            formatted_all["codex"] = x_data
-            update_cached_profile("codex", x_data)
+            if not is_filtered or "codex" in requested_set:
+                x_data = fetch_codex_quota()
+                formatted_all["codex"] = x_data
+                update_cached_profile("codex", x_data)
 
-            k_data = fetch_kiro_quota()
-            formatted_all["kiro"] = k_data
-            update_cached_profile("kiro", k_data)
+            if not is_filtered or "kiro" in requested_set:
+                k_data = fetch_kiro_quota()
+                formatted_all["kiro"] = k_data
+                update_cached_profile("kiro", k_data)
 
             # 2. Antigravity Profiles
-            profiles = get_all_profiles()
-            results = scan_all_profiles_parallel(profiles)
-            for r in results:
-                p = r["profile"]
-                f_data = format_profile_for_dashboard(p, r)
-                formatted_all[p] = f_data
-                update_cached_profile(p, f_data)
+            all_agy_profiles = get_all_profiles()
+            if is_filtered:
+                known_agy_set = set(all_agy_profiles)
+                target_agy_profiles = [
+                    p
+                    for p in (requested_profiles or [])
+                    if p not in ("claude", "codex", "kiro") and p in known_agy_set
+                ]
+            else:
+                target_agy_profiles = all_agy_profiles
 
-            record_refresh_all_time(now)
+            if target_agy_profiles:
+                results = scan_all_profiles_parallel(target_agy_profiles)
+                for r in results:
+                    p = r["profile"]
+                    f_data = format_profile_for_dashboard(p, r)
+                    formatted_all[p] = f_data
+                    update_cached_profile(p, f_data)
+
+            if not is_filtered:
+                record_refresh_all_time(now)
+                resp_last_rf = now
+                resp_elapsed = 0
+                resp_can_auto = False
+            else:
+                resp_last_rf = last_rf
+                resp_elapsed = elapsed
+                resp_can_auto = elapsed >= GLOBAL_REFRESH_INTERVAL_SECONDS
+
             self.send_json({
                 "success": True,
                 "skipped": False,
+                "filtered": is_filtered,
+                "refreshed_count": len(formatted_all),
+                "refreshed_profiles": list(formatted_all.keys()),
                 "profiles": formatted_all,
-                "last_refresh_all": now,
-                "elapsed_seconds": 0,
-                "can_auto_refresh": False,
+                "last_refresh_all": resp_last_rf,
+                "elapsed_seconds": resp_elapsed,
+                "can_auto_refresh": resp_can_auto,
                 "interval_seconds": GLOBAL_REFRESH_INTERVAL_SECONDS
             })
             return
