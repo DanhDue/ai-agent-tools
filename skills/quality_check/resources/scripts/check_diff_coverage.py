@@ -1394,6 +1394,9 @@ def evaluate_coverage(
         short_name = bucket.rsplit("/", 1)[-1]
         is_excluded = bucket in excluded or short_name in excluded
         pkg_pct = (lh / lf * 100.0) if lf > 0 else 0.0
+        enforced_pct: float | None = (
+            round(un_lh / un_lf * 100.0, 2) if un_lf > 0 else None
+        )
         pkg_passed = True
         if min_package_coverage_pct > 0.0 and not is_excluded and un_lf > 0:
             check_pct = un_lh / un_lf * 100.0
@@ -1410,6 +1413,7 @@ def evaluate_coverage(
                 "covered": lh,
                 "total": lf,
                 "coverage_pct": round(pkg_pct, 2),
+                "enforced_coverage_pct": enforced_pct,
                 "excluded_from_floor": is_excluded,
                 "passed": pkg_passed,
             }

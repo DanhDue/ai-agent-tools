@@ -367,6 +367,49 @@ def web_requires_lcov_unit_tests(
     return True, custom_globs or DEFAULT_LCOV_UNIT_TEST_GLOBS
 
 
+def _path_matches_suffix(path: str, suffix: str) -> bool:
+    return path == suffix or path.endswith(f"/{suffix}")
+
+
+def _cache_bust_ref_matches_asset(
+    raw_ref: str,
+    template_path: Path,
+    asset_rel: str,
+    *,
+    repo_root_resolved: Path,
+    modified_asset_set: frozenset[str],
+    known_files_for_name: frozenset[str],
+) -> bool:
+    stripped = raw_ref.strip().replace("\\", "/")
+    is_root_relative = stripped.startswith("/")
+    clean_ref = stripped
+    while clean_ref.startswith("./"):
+        clean_ref = clean_ref[2:]
+
+    if not is_root_relative:
+        try:
+            candidate = (template_path.parent / clean_ref).resolve()
+            resolved_rel = candidate.relative_to(repo_root_resolved).as_posix()
+        except (OSError, ValueError):
+            candidate = None
+            resolved_rel = None
+        if resolved_rel is not None and candidate is not None:
+            if candidate.is_file() or resolved_rel in modified_asset_set:
+                return resolved_rel == asset_rel
+
+    suffix = clean_ref.lstrip("/")
+    while suffix.startswith("../"):
+        suffix = suffix[3:]
+    if "/" in suffix:
+        if _path_matches_suffix(asset_rel, suffix):
+            return True
+        if any(_path_matches_suffix(known, suffix) for known in known_files_for_name):
+            return False
+        return len(known_files_for_name) == 1
+
+    return asset_rel == suffix or len(known_files_for_name) == 1
+
+
 def find_cache_bust_templates(
     repo_root: Path,
     modified_assets: Sequence[str],
@@ -389,7 +432,8 @@ def find_cache_bust_templates(
         return []
 
     asset_exts = configured_exts or DEFAULT_CACHE_BUST_EXTENSIONS
-    asset_names: list[str] = []
+    assets_by_name: dict[str, list[str]] = {}
+    target_assets: list[str] = []
     for raw_asset in modified_assets:
         norm = _normalize_planned_path(raw_asset)
         if not norm:
@@ -401,34 +445,76 @@ def find_cache_bust_templates(
         if PurePosixPath(norm).suffix.lower() not in asset_exts:
             continue
         name = PurePosixPath(norm).name
-        if name and name not in asset_names:
-            asset_names.append(name)
+        if not name:
+            continue
+        if norm not in target_assets:
+            target_assets.append(norm)
+        bucket = assets_by_name.setdefault(name, [])
+        if norm not in bucket:
+            bucket.append(norm)
 
-    if not asset_names or not repo_root.is_dir():
+    if not assets_by_name or not repo_root.is_dir():
         return []
 
-    patterns = [
-        re.compile(
-            rf"""(?:src|href)=['"](?:[^'"]*/)?{re.escape(name)}(\?[^'"]*)?['"]"""
-        )
-        for name in asset_names
-    ]
-
-    matched_templates: list[str] = []
-    root_str = str(repo_root)
+    repo_root_resolved = repo_root.resolve()
+    template_paths: list[Path] = []
+    repo_files_by_name: dict[str, set[str]] = {name: set() for name in assets_by_name}
+    root_str = str(repo_root_resolved)
     for dirpath, dirnames, filenames in os.walk(root_str, topdown=True):
         dirnames[:] = [d for d in dirnames if d not in _IGNORED_WALK_DIRS]
         for fname in filenames:
-            if not fname.lower().endswith(_TEMPLATE_EXTENSIONS):
-                continue
-            full_path = Path(dirpath) / fname
-            try:
-                content = full_path.read_text(encoding="utf-8")
-            except (OSError, UnicodeDecodeError):
-                continue
-            if any(pat.search(content) for pat in patterns):
-                rel = full_path.relative_to(repo_root).as_posix()
-                matched_templates.append(rel)
+            if fname in repo_files_by_name:
+                rel = (Path(dirpath) / fname).relative_to(repo_root_resolved).as_posix()
+                if not registry.TriageSurfaceRegistry.is_test_file(rel):
+                    repo_files_by_name[fname].add(rel)
+            if fname.lower().endswith(_TEMPLATE_EXTENSIONS):
+                template_paths.append(Path(dirpath) / fname)
+
+    known_files_by_name: dict[str, frozenset[str]] = {
+        name: frozenset(repo_files_by_name[name] | set(paths))
+        for name, paths in assets_by_name.items()
+    }
+    modified_asset_set = frozenset(target_assets)
+    patterns: list[tuple[str, re.Pattern[str]]] = [
+        (
+            name,
+            re.compile(
+                rf"""(?:src|href)=['"]((?:[^'"?#]*/)?{re.escape(name)})(?:\?[^'"#]*)?(?:#[^'"]*)?['"]"""
+            ),
+        )
+        for name in assets_by_name
+    ]
+
+    matched_templates: list[str] = []
+    for full_path in template_paths:
+        try:
+            content = full_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        matched = False
+        for name, pat in patterns:
+            known_files = known_files_by_name[name]
+            target_rels = assets_by_name[name]
+            for m in pat.finditer(content):
+                raw_ref = m.group(1)
+                if any(
+                    _cache_bust_ref_matches_asset(
+                        raw_ref,
+                        full_path,
+                        asset_rel,
+                        repo_root_resolved=repo_root_resolved,
+                        modified_asset_set=modified_asset_set,
+                        known_files_for_name=known_files,
+                    )
+                    for asset_rel in target_rels
+                ):
+                    matched = True
+                    break
+            if matched:
+                break
+        if matched:
+            rel = full_path.relative_to(repo_root_resolved).as_posix()
+            matched_templates.append(rel)
 
     return sorted(set(matched_templates))
 

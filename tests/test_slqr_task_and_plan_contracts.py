@@ -1351,3 +1351,90 @@ def test_malformed_web_manifest_and_test_routing_fail_closed(tmp_path: Path) -> 
     assert res_plan_tr.returncode == 1, res_plan_tr.stdout
     assert "web-quality.json" in res_plan_tr.stdout
     assert "test_routing" in res_plan_tr.stdout
+
+
+def test_missing_non_python_allowed_dir_is_not_treated_as_python_target(
+    tmp_path: Path,
+) -> None:
+    """Missing non-Python Allowed directory (`docs/guide/`) is not forced into ruff/mypy targets."""
+    import check_task_contract as ctc
+
+    repo = tmp_path / "missing_non_py_dir_repo"
+    _init_repo(repo)
+    _write_json(
+        repo,
+        ".agents/quality/python-quality.json",
+        {
+            "schema_version": 1,
+            "capabilities": {
+                "lint": ["uv", "run", "ruff", "check", "."],
+                "type_check": ["uv", "run", "mypy", "--strict", "src", "tests"],
+            },
+            "profiles": {"pr": ["lint", "type_check"], "epic": ["lint", "type_check"]},
+        },
+    )
+    _write(repo, "src/pkg/mod.py", "def mod() -> int:\n    return 1\n")
+    _write(repo, "src/pkg/final.py", "def final() -> int:\n    return 2\n")
+    (repo / "docs" / "empty").mkdir(parents=True, exist_ok=True)
+    hld = _write(repo, ".devtool/epic/demo/demo.md", _hld_text())
+
+    # Unit checks on _dir_contains_python and _collect_allowed_py_entries
+    assert not ctc._dir_contains_python(repo, "docs/guide", "docs/guide/")
+    assert not ctc._dir_contains_python(repo, "docs/empty", "docs/empty/")
+    assert ctc._dir_contains_python(repo, "src/new_pkg", "src/new_pkg/*.py")
+
+    concrete, roots = ctc._collect_allowed_py_entries(
+        ["docs/guide/", "docs/empty/", "src/pkg/mod.py", "src/new_pkg/*.py"], repo
+    )
+    assert concrete == ["src/pkg/mod.py"]
+    assert [r.pattern for r in roots] == ["src/new_pkg/*.py"]
+
+    t1 = _write(
+        repo,
+        ".devtool/epic/demo/task_01_docs_and_py.md",
+        _task_md(
+            allowed=["docs/guide/ (new)", "src/pkg/mod.py"],
+            rows=[
+                "| V1 | RED | `python3 tool.py red` | exit 1 | — |",
+                "| V2 | GREEN | `python3 tool.py green` | exit 0 | — |",
+                "| V3 | TIER-B | `uv run ruff check src/pkg/mod.py && uv run mypy --strict src/pkg/mod.py` | exit 0 | — |",
+                "| V4 | TIER-C | `python3 tool.py int` | exit 0; results build/out.xml | — |",
+            ],
+            order="a01",
+        ),
+    )
+    t2 = _write(
+        repo,
+        ".devtool/epic/demo/task_02_final.md",
+        _task_md(
+            allowed=["src/pkg/final.py"],
+            rows=[
+                "| V1 | RED | `python3 tool.py red` | exit 1 | — |",
+                "| V2 | GREEN | `python3 tool.py green` | exit 0 | — |",
+                "| V3 | TIER-B | `uv run ruff check . && uv run mypy --strict src tests` | exit 0 | — |",
+                "| V4 | TIER-C | `python3 tool.py int` | exit 0; results build/out.xml | — |",
+            ],
+            order="a02",
+        ),
+    )
+    plan = _write(
+        repo,
+        "docs/plan_missing_dir.md",
+        "# Plan\n\n"
+        "### Task 1: Add guide dir and Python module\n\n"
+        "- Create: `docs/guide/`\n"
+        "- Modify: `src/pkg/mod.py`\n\n"
+        "Run: `uv run ruff check src/pkg/mod.py`\n"
+        "Run: `uv run mypy --strict src/pkg/mod.py`\n",
+    )
+    _commit(repo, "missing non-py dir allowed")
+
+    res = _run_contract(
+        repo, "--design", "--hld", str(hld), "--tasks", str(t1), str(t2)
+    )
+    assert res.returncode == 0, res.stdout + res.stderr
+    assert res.stdout.splitlines() == ["Result: 0 problems — PASS"]
+
+    res_plan = _run_contract(repo, "--check-plan", str(plan))
+    assert res_plan.returncode == 0, res_plan.stdout + res_plan.stderr
+    assert res_plan.stdout.splitlines() == ["Result: 0 problems — PASS"]

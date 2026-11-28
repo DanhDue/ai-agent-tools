@@ -780,6 +780,62 @@ def test_find_cache_bust_templates_does_not_false_match_asset_substring(
     assert matched == ["templates/true_pos.html", "templates/true_pos_rel.html"]
 
 
+def test_find_cache_bust_templates_disambiguates_same_named_assets_across_folders(
+    tmp_path: Path,
+) -> None:
+    """Verify same-named assets in separate folders match only their own templates while keeping unique custom mounts working."""
+    resolver = _load_resolver_module()
+    _write_text(
+        tmp_path / "src" / "admin" / "static" / "app.js", "export const a = 1;\n"
+    )
+    _write_text(
+        tmp_path / "src" / "public" / "static" / "app.js", "export const p = 2;\n"
+    )
+    _write_text(
+        tmp_path / "src" / "preview" / "static" / "align-studio.js",
+        "export const s = 3;\n",
+    )
+
+    _write_text(
+        tmp_path / "templates" / "admin.html",
+        '<script src="/admin/static/app.js?v=1"></script>\n',
+    )
+    _write_text(
+        tmp_path / "templates" / "public.html",
+        '<script src="/public/static/app.js?v=1"></script>\n',
+    )
+    _write_text(
+        tmp_path / "src" / "admin" / "static" / "local.html",
+        '<script src="./app.js?v=1"></script>\n',
+    )
+    _write_text(
+        tmp_path / "src" / "public" / "static" / "local.html",
+        '<script src="./app.js?v=1"></script>\n',
+    )
+    _write_text(
+        tmp_path / "templates" / "custom_ambiguous.html",
+        '<script src="/vendor/app.js?v=1"></script>\n',
+    )
+    _write_text(
+        tmp_path / "templates" / "custom_unique.html",
+        '<script src="/assets/align-studio.js?v=1"></script>\n',
+    )
+
+    web_manifest = {"capabilities": {"ui_review": ["python3", "audit.py"]}}
+    matched_admin = resolver.find_cache_bust_templates(
+        tmp_path, ["src/admin/static/app.js"], web_manifest
+    )
+    assert matched_admin == [
+        "src/admin/static/local.html",
+        "templates/admin.html",
+    ]
+
+    matched_unique = resolver.find_cache_bust_templates(
+        tmp_path, ["src/preview/static/align-studio.js"], web_manifest
+    )
+    assert matched_unique == ["templates/custom_unique.html"]
+
+
 def test_format_compact_plan_prints_unmatched_files_alongside_active_stacks(
     tmp_path: Path,
 ) -> None:

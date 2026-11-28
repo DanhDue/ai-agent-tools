@@ -1174,13 +1174,17 @@ def _glob_static_root(pattern: str) -> str:
     return "/".join(parts) if parts else "."
 
 
-def _dir_contains_python(repo_root: Path | None, rel_dir: str) -> bool:
+def _dir_contains_python(
+    repo_root: Path | None,
+    rel_dir: str,
+    raw_pattern: str = "",
+) -> bool:
+    pattern_is_py = raw_pattern.strip().lower().endswith(".py")
     if repo_root is None:
-        return True
+        return pattern_is_py
     target = repo_root if rel_dir in ("", ".") else repo_root / rel_dir
     if not target.is_dir():
-        return True
-    has_any_file = False
+        return pattern_is_py
     for _, dirnames, filenames in os.walk(target):
         dirnames[:] = [
             d
@@ -1188,10 +1192,9 @@ def _dir_contains_python(repo_root: Path | None, rel_dir: str) -> bool:
             if d not in (".git", "__pycache__", ".venv", "venv", "node_modules")
         ]
         for fname in filenames:
-            has_any_file = True
             if fname.lower().endswith(".py"):
                 return True
-    return not has_any_file
+    return pattern_is_py
 
 
 def _collect_allowed_py_entries(
@@ -1213,7 +1216,8 @@ def _collect_allowed_py_entries(
         if GLOB_CHARS.search(raw):
             suffix = Path(raw).suffix.lower()
             if raw.lower().endswith(".py") or (
-                not suffix and _dir_contains_python(repo_root, _glob_static_root(raw))
+                not suffix
+                and _dir_contains_python(repo_root, _glob_static_root(raw), raw)
             ):
                 root = _glob_static_root(raw)
                 key = (raw, "glob")
@@ -1231,7 +1235,7 @@ def _collect_allowed_py_entries(
         is_dir = raw.endswith("/") or (
             repo_root is not None and bool(norm_dir) and (repo_root / norm_dir).is_dir()
         )
-        if is_dir and _dir_contains_python(repo_root, norm_dir or "."):
+        if is_dir and _dir_contains_python(repo_root, norm_dir or ".", raw):
             dir_root = norm_dir or "."
             key = (dir_root, "dir")
             if key not in seen_roots:

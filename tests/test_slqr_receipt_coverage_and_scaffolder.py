@@ -653,6 +653,13 @@ class TestSLQRReceiptCoverageAndScaffolder_Integration:
         assert json_proc.returncode == expected_rc
         payload = json.loads(json_proc.stdout)
         assert payload["status"] == ("PASS" if expected_rc == 0 else "FAIL")
+        pkg_by_name = {item["package"]: item for item in payload["package_results"]}
+        assert pkg_by_name["src/web"]["coverage_pct"] == pytest.approx(
+            round(studio_covered / 20 * 100.0, 2)
+        )
+        assert pkg_by_name["src/web"]["enforced_coverage_pct"] is None
+        assert pkg_by_name["src/web"]["passed"] is True
+        assert pkg_by_name["src/pkg"]["enforced_coverage_pct"] is None
         if expected_rc == 1:
             assert any(expected_token in failure for failure in payload["failures"])
 
@@ -682,7 +689,9 @@ class TestSLQRReceiptCoverageAndScaffolder_Integration:
                     _make_lcov_record("packages/net/client.py", 9, 10),
                     _make_lcov_record("packages/net/retry.py", 7, 10),
                     _make_lcov_record("src/preview/static/studio.js", 10, 20),
+                    _make_lcov_record("src/preview/static/other.js", 8, 10),
                     _make_lcov_record("src/flat_adapter/mod.py", 3, 4),
+                    _make_lcov_record("src/plain/util.py", 9, 10),
                 ]
             ),
             encoding="utf-8",
@@ -697,10 +706,18 @@ class TestSLQRReceiptCoverageAndScaffolder_Integration:
                 "0.70",
                 "--package-floors",
                 str(floors_path),
+                "--json",
             ],
             cwd=repo,
         )
         assert ok_proc.returncode == 0, ok_proc.stdout
+        ok_payload = json.loads(ok_proc.stdout)
+        by_pkg = {item["package"]: item for item in ok_payload["package_results"]}
+        assert by_pkg["packages/net"]["enforced_coverage_pct"] is None
+        assert by_pkg["src/preview"]["coverage_pct"] == pytest.approx(60.0)
+        assert by_pkg["src/preview"]["enforced_coverage_pct"] == pytest.approx(80.0)
+        assert by_pkg["src/preview"]["passed"] is True
+        assert by_pkg["src/plain"]["enforced_coverage_pct"] == pytest.approx(90.0)
 
         lcov_path.write_text(
             "".join(
