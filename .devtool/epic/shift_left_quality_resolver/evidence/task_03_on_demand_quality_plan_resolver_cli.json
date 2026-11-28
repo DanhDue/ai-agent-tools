@@ -1,0 +1,181 @@
+{
+  "schema": 1,
+  "task": "task_03_on_demand_quality_plan_resolver_cli",
+  "runs": {
+    "red": {
+      "head": "8df55094df97ea782c28ba16ff82dc082d8797de",
+      "tree": "138e6a14e8300e6c79bf85ab25b811fadfcdab93",
+      "patch_id": "9d5bcb81473e706e64d29b98b2483c65cfd40604",
+      "started": "2026-11-28T04:30:32Z",
+      "finished": "2026-11-28T04:30:36Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_quality_plan_resolver.py::test_slqr_hp_03_resolve_quality_cli_emits_compact_scoped_lines_within_budget",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T04:30:32Z",
+          "finished": "2026-11-28T04:30:35Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "_ test_slqr_hp_03_resolve_quality_cli_emits_compact_scoped_lines_within_budget _",
+            "tests/test_slqr_quality_plan_resolver.py:323: in test_slqr_hp_03_resolve_quality_cli_emits_compact_scoped_lines_within_budget",
+            "    resolver = _load_resolver_module()",
+            "               ^^^^^^^^^^^^^^^^^^^^^^^",
+            "tests/test_slqr_quality_plan_resolver.py:37: in _load_resolver_module",
+            "    return importlib.import_module(\"resolve_task_quality_plan\")",
+            "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/importlib/__init__.py:88: in import_module",
+            "    return _bootstrap._gcd_import(name[level:], package, level)",
+            "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "<frozen importlib._bootstrap>:1389: in _gcd_import",
+            "    ???",
+            "<frozen importlib._bootstrap>:1353: in _find_and_load",
+            "    ???",
+            "<frozen importlib._bootstrap>:1242: in _find_and_load_unlocked",
+            "    ???",
+            "E   ModuleNotFoundError: No module named 'resolve_task_quality_plan'",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_slqr_quality_plan_resolver.py::test_slqr_hp_03_resolve_quality_cli_emits_compact_scoped_lines_within_budget",
+            "1 failed in 2.64s"
+          ],
+          "output_sha256": "ede98600a156fca0cb2cefbffcb344e58d25696f26db1e07e102ff5383171ba6"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "8df55094df97ea782c28ba16ff82dc082d8797de",
+      "tree": "dfa0d97174af7c6a426c7542308c06061f5b9d7c",
+      "patch_id": "bac8526edefc30db02ab6db538188e1747fafc30",
+      "started": "2026-11-28T04:35:30Z",
+      "finished": "2026-11-28T04:35:35Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_quality_plan_resolver.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T04:35:30Z",
+          "finished": "2026-11-28T04:35:31Z",
+          "output_tail": [
+            "...............................                                          [100%]",
+            "31 passed in 0.90s"
+          ],
+          "output_sha256": "873b262ca1e465ce2af6ec30ff6699ad8bfc5c5a07b773739cb4db50c9014b40"
+        },
+        {
+          "id": "V3",
+          "phase": "REGRESSION",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_registry_and_schemas.py tests/test_stack_lifecycle_registry.py tests/test_task_contract_ergonomics_e2e.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T04:35:31Z",
+          "finished": "2026-11-28T04:35:34Z",
+          "output_tail": [
+            "...................................................                      [100%]",
+            "51 passed in 2.82s"
+          ],
+          "output_sha256": "811f1e1f5b6c00d8a564288d09eb5901db37c04d3e403fb2a5dd407c00e48377"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/resolve_task_quality_plan.py bin/d3nexus tests/test_slqr_quality_plan_resolver.py && ruff format --check skills/dev-implementation/resources/scripts/resolve_task_quality_plan.py bin/d3nexus tests/test_slqr_quality_plan_resolver.py && mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/resolve_task_quality_plan.py bin/d3nexus tests/test_slqr_quality_plan_resolver.py --ignore-missing-imports --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T04:35:34Z",
+          "finished": "2026-11-28T04:35:34Z",
+          "output_tail": [
+            "All checks passed!",
+            "3 files already formatted",
+            "Success: no issues found in 10 source files"
+          ],
+          "output_sha256": "a055c79c32ba9317c4a57778b5d466ef576d88ec355e7f0818236e93805cb535"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_quality_plan_resolver.py --junitxml=build/test-results/slqr_task_03.xml",
+          "expect": "exit 0; results build/test-results/slqr_task_03.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T04:35:34Z",
+          "finished": "2026-11-28T04:35:35Z",
+          "output_tail": [
+            "...............................                                          [100%]",
+            "31 passed in 0.81s"
+          ],
+          "output_sha256": "9111901ff4efa8f5e04b941de4d61575c906b0f63a8e07b5f1df4587bd454b30",
+          "results": {
+            "path": "build/test-results/slqr_task_03.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 5,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_slqr_hp_03_resolve_quality_cli_emits_compact_scoped_lines_within_budget",
+                  "classname": "tests.test_slqr_quality_plan_resolver",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_03_resolve_quality_cli_emits_compact_scoped_lines_within_budget",
+                  "classname": "tests.test_slqr_quality_plan_resolver.TestSlqrQualityPlanResolver_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ar_01_stdlib_purity_and_no_circular_imports",
+                  "classname": "tests.test_slqr_quality_plan_resolver.TestSlqrQualityPlanResolver_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ar_02_single_stack_python_zero_untouched_noise",
+                  "classname": "tests.test_slqr_quality_plan_resolver.TestSlqrQualityPlanResolver_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_03_malformed_manifest_exits_2",
+                  "classname": "tests.test_slqr_quality_plan_resolver.TestSlqrQualityPlanResolver_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "bin/d3nexus",
+            "skills/dev-implementation/resources/scripts/resolve_task_quality_plan.py",
+            "tests/test_slqr_quality_plan_resolver.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

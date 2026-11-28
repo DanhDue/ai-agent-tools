@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Portable entrypoint for d3nexus tools."""
+
 from __future__ import annotations
 
 import subprocess
@@ -21,6 +22,7 @@ SUBCOMMANDS: dict[str, str] = {
     "integrate": "skills/finishing-a-development-branch/resources/scripts/integrate_branch.py",
     "package-epic": "skills/dev-implementation/resources/scripts/package_epic.py",
     "quality-check": "skills/quality_check/resources/scripts/verify_polyglot_registry.py",
+    "resolve-quality": "skills/dev-implementation/resources/scripts/resolve_task_quality_plan.py",
     "resume-context": "scripts/resume_context.py",
     "run-checks": "skills/dev-implementation/resources/scripts/run_task_checks.py",
     "run-external-review": "skills/dev-implementation/resources/scripts/run_external_review.py",
@@ -38,7 +40,9 @@ def main() -> int:
     rel_path = SUBCOMMANDS.get(subcmd)
     if not rel_path:
         sys.stderr.write(f"d3nexus: unknown subcommand '{subcmd}'\n")
-        sys.stderr.write("Available subcommands: " + ", ".join(sorted(SUBCOMMANDS.keys())) + "\n")
+        sys.stderr.write(
+            "Available subcommands: " + ", ".join(sorted(SUBCOMMANDS.keys())) + "\n"
+        )
         return 2
 
     target = KIT_ROOT / rel_path
