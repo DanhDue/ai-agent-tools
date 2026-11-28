@@ -746,6 +746,13 @@ def _run_fpg_hp_16_cli_parse() -> None:
                 f"Command parsed without subcommand or --provider: {cmd_line}"
             )
 
+        for cmd_line in en_commands:
+            tokens = _dev_config_argv(cmd_line)
+            if tokens and tokens[0] == "set":
+                assert "--profile" not in tokens, (
+                    f"Retired --profile flag found in quick-guide set command: {cmd_line}"
+                )
+
         required_subcommands = (
             "status",
             "models",
@@ -822,7 +829,7 @@ def _assert_guide_profile_order(
     target_action: str,
     doc_name: str,
 ) -> None:
-    """Enforce SE-16 ordering: remove/release/set --profile follow add; probe follows discover or add."""
+    """Enforce SE-16 ordering: remove/release follow add; probe follows discover or add."""
     active_pool: set[str] = set()
     discovered_seen = False
     found = 0
@@ -854,14 +861,6 @@ def _assert_guide_profile_order(
                 )
             if p_action == "remove" and p_name:
                 active_pool.discard(str(p_name))
-        elif cmd == "set" and target_action == "set_profile":
-            set_profile = getattr(args, "set_profile", None)
-            if set_profile and str(set_profile) != "auto":
-                found += 1
-                assert str(set_profile) in active_pool, (
-                    f"Command {cmd_line!r} runs 'set ... --profile {set_profile}' "
-                    f"before 'profiles add {set_profile}' in {doc_name}"
-                )
     assert found > 0, (
         f"Expected at least one {target_action!r} profile command in {doc_name}"
     )
@@ -879,7 +878,7 @@ class TestFpgAcceptance_GuideAndRegistry(unittest.TestCase):
         _run_verify_registration_check()
 
     def test_dev_config_guide_profile_actions_follow_add(self) -> None:
-        """Every fenced remove/release/set --profile follows add <name>, and probe <name> follows discover or add <name>."""
+        """Every fenced remove/release follows add <name>, and probe <name> follows discover or add <name>."""
         en_path = REPO_ROOT / "docs" / "dev-config-quick-guide.en.md"
         en_commands = _extract_fenced_commands(en_path.read_text(encoding="utf-8"))
         with _isolated_host_env():
@@ -889,7 +888,7 @@ class TestFpgAcceptance_GuideAndRegistry(unittest.TestCase):
                 extra_sys_path=SCRIPTS_DIR,
             )
             parser = dc._build_parser()
-            for target_action in ("probe", "remove", "release", "set_profile"):
+            for target_action in ("probe", "remove", "release"):
                 with self.subTest(action=target_action):
                     _assert_guide_profile_order(
                         en_commands,
