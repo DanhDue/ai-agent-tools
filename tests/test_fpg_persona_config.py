@@ -49,6 +49,14 @@ def _load_module(name: str, path: Path) -> ModuleType:
     return mod
 
 
+def _persona_mod() -> ModuleType:
+    return _load_module("persona_config", PERSONA_CONFIG_SCRIPT)
+
+
+def _dev_config_mod() -> ModuleType:
+    return _load_module("dev_config", DEV_CONFIG_SCRIPT)
+
+
 def _write_json(path: Path, data: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
@@ -1010,3 +1018,140 @@ def test_fpg_ec_01_corrupt_json_and_cli_usage_errors(tmp_path: Path) -> None:
         res = _run_cli(bad_args, cwd=project, real_home=real_home)
         assert res.returncode == 1
         assert token in (res.stdout + res.stderr)
+
+
+def test_legacy_override_profile_is_ignored_and_warns_in_status(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Legacy overrides.<persona>.profile keys on disk load cleanly, resolve profile=None, and emit status warnings."""
+    pc = _persona_mod()
+    dc = _dev_config_mod()
+    real_home = tmp_path / "real_home"
+    project = tmp_path / "project"
+    real_home.mkdir()
+    project.mkdir()
+    monkeypatch.setenv("HOME", str(real_home))
+    monkeypatch.setenv("REAL_HOME", str(real_home))
+    _write_json(
+        real_home / ".d3nexus" / "personas.json",
+        {
+            "schema_version": 1,
+            "overrides": {
+                "orchestrator": {
+                    "model": "hydrogen",
+                    "effort": "high",
+                    "profile": "legacy_acc",
+                },
+                "programmer": {
+                    "model": "codex-gpt",
+                    "effort": "xhigh",
+                    "profile": "legacy_acc",
+                },
+            },
+        },
+    )
+
+    bindings = pc.resolve_all_personas(project, real_home=real_home)
+    assert bindings["orchestrator"].profile is None
+    assert "profile" not in bindings["orchestrator"].sources
+    assert bindings["programmer"].cli == "codex"
+    assert bindings["programmer"].profile is None
+    assert "profile" not in bindings["programmer"].sources
+
+    warnings = pc.detect_legacy_warnings(project, real_home=real_home)
+    assert any(
+        "global personas.json overrides.orchestrator.profile" in w for w in warnings
+    )
+    assert any(
+        "global personas.json overrides.programmer.profile" in w for w in warnings
+    )
+
+    rc = dc.cmd_status(project, json_output=True, real_home=real_home)
+    assert rc == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["personas"]["orchestrator"]["profile"] is None
+    assert any("overrides.orchestrator.profile" in w for w in payload["warnings"])
+
+
+def test_legacy_override_profile_project_layer_validation_and_cli_rejection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Project-layer legacy profile strings are tolerated and warned, invalid types and cli_overrides fail."""
+    pc = _persona_mod()
+    dc = _dev_config_mod()
+    real_home = tmp_path / "real_home"
+    project = tmp_path / "project"
+    real_home.mkdir()
+    project.mkdir()
+    monkeypatch.setenv("HOME", str(real_home))
+    monkeypatch.setenv("REAL_HOME", str(real_home))
+
+    project_cfg = project / ".agents" / "config" / "personas.json"
+    _write_json(
+        project_cfg,
+        {
+            "schema_version": 1,
+            "overrides": {
+                "ai_architect_reviewer": {
+                    "model": "argon",
+                    "effort": "high",
+                    "profile": "proj_acc",
+                },
+                "programmer": {
+                    "model": "kiro-sonnet",
+                    "effort": "high",
+                    "profile": "proj_acc",
+                },
+            },
+        },
+    )
+
+    bindings = pc.resolve_all_personas(project, real_home=real_home)
+    assert bindings["ai_architect_reviewer"].cli == "agy"
+    assert bindings["ai_architect_reviewer"].profile is None
+    assert "profile" not in bindings["ai_architect_reviewer"].sources
+    assert bindings["programmer"].cli == "kiro"
+    assert bindings["programmer"].profile is None
+    assert "profile" not in bindings["programmer"].sources
+
+    warnings = pc.detect_legacy_warnings(project, real_home=real_home)
+    assert any(
+        "project personas.json overrides.ai_architect_reviewer.profile" in w
+        for w in warnings
+    )
+    assert any(
+        "project personas.json overrides.programmer.profile" in w for w in warnings
+    )
+
+    rc = dc.cmd_review_status(project, json_output=True, real_home=real_home)
+    assert rc == 0
+    review_payload = json.loads(capsys.readouterr().out)
+    assert any(
+        "project personas.json overrides.programmer.profile" in w
+        for w in review_payload["warnings"]
+    )
+
+    with pytest.raises(pc.PersonaConfigError, match="profile"):
+        pc.resolve_persona(
+            "programmer",
+            project,
+            cli_overrides={"profile": "p1"},
+            real_home=real_home,
+        )
+
+    for bad_profile in (123, ["p1"], None, "bad space"):
+        _write_json(
+            project_cfg,
+            {
+                "schema_version": 1,
+                "overrides": {
+                    "programmer": {
+                        "model": "hydrogen",
+                        "effort": "xhigh",
+                        "profile": bad_profile,
+                    }
+                },
+            },
+        )
+        with pytest.raises(pc.PersonaConfigError, match="profile"):
+            pc.load_persona_config(project, real_home=real_home)

@@ -578,25 +578,15 @@ def test_cli_set_and_resolve_effortless_models_end_to_end(
         assert expected_model_id in res_argv.stdout
 
 
-def test_cli_set_effortless_with_profile_preference_and_models_add_default(
+def test_custom_effortless_alias_set_and_resolve(
     tmp_path: Path,
 ) -> None:
     real_home = tmp_path / "real_home"
     project = tmp_path / "project"
     bin_dir = tmp_path / "bin"
-    (real_home / "antigravity_homes" / "p1").mkdir(parents=True)
+    real_home.mkdir()
     project.mkdir()
     _make_stub_bin(bin_dir, ("agy",))
-
-    assert (
-        _run_cli(
-            ["profiles", "add", "p1"],
-            cwd=project,
-            real_home=real_home,
-            path_dir=bin_dir,
-        ).returncode
-        == 0
-    )
 
     res_add = _run_cli(
         ["models", "add", "custom-orch", "--cli", "agy", "--id", "gemini-pro-custom"],
@@ -612,8 +602,6 @@ def test_cli_set_effortless_with_profile_preference_and_models_add_default(
             "orchestrator",
             "--provider",
             "agy",
-            "--profile",
-            "p1",
             "--model",
             "custom-orch",
         ],
@@ -634,7 +622,7 @@ def test_cli_set_effortless_with_profile_preference_and_models_add_default(
     assert resolved["alias"] == "custom-orch"
     assert resolved["model_id"] == "gemini-pro-custom"
     assert resolved["effort"] == "none"
-    assert resolved["profile"] == "p1"
+    assert resolved["profile"] is None
 
 
 @pytest.mark.parametrize(

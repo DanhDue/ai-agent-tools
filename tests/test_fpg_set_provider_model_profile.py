@@ -231,8 +231,6 @@ class Test_Integration:
                 "programmer",
                 "--provider",
                 "agy",
-                "--profile",
-                "p2",
                 "--model",
                 "hydrogen",
                 "--effort",
@@ -247,15 +245,15 @@ class Test_Integration:
         assert resolved["cli"] == "agy"
         assert resolved["model_id"] == "gemini-4-hydrogen-xhigh"
         assert resolved["effort"] == "xhigh"
-        assert resolved["profile"] == "p2"
-        assert resolved["sources"]["profile"] == "global"
+        assert resolved["profile"] is None
+        assert "profile" not in resolved["sources"]
 
         res_status = _run_cli(
             ["status", "--json"], cwd=project, real_home=real_home, path_dir=bin_dir
         )
         assert res_status.returncode == 0, res_status.stderr
         assert (
-            json.loads(res_status.stdout)["personas"]["programmer"]["profile"] == "p2"
+            json.loads(res_status.stdout)["personas"]["programmer"]["profile"] is None
         )
 
         res_positional = _run_cli(
@@ -276,21 +274,13 @@ class Test_Integration:
             "effort": "xhigh",
         }
 
-        res_auto = _run_cli(
-            ["set", "programmer", "hydrogen", "xhigh", "--profile", "p1"],
+        res_agy_pos = _run_cli(
+            ["set", "programmer", "hydrogen", "xhigh"],
             cwd=project,
             real_home=real_home,
             path_dir=bin_dir,
         )
-        assert res_auto.returncode == 0, res_auto.stderr
-        assert _resolve(project, real_home, bin_dir)["profile"] == "p1"
-        res_clear = _run_cli(
-            ["set", "programmer", "hydrogen", "xhigh", "--profile", "auto"],
-            cwd=project,
-            real_home=real_home,
-            path_dir=bin_dir,
-        )
-        assert res_clear.returncode == 0, res_clear.stderr
+        assert res_agy_pos.returncode == 0, res_agy_pos.stderr
         assert _resolve(project, real_home, bin_dir)["profile"] is None
 
         res_models = _run_cli(
@@ -358,8 +348,6 @@ def test_fpg_hp_14_set_with_provider_model_effort_and_profile(
             "programmer",
             "--provider",
             "agy",
-            "--profile",
-            "p2",
             "--model",
             "hydrogen",
             "--effort",
@@ -373,8 +361,8 @@ def test_fpg_hp_14_set_with_provider_model_effort_and_profile(
         "gemini-4-hydrogen-xhigh",
         "xhigh",
     )
-    assert binding.profile == "p2"
-    assert binding.sources["profile"] == "global"
+    assert binding.profile is None
+    assert "profile" not in binding.sources
 
     assert (
         run(
@@ -440,8 +428,10 @@ def test_fpg_hp_17_profiles_discover_cli_lists_candidates_from_a_temporary_home(
     assert not (real_home / ".d3nexus" / "agy_profile_leases.json").exists()
 
 
-def test_fpg_hp_15_preferred_profile_first_then_rotate(tmp_path: Path) -> None:
-    """FPG-HP-15: A preferred agy profile is tried first and the pool rotates when it is unusable."""
+def test_fpg_hp_15_priority_only_pool_rotation_ignores_legacy_persona_profile(
+    tmp_path: Path,
+) -> None:
+    """FPG-HP-15: Pool acquisition and dispatch rotate strictly in priority order, ignoring legacy persona profile."""
     pc = _persona_mod()
     pool_mod = _pool_mod()
     dispatch_mod = _dispatch_mod()
@@ -460,7 +450,8 @@ def test_fpg_hp_15_preferred_profile_first_then_rotate(tmp_path: Path) -> None:
     )
     binding = pc.resolve_persona("programmer", project, real_home=real_home)
     assert binding.cli == "agy"
-    assert binding.profile == "p3"
+    assert binding.profile is None
+    assert "profile" not in binding.sources
 
     now = datetime(2026, 11, 17, 10, 0, 0, tzinfo=timezone.utc)
     thresholds = {
@@ -471,7 +462,7 @@ def test_fpg_hp_15_preferred_profile_first_then_rotate(tmp_path: Path) -> None:
     owner = {"repo": "r", "epic": "e1", "task": "t1", "slot": 1, "role": "orchestrator"}
     leases_path = real_home / ".d3nexus" / "agy_profile_leases.json"
 
-    def _acquire(preferred: str | None) -> Any:
+    def _acquire() -> Any:
         return pool_mod.acquire(
             owner,
             real_home=real_home,
@@ -482,15 +473,10 @@ def test_fpg_hp_15_preferred_profile_first_then_rotate(tmp_path: Path) -> None:
             resident_probe=lambda _p: False,
             wait_seconds=0,
             now=now,
-            preferred_profile=preferred,
         )
 
-    plain = _acquire(None)
-    assert plain.profile == "p1"
-    pool_mod.release(plain.owner_id, real_home=real_home, now=now)
-
-    first = _acquire(binding.profile)
-    assert first.profile == "p3"
+    first = _acquire()
+    assert first.profile == "p1"
     assert first.skipped == {}
     pool_mod.release(first.owner_id, real_home=real_home, now=now)
 
@@ -509,29 +495,24 @@ def test_fpg_hp_15_preferred_profile_first_then_rotate(tmp_path: Path) -> None:
     }
     leased_record = _empty_record()
     leased_record["leases"] = [other_lease]
-    _write_json(leases_path, {"schema_version": 1, "profiles": {"p3": leased_record}})
-    leased = _acquire(binding.profile)
-    assert leased.profile == "p1"
-    assert leased.skipped == {"p3": "leased"}
+    _write_json(leases_path, {"schema_version": 1, "profiles": {"p1": leased_record}})
+    leased = _acquire()
+    assert leased.profile == "p2"
+    assert leased.skipped == {"p1": "leased"}
     pool_mod.release(leased.owner_id, real_home=real_home, now=now)
 
     exhausted_record = _empty_record()
     exhausted_record["exhausted_until"] = _iso_utc(now + timedelta(hours=1))
     exhausted_record["exhausted_reason"] = "5h"
     _write_json(
-        leases_path, {"schema_version": 1, "profiles": {"p3": exhausted_record}}
+        leases_path, {"schema_version": 1, "profiles": {"p1": exhausted_record}}
     )
-    exhausted = _acquire(binding.profile)
-    assert exhausted.profile == "p1"
-    assert exhausted.skipped == {"p3": "exhausted"}
+    exhausted = _acquire()
+    assert exhausted.profile == "p2"
+    assert exhausted.skipped == {"p1": "exhausted"}
     pool_mod.release(exhausted.owner_id, real_home=real_home, now=now)
 
     _write_json(leases_path, {"schema_version": 1, "profiles": {}})
-    unknown = _acquire("not-in-pool")
-    assert unknown.profile == "p1"
-    assert unknown.skipped == {}
-    pool_mod.release(unknown.owner_id, real_home=real_home, now=now)
-
     _init_git_repo(repo)
     prompt_file = tmp_path / "prompt.txt"
     prompt_file.write_text("implement feature\n", encoding="utf-8")
@@ -564,7 +545,7 @@ def test_fpg_hp_15_preferred_profile_first_then_rotate(tmp_path: Path) -> None:
         resident_probe=lambda _p: False,
         preflight=lambda: 0,
     )
-    assert calls == ["p3", "p1", "p2"]
+    assert calls == ["p1", "p2", "p3"]
     assert result.status == "no_profile"
 
 
@@ -615,7 +596,7 @@ def test_fpg_hp_15_preferred_profile_first_then_rotate(tmp_path: Path) -> None:
                 "--profile",
                 "p1",
             ],
-            ["profile", "agy"],
+            ["--profile"],
         ),
         (
             [
@@ -630,7 +611,7 @@ def test_fpg_hp_15_preferred_profile_first_then_rotate(tmp_path: Path) -> None:
                 "--profile",
                 "nope",
             ],
-            ["nope", "profiles add"],
+            ["--profile"],
         ),
         (
             ["set", "programmer", "codex-gpt", "xhigh", "--model", "codex-gpt"],
@@ -884,7 +865,6 @@ def _write_layers(
         "project_override",
         "cli_overrides",
         "expected_cli",
-        "expected_profile",
     ),
     [
         pytest.param(
@@ -892,7 +872,6 @@ def _write_layers(
             _CODEX,
             None,
             "codex",
-            None,
             id="global-profile-project-codex",
         ),
         pytest.param(
@@ -900,7 +879,6 @@ def _write_layers(
             _KIRO,
             None,
             "kiro",
-            None,
             id="global-profile-project-kiro",
         ),
         pytest.param(
@@ -908,52 +886,53 @@ def _write_layers(
             None,
             _CODEX,
             "codex",
-            None,
             id="global-profile-cli-codex",
-        ),
-        pytest.param(
-            _AGY_WITH_PROFILE,
-            _AGY_PLAIN,
-            _CODEX,
-            "codex",
-            None,
-            id="global-profile-project-agy-cli-codex",
-        ),
-        pytest.param(
-            {"model": "hydrogen", "effort": "xhigh", "profile": "p1"},
-            {"model": "hydrogen", "effort": "xhigh", "profile": "p2"},
-            _CODEX,
-            "codex",
-            None,
-            id="project-profile-cli-codex",
         ),
         pytest.param(
             _AGY_WITH_PROFILE,
             _AGY_PLAIN,
             None,
             "agy",
-            "p1",
-            id="global-profile-project-agy-keeps-profile",
+            id="global-profile-project-agy-drops-profile",
         ),
         pytest.param(
             _AGY_WITH_PROFILE,
             None,
             {"model": "hydrogen", "effort": "xhigh"},
             "agy",
-            "p1",
-            id="global-profile-cli-agy-keeps-profile",
+            id="global-profile-cli-agy-drops-profile",
+        ),
+        pytest.param(
+            {**_CODEX, "profile": "p1"},
+            None,
+            None,
+            "codex",
+            id="same-layer-global-codex-profile-tolerated",
+        ),
+        pytest.param(
+            None,
+            {**_KIRO, "profile": "p1"},
+            None,
+            "kiro",
+            id="same-layer-project-kiro-profile-tolerated",
+        ),
+        pytest.param(
+            _CODEX,
+            {"profile": "p1"},
+            None,
+            "codex",
+            id="higher-layer-only-profile-with-lower-codex-tolerated",
         ),
     ],
 )
-def test_fpg_se15_inherited_profile_is_ignored_for_a_higher_layer_non_agy_model(
+def test_legacy_multilayer_profile_never_blocks_any_provider_resolution(
     tmp_path: Path,
-    global_override: dict[str, str],
+    global_override: dict[str, str] | None,
     project_override: dict[str, str] | None,
     cli_overrides: dict[str, str] | None,
     expected_cli: str,
-    expected_profile: str | None,
 ) -> None:
-    """SE-15: a profile from a lower layer is dropped when a higher layer binds a non-agy model."""
+    """Legacy profile keys in global or project layers are ignored and never block agy/codex/kiro resolution."""
     pc = _persona_mod()
     real_home = tmp_path / "real_home"
     project = tmp_path / "project"
@@ -971,69 +950,14 @@ def test_fpg_se15_inherited_profile_is_ignored_for_a_higher_layer_non_agy_model(
     )
 
     assert binding.cli == expected_cli
-    assert binding.profile == expected_profile
-    if expected_profile is None:
-        assert "profile" not in binding.sources
-    else:
-        assert binding.sources["profile"] == "global"
+    assert binding.profile is None
+    assert "profile" not in binding.sources
 
 
-@pytest.mark.parametrize(
-    ("global_override", "project_override", "cli_overrides"),
-    [
-        pytest.param({**_CODEX, "profile": "p1"}, None, None, id="same-layer-global"),
-        pytest.param(None, {**_CODEX, "profile": "p1"}, None, id="same-layer-project"),
-        pytest.param(
-            _AGY_PLAIN,
-            None,
-            {**_CODEX, "profile": "p1"},
-            id="one-command-cli-model-and-profile",
-        ),
-        pytest.param(
-            _CODEX,
-            {"profile": "p1"},
-            None,
-            id="profile-in-a-higher-layer-than-the-model",
-        ),
-    ],
-)
-def test_fpg_se15_profile_with_a_non_agy_model_in_the_same_or_a_lower_layer_still_fails(
+def test_retired_set_profile_rejected_and_set_prunes_legacy_profile(
     tmp_path: Path,
-    global_override: dict[str, str] | None,
-    project_override: dict[str, str] | None,
-    cli_overrides: dict[str, str] | None,
 ) -> None:
-    """SE-10 kept by SE-15: only a profile inherited from a lower layer is ignored."""
-    pc = _persona_mod()
-    real_home = tmp_path / "real_home"
-    project = tmp_path / "project"
-    real_home.mkdir()
-    project.mkdir()
-    _write_layers(
-        real_home,
-        project,
-        global_override=global_override,
-        project_override=project_override,
-    )
-
-    with pytest.raises(pc.PersonaConfigError) as err_info:
-        pc.resolve_persona(
-            "programmer", project, cli_overrides=cli_overrides, real_home=real_home
-        )
-    assert "profile" in str(err_info.value)
-
-
-@pytest.mark.parametrize(
-    "order",
-    [
-        pytest.param(("global-agy-profile", "project-codex"), id="global-first"),
-        pytest.param(("project-codex", "global-agy-profile"), id="project-first"),
-    ],
-)
-def test_fpg_se15_set_codex_in_project_after_a_global_profile_exits_zero(
-    tmp_path: Path, order: tuple[str, str]
-) -> None:
-    """SE-15: the command suggested by the exhaustion report works after a global --profile."""
+    """dev_config.py set --profile exits 1 without mutating personas.json, and valid set prunes legacy profile."""
     real_home = tmp_path / "real_home"
     project = tmp_path / "project"
     bin_dir = tmp_path / "bin"
@@ -1041,41 +965,67 @@ def test_fpg_se15_set_codex_in_project_after_a_global_profile_exits_zero(
     project.mkdir()
     _make_stub_bin(bin_dir, ("agy", "claude", "codex", "kiro-cli"))
     _make_pool(real_home, ("p1", "p2"))
-    commands = {
-        "global-agy-profile": [
+
+    global_cfg_path = real_home / ".d3nexus" / "personas.json"
+    _write_json(
+        global_cfg_path,
+        {
+            "schema_version": 1,
+            "overrides": {
+                "programmer": {
+                    "model": "hydrogen",
+                    "effort": "high",
+                    "profile": "p1",
+                }
+            },
+        },
+    )
+    before = _sha256(global_cfg_path)
+
+    for retired_args in (
+        [
             "set",
             "programmer",
+            "--provider",
+            "agy",
+            "--model",
             "hydrogen",
+            "--effort",
             "xhigh",
             "--profile",
             "p1",
-            "--scope",
-            "global",
         ],
-        "project-codex": [
-            "set",
-            "programmer",
-            "codex-gpt",
-            "xhigh",
-            "--scope",
-            "project",
-        ],
-    }
+        ["set", "programmer", "hydrogen", "xhigh", "--profile", "p1"],
+    ):
+        res = _run_cli(retired_args, cwd=project, real_home=real_home, path_dir=bin_dir)
+        assert res.returncode == 1, (retired_args, res.stdout, res.stderr)
+        assert "--profile" in res.stderr
+        assert _sha256(global_cfg_path) == before
 
-    for step in order:
-        res = _run_cli(
-            commands[step], cwd=project, real_home=real_home, path_dir=bin_dir
-        )
-        assert res.returncode == 0, (step, res.stdout, res.stderr)
-
-    resolved = _resolve(project, real_home, bin_dir)
-    assert resolved["cli"] == "codex"
-    assert resolved["profile"] is None
-    assert "profile" not in resolved["sources"]
-    global_cfg = json.loads(
-        (real_home / ".d3nexus" / "personas.json").read_text(encoding="utf-8")
+    res_codex_proj = _run_cli(
+        ["set", "programmer", "codex-gpt", "xhigh", "--scope", "project"],
+        cwd=project,
+        real_home=real_home,
+        path_dir=bin_dir,
     )
-    assert global_cfg["overrides"]["programmer"]["profile"] == "p1"
+    assert res_codex_proj.returncode == 0, res_codex_proj.stderr
+    resolved_proj = _resolve(project, real_home, bin_dir)
+    assert resolved_proj["cli"] == "codex"
+    assert resolved_proj["profile"] is None
+
+    res_prune = _run_cli(
+        ["set", "programmer", "hydrogen", "xhigh"],
+        cwd=project,
+        real_home=real_home,
+        path_dir=bin_dir,
+    )
+    assert res_prune.returncode == 0, res_prune.stderr
+    updated_global = json.loads(global_cfg_path.read_text(encoding="utf-8"))
+    assert updated_global["overrides"]["programmer"] == {
+        "model": "hydrogen",
+        "effort": "xhigh",
+    }
+    assert "profile" not in updated_global["overrides"]["programmer"]
 
 
 @pytest.mark.parametrize(
@@ -1105,7 +1055,7 @@ def test_fpg_se15_set_codex_in_project_after_a_global_profile_exits_zero(
 def test_fpg_se15_one_command_non_agy_model_with_profile_still_exits_one(
     tmp_path: Path, args: list[str]
 ) -> None:
-    """SE-15 keeps SE-10: --profile together with a non-agy model in one command is an error."""
+    """Retired --profile flag on set is rejected with --profile error and creates no config file."""
     real_home = tmp_path / "real_home"
     project = tmp_path / "project"
     bin_dir = tmp_path / "bin"
@@ -1122,5 +1072,5 @@ def test_fpg_se15_one_command_non_agy_model_with_profile_still_exits_one(
     )
 
     assert res.returncode == 1, (res.stdout, res.stderr)
-    assert "profile" in res.stderr
+    assert "--profile" in res.stderr
     assert not (project / ".agents" / "config" / "personas.json").exists()
