@@ -2,11 +2,11 @@
   "schema_version": 1,
   "standards_catalog": ".agents/quality/standards_catalog.json",
   "capabilities": {
-    "format": ["npx", "prettier", "--check", "."],
+    "format": ["npx", "--no-install", "prettier", "--check", "."],
     "type_check": ["npm", "run", "check"],
     "lint": ["npm", "run", "lint"],
     "test_unit": ["npm", "run", "test:unit"],
-    "test_e2e": ["npx", "playwright", "test"],
+    "test_e2e": ["npx", "--no-install", "playwright", "test"],
     "ui_review": [
       "python3",
       "{skills_dir}/web-quality-check/resources/scripts/audit_ui_state_and_styles.py",
@@ -108,8 +108,8 @@
       "coverage",
       "anti_stub",
       "security",
-      "pr_diff_audit",
-      "pr_impact",
+      "workspace_audit",
+      "workspace_impact",
       "contracts"
     ],
     "scheduled": [
@@ -117,7 +117,6 @@
       "lint",
       "license",
       "test_unit",
-      "test_e2e",
       "ui_review",
       "coverage",
       "anti_stub",
@@ -137,8 +136,6 @@
       "coverage",
       "anti_stub",
       "security",
-      "pr_diff_audit",
-      "pr_impact",
       "security_deps",
       "workspace_audit",
       "workspace_impact",

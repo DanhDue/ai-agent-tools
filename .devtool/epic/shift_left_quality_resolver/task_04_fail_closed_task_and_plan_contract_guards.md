@@ -1,13 +1,13 @@
 ---
 id: "task_04_fail_closed_task_and_plan_contract_guards"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "shift_left_quality_resolver"
 dueDate: null
 created: "2026-11-28T10:10:00+07:00"
-modified: "2026-11-28T10:10:00+07:00"
-completedAt: null
+modified: "2026-11-28T05:04:42Z"
+completedAt: "2026-11-28T05:04:42Z"
 labels: ["architecture", "contract", "validation", "shift-left"]
 order: "a04"
 review_tier: "full"
@@ -116,11 +116,11 @@ Then each of the five negative fixtures exits 1 and reports the exact diagnostic
 
 ## Definition of Done
 
-- [ ] `check_task_contract.py` `_cap_tool_prefix()` and `matches_cap()` support multi-target `type_check`/`lint` manifests (`mypy --strict src tests`, `ruff check --extend-select ... .`) for scoped `Allowed files` while rejecting unrelated targets and preserving `test_check_task_contract.py` (V2, V3, V5)
-- [ ] `check_task_contract.py --design` enforces all 5 Shift-Left quality-layer guards while self-skipping cleanly when `.agents/quality/` is absent or `allow_existing_done_new` / historical done tasks are checked (V2, V3, V5)
-- [ ] `check_task_contract.py --check-plan <plan.md>` validates standalone `/writing-plans` files and fails closed on `{skills_dir}`, bare `npx`, missing LCOV JS unit tests, forbidden test dirs, missing paired tests, and omitted `?v=` templates (V2, V5)
-- [ ] All 6 assigned scenarios (`SLQR-HP-04`, `SLQR-EC-03`, `SLQR-EC-04`, `SLQR-ST-03`, `SLQR-AR-03`, `SLQR-FR-04`) and all existing contract regression suites pass with JUnit XML at `build/test-results/slqr_task_04.xml` (V2, V3, V5)
-- [ ] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4)
+- [x] `check_task_contract.py` `_cap_tool_prefix()` and `matches_cap()` support multi-target `type_check`/`lint` manifests (`mypy --strict src tests`, `ruff check --extend-select ... .`) for scoped `Allowed files` while rejecting unrelated targets and preserving `test_check_task_contract.py` (V2, V3, V5) — exit 0, all contract and regression tests passed
+- [x] `check_task_contract.py --design` enforces all 5 Shift-Left quality-layer guards while self-skipping cleanly when `.agents/quality/` is absent or `allow_existing_done_new` / historical done tasks are checked (V2, V3, V5) — exit 0, all 5 guards and self-skip cases verified
+- [x] `check_task_contract.py --check-plan <plan.md>` validates standalone `/writing-plans` files and fails closed on `{skills_dir}`, bare `npx`, missing LCOV JS unit tests, forbidden test dirs, missing paired tests, and omitted `?v=` templates (V2, V5) — exit 0, fail-to-pass idempotency and CLI edges verified
+- [x] All 6 assigned scenarios (`SLQR-HP-04`, `SLQR-EC-03`, `SLQR-EC-04`, `SLQR-ST-03`, `SLQR-AR-03`, `SLQR-FR-04`) and all existing contract regression suites pass with JUnit XML at `build/test-results/slqr_task_04.xml` (V2, V3, V5) — exit 0, 6/6 BDD scenarios covered PASS
+- [x] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4) — exit 0, 0 diagnostics
 
 ## Dependencies & Blockers
 

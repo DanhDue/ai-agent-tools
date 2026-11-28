@@ -74,7 +74,7 @@ Load the project quality manifest located at `.agents/quality/check_quality.json
 python3 skills/quality_check/resources/scripts/validate_quality_contract.py registry .agents/quality/check_quality.json --profile "<profile>"
 ```
 
-- **Profiles & Additive v1 Contract**: Registries and provider manifests support 4 profiles (`pr`, `epic`, `scheduled`, `release`; `pr` and `epic` required for legacy v1 compatibility). Optional top-level `pool_mounts` (`symlink` or `cow_copy`, path-traversal guarded) configures worker-pool mounts in `check_quality.json`. Provider manifests support unified capabilities (`anti_stub`, `security`, `security_deps`, `pr_diff_audit`, `workspace_audit`, `pr_impact`, `workspace_impact`, `license`), dual-floor `coverage` (`min_package_coverage`, `exclude_package_floor`, `min_diff_coverage`, `diff_base` via `{skills_dir}/quality_check/resources/scripts/check_diff_coverage.py` supporting LCOV, Cobertura XML, and JaCoCo XML), `standards_catalog` (`.agents/quality/standards_catalog.json`), `extensions`, `task_tier_b`, and `triage_surfaces`.
+- **Profiles & Additive v1 Contract**: Registries and provider manifests support 4 profiles (`pr`, `epic`, `scheduled`, `release`; `pr` and `epic` required for legacy v1 compatibility). Optional top-level `pool_mounts` (`symlink` or `cow_copy`, path-traversal guarded) configures worker-pool mounts in `check_quality.json`. Provider manifests support unified capabilities (`anti_stub`, `security`, `security_deps`, `pr_diff_audit`, `workspace_audit`, `pr_impact`, `workspace_impact`, `license`), dual-floor `coverage` (`min_package_coverage`, `exclude_package_floor`, `min_diff_coverage`, `diff_base`, and optional `package_floors` passed via `--package-floors` to `{skills_dir}/quality_check/resources/scripts/check_diff_coverage.py` supporting LCOV, Cobertura XML, and JaCoCo XML, where `--package-floors` ratchets override the global package floor for matched files and expose `enforced_coverage_pct` in `--json` output), `standards_catalog` (`.agents/quality/standards_catalog.json`), `extensions`, `task_tier_b`, `test_routing`, and `triage_surfaces`.
 - **CLI Output Modes**: Payload-producing subcommands (`validate_quality_contract.py registry`, `invocation`, `reconcile`) preserve full JSON output by default and support `--compact` (1-line `PASS:` summary) and `--verbose`. Boolean validation subcommands (`validate_quality_contract.py capability`, `result`), all 6 `validate_<stack>_quality.py` CLIs, and `check_diff_coverage.py` emit a compact 1-line `PASS:` summary by default (opt-in `--verbose` / `--json`).
 
 Fail-closed rules:
@@ -136,7 +136,7 @@ $$\text{FAIL} > \text{BLOCKED} > \text{PASS}$$
 
 ### Step 6: Gate 4 Certification
 
-Only an aggregated verdict of **PASS** bound to the candidate commit SHA qualifies for Gate 4 `🟢 LGTM`. If the verdict is `FAIL` or `BLOCKED`, render the complete executive report detailing all blockers and warnings, and stop.
+Only an aggregated verdict of **PASS** bound to the candidate commit SHA qualifies for Gate 4 `🟢 LGTM` (on `epic`/`release` `PASS`, `verify_polyglot_registry.py` writes `build/quality/gate4_receipt.json`). If an `epic` or `release` verdict is `FAIL` or `BLOCKED`, `verify_polyglot_registry.py` immediately unlinks any stale `build/quality/gate4_receipt.json` (preserving `pr` run isolation), renders the complete executive report detailing all blockers and warnings, and stops.
 
 ## Reference Contracts and Resources
 

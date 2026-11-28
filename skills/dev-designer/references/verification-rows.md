@@ -9,6 +9,8 @@ produces the test report a `TIER-C` row names after `results`. The table grammar
 - [How to Read the Examples](#how-to-read-the-examples)
 - [Tier C1 vs. Tier C2 Standard Across All 6 Stacks](#tier-c1-vs-tier-c2-standard-across-all-6-stacks)
 - [Python](#python)
+  - [Task 1..N-1 (Level 1 — Task-Scoped to `Allowed files` + Module/Downstream `REGRESSION`)](#task-1n-1-level-1--task-scoped-to-allowed-files--moduledownstream-regression)
+  - [Task N Final Integration & Governance Task (Level 2 — Blast-Radius Scoped + Fast Mechanical Gates)](#task-n-final-integration--governance-task-level-2--blast-radius-scoped--fast-mechanical-gates)
 - [Android](#android)
 - [Web](#web)
 - [iOS](#ios)
@@ -27,10 +29,14 @@ produces the test report a `TIER-C` row names after `results`. The table grammar
   imports, domain layers, or manifests are touched (enforced for all 6 stacks by
   `TierBContractAdapter` in `_stack_lifecycle_registry.py`). `TIER-C` rows run integration tests
   and name the report with `results <path>`.
+- Run `d3nexus resolve-quality --files <planned_files>` when `.agents/quality/*-quality.json`
+  manifests exist to derive canonical/forbidden test roots, dual Web V8 LCOV + Tier C2 rules,
+  `coverage_floors.json` ratchets, referencing `?v=` templates, and `$D3NEXUS_KIT/skills`-interpolated
+  scoped `TIER-B` commands (never emit literal `{skills_dir}` or `{base_ref}` placeholders).
 - Replace the paths, package names and flags with the project's own. The rows show the shape, not
   the project's commands; use the commands the HLD's Integration Test Plan already names. For
   dual-floor workspace and diff coverage gates, invoke
-  `{skills_dir}/quality_check/resources/scripts/check_diff_coverage.py`.
+  `"$D3NEXUS_KIT/skills/quality_check/resources/scripts/check_diff_coverage.py"`.
 - The `results` path must be ignored by git (for example `build/` in `.gitignore`), because the
   report is rewritten on every run and is never committed.
 - A report that records a test passing is what proves a scenario identifier. The test name, tag or
@@ -76,7 +82,7 @@ produces the test report a `TIER-C` row names after `results`. The table grammar
 | V1 | RED | `uv run pytest -q --tb=short --maxfail=3 tests/integration/test_taxonomy_flow.py::test_full_pipeline` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `uv run pytest -q --tb=short --maxfail=3 tests/integration/test_taxonomy_flow.py` | exit 0; contains "passed" | — |
 | V3 | REGRESSION | `uv run pytest -q --tb=short --maxfail=3 tests/unit/test_taxonomy.py tests/unit/test_downstream_caller.py` | exit 0; contains "passed" | — |
-| V4 | TIER-B | `uv run ruff check src/pkg/taxonomy.py tests/integration/test_taxonomy_flow.py && uv run ruff format --check src/pkg/taxonomy.py tests/integration/test_taxonomy_flow.py && uv run mypy --strict src/pkg/taxonomy.py tests/integration/test_taxonomy_flow.py && python3 scripts/check_anti_stub.py && python3 scripts/verify_importlinter_coverage.py && uv run lint-imports && python3 scripts/verify_bdd_coverage.py --verify-epic-parity --verify-contract-watermark && python3 scripts/pre_review_self_probe.py` | exit 0 | — |
+| V4 | TIER-B | `uv run ruff check src/pkg/taxonomy.py tests/integration/test_taxonomy_flow.py && uv run ruff format --check src/pkg/taxonomy.py tests/integration/test_taxonomy_flow.py && uv run mypy --strict src/pkg/taxonomy.py tests/integration/test_taxonomy_flow.py && uv run lint-imports && python3 "$D3NEXUS_KIT/skills/dev-implementation/resources/scripts/check_bdd_traceability.py" plan` | exit 0 | — |
 | V5 | TIER-C | `uv run pytest -q --tb=short --maxfail=3 tests/integration/test_taxonomy_flow.py --junitxml=build/test-results/task_n.xml` | exit 0; results build/test-results/task_n.xml | — |
 | V6 | TIER-C | `uv run pytest -q --tb=short --maxfail=3 tests/e2e/test_taxonomy_live.py --junitxml=build/test-results/task_n_e2e.xml # tier: C2` | exit 0; results build/test-results/task_n_e2e.xml | DOCKER_LIVE |
 
@@ -101,7 +107,7 @@ Report: Gradle writes JUnit XML under `build/test-results/<task>/`. Name that di
 
 ## Web
 
-When `.agents/quality/*-quality.json` exists, copy its canonical `type_check` and `lint` commands verbatim instead of inventing ad-hoc `npx` calls. Never use bare `npx <bin>` (it can hang on interactive install prompts in headless subagents) — always pass `npx --no-install <bin>` (or explicit `npx --yes --package <pkg> <bin>` when a non-interactive install is intentionally required).
+When `.agents/quality/*-quality.json` exists, run `d3nexus resolve-quality --files <planned_files>` to adopt its `$D3NEXUS_KIT/skills`-interpolated `type_check`/`lint` commands, V8 LCOV unit-test rules, and `?v=` template requirements instead of inventing ad-hoc `npx` calls. Never use bare `npx <bin>` (it can hang on interactive install prompts in headless subagents) — always pass `npx --no-install <bin>` (or explicit `npx --yes --package <pkg> <bin>` when a non-interactive install is intentionally required).
 
 | ID | Phase | Command | Expect | Needs |
 |----|-------|---------|--------|-------|

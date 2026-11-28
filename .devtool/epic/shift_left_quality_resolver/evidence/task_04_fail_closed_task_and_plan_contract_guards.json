@@ -1,0 +1,183 @@
+{
+  "schema": 1,
+  "task": "task_04_fail_closed_task_and_plan_contract_guards",
+  "runs": {
+    "red": {
+      "head": "096b1c36550f64f66cb0bfe26dbc2b30b23b306c",
+      "tree": "db6e2816c53c10fb7d5013034e168aaae1cf3b00",
+      "patch_id": "5937382a72bd8433c15b0612c55bf6c721777d28",
+      "started": "2026-11-28T04:50:45Z",
+      "finished": "2026-11-28T04:50:46Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_task_and_plan_contracts.py::test_slqr_hp_04_multi_target_mypy_and_skills_dir_pass_design_and_check_plan",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T04:50:45Z",
+          "finished": "2026-11-28T04:50:46Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "_ test_slqr_hp_04_multi_target_mypy_and_skills_dir_pass_design_and_check_plan __",
+            "tests/test_slqr_task_and_plan_contracts.py:284: in test_slqr_hp_04_multi_target_mypy_and_skills_dir_pass_design_and_check_plan",
+            "    assert design_res.returncode == 0, design_res.stdout + design_res.stderr",
+            "E   AssertionError: task_01_poly:Verification: Python task missing registered type_check capability (uv run mypy --strict src tests)",
+            "E     Implicit protected paths: tool.py (task_01_poly:V4)",
+            "E     Result: 1 problems — FAIL",
+            "E     ",
+            "E   assert 1 == 0",
+            "E    +  where 1 = CompletedProcess(args=['/opt/homebrew/opt/python@3.15/bin/python3.15', '/Users/danhdueexoictif/AllProjects/ai-agent-to...mypy --strict src tests)\\nImplicit protected paths: tool.py (task_01_poly:V4)\\nResult: 1 problems — FAIL\\n', stderr='').returncode",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_slqr_task_and_plan_contracts.py::test_slqr_hp_04_multi_target_mypy_and_skills_dir_pass_design_and_check_plan",
+            "1 failed in 0.34s"
+          ],
+          "output_sha256": "7f7ae8b0895c90c2cc017bb2ccf93289237d067d0870a9af0cf0a290635a3ef4"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "096b1c36550f64f66cb0bfe26dbc2b30b23b306c",
+      "tree": "d09eff62ebbaaaf53feffe25cdf076badc97b678",
+      "patch_id": "4b41648f0b4e9234e2a64d9c8d8d3ee21b7535ec",
+      "started": "2026-11-28T05:00:10Z",
+      "finished": "2026-11-28T05:00:46Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_task_and_plan_contracts.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T05:00:10Z",
+          "finished": "2026-11-28T05:00:16Z",
+          "output_tail": [
+            "..........                                                               [100%]",
+            "10 passed in 5.98s"
+          ],
+          "output_sha256": "b0a3bb6b1b031ca160361dedf64af4aae0501e56897317b4e49e56cd62aa42b4"
+        },
+        {
+          "id": "V3",
+          "phase": "REGRESSION",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 skills/dev-implementation/resources/scripts/test_check_task_contract.py tests/test_plq_task_contract_polyglot.py tests/test_slqr_quality_plan_resolver.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T05:00:16Z",
+          "finished": "2026-11-28T05:00:39Z",
+          "output_tail": [
+            "........................................................................ [ 72%]",
+            "............................                                             [100%]",
+            "100 passed in 23.07s"
+          ],
+          "output_sha256": "d84504dc3ed023feceaacd5e3dc86d05aecbd363509f6883fbba391f03c1b72a"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/check_task_contract.py tests/test_slqr_task_and_plan_contracts.py && ruff format --check skills/dev-implementation/resources/scripts/check_task_contract.py tests/test_slqr_task_and_plan_contracts.py && mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/check_task_contract.py tests/test_slqr_task_and_plan_contracts.py --ignore-missing-imports --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T05:00:39Z",
+          "finished": "2026-11-28T05:00:39Z",
+          "output_tail": [
+            "All checks passed!",
+            "2 files already formatted",
+            "Success: no issues found in 9 source files"
+          ],
+          "output_sha256": "88f62f30e45198e4961729af35529871cdfbb6cb180a6993f105420861f55ed6"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_task_and_plan_contracts.py --junitxml=build/test-results/slqr_task_04.xml",
+          "expect": "exit 0; results build/test-results/slqr_task_04.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T05:00:39Z",
+          "finished": "2026-11-28T05:00:45Z",
+          "output_tail": [
+            "..........                                                               [100%]",
+            "10 passed in 5.87s"
+          ],
+          "output_sha256": "c160f5b456b28b4a2f5ffea7ff7bf68684185f3509dba7a3d3e744035e164fba",
+          "results": {
+            "path": "build/test-results/slqr_task_04.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 7,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_slqr_hp_04_multi_target_mypy_and_skills_dir_pass_design_and_check_plan",
+                  "classname": "tests.test_slqr_task_and_plan_contracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_04_integration_design_and_check_plan",
+                  "classname": "tests.test_slqr_task_and_plan_contracts.TestSLQRTaskAndPlanContracts_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_03_es_module_imports_do_not_trigger_cache_bust_templates",
+                  "classname": "tests.test_slqr_task_and_plan_contracts.TestSLQRTaskAndPlanContracts_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_04_final_task_and_pyproject_allow_full_repo_while_intermediate_fails",
+                  "classname": "tests.test_slqr_task_and_plan_contracts.TestSLQRTaskAndPlanContracts_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_st_03_check_plan_fail_to_pass_idempotently",
+                  "classname": "tests.test_slqr_task_and_plan_contracts.TestSLQRTaskAndPlanContracts_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ar_03_repo_without_quality_manifests_bypasses_manifest_guards",
+                  "classname": "tests.test_slqr_task_and_plan_contracts.TestSLQRTaskAndPlanContracts_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_04_design_fails_closed_on_each_independent_shift_left_violation",
+                  "classname": "tests.test_slqr_task_and_plan_contracts.TestSLQRTaskAndPlanContracts_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/check_task_contract.py",
+            "tests/test_slqr_task_and_plan_contracts.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

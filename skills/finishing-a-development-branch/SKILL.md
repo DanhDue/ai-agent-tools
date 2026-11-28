@@ -195,7 +195,7 @@ force-push. Step 4 still runs and gives the candidate sha.
 
    | Tier | Verification before integrating |
    |------|---------------------------------|
-   | `noop` | Keep the existing verdict only if it ran on this sha, or on its parent when the only newer commit is the archival commit; otherwise run the `clean` row's verification |
+   | `noop` | Keep the existing `build/quality/gate4_receipt.json` verdict only if the tracked working tree is clean (`verify-tier` emits an uncommitted-changes warning when dirty, disqualifying receipt reuse) and the receipt ran on this sha, or on its parent when the only newer commit is the archival commit; any non-PASS `epic`/`release` run invalidates (unlinks) stale `gate4_receipt.json`, otherwise run the `clean` row's verification |
    | `clean` | Full test suite (the 3-tier suite for d3nexus mobile projects), `impact-analysis` Check 2, and a check that the run included the integration tests of every epic on the regression checklist |
    | `conflicts` | The invoking lifecycle's full gate: `quality_check` for code, `doc_quality_check` for documents, the full test suite outside a lifecycle |
 

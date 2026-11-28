@@ -1,0 +1,244 @@
+{
+  "schema": 1,
+  "task": "task_01_registry_prefix_wrappers_and_provider_schemas",
+  "runs": {
+    "red": {
+      "head": "abc5a54cc60752c318869603a8aa7f29b2b7a7b4",
+      "tree": "976049629b7600d08f1d9268e5249304bf183c38",
+      "patch_id": "28fb398947ae848ff7101415f6e273fd8b1440af",
+      "started": "2026-11-28T04:11:15Z",
+      "finished": "2026-11-28T04:11:16Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_registry_and_schemas.py::test_slqr_hp_01_provider_schemas_and_validators_accept_additive_contracts",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T04:11:15Z",
+          "finished": "2026-11-28T04:11:16Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "__ test_slqr_hp_01_provider_schemas_and_validators_accept_additive_contracts ___",
+            "tests/test_slqr_registry_and_schemas.py:197: in test_slqr_hp_01_provider_schemas_and_validators_accept_additive_contracts",
+            "    assert \"test_routing\" in flutter_props",
+            "E   AssertionError: assert 'test_routing' in {'schema_version': {'type': 'integer', 'const': 1}, 'standards_catalog': {'type': 'string', 'minLength': 1}, 'extensio...ng', 'minLength': 1}}, 'boundary_prefixes': {'type': 'array', 'items': {'type': 'string', 'minLength': 1}}, ...}}, ...}",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_slqr_registry_and_schemas.py::test_slqr_hp_01_provider_schemas_and_validators_accept_additive_contracts",
+            "1 failed in 0.12s"
+          ],
+          "output_sha256": "310f38c6eb271bd0dd4f7905e8397c3850f907057d84458a356b1b35af0fea0c"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "abc5a54cc60752c318869603a8aa7f29b2b7a7b4",
+      "tree": "0000efa879a8865f3c18585c10ba695610eb7352",
+      "patch_id": "e2e30bf568967bf2b52c6b00c0adba8f9a70ad30",
+      "started": "2026-11-28T04:15:28Z",
+      "finished": "2026-11-28T04:15:37Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_registry_and_schemas.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T04:15:28Z",
+          "finished": "2026-11-28T04:15:28Z",
+          "output_tail": [
+            "....................................                                     [100%]",
+            "36 passed in 0.10s"
+          ],
+          "output_sha256": "4dbe40fbdf7e798b2be3666afce5d2851769343427cf12860761eb48fde0da89"
+        },
+        {
+          "id": "V3",
+          "phase": "REGRESSION",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_stack_lifecycle_registry.py tests/test_plq_quality_contracts_and_scaffolder.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T04:15:28Z",
+          "finished": "2026-11-28T04:15:36Z",
+          "output_tail": [
+            "......................                                                   [100%]",
+            "22 passed in 7.49s"
+          ],
+          "output_sha256": "f270ee4c8a481d063dbdb0340ea3c90beb5c9600a49823486bd230bd00864604"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/_stack_lifecycle_registry.py skills/quality_check/resources/scripts/_provider_manifest_common.py tests/test_slqr_registry_and_schemas.py && ruff format --check skills/dev-implementation/resources/scripts/_stack_lifecycle_registry.py skills/quality_check/resources/scripts/_provider_manifest_common.py tests/test_slqr_registry_and_schemas.py && mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/_stack_lifecycle_registry.py skills/quality_check/resources/scripts/_provider_manifest_common.py tests/test_slqr_registry_and_schemas.py --ignore-missing-imports --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T04:15:36Z",
+          "finished": "2026-11-28T04:15:36Z",
+          "output_tail": [
+            "All checks passed!",
+            "3 files already formatted",
+            "Success: no issues found in 10 source files"
+          ],
+          "output_sha256": "a055c79c32ba9317c4a57778b5d466ef576d88ec355e7f0818236e93805cb535"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_registry_and_schemas.py --junitxml=build/test-results/slqr_task_01.xml",
+          "expect": "exit 0; results build/test-results/slqr_task_01.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T04:15:36Z",
+          "finished": "2026-11-28T04:15:36Z",
+          "output_tail": [
+            "....................................                                     [100%]",
+            "36 passed in 0.09s"
+          ],
+          "output_sha256": "69227a3a28b50fd1a1dc7b6766c8bd59d0b558cef6c38f91817eb39382fdc634",
+          "results": {
+            "path": "build/test-results/slqr_task_01.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 19,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_slqr_hp_01_provider_schemas_and_validators_accept_additive_contracts",
+                  "classname": "tests.test_slqr_registry_and_schemas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_01_provider_schemas_and_validators_accept_additive_contracts",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_01_registry_wrappers_mise_and_relocated_scripts",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[non_dict_string]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[non_dict_list]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[unknown_key]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[empty_glob_list]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[non_list_value]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[parent_traversal]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[nested_traversal]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[absolute_glob_path]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[empty_glob_string]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[empty_extensions_list]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[extension_missing_dot]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[extension_uppercase]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_invalid_package_floors_fails_closed[traversal]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_invalid_package_floors_fails_closed[absolute]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_invalid_package_floors_fails_closed[empty]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_invalid_package_floors_fails_closed[non_string]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/android-quality-check/resources/schemas/android-quality.schema.json",
+            "skills/dev-implementation/resources/scripts/_stack_lifecycle_registry.py",
+            "skills/flutter-quality-check/resources/schemas/flutter-quality.schema.json",
+            "skills/ios-quality-check/resources/schemas/ios-quality.schema.json",
+            "skills/python-quality-check/resources/schemas/python-quality.schema.json",
+            "skills/quality_check/resources/scripts/_provider_manifest_common.py",
+            "skills/rust-quality-check/resources/schemas/rust-quality.schema.json",
+            "skills/web-quality-check/resources/schemas/web-quality.schema.json",
+            "tests/test_slqr_registry_and_schemas.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

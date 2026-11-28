@@ -1477,6 +1477,11 @@ def verify_polyglot_execution(
         val_fn = _get_validator()
         val = val_fn(registry_data, requested_profile)
         if val["status"] == "BLOCKED":
+            if repo_root is not None and requested_profile in ("epic", "release"):
+                with contextlib.suppress(OSError):
+                    (repo_root / "build" / "quality" / "gate4_receipt.json").unlink(
+                        missing_ok=True
+                    )
             return {
                 "status": "BLOCKED",
                 "findings": val["findings"],
@@ -1573,30 +1578,28 @@ def verify_polyglot_execution(
             repo_root=fanout_root,
         )
 
-    if (
-        repo_root is not None
-        and out_res.get("status") == "PASS"
-        and requested_profile in ("epic", "release")
-    ):
-        try:
-            receipt_file = repo_root / "build" / "quality" / "gate4_receipt.json"
-            receipt_file.parent.mkdir(parents=True, exist_ok=True)
-            receipt_file.write_text(
-                json.dumps(
-                    {
-                        "status": "PASS",
-                        "profile": requested_profile,
-                        "repository_sha": repository_sha,
-                        "base_ref": base_ref,
-                        "timestamp": time.time(),
-                    },
-                    indent=2,
+    if repo_root is not None and requested_profile in ("epic", "release"):
+        receipt_file = repo_root / "build" / "quality" / "gate4_receipt.json"
+        if out_res.get("status") == "PASS":
+            with contextlib.suppress(OSError):
+                receipt_file.parent.mkdir(parents=True, exist_ok=True)
+                receipt_file.write_text(
+                    json.dumps(
+                        {
+                            "status": "PASS",
+                            "profile": requested_profile,
+                            "repository_sha": repository_sha,
+                            "base_ref": base_ref,
+                            "timestamp": time.time(),
+                        },
+                        indent=2,
+                    )
+                    + "\n",
+                    encoding="utf-8",
                 )
-                + "\n",
-                encoding="utf-8",
-            )
-        except OSError:
-            pass
+        else:
+            with contextlib.suppress(OSError):
+                receipt_file.unlink(missing_ok=True)
     return out_res
 
 

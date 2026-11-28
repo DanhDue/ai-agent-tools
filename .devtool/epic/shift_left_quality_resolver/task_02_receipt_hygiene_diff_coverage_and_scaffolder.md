@@ -1,13 +1,13 @@
 ---
 id: "task_02_receipt_hygiene_diff_coverage_and_scaffolder"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "shift_left_quality_resolver"
 dueDate: null
 created: "2026-11-28T10:10:00+07:00"
-modified: "2026-11-28T10:10:00+07:00"
-completedAt: null
+modified: "2026-11-28T04:24:34Z"
+completedAt: "2026-11-28T04:24:34Z"
 labels: ["security", "architecture", "quality-check", "coverage"]
 order: "a02"
 review_tier: "full"
@@ -117,11 +117,11 @@ Then verify_polyglot_registry returns overall status "FAIL" cleanly without rais
 
 ## Definition of Done
 
-- [ ] `verify_polyglot_registry.py` unlinks stale `build/quality/gate4_receipt.json` on non-passing `epic`/`release` runs while preserving `pr` isolation, and `integrate_branch.py verify-tier` warns on dirty worktrees (V2, V5)
-- [ ] `check_diff_coverage.py` supports `--package-floors <coverage_floors.json>` with `0 / 1 / 2` exit semantics across adapter prefixes and module paths (V2, V5)
-- [ ] `scaffold_quality_manifest.py` emits deduplicated 4-profile manifests (`0` duplicate `pr_*`+`workspace_*`), offline `rust` `security`, `npx --no-install`, and `mypy --strict src tests` (V2, V3, V5)
-- [ ] All 5 assigned scenarios (`SLQR-HP-02`, `SLQR-EC-02`, `SLQR-ST-01`, `SLQR-ST-02`, `SLQR-FR-02`) and existing regression suites pass with JUnit XML at `build/test-results/slqr_task_02.xml` (V2, V3, V5)
-- [ ] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed Python files (V4)
+- [x] `verify_polyglot_registry.py` unlinks stale `build/quality/gate4_receipt.json` on non-passing `epic`/`release` runs while preserving `pr` isolation, and `integrate_branch.py verify-tier` warns on dirty worktrees (V2, V5) — exit 0, 30 passed
+- [x] `check_diff_coverage.py` supports `--package-floors <coverage_floors.json>` with `0 / 1 / 2` exit semantics across adapter prefixes and module paths (V2, V5) — exit 0, 30 passed
+- [x] `scaffold_quality_manifest.py` emits deduplicated 4-profile manifests (`0` duplicate `pr_*`+`workspace_*`), offline `rust` `security`, `npx --no-install`, and `mypy --strict src tests` (V2, V3, V5) — exit 0, all 6 stacks + template + regressions passed
+- [x] All 5 assigned scenarios (`SLQR-HP-02`, `SLQR-EC-02`, `SLQR-ST-01`, `SLQR-ST-02`, `SLQR-FR-02`) and existing regression suites pass with JUnit XML at `build/test-results/slqr_task_02.xml` (V2, V3, V5) — exit 0, 5/5 BDD covered
+- [x] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed Python files (V4) — exit 0
 
 ## Dependencies & Blockers
 

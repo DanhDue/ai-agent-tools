@@ -1,13 +1,13 @@
 ---
 id: "task_03_on_demand_quality_plan_resolver_cli"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "shift_left_quality_resolver"
 dueDate: null
 created: "2026-11-28T10:10:00+07:00"
-modified: "2026-11-28T10:10:00+07:00"
-completedAt: null
+modified: "2026-11-28T04:42:46Z"
+completedAt: "2026-11-28T04:42:46Z"
 labels: ["architecture", "contract", "cli", "quality-plan"]
 order: "a03"
 review_tier: "full"
@@ -106,11 +106,11 @@ Then the CLI exits with code 2 and prints a descriptive error message to stderr 
 
 ## Definition of Done
 
-- [ ] `skills/dev-implementation/resources/scripts/resolve_task_quality_plan.py` implements `QualityPlanResolver` (`resolve_quality_plan`, `format_compact_plan`, `--files`, `--repo-root`, `--base-ref`, `--json`) in pure Python 3 stdlib (V2, V4, V5)
-- [ ] `bin/d3nexus` registers `resolve-quality`, completing `resolve_quality_plan()` in `< 0.10s` in-process (best of 3) and CLI invocations in `< 1.0s` emitting 5–10 compact stack-filtered lines with zero untouched-stack noise (V2, V5)
-- [ ] Assigned scenarios (`SLQR-HP-03`, `SLQR-AR-01`, `SLQR-AR-02`, `SLQR-FR-03`) pass in `tests/test_slqr_quality_plan_resolver.py` with JUnit XML at `build/test-results/slqr_task_03.xml` (V2, V5)
-- [ ] Registry and schema regression suites pass without regressions (V3)
-- [ ] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4)
+- [x] `skills/dev-implementation/resources/scripts/resolve_task_quality_plan.py` implements `QualityPlanResolver` (`resolve_quality_plan`, `format_compact_plan`, `--files`, `--repo-root`, `--base-ref`, `--json`) in pure Python 3 stdlib (V2, V4, V5) — Verified PASS (31/31 tests, 92.8% stmt coverage, stdlib-only AST & `-S` isolation PASS)
+- [x] `bin/d3nexus` registers `resolve-quality`, completing `resolve_quality_plan()` in `< 0.10s` in-process (best of 3) and CLI invocations in `< 1.0s` emitting 5–10 compact stack-filtered lines with zero untouched-stack noise (V2, V5) — Verified PASS (`SLQR-HP-03`, `SLQR-AR-02`)
+- [x] Assigned scenarios (`SLQR-HP-03`, `SLQR-AR-01`, `SLQR-AR-02`, `SLQR-FR-03`) pass in `tests/test_slqr_quality_plan_resolver.py` with JUnit XML at `build/test-results/slqr_task_03.xml` (V2, V5) — Verified PASS (`check_bdd_traceability.py tests`: 4/4 covered — PASS)
+- [x] Registry and schema regression suites pass without regressions (V3) — Verified PASS (`V3 REGRESSION PASS exit 0`)
+- [x] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4) — Verified PASS (`V4 TIER-B PASS exit 0`)
 
 ## Dependencies & Blockers
 

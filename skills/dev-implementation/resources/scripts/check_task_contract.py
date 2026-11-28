@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Check the task files and HLD a designer wrote against the task contract, before Gate 2 closes.
+"""Check the task files, HLD, or standalone plans against the task contract.
 
 Usage:
   check_task_contract.py [--design] [--verbose] [--json] --hld <epic_dir>.md --tasks <task_*.md ...>
+  check_task_contract.py [--verbose] [--json] --check-plan <plan.md>
 
 Accepts `<epic_dir>.md` or legacy `<epic_dir>.en.md` for `--hld`, and resolves
 `bdd_scenarios` English-only via `_epic_docs.resolve_epic_doc` (`bdd_scenarios.md`,
@@ -27,11 +28,15 @@ import shlex
 import shutil
 import subprocess
 import sys
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _stack_lifecycle_registry as registry
+import resolve_task_quality_plan as rtqp
 from _epic_docs import resolve_epic_doc
 from _stack_lifecycle_registry import TierBContractAdapter, TierCTaxonomy
 
@@ -701,7 +706,13 @@ def command_paths(command: str) -> tuple[list[str], str | None]:
 
 
 def check_grounding(
-    check: Checker, stem: str, text: str, rows: list[Any], created: set[str]
+    check: Checker,
+    stem: str,
+    text: str,
+    rows: list[Any],
+    created: set[str],
+    *,
+    skip_placeholder_paths: bool = False,
 ) -> None:
     for context in tc.parse_read_only_context(text):
         if not (check.root / context).exists() and not any(
@@ -726,6 +737,10 @@ def check_grounding(
                 )
         paths, executable = command_paths(row.command)
         for path in paths:
+            if skip_placeholder_paths and (
+                "{skills_dir}" in path or "{base_ref}" in path
+            ):
+                continue
             if (
                 not (check.root / path).exists()
                 and not check.ignored(path)
@@ -803,24 +818,124 @@ def is_python_task(text: str, rows: list[Any]) -> bool:
 
 
 _PY_TOOL_NAMES = frozenset({"ruff", "mypy", "pyright", "ty", "flake8", "pylint"})
-_PY_BOOL_FLAGS = frozenset(
-    {"--strict", "--check", "--frozen", "--quiet", "--verbose", "--show-error-codes"}
+_PY_WRAPPER_VALUE_FLAGS = frozenset(
+    {
+        "--directory",
+        "--project",
+        "--python",
+        "--config-file",
+        "--cache-dir",
+        "-C",
+        "--extra",
+        "--group",
+        "--with",
+        "-p",
+        "--package",
+        "-u",
+        "--unset",
+        "-S",
+        "--split-string",
+    }
+)
+_PY_CAP_VALUE_FLAGS = frozenset(
+    {
+        "--extend-select",
+        "--select",
+        "--ignore",
+        "--extend-ignore",
+        "--per-file-ignores",
+        "--config",
+        "--config-file",
+        "-c",
+        "--target-version",
+        "--line-length",
+        "--python-version",
+        "--pyproject-toml",
+        "--exclude",
+        "--extend-exclude",
+        "--output-format",
+        "--format",
+        "--cache-dir",
+        "--follow-imports",
+        "--python-executable",
+        "--python-platform",
+        "--package",
+        "--module",
+        "-m",
+        "--custom-typeshed-dir",
+        "--venvpath",
+        "--typeshedpath",
+    }
 )
 
 
-def _cap_tool_prefix(cap: list[str]) -> list[str]:
-    """Return the runner, tool, subcommand, and leading boolean flags before target paths."""
-    for idx, tok in enumerate(cap):
+def _cap_tool_prefix(cap: Sequence[str]) -> list[str]:
+    """Return runner wrappers, Python tool binary, subcommand, and flags before positional targets."""
+    idx = 0
+    while idx < len(cap):
+        tok = cap[idx]
+        if tok in _PY_WRAPPER_VALUE_FLAGS and idx + 1 < len(cap):
+            idx += 2
+            continue
         tool = Path(tok).name
         if tool not in _PY_TOOL_NAMES:
+            idx += 1
             continue
         end = idx + 1
-        if tool == "ruff" and end < len(cap) and cap[end] in ("check", "format"):
+        if (tool == "ruff" and end < len(cap) and cap[end] in ("check", "format")) or (
+            tool == "ty" and end < len(cap) and cap[end] == "check"
+        ):
             end += 1
-        while end < len(cap) and cap[end] in _PY_BOOL_FLAGS:
-            end += 1
+        while end < len(cap):
+            cur = cap[end]
+            if cur == "--":
+                break
+            if cur in _PY_CAP_VALUE_FLAGS:
+                end += 2 if end + 1 < len(cap) else 1
+                continue
+            if cur.startswith("-"):
+                end += 1
+                continue
+            break
         return list(cap[:end])
     return list(cap[:-1]) if len(cap) > 1 else list(cap)
+
+
+def _extract_py_positional_targets(tail: Sequence[str]) -> list[str]:
+    """Extract non-flag positional path arguments from Python tool arguments."""
+    targets: list[str] = []
+    idx = 0
+    in_positional = False
+    while idx < len(tail):
+        tok = tail[idx]
+        if in_positional:
+            targets.append(tok)
+            idx += 1
+            continue
+        if tok == "--":
+            in_positional = True
+            idx += 1
+            continue
+        if tok in _PY_CAP_VALUE_FLAGS:
+            idx += 2
+            continue
+        if tok.startswith("-"):
+            idx += 1
+            continue
+        targets.append(tok)
+        idx += 1
+    return targets
+
+
+def _resolve_target_with_wrapper_dir(target: str, wrapper_dir: str | None) -> str:
+    clean = target.strip().replace("\\", "/").removeprefix("./").rstrip("/")
+    if not wrapper_dir:
+        return clean or "."
+    if clean in ("", "."):
+        return wrapper_dir
+    if clean == wrapper_dir or clean.startswith(wrapper_dir + "/"):
+        return clean
+    return f"{wrapper_dir}/{clean}"
 
 
 def _is_test_path(path: str) -> bool:
@@ -1040,6 +1155,179 @@ def _split_sequential_subcommands(command: str) -> list[list[str]]:
     return subcommands
 
 
+@dataclass(frozen=True)
+class _AllowedPyEntry:
+    pattern: str
+    root: str
+    kind: str  # "glob" or "dir"
+
+
+def _glob_static_root(pattern: str) -> str:
+    norm = pattern.strip().replace("\\", "/").removeprefix("./").rstrip("/")
+    if not norm:
+        return "."
+    parts: list[str] = []
+    for seg in norm.split("/"):
+        if GLOB_CHARS.search(seg):
+            break
+        parts.append(seg)
+    return "/".join(parts) if parts else "."
+
+
+def _dir_contains_python(
+    repo_root: Path | None,
+    rel_dir: str,
+    raw_pattern: str = "",
+) -> bool:
+    pattern_is_py = raw_pattern.strip().lower().endswith(".py")
+    if repo_root is None:
+        return pattern_is_py
+    target = repo_root if rel_dir in ("", ".") else repo_root / rel_dir
+    if not target.is_dir():
+        return pattern_is_py
+    for _, dirnames, filenames in os.walk(target):
+        dirnames[:] = [
+            d
+            for d in dirnames
+            if d not in (".git", "__pycache__", ".venv", "venv", "node_modules")
+        ]
+        for fname in filenames:
+            if fname.lower().endswith(".py"):
+                return True
+    return pattern_is_py
+
+
+def _collect_allowed_py_entries(
+    entries: Sequence[Any], repo_root: Path | None = None
+) -> tuple[list[str], list[_AllowedPyEntry]]:
+    """Return concrete allowed `.py` paths plus glob/directory Python coverage roots."""
+    concrete: list[str] = []
+    globs_and_dirs: list[_AllowedPyEntry] = []
+    seen_roots: set[tuple[str, str]] = set()
+    for entry in entries:
+        raw = (
+            str(getattr(entry, "pattern", entry))
+            .strip()
+            .replace("\\", "/")
+            .removeprefix("./")
+        )
+        if not raw:
+            continue
+        if GLOB_CHARS.search(raw):
+            suffix = Path(raw).suffix.lower()
+            if raw.lower().endswith(".py") or (
+                not suffix
+                and _dir_contains_python(repo_root, _glob_static_root(raw), raw)
+            ):
+                root = _glob_static_root(raw)
+                key = (raw, "glob")
+                if key not in seen_roots:
+                    seen_roots.add(key)
+                    globs_and_dirs.append(
+                        _AllowedPyEntry(pattern=raw, root=root, kind="glob")
+                    )
+            continue
+        if raw.lower().endswith(".py"):
+            if raw not in concrete:
+                concrete.append(raw)
+            continue
+        norm_dir = raw.rstrip("/")
+        is_dir = raw.endswith("/") or (
+            repo_root is not None and bool(norm_dir) and (repo_root / norm_dir).is_dir()
+        )
+        if is_dir and _dir_contains_python(repo_root, norm_dir or ".", raw):
+            dir_root = norm_dir or "."
+            key = (dir_root, "dir")
+            if key not in seen_roots:
+                seen_roots.add(key)
+                globs_and_dirs.append(
+                    _AllowedPyEntry(pattern=dir_root, root=dir_root, kind="dir")
+                )
+    return concrete, globs_and_dirs
+
+
+def _target_matches_allowed_py_root(target_tok: str, entry: _AllowedPyEntry) -> bool:
+    clean_tok = (
+        target_tok.split("::", 1)[0]
+        .strip()
+        .replace("\\", "/")
+        .removeprefix("./")
+        .rstrip("/")
+    )
+    if not clean_tok or clean_tok.startswith("-"):
+        return False
+    if clean_tok == entry.pattern or _target_covers_path(clean_tok, entry.root):
+        return True
+    if entry.kind == "dir":
+        return _target_covers_path(entry.root, clean_tok)
+    if _glob_matches(entry.pattern, clean_tok):
+        return True
+    return "**" in entry.pattern and _target_covers_path(entry.root, clean_tok)
+
+
+def _matches_python_cap(
+    cap: list[str],
+    command: str,
+    *,
+    allowed_py: Sequence[str],
+    allowed_py_roots: Sequence[_AllowedPyEntry] = (),
+    allow_historical_prefix: bool,
+) -> bool:
+    """Match a Python static capability against sequential subcommands, supporting scoped Allowed files."""
+    prefix = _cap_tool_prefix(cap)
+    cap_tail = cap[len(prefix) :] if prefix else []
+    cap_tail_norm = {
+        tok.strip().replace("\\", "/").removeprefix("./").rstrip("/") or "."
+        for tok in _extract_py_positional_targets(cap_tail)
+    }
+    cap_tail_raw = set(cap_tail)
+    for sub in _split_sequential_subcommands(command):
+        if sub == cap:
+            return True
+        if len(sub) >= len(cap) and sub[: len(cap)] == cap:
+            return True
+        if prefix and len(sub) > len(prefix) and sub[: len(prefix)] == prefix:
+            if allow_historical_prefix:
+                return True
+            if not allowed_py and not allowed_py_roots:
+                continue
+            wrapper_dir = registry._extract_monorepo_dir_wrapper(sub)
+            pos_targets = _extract_py_positional_targets(sub[len(prefix) :])
+            if not pos_targets:
+                continue
+            resolved_targets = [
+                _resolve_target_with_wrapper_dir(t, wrapper_dir) for t in pos_targets
+            ]
+            if not all(
+                any(_target_covers_path(rt, p) for rt in resolved_targets)
+                for p in allowed_py
+            ):
+                continue
+            if not all(
+                any(
+                    _target_matches_allowed_py_root(rt, entry)
+                    for rt in resolved_targets
+                )
+                for entry in allowed_py_roots
+            ):
+                continue
+            if all(
+                any(_target_covers_path(rt, p) for p in allowed_py)
+                or any(
+                    _target_matches_allowed_py_root(rt, entry)
+                    for entry in allowed_py_roots
+                )
+                or (
+                    (t.strip().replace("\\", "/").removeprefix("./").rstrip("/") or ".")
+                    in cap_tail_norm
+                )
+                or t in cap_tail_raw
+                for t, rt in zip(pos_targets, resolved_targets)
+            ):
+                return True
+    return False
+
+
 def check_python_tier_b(
     check: Checker,
     stem: str,
@@ -1049,6 +1337,11 @@ def check_python_tier_b(
     allow_historical_prefix: bool = False,
 ) -> None:
     tier_b_rows = [r for r in rows if r.phase == "TIER-B"]
+    allowed_py, allowed_py_roots = (
+        _collect_allowed_py_entries(tc.parse_allowed_files(text), check.root)
+        if text
+        else ([], [])
+    )
     manifest_path = check.root / ".agents" / "quality" / "python-quality.json"
     if manifest_path.exists():
         try:
@@ -1095,26 +1388,26 @@ def check_python_tier_b(
             )
             return
 
-        def matches_cap(cap: list[str], command: str) -> bool:
-            for sub in _split_sequential_subcommands(command):
-                if sub == cap:
-                    return True
-                if len(cap) > 1 and sub[: len(cap) - 1] == cap[:-1]:
-                    return True
-                if len(sub) >= len(cap) and sub[: len(cap)] == cap:
-                    return True
-                if allow_historical_prefix:
-                    prefix = _cap_tool_prefix(cap)
-                    if (
-                        prefix
-                        and len(sub) > len(prefix)
-                        and sub[: len(prefix)] == prefix
-                    ):
-                        return True
-            return False
-
-        has_lint = any(matches_cap(lint_cmd, r.command) for r in tier_b_rows)
-        has_type = any(matches_cap(type_check_cmd, r.command) for r in tier_b_rows)
+        has_lint = any(
+            _matches_python_cap(
+                lint_cmd,
+                r.command,
+                allowed_py=allowed_py,
+                allowed_py_roots=allowed_py_roots,
+                allow_historical_prefix=allow_historical_prefix,
+            )
+            for r in tier_b_rows
+        )
+        has_type = any(
+            _matches_python_cap(
+                type_check_cmd,
+                r.command,
+                allowed_py=allowed_py,
+                allowed_py_roots=allowed_py_roots,
+                allow_historical_prefix=allow_historical_prefix,
+            )
+            for r in tier_b_rows
+        )
         if not has_lint:
             check.problem(
                 f"{stem}:Verification",
@@ -1125,7 +1418,7 @@ def check_python_tier_b(
                 f"{stem}:Verification",
                 f"Python task missing registered type_check capability ({' '.join(type_check_cmd)})",
             )
-        if has_lint and has_type and text and not allow_historical_prefix:
+        if tier_b_rows and text and not allow_historical_prefix:
             _check_python_tier_b_allowed_coverage(check, stem, text, tier_b_rows)
         return
 
@@ -1193,17 +1486,33 @@ def _check_python_tier_b_allowed_coverage(
     type_targets: list[str] = []
     for r in tier_b_rows:
         for sub in _split_sequential_subcommands(r.command):
-            unwrapped = tc.strip_wrappers(list(sub))
+            wrapper_dir = registry._extract_monorepo_dir_wrapper(sub)
+            unwrapped = registry._strip_command_wrappers(sub)
             if not unwrapped:
                 continue
             tool = Path(unwrapped[0]).name
-            args = [t for t in unwrapped[1:] if not t.startswith("-")]
             if tool == "ruff":
-                if args and args[0] in ("check", "format"):
-                    args = args[1:]
-                lint_targets.extend(args or ["."])
+                tail = (
+                    unwrapped[2:]
+                    if len(unwrapped) > 1 and unwrapped[1] in ("check", "format")
+                    else unwrapped[1:]
+                )
+                pos = _extract_py_positional_targets(tail)
+                resolved = [
+                    _resolve_target_with_wrapper_dir(t, wrapper_dir) for t in pos
+                ]
+                lint_targets.extend(resolved or [wrapper_dir or "."])
             elif tool in ("mypy", "pyright", "ty"):
-                type_targets.extend(args or ["."])
+                tail = (
+                    unwrapped[2:]
+                    if tool == "ty" and len(unwrapped) > 1 and unwrapped[1] == "check"
+                    else unwrapped[1:]
+                )
+                pos = _extract_py_positional_targets(tail)
+                resolved = [
+                    _resolve_target_with_wrapper_dir(t, wrapper_dir) for t in pos
+                ]
+                type_targets.extend(resolved or [wrapper_dir or "."])
 
     if lint_targets:
         missing_lint = [
@@ -1447,6 +1756,972 @@ def check_surgical_anchors(check: Checker, stem: str, text: str) -> None:
             )
 
 
+_NPX_VALUE_FLAGS = frozenset(
+    {
+        "-p",
+        "--package",
+        "-c",
+        "--call",
+        "--node-arg",
+        "--userconfig",
+        "--cache",
+        "--prefix",
+        "-C",
+    }
+)
+_PLAN_TASK_HEADING_RE = re.compile(r"^###\s+Task\s+(\d+)\b(.*)$")
+_PLAN_FILE_LINE_RE = re.compile(
+    r"^\s*[-*]\s+\*{0,2}(Create|Modify|Test)\*{0,2}\s*:\s*(.*)$",
+    re.IGNORECASE,
+)
+_PLAN_SUB_BULLET_RE = re.compile(r"^\s+[-*]\s+(.+)$")
+_PLAN_RUN_LINE_RE = re.compile(
+    r"^\s*(?:[-*]\s+)?\*{0,2}Run\*{0,2}\s*:\s*(.+)$",
+    re.IGNORECASE,
+)
+_PLAN_SHELL_FENCE_LANGS = frozenset({"bash", "sh", "zsh", "shell"})
+_PLAN_LINE_RANGE_SUFFIX_RE = re.compile(r":L?\d+(?:[-–]L?\d+)?$")
+
+
+@dataclass(frozen=True)
+class _PlanFileEntry:
+    pattern: str
+    new: bool
+    kind: str
+
+
+@dataclass(frozen=True)
+class _PlanTask:
+    number: int
+    index: int
+    heading: str
+    files: tuple[_PlanFileEntry, ...]
+    commands: tuple[str, ...]
+
+
+def _glob_matches_path_or_basename(pattern: str, path: str) -> bool:
+    norm_pat = pattern.strip().replace("\\", "/").removeprefix("./")
+    norm_path = path.strip().replace("\\", "/").removeprefix("./")
+    if not norm_pat or not norm_path:
+        return False
+    if norm_pat.endswith("/"):
+        return norm_path.startswith(norm_pat)
+    if registry._glob_matches(norm_pat, norm_path):
+        return True
+    if "/" not in norm_pat:
+        return registry._glob_matches(norm_pat, Path(norm_path).name)
+    return False
+
+
+def _is_stack_test_path(path: str, desc: registry.StackDescriptor) -> bool:
+    if registry.TriageSurfaceRegistry.is_test_file(path) or _is_test_path(path):
+        return True
+    tr = desc.test_routing
+    return any(
+        _glob_matches_path_or_basename(pat, path)
+        for pat in (
+            *tr.canonical_test_globs,
+            *tr.forbidden_test_globs,
+            *tr.lcov_unit_test_globs,
+        )
+    )
+
+
+_TEST_ROUTING_KEYS = frozenset(
+    {
+        "canonical_test_globs",
+        "forbidden_test_globs",
+        "paired_source_globs",
+        "lcov_unit_test_globs",
+        "cache_bust_extensions",
+    }
+)
+_WEB_TOUCHED_EXTENSIONS = frozenset(
+    {
+        ".js",
+        ".mjs",
+        ".cjs",
+        ".ts",
+        ".tsx",
+        ".jsx",
+        ".css",
+        ".html",
+        ".astro",
+        ".jinja",
+        ".jinja2",
+    }
+)
+_EXT_PATTERN_RE = re.compile(r"^\.[a-z0-9]+$")
+
+
+def _read_manifest_json(path: Path) -> tuple[dict[str, Any] | None, str | None]:
+    if not path.is_file():
+        return None, None
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return None, f"malformed {path.name}: {exc}"
+    if not isinstance(raw, dict):
+        return None, f"invalid {path.name}: root must be a JSON object"
+    return raw, None
+
+
+def _validate_manifest_test_routing(
+    manifest: Mapping[str, Any], manifest_name: str
+) -> str | None:
+    if "test_routing" not in manifest:
+        return None
+    routing = manifest["test_routing"]
+    if not isinstance(routing, dict):
+        return f"malformed {manifest_name}: 'test_routing' must be an object"
+    for key, val in sorted(routing.items()):
+        if key not in _TEST_ROUTING_KEYS:
+            return f"malformed {manifest_name}: unknown test_routing field '{key}'"
+        if not isinstance(val, list) or not val:
+            return f"malformed {manifest_name}: test_routing.{key} must be a non-empty array of strings"
+        if key == "cache_bust_extensions":
+            for ext in val:
+                if not isinstance(ext, str) or not _EXT_PATTERN_RE.match(ext):
+                    return (
+                        f"malformed {manifest_name}: test_routing.cache_bust_extensions "
+                        f"entry {ext!r} must match ^\\.[a-z0-9]+$"
+                    )
+        else:
+            for pat in val:
+                if (
+                    not isinstance(pat, str)
+                    or not pat.strip()
+                    or pat.strip().startswith(("/", "\\", "~"))
+                    or ".." in pat.replace("\\", "/").split("/")
+                ):
+                    return (
+                        f"malformed {manifest_name}: test_routing.{key} "
+                        f"contains invalid relative glob {pat!r}"
+                    )
+    return None
+
+
+def _stack_touched_by_files(
+    sid: str,
+    file_patterns: Sequence[str],
+    desc: registry.StackDescriptor | None,
+) -> bool:
+    if desc is not None and any(
+        registry._path_matches_stack(p, desc) for p in file_patterns
+    ):
+        return True
+    if sid == "web":
+        for pat in file_patterns:
+            norm = pat.strip().replace("\\", "/").removeprefix("./")
+            if Path(norm).suffix.lower() in _WEB_TOUCHED_EXTENSIONS:
+                return True
+    if sid == "python":
+        for pat in file_patterns:
+            norm = pat.strip().replace("\\", "/").removeprefix("./")
+            if norm.lower().endswith(".py") or Path(norm).name in (
+                "pyproject.toml",
+                "setup.py",
+                "requirements.txt",
+                "Pipfile",
+            ):
+                return True
+    return False
+
+
+def _check_unexpanded_placeholders(check: Checker, where: str, command: str) -> None:
+    if "{skills_dir}" in command:
+        check.problem(
+            where,
+            "unexpanded manifest placeholder '{skills_dir}'; use \"$D3NEXUS_KIT/skills\"",
+        )
+    if "{base_ref}" in command:
+        check.problem(
+            where,
+            "unexpanded manifest placeholder '{base_ref}'; expand to an explicit git ref",
+        )
+
+
+def _check_bare_npx(check: Checker, where: str, command: str) -> None:
+    try:
+        lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+        lexer.whitespace_split = True
+        tokens = list(lexer)
+    except ValueError:
+        tokens = command.split()
+    for sub in _split_subcommands(tokens):
+        unwrapped = registry._strip_version_manager_wrappers(sub)
+        if not unwrapped or Path(unwrapped[0]).name != "npx":
+            continue
+        has_no_install = False
+        has_yes = False
+        has_package = False
+        has_positional = False
+        idx = 1
+        while idx < len(unwrapped):
+            tok = unwrapped[idx]
+            if tok == "--":
+                if idx + 1 < len(unwrapped):
+                    has_positional = True
+                break
+            if tok == "--no-install":
+                has_no_install = True
+                idx += 1
+                continue
+            if tok in ("-y", "--yes"):
+                has_yes = True
+                idx += 1
+                continue
+            if tok in ("-p", "--package"):
+                has_package = True
+                idx += 2 if idx + 1 < len(unwrapped) else 1
+                continue
+            if tok.startswith(("--package=", "-p=")):
+                has_package = True
+                idx += 1
+                continue
+            if tok in _NPX_VALUE_FLAGS:
+                idx += 2 if idx + 1 < len(unwrapped) else 1
+                continue
+            if tok.startswith("-"):
+                idx += 1
+                continue
+            has_positional = True
+            break
+        if has_positional and not has_no_install and not (has_yes and has_package):
+            check.problem(
+                where,
+                "bare 'npx' invocation; use 'npx --no-install <bin>' or 'npx --yes --package <pkg> <bin>'",
+            )
+
+
+def _extract_cap_tokens(caps: Mapping[str, Any] | None, key: str) -> list[str] | None:
+    if not isinstance(caps, Mapping):
+        return None
+    val = caps.get(key)
+    if isinstance(val, list) and val and all(isinstance(x, str) for x in val):
+        return list(val)
+    return None
+
+
+def _check_intermediate_python_full_repo(
+    check: Checker,
+    task_label: str,
+    cmd_items: Sequence[tuple[str, str]],
+    allowed_patterns: Sequence[str],
+    py_manifest: Mapping[str, Any] | None,
+) -> None:
+    touches_py_config = any(
+        (
+            (norm := pat.strip().replace("\\", "/").removeprefix("./"))
+            == "pyproject.toml"
+            or norm.endswith("/pyproject.toml")
+            or norm == ".agents/quality"
+            or norm.startswith(".agents/quality/")
+        )
+        for pat in allowed_patterns
+    )
+    if touches_py_config:
+        return
+    caps = (
+        py_manifest.get("capabilities")
+        if isinstance(py_manifest, Mapping)
+        and isinstance(py_manifest.get("capabilities"), Mapping)
+        else None
+    )
+    lint_cap = _extract_cap_tokens(caps, "lint")
+    format_cap = _extract_cap_tokens(caps, "format")
+    type_cap = _extract_cap_tokens(caps, "type_check")
+
+    for where, cmd in cmd_items:
+        for sub in _split_sequential_subcommands(cmd):
+            unwrapped = registry._strip_command_wrappers(sub)
+            if not unwrapped:
+                continue
+            tool = Path(unwrapped[0]).name.lower()
+            if tool not in ("ruff", "mypy", "pyright", "ty"):
+                continue
+            cap: list[str] | None
+            if py_manifest is None:
+                cap = None
+            elif tool == "ruff":
+                if len(unwrapped) >= 2 and unwrapped[1] == "format":
+                    cap = format_cap if format_cap is not None else lint_cap
+                else:
+                    cap = lint_cap
+            else:
+                cap = type_cap
+            if rtqp.is_full_repo_python_tier_b_subcommand(sub, cap):
+                check.problem(
+                    where,
+                    f"intermediate task ({task_label}) must scope Python TIER-B '{tool}' to Allowed files instead of full-repo target ('.' or 'src tests')",
+                )
+
+
+def _command_runs_web_lcov_unit_test(command: str, lcov_globs: Sequence[str]) -> bool:
+    for sub in _split_sequential_subcommands(command):
+        unwrapped = registry._strip_command_wrappers(sub)
+        if not unwrapped:
+            continue
+        if Path(unwrapped[0]).name.lower() == "playwright" or any(
+            "playwright" in tok.lower() for tok in unwrapped[:2]
+        ):
+            continue
+        for tok in sub:
+            val = tok.split("=", 1)[1] if tok.startswith("-") and "=" in tok else tok
+            clean = val.strip().replace("\\", "/").removeprefix("./")
+            if not clean or clean.startswith("-"):
+                continue
+            if any(
+                _glob_matches_path_or_basename(g, clean)
+                or clean == g.strip().replace("\\", "/").removeprefix("./")
+                for g in lcov_globs
+            ):
+                return True
+            dir_prefix = clean.rstrip("/") + "/"
+            if dir_prefix != "/" and any(
+                g.strip().replace("\\", "/").removeprefix("./").startswith(dir_prefix)
+                for g in lcov_globs
+            ):
+                return True
+    return False
+
+
+def _check_web_lcov_unit_tests(
+    check: Checker,
+    where: str,
+    allowed_entries: Sequence[Any],
+    test_commands: Sequence[str],
+    web_manifest: Mapping[str, Any] | None,
+) -> None:
+    if web_manifest is None:
+        return
+    requires_lcov, lcov_globs = rtqp.web_requires_lcov_unit_tests(web_manifest)
+    if not requires_lcov:
+        return
+
+    web_prod_js: list[str] = []
+    has_lcov_in_allowed = False
+    for entry in allowed_entries:
+        norm = str(entry.pattern).strip().replace("\\", "/").removeprefix("./")
+        if not norm or GLOB_CHARS.search(norm):
+            continue
+        if any(_glob_matches_path_or_basename(g, norm) for g in lcov_globs):
+            has_lcov_in_allowed = True
+            continue
+        if (
+            Path(norm).suffix.lower() in (".js", ".mjs")
+            and not registry.TriageSurfaceRegistry.is_test_file(norm)
+            and not _is_test_path(norm)
+        ):
+            web_prod_js.append(norm)
+
+    if not web_prod_js or has_lcov_in_allowed:
+        return
+    if any(_command_runs_web_lcov_unit_test(cmd, lcov_globs) for cmd in test_commands):
+        return
+    check.problem(
+        where,
+        f"Web task touches production JS/MJS ({', '.join(web_prod_js)}) under LCOV diff_coverage "
+        f"without a JS unit test matching ({', '.join(lcov_globs)}) in Allowed files or GREEN/REGRESSION rows",
+    )
+
+
+def _check_test_routing_rules(
+    check: Checker,
+    where: str,
+    allowed_entries: Sequence[Any],
+    loaded_descriptors: Mapping[str, registry.StackDescriptor],
+) -> None:
+    for sid, desc in sorted(loaded_descriptors.items()):
+        tr = desc.test_routing
+        if not (
+            tr.canonical_test_globs or tr.forbidden_test_globs or tr.paired_source_globs
+        ):
+            continue
+        allowed_canon = tr.canonical_test_globs + tr.lcov_unit_test_globs
+        paired_new_sources: list[str] = []
+        has_valid_stack_test = False
+
+        for entry in allowed_entries:
+            norm = str(entry.pattern).strip().replace("\\", "/").removeprefix("./")
+            if not norm or GLOB_CHARS.search(norm):
+                continue
+            if not registry._path_matches_stack(norm, desc):
+                continue
+            is_test = _is_stack_test_path(norm, desc)
+            matched_forbidden = next(
+                (
+                    g
+                    for g in tr.forbidden_test_globs
+                    if _glob_matches_path_or_basename(g, norm)
+                ),
+                None,
+            )
+            if is_test:
+                if entry.new and matched_forbidden is not None:
+                    hint = (
+                        f"; place under canonical_test_globs ({', '.join(tr.canonical_test_globs)})"
+                        if tr.canonical_test_globs
+                        else ""
+                    )
+                    check.problem(
+                        where,
+                        f"test_routing violation: (new) test file '{norm}' matches forbidden_test_globs '{matched_forbidden}'{hint}",
+                    )
+                elif (
+                    entry.new
+                    and tr.canonical_test_globs
+                    and not any(
+                        _glob_matches_path_or_basename(g, norm) for g in allowed_canon
+                    )
+                ):
+                    check.problem(
+                        where,
+                        f"test_routing violation: (new) test file '{norm}' is outside canonical_test_globs ({', '.join(tr.canonical_test_globs)})",
+                    )
+                if matched_forbidden is None:
+                    has_valid_stack_test = True
+            elif (
+                entry.new
+                and tr.paired_source_globs
+                and any(
+                    _glob_matches_path_or_basename(g, norm)
+                    for g in tr.paired_source_globs
+                )
+            ):
+                paired_new_sources.append(norm)
+
+        if paired_new_sources and not has_valid_stack_test:
+            check.problem(
+                where,
+                f"test_routing violation: (new) source file(s) ({', '.join(paired_new_sources)}) "
+                f"match paired_source_globs ({', '.join(tr.paired_source_globs)}) "
+                f"without a paired {sid} unit test in Allowed files",
+            )
+
+
+def _check_cache_bust_templates(
+    check: Checker,
+    where: str,
+    allowed_entries: Sequence[Any],
+    web_manifest: Mapping[str, Any] | None,
+) -> None:
+    if web_manifest is None:
+        return
+    modified_assets = [
+        norm
+        for entry in allowed_entries
+        if not entry.new
+        and (norm := str(entry.pattern).strip().replace("\\", "/").removeprefix("./"))
+        and not GLOB_CHARS.search(norm)
+    ]
+    if not modified_assets:
+        return
+    matched_templates = rtqp.find_cache_bust_templates(
+        check.root, modified_assets, web_manifest
+    )
+    tracked_templates = [
+        tpl
+        for tpl in matched_templates
+        if (not check.in_git_repo) or check.is_tracked(tpl)
+    ]
+    missing_templates = [
+        tpl
+        for tpl in tracked_templates
+        if not any(
+            _target_covers_path(str(entry.pattern), tpl) for entry in allowed_entries
+        )
+    ]
+    if missing_templates:
+        check.problem(
+            where,
+            "cache-bust (?v=) template violation: modifying static asset(s) requires updating "
+            f"referencing template(s) in Allowed files; missing: {', '.join(missing_templates)}",
+        )
+
+
+def check_shift_left_quality_guards(
+    check: Checker,
+    stem: str,
+    allowed_entries: Sequence[Any],
+    rows: Sequence[Any],
+    *,
+    is_intermediate_task: bool = False,
+) -> None:
+    """Enforce fail-closed Shift-Left quality-layer guards on active design tasks."""
+    for row in rows:
+        _check_unexpanded_placeholders(check, f"{stem}:{row.id}", row.command)
+
+    quality_dir = check.root / ".agents" / "quality"
+    py_manifest, _ = _read_manifest_json(quality_dir / "python-quality.json")
+    web_manifest, _ = _read_manifest_json(quality_dir / "web-quality.json")
+    file_patterns = [str(entry.pattern) for entry in allowed_entries]
+
+    if is_intermediate_task:
+        tier_b_items = [
+            (f"{stem}:{row.id}", row.command) for row in rows if row.phase == "TIER-B"
+        ]
+        _check_intermediate_python_full_repo(
+            check,
+            stem,
+            tier_b_items,
+            file_patterns,
+            py_manifest,
+        )
+
+    if not quality_dir.is_dir():
+        return
+
+    loaded_descs, manifest_paths, manifest_errors = registry._load_repo_manifests(
+        check.root
+    )
+    reported_manifests: set[str] = set()
+
+    def _already_reported(manifest_name: str) -> bool:
+        return manifest_name in reported_manifests or any(
+            p.startswith(f"{stem}:") and manifest_name in p for p in check.problems
+        )
+
+    for sid, mpath in sorted(manifest_paths.items()):
+        desc_for_match = loaded_descs.get(sid) or registry.BUILTIN_STACKS.get(sid)
+        if not _stack_touched_by_files(sid, file_patterns, desc_for_match):
+            continue
+        m_data, m_err = _read_manifest_json(mpath)
+        if m_err is not None:
+            if not _already_reported(mpath.name):
+                check.problem(f"{stem}:Files", f"invalid .agents/quality/{m_err}")
+                reported_manifests.add(mpath.name)
+            continue
+        matching_reg_err = next((e for e in manifest_errors if mpath.name in e), None)
+        if matching_reg_err is not None and not _already_reported(mpath.name):
+            check.problem(
+                f"{stem}:Files", f"invalid .agents/quality/{matching_reg_err}"
+            )
+            reported_manifests.add(mpath.name)
+        if m_data is not None:
+            tr_err = _validate_manifest_test_routing(m_data, mpath.name)
+            if tr_err is not None:
+                check.problem(f"{stem}:Files", f"invalid .agents/quality/{tr_err}")
+                reported_manifests.add(mpath.name)
+
+    green_reg_cmds = [
+        row.command for row in rows if row.phase in ("GREEN", "REGRESSION")
+    ]
+    _check_web_lcov_unit_tests(
+        check, f"{stem}:Verification", allowed_entries, green_reg_cmds, web_manifest
+    )
+
+    if loaded_descs:
+        _check_test_routing_rules(check, f"{stem}:Files", allowed_entries, loaded_descs)
+
+    _check_cache_bust_templates(check, f"{stem}:Files", allowed_entries, web_manifest)
+
+
+def _task_order_key(path: Path, text: str) -> tuple[int, str, int, str]:
+    m_stem = re.match(r"^task[_-]?0*(\d+)(?=[_-]|$)", path.stem, re.IGNORECASE)
+    if m_stem:
+        return (2, "", int(m_stem.group(1)), path.stem)
+    if text.startswith("---"):
+        fm = text.split("\n---", 1)[0]
+        m_ord = re.search(r'^order:\s*"?([A-Za-z0-9_-]+)"?\s*$', fm, re.MULTILINE)
+        if m_ord:
+            val = m_ord.group(1)
+            m_parts = re.match(r"^([A-Za-z_-]*?)(\d+)$", val)
+            if m_parts:
+                return (1, m_parts.group(1), int(m_parts.group(2)), path.stem)
+            return (1, val, -1, path.stem)
+    return (0, path.stem, 0, path.stem)
+
+
+def _extract_plan_paths(raw_rest: str) -> list[str]:
+    before_dash = re.split(r"\s+[—–]\s+", raw_rest.strip(), maxsplit=1)[0].strip()
+    if not before_dash:
+        return []
+    paths: list[str] = []
+    for chunk in before_dash.split(","):
+        item = chunk.strip()
+        if not item:
+            continue
+        if item.startswith("`"):
+            m = re.match(r"^`([^`]+)`", item)
+            cand = m.group(1) if m else item.replace("`", "")
+        else:
+            cand = item.replace("`", "")
+        cand = re.sub(r"\s*\([^)]*\)\s*", " ", cand).strip()
+        if not cand:
+            continue
+        cand = cand.split()[0]
+        cand = _PLAN_LINE_RANGE_SUFFIX_RE.sub("", cand)
+        cand = cand.replace("\\", "/").removeprefix("./").strip()
+        if cand and ("/" in cand or "." in cand):
+            paths.append(cand)
+    return paths
+
+
+def _flush_plan_fence_commands(lines: Sequence[str], target: list[str]) -> None:
+    pending = ""
+    for raw_line in lines:
+        stripped = raw_line.strip()
+        if not pending and (not stripped or stripped.startswith("#")):
+            continue
+        if stripped.endswith("\\"):
+            part = stripped[:-1].rstrip()
+            pending = f"{pending} {part}".strip() if pending else part
+            continue
+        combined = f"{pending} {stripped}".strip() if pending else stripped
+        pending = ""
+        if combined and not combined.startswith("#"):
+            target.append(combined)
+    if pending and not pending.startswith("#"):
+        target.append(pending)
+
+
+def _parse_standalone_plan(root: Path, text: str) -> list[_PlanTask]:
+    tasks: list[_PlanTask] = []
+    cur_num: int | None = None
+    cur_heading = ""
+    cur_files: list[_PlanFileEntry] = []
+    cur_cmds: list[str] = []
+    active_file_kind: str | None = None
+
+    fence: str | None = None
+    fence_lang = ""
+    fence_lines: list[str] = []
+
+    def _finish_task() -> None:
+        nonlocal cur_num, cur_heading, cur_files, cur_cmds, active_file_kind
+        if cur_num is not None:
+            tasks.append(
+                _PlanTask(
+                    number=cur_num,
+                    index=len(tasks),
+                    heading=cur_heading,
+                    files=tuple(cur_files),
+                    commands=tuple(cur_cmds),
+                )
+            )
+        cur_num = None
+        cur_heading = ""
+        cur_files = []
+        cur_cmds = []
+        active_file_kind = None
+
+    def _append_plan_files(kind: str, raw_rest: str) -> None:
+        for path in _extract_plan_paths(raw_rest):
+            is_new = (
+                True
+                if kind == "create"
+                else (False if kind == "modify" else not (root / path).exists())
+            )
+            entry = _PlanFileEntry(pattern=path, new=is_new, kind=kind)
+            if not any(
+                existing.pattern == entry.pattern and existing.new == entry.new
+                for existing in cur_files
+            ):
+                cur_files.append(entry)
+
+    for line in text.splitlines():
+        marker = tc.FENCE.match(line)
+        if marker:
+            if fence is None:
+                fence = marker.group(1)
+                fence_lang = (
+                    line[marker.end() :].strip().split()[0].lower()
+                    if line[marker.end() :].strip()
+                    else ""
+                )
+                fence_lines = []
+            elif marker.group(1)[0] == fence[0] and len(marker.group(1)) >= len(fence):
+                if cur_num is not None and fence_lang in _PLAN_SHELL_FENCE_LANGS:
+                    _flush_plan_fence_commands(fence_lines, cur_cmds)
+                fence = None
+                fence_lang = ""
+                fence_lines = []
+            continue
+
+        if fence is not None:
+            if cur_num is not None and fence_lang in _PLAN_SHELL_FENCE_LANGS:
+                fence_lines.append(line)
+            continue
+
+        m_heading = _PLAN_TASK_HEADING_RE.match(line)
+        if m_heading:
+            _finish_task()
+            cur_num = int(m_heading.group(1))
+            cur_heading = line.strip()
+            continue
+
+        if cur_num is None:
+            continue
+
+        m_file = _PLAN_FILE_LINE_RE.match(line)
+        if m_file:
+            kind = m_file.group(1).lower()
+            rest = m_file.group(2).strip()
+            if rest:
+                _append_plan_files(kind, rest)
+                active_file_kind = None
+            else:
+                active_file_kind = kind
+            continue
+
+        if active_file_kind is not None:
+            m_sub = _PLAN_SUB_BULLET_RE.match(line)
+            if m_sub:
+                _append_plan_files(active_file_kind, m_sub.group(1))
+                continue
+            if line.strip():
+                active_file_kind = None
+
+        m_run = _PLAN_RUN_LINE_RE.match(line)
+        if m_run:
+            rest = m_run.group(1).strip()
+            spans = tc.CODE_SPAN.findall(rest)
+            if spans:
+                for span in spans:
+                    if span.strip():
+                        cur_cmds.append(span.strip())
+            elif rest:
+                cur_cmds.append(rest)
+
+    _finish_task()
+    return tasks
+
+
+def check_standalone_plan(
+    check: Checker, plan_path: Path, text: str
+) -> dict[str, list[str]]:
+    """Validate a standalone `/writing-plans` Markdown document against Shift-Left quality contracts."""
+    plan_name = plan_path.name
+    plan_tasks = _parse_standalone_plan(check.root, text)
+    if not plan_tasks:
+        check.problem(f"{plan_name}:Plan", "no '### Task N' sections found in plan")
+        return {}
+
+    quality_dir = check.root / ".agents" / "quality"
+    loaded_descs, manifest_paths, manifest_errors = registry._load_repo_manifests(
+        check.root
+    )
+    raw_manifests: dict[str, dict[str, Any]] = {}
+    raw_manifest_errs: dict[str, str] = {}
+    for sid, mpath in manifest_paths.items():
+        data, err = _read_manifest_json(mpath)
+        if data is not None:
+            raw_manifests[sid] = data
+        elif err is not None:
+            raw_manifest_errs[sid] = err
+
+    py_manifest_path = quality_dir / "python-quality.json"
+    py_manifest = raw_manifests.get("python")
+    web_manifest = raw_manifests.get("web")
+
+    final_task = max(plan_tasks, key=lambda t: (t.number, t.index))
+    final_py_files, final_py_roots = _collect_allowed_py_entries(
+        final_task.files, check.root
+    )
+    program_provenance: dict[str, list[str]] = {}
+
+    for pt in plan_tasks:
+        where = f"{plan_name}:Task {pt.number}"
+        for cmd in pt.commands:
+            prog = tc.program_of(cmd, check.root)
+            if prog:
+                if where not in program_provenance.setdefault(prog, []):
+                    program_provenance[prog].append(where)
+            _check_unexpanded_placeholders(check, where, cmd)
+            _check_bare_npx(check, where, cmd)
+
+        if len(plan_tasks) >= 2 and pt is not final_task:
+            _check_intermediate_python_full_repo(
+                check,
+                f"Task {pt.number}",
+                [(where, cmd) for cmd in pt.commands],
+                [f.pattern for f in pt.files],
+                py_manifest,
+            )
+
+        if quality_dir.is_dir():
+            candidate_cmds = list(pt.commands) + (
+                list(final_task.commands) if pt is not final_task else []
+            )
+            task_py_files, task_py_roots = _collect_allowed_py_entries(
+                pt.files, check.root
+            )
+            touches_python = (
+                bool(task_py_files)
+                or bool(task_py_roots)
+                or any(Path(f.pattern).name == "pyproject.toml" for f in pt.files)
+            )
+            if touches_python and py_manifest_path.is_file():
+                if py_manifest is None:
+                    check.problem(
+                        where, "malformed .agents/quality/python-quality.json manifest"
+                    )
+                else:
+                    py_tr_err = _validate_manifest_test_routing(
+                        py_manifest, "python-quality.json"
+                    )
+                    if py_tr_err is not None:
+                        check.problem(where, f"invalid .agents/quality/{py_tr_err}")
+                    caps = (
+                        py_manifest.get("capabilities")
+                        if isinstance(py_manifest.get("capabilities"), Mapping)
+                        else None
+                    )
+                    lint_cap = _extract_cap_tokens(caps, "lint")
+                    type_cap = _extract_cap_tokens(caps, "type_check")
+                    union_py = list(dict.fromkeys([*task_py_files, *final_py_files]))
+                    union_py_roots = list(
+                        dict.fromkeys([*task_py_roots, *final_py_roots])
+                    )
+                    if lint_cap is not None:
+                        has_lint = any(
+                            _matches_python_cap(
+                                lint_cap,
+                                cmd,
+                                allowed_py=task_py_files,
+                                allowed_py_roots=task_py_roots,
+                                allow_historical_prefix=False,
+                            )
+                            for cmd in pt.commands
+                        ) or (
+                            pt is not final_task
+                            and any(
+                                _matches_python_cap(
+                                    lint_cap,
+                                    cmd,
+                                    allowed_py=union_py,
+                                    allowed_py_roots=union_py_roots,
+                                    allow_historical_prefix=False,
+                                )
+                                for cmd in final_task.commands
+                            )
+                        )
+                        if not has_lint:
+                            check.problem(
+                                where,
+                                f"Python plan task missing registered lint capability ({' '.join(lint_cap)})",
+                            )
+                    if type_cap is not None:
+                        has_type = any(
+                            _matches_python_cap(
+                                type_cap,
+                                cmd,
+                                allowed_py=task_py_files,
+                                allowed_py_roots=task_py_roots,
+                                allow_historical_prefix=False,
+                            )
+                            for cmd in pt.commands
+                        ) or (
+                            pt is not final_task
+                            and any(
+                                _matches_python_cap(
+                                    type_cap,
+                                    cmd,
+                                    allowed_py=union_py,
+                                    allowed_py_roots=union_py_roots,
+                                    allow_historical_prefix=False,
+                                )
+                                for cmd in final_task.commands
+                            )
+                        )
+                        if not has_type:
+                            check.problem(
+                                where,
+                                f"Python plan task missing registered type_check capability ({' '.join(type_cap)})",
+                            )
+
+            # Surface malformed non-Python manifests or invalid test_routing if touched
+            file_patterns = [f.pattern for f in pt.files]
+            for sid, mpath in sorted(manifest_paths.items()):
+                if sid == "python":
+                    continue
+                desc_for_match = loaded_descs.get(sid) or registry.BUILTIN_STACKS.get(
+                    sid
+                )
+                if not _stack_touched_by_files(sid, file_patterns, desc_for_match):
+                    continue
+                if sid in raw_manifest_errs:
+                    check.problem(
+                        where, f"invalid .agents/quality/{raw_manifest_errs[sid]}"
+                    )
+                    continue
+                err = next((e for e in manifest_errors if mpath.name in e), None)
+                if err:
+                    check.problem(where, f"invalid .agents/quality/{err}")
+                raw_m_data = raw_manifests.get(sid)
+                if raw_m_data is not None:
+                    tr_err = _validate_manifest_test_routing(raw_m_data, mpath.name)
+                    if tr_err is not None:
+                        check.problem(where, f"invalid .agents/quality/{tr_err}")
+
+            # Non-Python active stack lint / type_check presence
+            subcommands = [
+                sub
+                for cmd in candidate_cmds
+                for sub in _split_sequential_subcommands(cmd)
+            ]
+            for sid, desc in sorted(loaded_descs.items()):
+                if sid == "python":
+                    continue
+                if not any(
+                    registry._path_matches_stack(p, desc) for p in file_patterns
+                ):
+                    continue
+                raw_m = raw_manifests.get(sid, {})
+                raw_caps = raw_m.get("capabilities")
+                stack_caps: Mapping[str, Any] = (
+                    raw_caps if isinstance(raw_caps, Mapping) else {}
+                )
+                raw_override = raw_m.get("task_tier_b")
+                stack_override: Mapping[str, Any] = (
+                    raw_override if isinstance(raw_override, Mapping) else {}
+                )
+                lint_cap_cmds = registry._cap_command_str(
+                    stack_caps, "lint", "analyze", "clippy"
+                )
+                if lint_cap_cmds or "lint_prefixes" in stack_override:
+                    lint_prefixes = (
+                        desc.default_tier_b.lint_prefixes
+                        if "lint_prefixes" in stack_override
+                        else lint_cap_cmds
+                    )
+                    if lint_prefixes and not any(
+                        registry._subcommand_matches_prefix(sub, pref)[0]
+                        for sub in subcommands
+                        for pref in lint_prefixes
+                    ):
+                        check.problem(
+                            where,
+                            f"{sid} plan task missing registered lint check (expected one of: {', '.join(lint_prefixes)})",
+                        )
+                type_cap_cmds = registry._cap_command_str(stack_caps, "type_check")
+                if type_cap_cmds or "typecheck_prefixes" in stack_override:
+                    type_prefixes = (
+                        desc.default_tier_b.typecheck_prefixes
+                        if "typecheck_prefixes" in stack_override
+                        else type_cap_cmds
+                    )
+                    if type_prefixes and not any(
+                        registry._subcommand_matches_prefix(sub, pref)[0]
+                        for sub in subcommands
+                        for pref in type_prefixes
+                    ):
+                        check.problem(
+                            where,
+                            f"{sid} plan task missing registered type_check check (expected one of: {', '.join(type_prefixes)})",
+                        )
+
+            _check_web_lcov_unit_tests(
+                check, where, pt.files, pt.commands, web_manifest
+            )
+            if loaded_descs:
+                _check_test_routing_rules(check, where, pt.files, loaded_descs)
+            _check_cache_bust_templates(check, where, pt.files, web_manifest)
+
+    return program_provenance
+
+
 def check_task(
     check: Checker,
     path: Path,
@@ -1456,6 +2731,7 @@ def check_task(
     prereq_files: set[str] | None = None,
     *,
     allow_existing_done_new: bool = False,
+    is_intermediate_task: bool = False,
 ) -> None:
     stem = path.stem
     rows = table_rows(check, stem, text)
@@ -1509,6 +2785,13 @@ def check_task(
         check.warnings.extend(tier_c_warnings)
         if design and not allow_hist:
             check_regression_coverage(check, stem, text, rows)
+            check_shift_left_quality_guards(
+                check,
+                stem,
+                allowed_entries,
+                rows,
+                is_intermediate_task=is_intermediate_task,
+            )
         check_allowed(
             check,
             stem,
@@ -1528,7 +2811,14 @@ def check_task(
             allow_existing_done_new=allow_existing_done_new,
             task_status=task_status,
         )
-        check_grounding(check, stem, text, rows, created)
+        check_grounding(
+            check,
+            stem,
+            text,
+            rows,
+            created,
+            skip_placeholder_paths=design and not allow_hist,
+        )
 
 
 def check_hld(
@@ -1663,57 +2953,88 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--allow-existing-done-new", action="store_true")
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--json", dest="as_json", action="store_true")
-    parser.add_argument("--hld", required=True, type=Path)
-    parser.add_argument("--tasks", required=True, nargs="+", type=Path)
+    parser.add_argument("--hld", type=Path, default=None)
+    parser.add_argument("--tasks", nargs="+", type=Path, default=None)
+    parser.add_argument("--check-plan", type=Path, default=None)
     args = parser.parse_args(argv)
+    if args.check_plan is not None:
+        if args.hld is not None or args.tasks is not None:
+            print(
+                "error: --check-plan cannot be combined with --hld or --tasks",
+                file=sys.stderr,
+            )
+            return 2
+    else:
+        if args.hld is None and not args.tasks:
+            parser.error("either --check-plan or both --hld and --tasks are required")
+        if args.hld is None:
+            parser.error("the following arguments are required: --hld")
+        if not args.tasks:
+            parser.error("the following arguments are required: --tasks")
+
+    program_provenance: dict[str, list[str]] = {}
     try:
         check = Checker(repository_root())
-        hld_text = read_file(args.hld)
-        tasks = {path: read_file(path) for path in args.tasks}
-        prereq_dirs, prereq_errors = tc.resolve_prerequisite_epic_dirs(
-            check.root, hld_text, args.hld.parent.name
-        )
-        for err in prereq_errors:
-            check.problem(str(args.hld), err)
-        prereq_files, _ = tc.collect_prerequisite_artifacts(check.root, prereq_dirs)
-        created = {
-            entry.pattern
-            for text in tasks.values()
-            for entry in tc.parse_allowed_files(text)
-            if entry.new
-        } | prereq_files
-        created |= {
-            entry.pattern
-            for text in tasks.values()
-            for entry in tc.parse_evidence_files(text)
-            if entry.new and not Path(entry.pattern).name.startswith("task_")
-        }
-        check_duplicate_new_claims(check, tasks)
-        for path, text in tasks.items():
-            check_task(
-                check,
-                path,
-                text,
-                args.design,
-                created,
-                prereq_files,
-                allow_existing_done_new=args.allow_existing_done_new,
+        if args.check_plan is not None:
+            plan_text = read_file(args.check_plan)
+            program_provenance = check_standalone_plan(
+                check, args.check_plan, plan_text
             )
-        check_hld(check, args.hld, hld_text, tasks, created)
-        if args.design:
-            check_exclusive_ownership(check, tasks)
-            check_r2_r3_parity(check, args.hld, tasks)
+        else:
+            assert args.hld is not None and args.tasks is not None
+            hld_text = read_file(args.hld)
+            tasks = {path: read_file(path) for path in args.tasks}
+            prereq_dirs, prereq_errors = tc.resolve_prerequisite_epic_dirs(
+                check.root, hld_text, args.hld.parent.name
+            )
+            for err in prereq_errors:
+                check.problem(str(args.hld), err)
+            prereq_files, _ = tc.collect_prerequisite_artifacts(check.root, prereq_dirs)
+            created = {
+                entry.pattern
+                for text in tasks.values()
+                for entry in tc.parse_allowed_files(text)
+                if entry.new
+            } | prereq_files
+            created |= {
+                entry.pattern
+                for text in tasks.values()
+                for entry in tc.parse_evidence_files(text)
+                if entry.new and not Path(entry.pattern).name.startswith("task_")
+            }
+            check_duplicate_new_claims(check, tasks)
+            final_task_path = (
+                max(tasks.keys(), key=lambda p: _task_order_key(p, tasks[p]))
+                if len(tasks) >= 2
+                else None
+            )
+            for path, text in tasks.items():
+                check_task(
+                    check,
+                    path,
+                    text,
+                    args.design,
+                    created,
+                    prereq_files,
+                    allow_existing_done_new=args.allow_existing_done_new,
+                    is_intermediate_task=(
+                        final_task_path is not None and path != final_task_path
+                    ),
+                )
+            check_hld(check, args.hld, hld_text, tasks, created)
+            if args.design:
+                check_exclusive_ownership(check, tasks)
+                check_r2_r3_parity(check, args.hld, tasks)
+            for path, text in tasks.items():
+                for row in _rows(text):
+                    prog = tc.program_of(row.command, check.root)
+                    if prog:
+                        prov = f"{path.stem}:{row.id}"
+                        if prov not in program_provenance.setdefault(prog, []):
+                            program_provenance[prog].append(prov)
     except UsageError as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
-    program_provenance: dict[str, list[str]] = {}
-    for path, text in tasks.items():
-        for row in _rows(text):
-            prog = tc.program_of(row.command, check.root)
-            if prog:
-                prov = f"{path.stem}:{row.id}"
-                if prov not in program_provenance.setdefault(prog, []):
-                    program_provenance[prog].append(prov)
 
     formatted_programs = [
         f"{prog} ({', '.join(program_provenance[prog])})"

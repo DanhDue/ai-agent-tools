@@ -90,6 +90,41 @@
         }
       }
     },
+    "test_routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "canonical_test_globs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "forbidden_test_globs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "paired_source_globs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "lcov_unit_test_globs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "cache_bust_extensions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^\\.[a-z0-9]+$"
+          }
+        }
+      }
+    },
     "capabilities": {
       "type": "object",
       "additionalProperties": false,
@@ -159,6 +194,10 @@
             },
             "diff_base": {
               "type": "string"
+            },
+            "package_floors": {
+              "type": "string",
+              "minLength": 1
             }
           }
         },
@@ -238,6 +277,16 @@
           "items": { "type": "string" }
         },
         "contract_diff": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "cache_enable": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "cache_purge": {
           "type": "array",
           "minItems": 1,
           "items": { "type": "string" }

@@ -419,9 +419,12 @@ def cmd_verify_tier(args) -> tuple[int, dict]:
         since = merge_base(backup, onto)
         same = normalised_diff(since, backup) == normalised_diff(onto, head)
         tier = "clean" if same else "conflicts"
+    warnings: list[str] = []
+    if dirty_files(untracked=False):
+        warnings.append("the worktree has uncommitted changes")
     return EXIT_OK, {"command": "verify-tier", "branch": branch, "tier": tier,
                      "verification": VERIFICATION[tier], "candidate_sha": head,
-                     **upstream_context(since, onto, head)}
+                     **upstream_context(since, onto, head), "warnings": warnings}
 
 
 def cmd_land(args) -> tuple[int, dict]:

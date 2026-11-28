@@ -20,7 +20,7 @@
 ## Meta Data
 
 - **Epic name**: `shift_left_quality_resolver`
-- **Status**: Packaged (2026-11-28)
+- **Status**: Done
 - **PIC**: `tess`
 - **Target release**: Next `d3nexus` plugin release
 - **Platform**: Python 3 stdlib CLI tooling, JSON Schemas, and Markdown skills (`ai-agent-tools`)
