@@ -68,3 +68,10 @@
 | 2026-11-27T04:50:09.251003+00:00 | polyglot_lifecycle_and_quality_architecture | 4 | 26c1504 | Gate 4 Local PASS (ffccd147fa25cd001548b293df69e0926fe87e75) |  | developer |
 | 2026-11-27T05:54:50.863756+00:00 | polyglot_lifecycle_and_quality_architecture | 4 | 26c1504 | Gate 4 Final PASS post-Cross-Model-Review (cfbbb7f04f1df882ce6709d56354788d951651f9) |  | developer |
 | 2026-11-27T06:05:40.482911+00:00 | polyglot_lifecycle_and_quality_architecture | 5 | 26c1504 | Gate 5 Approved — Option 1 Merge locally into main |  | developer |
+| 2026-11-27T20:05:49.161625+00:00 | unified_review_config | 1 | 6982c9c | Spec approved |  | developer |
+| 2026-11-27T20:16:05.648900+00:00 | unified_review_config | 2 | 02c81df | HLD, 22 BDD scenarios, and 5 Kanban tasks passed check_epic_readiness (0 FAIL, 0 WARN) |  | developer |
+| 2026-11-27T20:28:17.150810+00:00 | unified_review_config | 2 | 02c81df | Passed Principal Review round 1 (0 findings) and packaged |  | developer |
+| 2026-11-27T20:29:22.654296+00:00 | unified_review_config | 3 | 02c81df | Automated Gate 3: 5 tasks across 4 layers (Task 02 & Task 03 parallel in Layer 1) |  | developer |
+| 2026-11-27T21:54:26.547740+00:00 | unified_review_config | 4 | 02c81df | Gate 4 Local PASS (f640f0b; 22/22 BDD, @quality_check PASS, audit PASS; reverted transient .vscode/settings.json window.title) |  | developer |
+| 2026-11-27T22:13:00.464778+00:00 | unified_review_config | 4 | 02c81df | Final Gate 4 PASS on 55a5aa3 (Cross-Model Review Round 1 PASS 0 findings, 22/22 BDD, @quality_check PASS, audit PASS, clean tree) |  | developer |
+| 2026-11-28T01:50:13.778604+00:00 | unified_review_config | 5 | ad07dba | Gate 5 Approved — Option 1 Merge locally into main |  | developer |
