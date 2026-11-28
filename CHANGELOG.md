@@ -8,6 +8,41 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.36.0 — 2026-11-28
+
+Delivers the **Open-Closed 6-Stack Polyglot Quality & Lifecycle Architecture**, **Shift-Left `QualityPlanResolver` (`d3nexus resolve-quality`) & Fail-Closed Gate 2 / Plan Contract Guards**, **Unified Layered External Review Configuration (`/d3nexus:dev-config review`)**, **Priority-Only Profile Pool Routing**, and **Observer Hardening Batches 1 & 2**.
+
+### Added
+
+- **Shift-Left `QualityPlanResolver` & CLI (`skills/dev-implementation/resources/scripts/resolve_task_quality_plan.py`, `bin/d3nexus`)**:
+  - Introduces the fifth Open-Closed lifecycle contract (`d3nexus resolve-quality --files <planned_files> [--repo-root <dir>] [--base-ref <ref>] [--json]`, Python 3 stdlib, `< 0.10s` in-process, zero LLM tokens).
+  - Emits 5–10 stack-filtered lines resolving canonical/forbidden test globs, paired source rules, dual Web V8 LCOV unit + Playwright `# tier: C2` requirements, monotonic `coverage_floors.json` ratchets, referencing `?v=` cache-bust templates (`*.html`, `*.astro`, `*.jinja`, `*.jinja2`), and `$D3NEXUS_KIT/skills`-interpolated `<allowed_files>`-scoped `TIER-B` commands.
+- **Fail-Closed Gate 2 & Standalone Plan Contract Guards (`skills/dev-implementation/resources/scripts/check_task_contract.py`)**:
+  - Adds `--check-plan <plan.md>` for `/writing-plans` deliverables alongside Epic Gate 2 (`--design`).
+  - Blocks unexpanded `{skills_dir}`/`{base_ref}` placeholders, bare `npx` without `--no-install`, full-repo Python `ruff`/`mypy` runs on intermediate tasks (`Task 1..N-1`), missing JS V8 LCOV unit tests in LCOV `diff_coverage` repos, `test_routing` layout/pairing violations, malformed `*-quality.json` manifests, and missing referencing templates when modifying existing `.js`/`.css` assets.
+- **Open-Closed 6-Stack Lifecycle Registry & Portable Hunk Diff-Coverage (`_stack_lifecycle_registry.py`, `check_diff_coverage.py`, `skills/web-quality-check/`)**:
+  - Standardizes `TierBContractAdapter`, `PoolWorkspaceStrategy` (combining `symlink` binary caches with macOS `cp -c -R` APFS copy-on-write `.dart_tool/` trees), suffix-scoped `TriageSurfaceRegistry`, and `TierCTaxonomy` (`Tier C1` host/VM `< 5s` vs `Tier C2` `Needs:`-gated runtime suites) across Python, Flutter, Rust, Web, Android, and iOS.
+  - Adds `check_diff_coverage.py` supporting LCOV, Cobertura XML, and JaCoCo XML dual-floor + hunk-level diff coverage and `--package-floors <coverage_floors.json>` (`enforced_coverage_pct`) monotonic ratchets.
+  - Syncs all 6 `*-quality.schema.json` provider schemas (`test_routing`, `coverage.package_floors`, `standards_catalog`, Flutter `architecture`, Rust/Web/Python `cache_enable` & `cache_purge`, and `^contracts_[a-z0-9_]+$` pattern capabilities).
+- **Unified External Review Configuration (`scripts/persona_config.py`, `scripts/dev_config.py`, `run_external_review.py`, `lifecycle_runner.py`)**:
+  - Centralizes external review provider/model priority, round/pass limits, and severity/auto-fix thresholds under `/d3nexus:dev-config review`, `limits`, and `thresholds` with layered global + repo override resolution.
+- **Architecture Blueprint & Ecosystem Coverage Documentation (`docs/architecture/`)**:
+  - Adds [docs/architecture/polyglot-quality-lifecycle-handoff.md](docs/architecture/polyglot-quality-lifecycle-handoff.md) and [docs/architecture/shift_left_upgrade_and_ecosystem_coverage_report.md](docs/architecture/shift_left_upgrade_and_ecosystem_coverage_report.md).
+
+### Changed
+
+- **Priority-Only Pool Routing (`scripts/agy_profile_pool.py`, `scripts/dev_config.py`)**:
+  - Retires `dev-config set --profile` overrides so worker pool acquisition strictly honors global priority order and live quota gates.
+- **Deduplicated 4-Profile Manifest Scaffolder & Lean Planning Hooks (`scaffold_quality_manifest.py`, `dev-designer`, `writing-plans`)**:
+  - Separates `pr_diff_audit`/`pr_impact` (`pr` only) from `workspace_audit`/`workspace_impact` (`epic`, `scheduled`, `release`), enforces `npx --no-install`, moves online `cargo audit` out of `pr`/`epic`, and replaces legacy prose instructions in `dev-designer` and `writing-plans` with 2–3 line `d3nexus resolve-quality` / `--check-plan` hooks.
+
+### Fixed
+
+- **Multi-Target `TIER-B` Prefix & Monorepo Wrapper Matching (`check_task_contract.py`, `_stack_lifecycle_registry.py`)**:
+  - Supports multi-target `uv run mypy --strict src tests` and `ruff check ... .`, bidirectional `mise exec --` unwrapping, monorepo directory wrappers (`uv --directory`, `npm --prefix`), `{skills_dir}` normalization, and numeric `task_NN_<slug>` ordering.
+- **Gate 4 Stale Receipt Hygiene & Tasks Server Portability (`verify_polyglot_registry.py`, `integrate_branch.py`, `tasks_server.py`)**:
+  - Automatically unlinks stale `build/quality/gate4_receipt.json` when `epic`/`release` verification returns `FAIL` or `BLOCKED`, warns on dirty tracked files during `noop` branch integration, and hot-reloads kit modules in `tasks_server.py` without hardcoded host paths.
+
 ## 1.35.2 — 2026-11-26
 
 Fixes clipboard copy actions in the Check-Quota account info modal (email, CLI command, and login command), including when embedded inside the Tasks Dashboard iframe.
