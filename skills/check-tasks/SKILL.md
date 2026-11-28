@@ -5,7 +5,7 @@ description: Real-time Cross-Repo Tasks & Context Dashboard and CLI monitor acro
 
 # Check Tasks (Cross-Repo Tasks & Context Dashboard)
 
-Monitors Kanban tasks progress, Two-Tier context memory, lifecycle state machines, and Cross-Model Review findings across multi-repository workspaces (`/Users/danhdueexoictif/AllProjects`).
+Monitors Kanban tasks progress, Two-Tier context memory, lifecycle state machines, and Cross-Model Review findings across multi-repository workspaces (e.g., `~/AllProjects`).
 
 ## When to Use
 

@@ -112,7 +112,7 @@ class TestAuditAccountBlock(unittest.TestCase):
         plist_dir = os.path.join(p_dir, "Library/Preferences")
         os.makedirs(plist_dir, exist_ok=True)
         with open(os.path.join(plist_dir, "com.apple.security.plist"), "w") as f:
-            f.write('<key>DbName</key><string>/Users/danhdueexoictif/Library/Keychains/login.keychain</string>')
+            f.write('<key>DbName</key><string>/Users/testuser/Library/Keychains/login.keychain</string>')
 
         # Add identity bleed in state.vscdb
         vscdb_dir = os.path.join(p_dir, "data/User/globalStorage")
@@ -140,7 +140,7 @@ class TestAuditAccountBlock(unittest.TestCase):
             plist_dir = os.path.join(p, "Library/Preferences")
             os.makedirs(plist_dir, exist_ok=True)
             with open(os.path.join(plist_dir, "com.apple.security.plist"), "w") as f:
-                f.write('<key>DbName</key><string>/Users/danhdueexoictif/Library/Keychains/login.keychain</string>')
+                f.write('<key>DbName</key><string>/Users/testuser/Library/Keychains/login.keychain</string>')
 
         # Before remediation: audit should fail clean check
         report_before = auditor.audit_all_profiles(self.homes_dir)
@@ -280,7 +280,7 @@ class TestAuditAccountBlock(unittest.TestCase):
         legit_link = os.path.join(ag_dir, "cli.log")
         os.symlink("log/cli-2026.log", legit_link)
         nested_rogue = os.path.join(ag_dir, "antigravity")
-        os.symlink("/Users/danhdueexoictif/.gemini/antigravity", nested_rogue)
+        os.symlink("/Users/testuser/.gemini/antigravity", nested_rogue)
 
         report_before = auditor.audit_all_profiles(self.homes_dir)
         prof_before = report_before["profiles"]["prof_rogue"]

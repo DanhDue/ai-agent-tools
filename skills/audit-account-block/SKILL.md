@@ -31,7 +31,7 @@ Activate this skill whenever you need to:
 | **Burst Concurrency Rate Limit** | **HIGH** | `ThreadPoolExecutor(max_workers=6)` querying all accounts simultaneously without delay. | Burst spikes of 23 accounts connecting concurrently from the same residential IP trigger IP-level anti-bot throttling. |
 | **Artificial Keep-Alive Prompts** | **HIGH** | Scripted activation or refresh using constant 1-character prompts (`agy -p "1"`). | Google AI Abuse models detect repetitive single-token requests without IDE context, typing latency, or code edit telemetry. |
 | **Zero-Jitter Periodic Schedules** | **MEDIUM** | Scheduled tasks triggering at the exact second `00` (e.g. `05:30:00`). | Clock-synchronized machine periodicity without human jitter. |
-| **Leaked Project File Paths** | **MEDIUM** | `backupWorkspaces` and `profileAssociations` in `storage.json` leaking absolute paths (e.g. `/Users/danhdueexoictif/...`). | Telemetry reports identical local filesystem paths across distinct Google identities. |
+| **Leaked Project File Paths** | **MEDIUM** | `backupWorkspaces` and `profileAssociations` in `storage.json` leaking absolute paths (e.g. `/Users/<user>/...`). | Telemetry reports identical local filesystem paths across distinct Google identities. |
 
 ---
 

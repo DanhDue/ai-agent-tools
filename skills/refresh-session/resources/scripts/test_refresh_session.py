@@ -544,7 +544,7 @@ class TestMultiScheduleAndAntigravityPing(unittest.TestCase):
             plist_dir.mkdir(parents=True)
             log_dir.mkdir(parents=True)
 
-            # Create a broken symlink (mimics stale /Users/danhdueexoictif/Library/LaunchAgents/com.d3nexus.refresh-session.plist)
+            # Create a broken symlink (mimics stale /Users/testuser/Library/LaunchAgents/com.d3nexus.refresh-session.plist)
             broken = plist_dir / f"{refresh_session.DARWIN_LABEL}.plist"
             broken.symlink_to("/nonexistent/antigravity_homes/huynhminhtien0510/Library/LaunchAgents/com.d3nexus.refresh-session.plist")
             self.assertTrue(broken.is_symlink())

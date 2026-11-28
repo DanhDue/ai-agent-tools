@@ -344,12 +344,12 @@ class TestCheckTasksServer_Integration(unittest.TestCase):
         """build_clean_host_env and /api/launch/* sanitize IDE vars and validate profiles."""
         with patch(
             "os.path.expanduser",
-            return_value="/Users/danhdueexoictif/antigravity_homes/hau",
+            return_value="/Users/testuser/antigravity_homes/hau",
         ):
-            self.assertEqual(get_real_home(), "/Users/danhdueexoictif")
+            self.assertEqual(get_real_home(), "/Users/testuser")
             cleaned = build_clean_host_env(
                 {
-                    "HOME": "/Users/danhdueexoictif/antigravity_homes/hau",
+                    "HOME": "/Users/testuser/antigravity_homes/hau",
                     "PATH": "/opt/homebrew/bin:/usr/bin",
                     "TERM_PROGRAM": "vscode",
                     "VSCODE_PID": "1463",
@@ -360,7 +360,7 @@ class TestCheckTasksServer_Integration(unittest.TestCase):
                     "ZDOTDIR": "/tmp/zdot",
                 }
             )
-            self.assertEqual(cleaned["HOME"], "/Users/danhdueexoictif")
+            self.assertEqual(cleaned["HOME"], "/Users/testuser")
             self.assertEqual(cleaned["PATH"], "/opt/homebrew/bin:/usr/bin")
             for k in (
                 "TERM_PROGRAM",
@@ -379,7 +379,7 @@ class TestCheckTasksServer_Integration(unittest.TestCase):
         handler._send_json = MagicMock()  # type: ignore[method-assign]
 
         dirty = {
-            "HOME": "/Users/danhdueexoictif/antigravity_homes/danhdue",
+            "HOME": "/Users/testuser/antigravity_homes/danhdue",
             "TERM_PROGRAM": "vscode",
             "VSCODE_IPC_HOOK": "/tmp/hook",
             "ELECTRON_RUN_AS_NODE": "1",
@@ -389,7 +389,7 @@ class TestCheckTasksServer_Integration(unittest.TestCase):
         with (
             patch(
                 "os.path.expanduser",
-                return_value="/Users/danhdueexoictif/antigravity_homes/danhdue",
+                return_value="/Users/testuser/antigravity_homes/danhdue",
             ),
             patch.dict("os.environ", dirty, clear=True),
             patch("subprocess.Popen") as mock_popen,
@@ -415,7 +415,7 @@ class TestCheckTasksServer_Integration(unittest.TestCase):
             kwargs = mock_popen.call_args.kwargs
             self.assertTrue(kwargs.get("start_new_session"))
             passed_env = kwargs["env"]
-            self.assertEqual(passed_env["HOME"], "/Users/danhdueexoictif")
+            self.assertEqual(passed_env["HOME"], "/Users/testuser")
             self.assertNotIn("TERM_PROGRAM", passed_env)
             self.assertNotIn("VSCODE_IPC_HOOK", passed_env)
             self.assertNotIn("AGY_PROFILE", passed_env)
@@ -637,6 +637,140 @@ class TestCheckTasksServer_Integration(unittest.TestCase):
                 self.assertEqual(rc_force, 0)
                 mock_stop.assert_called_once_with(self.pid_file)
                 mock_popen.assert_called_once()
+
+    def test_load_kit_module_reloads_stale_persona_config_when_disk_changes(
+        self,
+    ) -> None:
+        """_load_kit_module reloads persona_config when scripts/persona_config.py updates on disk."""
+        import check_tasks
+        import os
+        import shutil
+
+        repo_root = Path(__file__).resolve().parent.parent
+        tmp_kit = self.workspace_root / "kit"
+        tmp_scripts = tmp_kit / "scripts"
+        tmp_ct_scripts = tmp_kit / "skills" / "check-tasks" / "resources" / "scripts"
+        tmp_scripts.mkdir(parents=True)
+        tmp_ct_scripts.mkdir(parents=True)
+
+        src_py = (repo_root / "scripts" / "persona_config.py").read_text(
+            encoding="utf-8"
+        )
+        src_json = json.loads(
+            (repo_root / "scripts" / "personas.default.json").read_text(
+                encoding="utf-8"
+            )
+        )
+
+        old_py = src_py.replace('"max_cross_model_review_passes",\n', "")
+        old_json = dict(src_json)
+        old_json.pop("max_cross_model_review_passes", None)
+
+        target_py = tmp_scripts / "persona_config.py"
+        target_json = tmp_scripts / "personas.default.json"
+        target_py.write_text(old_py, encoding="utf-8")
+        target_json.write_text(json.dumps(old_json, indent=2), encoding="utf-8")
+
+        saved_mod = sys.modules.pop("persona_config", None)
+        saved_sig = check_tasks._KIT_MODULE_SIGNATURES.pop("persona_config", None)
+        try:
+            with patch.object(check_tasks, "SCRIPT_DIR", tmp_ct_scripts):
+                bindings_v1, err_v1 = check_tasks._resolve_persona_bindings(
+                    self.workspace_root
+                )
+                self.assertIsNone(err_v1)
+                self.assertEqual(len(bindings_v1), 3)
+
+                # Simulate git pull updating both persona_config.py and personas.default.json
+                target_py.write_text(src_py, encoding="utf-8")
+                target_json.write_text(json.dumps(src_json, indent=2), encoding="utf-8")
+                st = target_py.stat()
+                os.utime(
+                    target_py, ns=(st.st_atime_ns, st.st_mtime_ns + 2_000_000_000)
+                )
+
+                bindings_v2, err_v2 = check_tasks._resolve_persona_bindings(
+                    self.workspace_root
+                )
+                self.assertIsNone(err_v2)
+                self.assertEqual(len(bindings_v2), 3)
+        finally:
+            sys.modules.pop("persona_config", None)
+            check_tasks._KIT_MODULE_SIGNATURES.pop("persona_config", None)
+            if saved_mod is not None:
+                sys.modules["persona_config"] = saved_mod
+            if saved_sig is not None:
+                check_tasks._KIT_MODULE_SIGNATURES["persona_config"] = saved_sig
+            shutil.rmtree(tmp_kit, ignore_errors=True)
+
+    def test_compute_server_code_fingerprint_tracks_kit_scripts_and_dashboard(
+        self,
+    ) -> None:
+        """compute_server_code_fingerprint changes when shared kit modules or dashboard HTML change."""
+        import tasks_server
+
+        tmp_kit = self.workspace_root / "fp_kit"
+        tmp_scripts = tmp_kit / "scripts"
+        tmp_ct_res = tmp_kit / "skills" / "check-tasks" / "resources"
+        tmp_ct_scripts = tmp_ct_res / "scripts"
+        tmp_ct_dash = tmp_ct_res / "dashboard"
+        tmp_scripts.mkdir(parents=True)
+        tmp_ct_scripts.mkdir(parents=True)
+        tmp_ct_dash.mkdir(parents=True)
+
+        (tmp_ct_scripts / "tasks_server.py").write_text("# server v1\n", encoding="utf-8")
+        (tmp_ct_scripts / "check_tasks.py").write_text("# check v1\n", encoding="utf-8")
+        (tmp_ct_dash / "tasks_dashboard.html").write_text("<html>v1</html>", encoding="utf-8")
+        (tmp_scripts / "persona_config.py").write_text("# persona v1\n", encoding="utf-8")
+        (tmp_scripts / "agy_profile_pool.py").write_text("# pool v1\n", encoding="utf-8")
+        (tmp_scripts / "_state_envelope.py").write_text("# env v1\n", encoding="utf-8")
+
+        with patch.object(tasks_server, "SCRIPT_DIR", tmp_ct_scripts):
+            fp0 = tasks_server.compute_server_code_fingerprint()
+            (tmp_scripts / "persona_config.py").write_text(
+                "# persona v2\n", encoding="utf-8"
+            )
+            fp1 = tasks_server.compute_server_code_fingerprint()
+            self.assertNotEqual(fp0, fp1)
+
+            (tmp_ct_dash / "tasks_dashboard.html").write_text(
+                "<html>v2</html>", encoding="utf-8"
+            )
+            fp2 = tasks_server.compute_server_code_fingerprint()
+            self.assertNotEqual(fp1, fp2)
+
+    def test_no_hardcoded_author_username_across_code_skills_and_tests(self) -> None:
+        """Active code, skills, rules, hooks, and tests must not hardcode author home/username."""
+        import subprocess
+
+        repo_root = Path(__file__).resolve().parent.parent
+        forbidden_user = "danhdue" + "exoictif"
+        proc = subprocess.run(
+            [
+                "git",
+                "grep",
+                "-l",
+                forbidden_user,
+                "--",
+                "bin",
+                "scripts",
+                "skills",
+                "hooks",
+                "rules",
+                ".agents",
+                "tests",
+            ],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        matches = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+        self.assertEqual(
+            matches,
+            [],
+            f"Hardcoded machine-specific username found in portable files: {matches}",
+        )
 
 
 if __name__ == "__main__":

@@ -2233,6 +2233,15 @@ CACHED_PROFILES_DATA: dict = {}
 CACHED_HTML_MTIME: float = 0.0
 
 
+def _resolve_host_username() -> str:
+    """Resolve the host OS username dynamically without machine-specific fallbacks."""
+    return (
+        os.environ.get("USER")
+        or os.environ.get("LOGNAME")
+        or Path(REAL_HOME).name
+    )
+
+
 def get_claude_oauth_token() -> tuple[str | None, str | None, bool]:
     """Retrieve Claude Code OAuth access token.
 
@@ -2250,7 +2259,7 @@ def get_claude_oauth_token() -> tuple[str | None, str | None, bool]:
 
     # 2. macOS Keychain
     try:
-        user = os.environ.get("USER", "danhdueexoictif")
+        user = _resolve_host_username()
         cmd = ["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"]
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=2.0)
         if proc.returncode != 0:
@@ -2363,7 +2372,7 @@ def _read_claude_oauth_hints() -> dict:
     )
     if should_probe_keychain:
         try:
-            user = os.environ.get("USER", "danhdueexoictif")
+            user = _resolve_host_username()
             proc = subprocess.run(
                 ["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
                 capture_output=True,
