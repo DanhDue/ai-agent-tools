@@ -1,0 +1,504 @@
+{
+  "schema": 1,
+  "task": "task_05_lean_skills_verify_registry_and_acceptance",
+  "runs": {
+    "red": {
+      "head": "f0d36c2dfa1a2fc0d1feacdb5a6407e107ab9110",
+      "tree": "ab8582d482a999c8d48b5d93619084ff0d71f8e7",
+      "patch_id": "e47fba1d957e5c9e866c5fc5ce1f715899410ad1",
+      "started": "2026-11-28T05:08:03Z",
+      "finished": "2026-11-28T05:08:05Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_end_to_end_acceptance.py::test_slqr_hp_05_skills_pass_caps_preflight_and_ecosystem_parity",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T05:08:03Z",
+          "finished": "2026-11-28T05:08:04Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "_______ test_slqr_hp_05_skills_pass_caps_preflight_and_ecosystem_parity ________",
+            "tests/test_slqr_end_to_end_acceptance.py:513: in test_slqr_hp_05_skills_pass_caps_preflight_and_ecosystem_parity",
+            "    assert retired not in dev_designer, (",
+            "E   AssertionError: Retired script 'verify_importlinter_coverage.py' still appears in skills/dev-designer/SKILL.md",
+            "E   assert 'verify_impo..._coverage.py' not in '---\\nname: ...l-review`.\\n'",
+            "E     ",
+            "E     'verify_importlinter_coverage.py' is contained here:",
+            "E     ?           ^^",
+            "E       tub.py`, `verify_importlinter_coverage.py`, `lint-imports`, `verify_bdd_coverage.py`, `pre_review_self_probe.py`), and `Level 3` full suite at Stage 4. Every scenario in `bdd_scenarios.md` MUST be covered by **at least one automated integration test** under `Integration test roots` carrying the scenario ID, assigned through `Covers:` to **exactly one task** (final Tier C task sweeps any remaining IDs). Unit mocks never substitute for Tier C integration tests.",
+            "E     ?           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "E     ...",
+            "E     ",
+            "E     ...Full output truncated, use '-vv' to show",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_slqr_end_to_end_acceptance.py::test_slqr_hp_05_skills_pass_caps_preflight_and_ecosystem_parity",
+            "1 failed in 0.07s"
+          ],
+          "output_sha256": "2b7a5e80252cc99580326fb9a88a31f9271e021c3247b16c6601dc231ddd20c4"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "f0d36c2dfa1a2fc0d1feacdb5a6407e107ab9110",
+      "tree": "1ffeaa010b81df578ce0ecdb5e7d6967bcd8b2f8",
+      "patch_id": "01d7bd7c3706715bea6dee6fe898e6e20b2c390b",
+      "started": "2026-11-28T05:17:33Z",
+      "finished": "2026-11-28T05:20:11Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_end_to_end_acceptance.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T05:17:33Z",
+          "finished": "2026-11-28T05:17:40Z",
+          "output_tail": [
+            ".....                                                                    [100%]",
+            "5 passed in 6.98s"
+          ],
+          "output_sha256": "2daae7645be0d94900887a457cb2914610d1c6599338d18f417fe9bb260b310e"
+        },
+        {
+          "id": "V3",
+          "phase": "REGRESSION",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_tto_docs_and_slimming.py tests/test_ohk2_skill_docs.py scripts/test_lifecycle_document_contract.py tests/test_slqr_registry_and_schemas.py tests/test_slqr_receipt_coverage_and_scaffolder.py tests/test_slqr_quality_plan_resolver.py tests/test_slqr_task_and_plan_contracts.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T05:17:40Z",
+          "finished": "2026-11-28T05:17:56Z",
+          "output_tail": [
+            "........................................................................ [ 51%]",
+            "...................................................................      [100%]",
+            "139 passed in 15.02s"
+          ],
+          "output_sha256": "208d5e986a992bae1f34c603bf171a63c5564af3a2b0ceb5e59b4c39445171cd"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_slqr_end_to_end_acceptance.py && ruff format --check tests/test_slqr_end_to_end_acceptance.py && mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_slqr_end_to_end_acceptance.py --ignore-missing-imports --follow-imports=silent && python3 skills/doc_quality_check/resources/scripts/check_document.py skills/dev-designer/SKILL.md skills/dev-designer/references/verification-rows.md skills/writing-plans/SKILL.md skills/writing-plans/plan-document-reviewer-prompt.md skills/finishing-a-development-branch/SKILL.md skills/quality_check/SKILL.md skills/setup_quality_check/SKILL.md && bash scripts/verify.sh --quiet",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T05:17:56Z",
+          "finished": "2026-11-28T05:19:48Z",
+          "output_tail": [
+            "All checks passed!",
+            "1 file already formatted",
+            "Success: no issues found in 8 source files",
+            "  checked 7 documents, 0 findings",
+            "  ok   == 1. JSON manifests parse & 1b. Runtime versions and Codex marketplace agree ==",
+            "  ok   == 2. Skill frontmatter is exactly name + description ==",
+            "  ok   == 3. Relative links resolve ==",
+            "  ok   == 4. ToC anchors match headings ==",
+            "  ok   == 5. No stale cross-namespace references ==",
+            "  ok   == 5b. Rule files start with frontmatter ==",
+            "  ok   == 6. Session-start hook emits valid JSON for both runtimes ==",
+            "  ok   == 7. Methodology skills stay faithful to their sources ==",
+            "  ok   == 8. Every supporting skill file is referenced by something ==",
+            "  ok   == 9. The dev-* rename is complete ==",
+            "  ok   == 10. Orchestrators route to a variant, never the router ==",
+            "  ok   == 11–16. Passed 114 test suites in 110.07s across 14 workers ==",
+            "PASS — safe to publish"
+          ],
+          "output_sha256": "fc909de9cef6d2e203883f604ee391c9f3edc9d0ca82268d5408e88b9972da82"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_registry_and_schemas.py tests/test_slqr_receipt_coverage_and_scaffolder.py tests/test_slqr_quality_plan_resolver.py tests/test_slqr_task_and_plan_contracts.py tests/test_slqr_end_to_end_acceptance.py --junitxml=build/test-results/shift-left-quality-resolver.xml",
+          "expect": "exit 0; results build/test-results/shift-left-quality-resolver.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-28T05:19:48Z",
+          "finished": "2026-11-28T05:20:11Z",
+          "output_tail": [
+            "........................................................................ [ 64%]",
+            "........................................                                 [100%]",
+            "112 passed in 22.18s"
+          ],
+          "output_sha256": "cb46761fce5c7a45406179dba4df632f609e302eb7300606bb92756cefc03976",
+          "results": {
+            "path": "build/test-results/shift-left-quality-resolver.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 66,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_slqr_hp_01_provider_schemas_and_validators_accept_additive_contracts",
+                  "classname": "tests.test_slqr_registry_and_schemas",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_01_provider_schemas_and_validators_accept_additive_contracts",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_01_registry_wrappers_mise_and_relocated_scripts",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[non_dict_string]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[non_dict_list]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[unknown_key]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[empty_glob_list]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[non_list_value]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[parent_traversal]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[nested_traversal]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[absolute_glob_path]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[empty_glob_string]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[empty_extensions_list]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[extension_missing_dot]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_validators_fail_closed_on_invalid_test_routing[extension_uppercase]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_invalid_package_floors_fails_closed[traversal]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_invalid_package_floors_fails_closed[absolute]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_invalid_package_floors_fails_closed[empty]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_01_invalid_package_floors_fails_closed[non_string]",
+                  "classname": "tests.test_slqr_registry_and_schemas.TestSlqrRegistryAndSchemas_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_st_01_non_passing_epic_or_release_unlinks_stale_gate4_receipt",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_st_01_integration",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_02_missing_or_ununlinkable_receipt_does_not_mask_fail_verdict",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_st_02_integrate_branch_verify_tier_warns_on_dirty_noop_worktree",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_scaffolder_and_web_template_deduplicate_profiles[flutter]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_scaffolder_and_web_template_deduplicate_profiles[android]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_scaffolder_and_web_template_deduplicate_profiles[ios]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_scaffolder_and_web_template_deduplicate_profiles[rust]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_scaffolder_and_web_template_deduplicate_profiles[python]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_scaffolder_and_web_template_deduplicate_profiles[web]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_scaffolder_and_web_template_deduplicate_profiles[web_template]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_stack_specific_offline_and_tool_hardening",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_check_diff_coverage_package_floors_ratchets[9-11-0-PASS:]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_check_diff_coverage_package_floors_ratchets[8-11-1-src/pkg/align]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_check_diff_coverage_package_floors_ratchets[9-9-1-src/web/studio.js]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_02_package_floors_flat_packages_and_basename_matching",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[missing-None]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[corrupt_json-{not valid json]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[non_object_json-[0.8, 0.9]]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[negative_floor-{\"python\": {\"adapters\": {\"src/a\": -0.1}}}]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[over_100_floor-{\"web_modules\": {\"src/a.js\": 101}}]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[bool_floor-{\"packages\": {\"src/a\": true}}]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[string_floor-{\"src/a\": \"80%\"}]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[dict_without_floor-{\"web_modules\": {\"src/a.js\": {\"note\": \"x\"}}}]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[bad_python_section-{\"python\": \"invalid\"}]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[bad_adapters_section-{\"python\": {\"adapters\": [\"src/a\"]}}]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[bad_web_modules_section-{\"web_modules\": 42}]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[bad_packages_section-{\"packages\": \"none\"}]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_invalid_or_missing_package_floors_returns_blocked_exit_2[traversal_key-{\"packages\": {\"../outside\": 0.8}}]",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_02_unmeasured_package_floors_exempted_cleanly",
+                  "classname": "tests.test_slqr_receipt_coverage_and_scaffolder.TestSLQRReceiptCoverageAndScaffolder_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_03_resolve_quality_cli_emits_compact_scoped_lines_within_budget",
+                  "classname": "tests.test_slqr_quality_plan_resolver",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_03_resolve_quality_cli_emits_compact_scoped_lines_within_budget",
+                  "classname": "tests.test_slqr_quality_plan_resolver.TestSlqrQualityPlanResolver_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ar_01_stdlib_purity_and_no_circular_imports",
+                  "classname": "tests.test_slqr_quality_plan_resolver.TestSlqrQualityPlanResolver_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ar_02_single_stack_python_zero_untouched_noise",
+                  "classname": "tests.test_slqr_quality_plan_resolver.TestSlqrQualityPlanResolver_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_03_malformed_manifest_exits_2",
+                  "classname": "tests.test_slqr_quality_plan_resolver.TestSlqrQualityPlanResolver_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_04_multi_target_mypy_and_skills_dir_pass_design_and_check_plan",
+                  "classname": "tests.test_slqr_task_and_plan_contracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_04_integration_design_and_check_plan",
+                  "classname": "tests.test_slqr_task_and_plan_contracts.TestSLQRTaskAndPlanContracts_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_03_es_module_imports_do_not_trigger_cache_bust_templates",
+                  "classname": "tests.test_slqr_task_and_plan_contracts.TestSLQRTaskAndPlanContracts_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ec_04_final_task_and_pyproject_allow_full_repo_while_intermediate_fails",
+                  "classname": "tests.test_slqr_task_and_plan_contracts.TestSLQRTaskAndPlanContracts_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_st_03_check_plan_fail_to_pass_idempotently",
+                  "classname": "tests.test_slqr_task_and_plan_contracts.TestSLQRTaskAndPlanContracts_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ar_03_repo_without_quality_manifests_bypasses_manifest_guards",
+                  "classname": "tests.test_slqr_task_and_plan_contracts.TestSLQRTaskAndPlanContracts_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_fr_04_design_fails_closed_on_each_independent_shift_left_violation",
+                  "classname": "tests.test_slqr_task_and_plan_contracts.TestSLQRTaskAndPlanContracts_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_05_skills_pass_caps_preflight_and_ecosystem_parity",
+                  "classname": "tests.test_slqr_end_to_end_acceptance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_05_optional_ecosystem_root_env_hook",
+                  "classname": "tests.test_slqr_end_to_end_acceptance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ar_04_authoring_skills_integrate_cli_resolver_without_prose_matrices",
+                  "classname": "tests.test_slqr_end_to_end_acceptance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_hp_05_integration",
+                  "classname": "tests.test_slqr_end_to_end_acceptance.TestSLQREndToEndAcceptance_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_slqr_ar_04_integration",
+                  "classname": "tests.test_slqr_end_to_end_acceptance.TestSLQREndToEndAcceptance_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/verify.sh",
+            "skills/dev-designer/SKILL.md",
+            "skills/dev-designer/references/verification-rows.md",
+            "skills/finishing-a-development-branch/SKILL.md",
+            "skills/quality_check/SKILL.md",
+            "skills/setup_quality_check/SKILL.md",
+            "skills/writing-plans/SKILL.md",
+            "skills/writing-plans/plan-document-reviewer-prompt.md",
+            "tests/test_slqr_end_to_end_acceptance.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

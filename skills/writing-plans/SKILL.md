@@ -56,7 +56,7 @@ Unit tests in isolation are necessary but insufficient to guarantee that a featu
    - Never write an edge case requirement without an accompanying executable test step.
 
 5. **Quality-Manifest Verification Commands & No Bare `npx`**:
-   - Inspect `.agents/quality/*-quality.json` (when present) and copy the repository's canonical `type_check` and `lint` commands verbatim into plan verification steps instead of inventing ad-hoc commands.
+   - Run `d3nexus resolve-quality --files <planned_files>` (when `.agents/quality/*-quality.json` exists) before locking task files and test steps to derive canonical/forbidden test roots, dual Web V8 LCOV unit + Playwright E2E rules, `coverage_floors.json` ratchets, referencing `?v=` templates, and `$D3NEXUS_KIT/skills`-interpolated scoped `type_check`/`lint` commands (never emit unexpanded `{skills_dir}` or `{base_ref}` literals).
    - Never write bare `npx <bin>` in plan steps or verification commands (bare `npx` can hang on interactive install prompts in headless subagents) — always pass `npx --no-install <bin>` (or explicit `npx --yes --package <pkg> <bin>` when a non-interactive install is intentionally required).
 
 ## Reviewing a Written Plan
@@ -174,7 +174,7 @@ Expected: PASS
 
 - [ ] **Step 5: Integration, Edge Case & Static Quality Checks (if touching workflows/data/APIs)**
 
-Write & run integration test exercising multi-component flow and boundary edge cases (empty payload, timeout, error fallback), plus the canonical `type_check` and `lint` commands copied verbatim from `.agents/quality/*-quality.json` (never bare `npx <bin>` — use `npx --no-install` or explicit `npx --yes --package <pkg>`):
+Write & run integration test exercising multi-component flow and boundary edge cases (empty payload, timeout, error fallback), plus the `$D3NEXUS_KIT/skills`-interpolated scoped `type_check`/`lint` commands and required unit/LCOV tests resolved via `d3nexus resolve-quality --files <planned_files>` (never bare `npx <bin>` — use `npx --no-install` or explicit `npx --yes --package <pkg>`):
 Run: `npm test tests/integration/test_flow.test.ts` (or `pytest tests/integration/...`)
 Expected: PASS with 100% boundary coverage
 
@@ -225,6 +225,8 @@ Verify the plan mechanically after all fixes:
 ```bash
 python3 skills/doc_quality_check/resources/scripts/check_document.py \
   --require-toc docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md
+python3 "$D3NEXUS_KIT/skills/dev-implementation/resources/scripts/check_task_contract.py" \
+  --check-plan docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md
 ```
 
 ## Execution Handoff

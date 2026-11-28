@@ -24,6 +24,7 @@ Subagent (general-purpose):
     | Task Decomposition | Tasks have clear boundaries, steps are actionable |
     | Buildability | Could an engineer follow this plan without getting stuck? |
     | Integration & Verification | Edge cases covered in tests; UI/web plans have live browser or app verification steps |
+    | Mechanical Quality Contract | Run `python3 "$D3NEXUS_KIT/skills/dev-implementation/resources/scripts/check_task_contract.py" --check-plan [PLAN_FILE_PATH]` and verify exit 0 (no literal `{skills_dir}`/`{base_ref}`, no bare `npx`, required JS LCOV unit tests, canonical test paths, and `?v=` referencing templates) |
 
     ## Calibration
 

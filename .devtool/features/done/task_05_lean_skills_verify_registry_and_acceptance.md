@@ -1,13 +1,13 @@
 ---
 id: "task_05_lean_skills_verify_registry_and_acceptance"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "shift_left_quality_resolver"
 dueDate: null
 created: "2026-11-28T10:10:00+07:00"
-modified: "2026-11-28T10:10:00+07:00"
-completedAt: null
+modified: "2026-11-28T05:24:07Z"
+completedAt: "2026-11-28T05:24:07Z"
 labels: ["architecture", "contract", "skills", "acceptance"]
 order: "a05"
 review_tier: "full"
@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 05: Lean Skill Integration, Legacy Row Cleanup, verify.sh Registration, and Five-Repo Acceptance
 
-Epic: [shift_left_quality_resolver](../epic/shift_left_quality_resolver/shift_left_quality_resolver.md)
+Epic: [shift_left_quality_resolver](../../epic/shift_left_quality_resolver/shift_left_quality_resolver.md)
 
 ## Requirement Analysis
 
@@ -102,16 +102,16 @@ Then both files reference "resolve-quality" (or "resolve_task_quality_plan.py"),
 
 ## Definition of Done
 
-- [ ] `dev-designer/SKILL.md`, `verification-rows.md` (`#0020`), `writing-plans/SKILL.md`, `plan-document-reviewer-prompt.md`, `finishing-a-development-branch/SKILL.md`, `quality_check/SKILL.md`, and `setup_quality_check/SKILL.md` are updated concisely within byte/word caps and pass `check_document.py` (V2, V3, V4)
-- [ ] `scripts/verify.sh` registers all 5 `tests/test_slqr_*.py` suites and `bash scripts/verify.sh --quiet` exits `0` (V4)
-- [ ] Clean-shell Pre-Flight execution and 6-stack schema-vs-validator parity pass across `SLQR-HP-05` and `SLQR-AR-04` with JUnit XML written to `build/test-results/shift-left-quality-resolver.xml` (V2, V5)
-- [ ] All regression and SLQR suites pass without regressions (V3, V5)
+- [x] `dev-designer/SKILL.md`, `verification-rows.md` (`#0020`), `writing-plans/SKILL.md`, `plan-document-reviewer-prompt.md`, `finishing-a-development-branch/SKILL.md`, `quality_check/SKILL.md`, and `setup_quality_check/SKILL.md` are updated concisely within byte/word caps and pass `check_document.py` (V2, V3, V4) — exit 0, `dev-designer/SKILL.md` <= 22528 UTF-8 bytes, `check_document.py` + `--require-toc` PASS
+- [x] `scripts/verify.sh` registers all 5 `tests/test_slqr_*.py` suites and `bash scripts/verify.sh --quiet` exits `0` (V4) — exit 0, Section 27 registered and all verify.sh suites PASS
+- [x] Clean-shell Pre-Flight execution and 6-stack schema-vs-validator parity pass across `SLQR-HP-05` and `SLQR-AR-04` with JUnit XML written to `build/test-results/shift-left-quality-resolver.xml` (V2, V5) — exit 0, 5/5 acceptance tests & 2/2 BDD traceability PASS
+- [x] All regression and SLQR suites pass without regressions (V3, V5) — exit 0, 139 regression tests + all 5 SLQR suites PASS
 
 ## Dependencies & Blockers
 
-- Blocked by [Task 01](../epic/shift_left_quality_resolver/task_01_registry_prefix_wrappers_and_provider_schemas.md), [Task 02](../epic/shift_left_quality_resolver/task_02_receipt_hygiene_diff_coverage_and_scaffolder.md), [Task 03](../epic/shift_left_quality_resolver/task_03_on_demand_quality_plan_resolver_cli.md), [Task 04](../epic/shift_left_quality_resolver/task_04_fail_closed_task_and_plan_contract_guards.md)
+- Blocked by [Task 01](../../epic/shift_left_quality_resolver/task_01_registry_prefix_wrappers_and_provider_schemas.md), [Task 02](../../epic/shift_left_quality_resolver/task_02_receipt_hygiene_diff_coverage_and_scaffolder.md), [Task 03](../../epic/shift_left_quality_resolver/task_03_on_demand_quality_plan_resolver_cli.md), [Task 04](../../epic/shift_left_quality_resolver/task_04_fail_closed_task_and_plan_contract_guards.md)
 
 ## References & Rollback
 
-- Reference HLD: [shift_left_quality_resolver.md](../epic/shift_left_quality_resolver/shift_left_quality_resolver.md)
+- Reference HLD: [shift_left_quality_resolver.md](../../epic/shift_left_quality_resolver/shift_left_quality_resolver.md)
 - Rollback: Revert modified `SKILL.md` / `references/` files and `scripts/verify.sh`, and delete `tests/test_slqr_end_to_end_acceptance.py`.

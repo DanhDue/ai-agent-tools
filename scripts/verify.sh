@@ -493,6 +493,13 @@ SUITES = [
     ("26", "pytest", "tests/test_urc_external_review_integration.py", 15, False),
     ("26", "pytest", "tests/test_urc_lifecycle_runner_review_config.py", 15, False),
     ("26", "pytest", "tests/test_urc_end_to_end_acceptance.py", 15, True),
+
+    # 27. Shift-Left Quality Layer Resolver & Mechanical Contract Enforcement suites
+    ("27", "pytest", "tests/test_slqr_registry_and_schemas.py", 15, False),
+    ("27", "pytest", "tests/test_slqr_receipt_coverage_and_scaffolder.py", 15, False),
+    ("27", "pytest", "tests/test_slqr_quality_plan_resolver.py", 15, False),
+    ("27", "pytest", "tests/test_slqr_task_and_plan_contracts.py", 20, False),
+    ("27", "pytest", "tests/test_slqr_end_to_end_acceptance.py", 25, True),
 ]
 
 active_suites = [
