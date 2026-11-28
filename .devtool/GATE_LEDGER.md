@@ -77,3 +77,4 @@
 | 2026-11-28T01:50:13.778604+00:00 | unified_review_config | 5 | ad07dba | Gate 5 Approved — Option 1 Merge locally into main |  | developer |
 | 2026-11-28T02:53:08.091112+00:00 | pool_priority_only_routing | 1 | a998d50 | Gate 1 design spec approved by Role 1.0 (docs/superpowers/specs/2026-11-28-pool-priority-only-routing-design.md) |  | developer |
 | 2026-11-28T02:53:55.766646+00:00 | shift_left_quality_resolver | 1 | a998d50 | Spec approved |  | developer |
+| 2026-11-28T03:14:57.660296+00:00 | shift_left_quality_resolver | 2 | 52aaaa3 | 5-task 4-wave HLD and Kanban breakdown ready |  | developer |
