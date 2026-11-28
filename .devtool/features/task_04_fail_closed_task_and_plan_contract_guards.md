@@ -52,13 +52,23 @@ Read-only context:
 
 ### BDD SCENARIOS
 
-Covers: SLQR-HP-04, SLQR-ST-03, SLQR-AR-03, SLQR-FR-04
+Covers: SLQR-HP-04, SLQR-EC-03, SLQR-EC-04, SLQR-ST-03, SLQR-AR-03, SLQR-FR-04
 
 ```gherkin
 Scenario: [SLQR-HP-04] [Tier C - Integration] check_task_contract validates multi-target mypy and skills_dir commands in both --design and --check-plan modes
 Given a repository whose "python-quality.json" sets type_check to ["uv", "run", "mypy", "--strict", "src", "tests"] and lint to ["uv", "run", "ruff", "check", "--extend-select", "F821,B904", "."] and whose "web-quality.json" sets type_check to ["python3", "{skills_dir}/web-quality-check/resources/scripts/check_vanilla_js.py", "--target-dir", "src/preview"] without a manual task_tier_b override
 When check_task_contract.py runs "--design" on epic tasks and "--check-plan" on a standalone plan whose commands scope ruff and mypy to Allowed ".py" files, expand "$D3NEXUS_KIT/skills/.../check_vanilla_js.py", include a "tests/js/*.test.mjs" unit test, and include referencing "?v=" HTML templates
 Then both "--design" and "--check-plan" exit 0 with "Result: 0 problems — PASS"
+
+Scenario: [SLQR-EC-03] [Tier C - Integration] Bundled ES module imports without src/href template attributes do not trigger false-positive cache-bust template requirements
+Given a Web repository with "ui_review" enabled where "apps/web/src/store.ts" and "apps/web/src/helper.js" are imported via ES "import" statements and never referenced in "<script src=...>" or "<link href=...>" attributes inside ".astro" or ".html" templates
+When resolve_task_quality_plan.py and check_task_contract.py evaluate a task modifying "apps/web/src/helper.js" (with a paired ".test.mjs" unit test)
+Then cache_bust_templates is empty and check_task_contract.py exits 0 without demanding unrelated ".astro" or ".html" templates
+
+Scenario: [SLQR-EC-04] [Tier C - Integration] Final epic task (Task N) and pyproject.toml edits are permitted to run workspace-wide Python static checks
+Given a 2-task Python epic where Task 1 modifies only "src/pkg/a.py" and Task 2 (the final task) or a task modifying "pyproject.toml" runs "uv run mypy --strict src tests"
+When check_task_contract.py --design validates the epic
+Then Task 2 (final task) and any task listing "pyproject.toml" in Allowed files pass without a full-repo TIER-B scope error, whereas Task 1 fails if it uses bare "src tests" instead of Allowed files
 
 Scenario: [SLQR-ST-03] [Tier C - Integration] Fixing violations in a standalone Markdown plan transitions check_task_contract --check-plan from exit 1 FAIL to exit 0 PASS idempotently
 Given a standalone Markdown plan in "docs/superpowers/plans/2026-11-28-demo.md" initially containing literal "{skills_dir}", bare "npx playwright test", and a modified ".js" asset missing both its ".test.mjs" LCOV test and referencing "index.html"
@@ -98,17 +108,18 @@ Then each of the five negative fixtures exits 1 and reports the exact diagnostic
 
 - **Source (`check_task_contract.py` `L805-L824`, `L1098-L1130`, `L1660-L1750`)**: `matches_cap` currently checks `sub == cap`, `sub[:len(cap)-1] == cap[:-1]`, `sub[:len(cap)] == cap`, and gates `_cap_tool_prefix(cap)` behind `allow_historical_prefix`; `main()` currently requires `--hld` and `--tasks` unconditionally.
 - **New contract (`check_task_contract.py`)**:
+  - `_cap_tool_prefix(cap)` & `matches_cap()`: `_cap_tool_prefix(cap)` retains runner wrappers (`uv [--directory <d>] run`, `python3 -m`), tool binary, subcommand (`check`, `format`), and flags (including value-taking flags `--extend-select`, `--select`, `--ignore`, `--per-file-ignores`, `--config`, `--config-file`, `--target-version`, `--line-length`, `--python-version`). When `allow_historical_prefix` is `True`, `len(sub) > len(prefix) and sub[:len(prefix)] == prefix` matches as before. When `allow_historical_prefix` is `False` (`todo` / active tasks), the `_cap_tool_prefix(cap)` fallback matches ONLY when `len(sub) > len(prefix)`, `sub[:len(prefix)] == prefix`, `allowed_py` (non-glob `.py` paths in `Allowed files`) is non-empty, every path in `allowed_py` is covered by the subcommand's non-flag positional targets (`_target_covers_path(t, p)`), and every positional target `t` either covers at least one `allowed_py` path or is in `cap[len(prefix):]`. This keeps `test_todo_task_still_rejected_when_omitting_newly_registered_targets` (`test_check_task_contract.py:1035-1056`) green and blocks `mypy unrelated.py` on single-file tasks!
   - CLI: `--check-plan <Path>` is optional; when `--check-plan` is provided, `--hld` and `--tasks` are not required (passing both `--check-plan` and `--hld`/`--tasks` raises `UsageError` -> `exit 2`).
-  - Intermediate-task full-repo Python `TIER-B` guard: applies in `--design` (when `not allow_historical_prefix`, `len(tasks) >= 2`, task is not the highest-numbered / final task, and `pyproject.toml` / `.agents/quality/` not in `Allowed files`) and in `--check-plan` (when `len(plan_tasks) >= 2`, task is not the final task, and `pyproject.toml` not in task files). Flags Python `ruff` / `mypy` / `pyright` subcommands whose manifest `cap` ends in `"."` or `["src", "tests"]` when the subcommand still passes bare `"."` or both `"src"` and `"tests"` instead of scoping to the task's `Allowed files` (so manifests like `ai-agent-tools` that list explicit check paths are never false-flagged).
+  - Intermediate-task full-repo Python `TIER-B` guard: applies in `--design` (when `not allow_historical_prefix`, `len(tasks) >= 2`, task is not the highest-numbered / final task, and `pyproject.toml` / `.agents/quality/` not in `Allowed files`) and in `--check-plan` (when `len(plan_tasks) >= 2`, task is not the final task, and `pyproject.toml` not in task files). Flags Python `ruff` / `mypy` / `pyright` subcommands whose manifest `cap` ends in `"."` or `["src", "tests"]` (or when `python-quality.json` is absent) when the subcommand still passes bare `"."` or both `"src"` and `"tests"` instead of scoping to the task's `Allowed files` (so manifests like `ai-agent-tools` that list explicit check paths are never false-flagged).
   - `?v=` cache-bust template guard: fires when modifying an existing non-test `.js` or `.css` file (not `(new)`) that is referenced via `(?:src|href)=['"][^'"]*?<basename>(\?[^'"]*)?['"]` in a tracked template (`*.html`, `*.astro`, `*.jinja`, `*.jinja2`) inside a repository whose `web-quality.json` defines `ui_review` or `test_routing.cache_bust_extensions`, requiring every matched template to appear in the same task's `Allowed files` (or `Modify:` in `--check-plan`).
   - Bare `npx` guard in `--check-plan`: reuses the exact same `npx --no-install` / `npx --yes --package <pkg>` check already enforced on task `Verification` rows.
 
 ## Definition of Done
 
-- [ ] `check_task_contract.py` `_cap_tool_prefix()` and `matches_cap()` support multi-target `type_check`/`lint` manifests (`mypy --strict src tests`, `ruff check --extend-select ... .`) without `allow_historical_prefix` (V2, V3, V5)
+- [ ] `check_task_contract.py` `_cap_tool_prefix()` and `matches_cap()` support multi-target `type_check`/`lint` manifests (`mypy --strict src tests`, `ruff check --extend-select ... .`) for scoped `Allowed files` while rejecting unrelated targets and preserving `test_check_task_contract.py` (V2, V3, V5)
 - [ ] `check_task_contract.py --design` enforces all 5 Shift-Left quality-layer guards while self-skipping cleanly when `.agents/quality/` is absent or `allow_existing_done_new` / historical done tasks are checked (V2, V3, V5)
 - [ ] `check_task_contract.py --check-plan <plan.md>` validates standalone `/writing-plans` files and fails closed on `{skills_dir}`, bare `npx`, missing LCOV JS unit tests, forbidden test dirs, missing paired tests, and omitted `?v=` templates (V2, V5)
-- [ ] All 4 assigned scenarios (`SLQR-HP-04`, `SLQR-ST-03`, `SLQR-AR-03`, `SLQR-FR-04`) and all existing contract regression suites pass with JUnit XML at `build/test-results/slqr_task_04.xml` (V2, V3, V5)
+- [ ] All 6 assigned scenarios (`SLQR-HP-04`, `SLQR-EC-03`, `SLQR-EC-04`, `SLQR-ST-03`, `SLQR-AR-03`, `SLQR-FR-04`) and all existing contract regression suites pass with JUnit XML at `build/test-results/slqr_task_04.xml` (V2, V3, V5)
 - [ ] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4)
 
 ## Dependencies & Blockers

@@ -43,34 +43,29 @@ Read-only context:
 ## Impact Analysis & Blast Radius
 
 - **Target Files & Symbols**:
-  - `skills/dev-implementation/resources/scripts/resolve_task_quality_plan.py` (new): `StackQualityPlan`, `ResolvedQualityPlan`, `QualityPlanError`, `web_requires_lcov_unit_tests()`, `find_cache_bust_templates()`, `resolve_quality_plan()`, `format_compact_plan()`, and `main()`.
+  - `skills/dev-implementation/resources/scripts/resolve_task_quality_plan.py` (new): `StackQualityPlan`, `ResolvedQualityPlan`, `QualityPlanError`, `web_requires_lcov_unit_tests()`, `find_cache_bust_templates()`, `is_full_repo_python_tier_b_subcommand()`, `resolve_quality_plan()`, `format_compact_plan()`, and `main()`.
   - `bin/d3nexus` (`L11-L29`): register `"resolve-quality": "skills/dev-implementation/resources/scripts/resolve_task_quality_plan.py"` in `SUBCOMMANDS`.
-  - `tests/test_slqr_quality_plan_resolver.py` (new): unit, CLI latency (`< 0.10s`), and subcutaneous integration tests covering `SLQR-HP-03`, `SLQR-EC-03`, `SLQR-EC-04` (resolver scoping helper), `SLQR-AR-02`, `SLQR-FR-03`.
-- **Downstream Callers**: `tests/test_slqr_registry_and_schemas.py`, `tests/test_fpg_agy_profile_pool.py`.
+  - `tests/test_slqr_quality_plan_resolver.py` (new): unit, in-process (`< 0.10s`) and CLI (`< 1.0s`) latency, AST/stdlib purity, and subcutaneous integration tests covering `SLQR-HP-03`, `SLQR-AR-01`, `SLQR-AR-02`, `SLQR-FR-03` (plus unit tests for `find_cache_bust_templates` and `is_full_repo_python_tier_b_subcommand`).
+- **Downstream Callers**: `tests/test_slqr_registry_and_schemas.py`, `tests/test_task_contract_ergonomics_e2e.py`.
 - **Cross-Platform Bridges**: None.
 - **Target Coverage Threshold**: >= 90% on `resolve_task_quality_plan.py`, 100% on LCOV/template/error branches.
 
 ### BDD SCENARIOS
 
-Covers: SLQR-HP-03, SLQR-EC-03, SLQR-EC-04, SLQR-AR-02, SLQR-FR-03
+Covers: SLQR-HP-03, SLQR-AR-01, SLQR-AR-02, SLQR-FR-03
 
 ```gherkin
-Scenario: [SLQR-HP-03] [Tier C - Integration] d3nexus resolve-quality emits compact file-scoped guidance in under 100ms
+Scenario: [SLQR-HP-03] [Tier C - Integration] d3nexus resolve-quality emits compact file-scoped guidance within latency budgets
 Given a polyglot repository configuring ".agents/quality/python-quality.json", ".agents/quality/web-quality.json" (with V8 LCOV diff_coverage on ".js,.mjs" and ui_review), ".agents/quality/coverage_floors.json", and "src/preview/static/index.html" referencing "align-studio.js?v=20261128"
-When "bin/d3nexus resolve-quality --files src/lyrics_sync/align/ctc.py src/preview/static/align-studio.js --base-ref develop" executes
-Then the CLI exits 0 in under 0.10 seconds and prints between 5 and 10 non-empty lines
+When resolve_quality_plan() executes in-process and "bin/d3nexus resolve-quality --files src/lyrics_sync/align/ctc.py src/preview/static/align-studio.js --base-ref develop" executes via CLI
+Then in-process resolve_quality_plan() completes in under 0.10 seconds (best of 3 runs) and the CLI subprocess exits 0 in under 1.0 second printing between 5 and 10 non-empty lines
 And the output specifies canonical test roots for Python and dual Web test requirements (V8 LCOV unit test in "tests/js/*.test.mjs" plus Playwright "# tier: C2")
 And the output lists matched adapter/module floors from "coverage_floors.json", names "src/preview/static/index.html" for "?v=" cache-busting, and emits "$D3NEXUS_KIT/skills"-interpolated scoped TIER-B commands
 
-Scenario: [SLQR-EC-03] [Tier C - Integration] Bundled ES module imports without src/href template attributes do not trigger false-positive cache-bust template requirements
-Given a Web repository with "ui_review" enabled where "apps/web/src/store.ts" and "apps/web/src/helper.js" are imported via ES "import" statements and never referenced in "<script src=...>" or "<link href=...>" attributes inside ".astro" or ".html" templates
-When resolve_task_quality_plan.py and check_task_contract.py evaluate a task modifying "apps/web/src/helper.js" (with a paired ".test.mjs" unit test)
-Then cache_bust_templates is empty and check_task_contract.py exits 0 without demanding unrelated ".astro" or ".html" templates
-
-Scenario: [SLQR-EC-04] [Tier C - Integration] Final epic task (Task N) and pyproject.toml edits are permitted to run workspace-wide Python static checks
-Given a 2-task Python epic where Task 1 modifies only "src/pkg/a.py" and Task 2 (the final task) or a task modifying "pyproject.toml" runs "uv run mypy --strict src tests"
-When check_task_contract.py --design validates the epic
-Then Task 2 (final task) and any task listing "pyproject.toml" in Allowed files pass without a full-repo TIER-B scope error, whereas Task 1 fails if it uses bare "src tests" instead of Allowed files
+Scenario: [SLQR-AR-01] [Tier C - Integration] Stack lifecycle registry and quality plan resolver maintain zero circular imports and Python 3 stdlib purity
+Given "skills/dev-implementation/resources/scripts/_stack_lifecycle_registry.py" and "skills/dev-implementation/resources/scripts/resolve_task_quality_plan.py"
+When AST imports are inspected and both modules are imported in a clean Python 3 stdlib environment without third-party packages
+Then neither module imports "check_task_contract" or "manage_worker_pool", and 100% of imported modules belong to the Python 3 standard library or "_stack_lifecycle_registry"
 
 Scenario: [SLQR-AR-02] [Tier C - Integration] Single-stack Python invocation of resolve-quality emits zero lines mentioning Web, Flutter, Android, iOS, or Rust
 Given a polyglot repository containing manifests for all 6 stacks ("python", "web", "flutter", "android", "ios", "rust")
@@ -87,9 +82,9 @@ Then the CLI exits with code 2 and prints a descriptive error message to stderr 
 
 | ID | Phase | Command | Expect | Needs |
 |----|-------|---------|--------|-------|
-| V1 | RED | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_quality_plan_resolver.py::test_slqr_hp_03_resolve_quality_cli_emits_compact_scoped_lines_under_100ms` | exit 1; contains "FAILED" | — |
+| V1 | RED | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_quality_plan_resolver.py::test_slqr_hp_03_resolve_quality_cli_emits_compact_scoped_lines_within_budget` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_quality_plan_resolver.py` | exit 0; contains "passed" | — |
-| V3 | REGRESSION | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_registry_and_schemas.py tests/test_stack_lifecycle_registry.py tests/test_fpg_agy_profile_pool.py` | exit 0; contains "passed" | — |
+| V3 | REGRESSION | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_registry_and_schemas.py tests/test_stack_lifecycle_registry.py tests/test_task_contract_ergonomics_e2e.py` | exit 0; contains "passed" | — |
 | V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/resolve_task_quality_plan.py bin/d3nexus tests/test_slqr_quality_plan_resolver.py && ruff format --check skills/dev-implementation/resources/scripts/resolve_task_quality_plan.py bin/d3nexus tests/test_slqr_quality_plan_resolver.py && mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/resolve_task_quality_plan.py bin/d3nexus tests/test_slqr_quality_plan_resolver.py --ignore-missing-imports --follow-imports=silent` | exit 0 | — |
 | V5 | TIER-C | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_slqr_quality_plan_resolver.py --junitxml=build/test-results/slqr_task_03.xml` | exit 0; results build/test-results/slqr_task_03.xml | — |
 
@@ -107,14 +102,13 @@ Then the CLI exits with code 2 and prints a descriptive error message to stderr 
 - **New contract (`resolve_task_quality_plan.py`)**:
   - `web_requires_lcov_unit_tests(web_manifest: Mapping[str, Any]) -> tuple[bool, tuple[str, ...]]`: returns `(True, lcov_globs)` when `capabilities.diff_coverage` or `capabilities.test_unit` references `.info` or `--lcov` (and `--source-ext` is absent or includes `.js`/`.mjs`), defaulting `lcov_globs` to `test_routing.lcov_unit_test_globs` or `("tests/js/*.test.mjs", "*.test.mjs", "*.test.js", "*.test.ts")`.
   - `find_cache_bust_templates(repo_root: Path, modified_assets: Sequence[str], web_manifest: Mapping[str, Any] | None) -> list[str]`: active when `web_manifest` defines `capabilities.ui_review` or `test_routing.cache_bust_extensions`; walks non-ignored repo dirs (skipping `.git`, `node_modules`, `build`, `dist`, `.worktrees`, `.venv`, `venv`, `target`, `.astro`, `.dart_tool`, `.gradle`, `Pods`, `coverage`) matching `(?:src|href)=['"][^'"]*?{re.escape(asset_name)}(\?[^'"]*)?['"]` on `*.html`, `*.astro`, `*.jinja`, `*.jinja2`.
-  - Scoped `TIER-B` synthesis: replaces `{skills_dir}` with `"$D3NEXUS_KIT/skills"` and `{base_ref}` with `base_ref` (default `"develop"`), strips trailing full-repo targets (`.`, `src`, `tests`) on file-scoping tools (`ruff`, `mypy`, `pyright`, `dart format`) and substitutes the task's matching source/test paths (appending `<test_files>` placeholder if no test path was supplied). Also exports `is_full_repo_python_tier_b_subcommand(sub: Sequence[str], cap: Sequence[str] | None = None) -> bool` for Task 04 (`SLQR-EC-04`).
-  - Note on `SLQR-EC-03` & `SLQR-EC-04`: Task 03 tests the `resolve_task_quality_plan.py` functions (`find_cache_bust_templates == []` and `is_full_repo_python_tier_b_subcommand` scoping predicates), and Task 04 extends end-to-end `check_task_contract.py` coverage on top of them.
+  - Scoped `TIER-B` synthesis: replaces `{skills_dir}` with `"$D3NEXUS_KIT/skills"` and `{base_ref}` with `base_ref` (default `"develop"`), strips trailing full-repo targets (`.`, `src`, `tests`) on file-scoping tools (`ruff`, `mypy`, `pyright`, `dart format`) and substitutes the task's matching source/test paths (appending `<test_files>` placeholder if no test path was supplied). Also exports `is_full_repo_python_tier_b_subcommand(sub: Sequence[str], cap: Sequence[str] | None = None) -> bool` consumed by Task 04 (`SLQR-EC-04`).
 
 ## Definition of Done
 
 - [ ] `skills/dev-implementation/resources/scripts/resolve_task_quality_plan.py` implements `QualityPlanResolver` (`resolve_quality_plan`, `format_compact_plan`, `--files`, `--repo-root`, `--base-ref`, `--json`) in pure Python 3 stdlib (V2, V4, V5)
-- [ ] `bin/d3nexus` registers `resolve-quality` and completes cold CLI invocations in `< 0.10s` emitting 5–10 compact stack-filtered lines with zero untouched-stack noise (V2, V5)
-- [ ] Assigned scenarios (`SLQR-HP-03`, `SLQR-EC-03`, `SLQR-EC-04`, `SLQR-AR-02`, `SLQR-FR-03`) pass in `tests/test_slqr_quality_plan_resolver.py` with JUnit XML at `build/test-results/slqr_task_03.xml` (V2, V5)
+- [ ] `bin/d3nexus` registers `resolve-quality`, completing `resolve_quality_plan()` in `< 0.10s` in-process (best of 3) and CLI invocations in `< 1.0s` emitting 5–10 compact stack-filtered lines with zero untouched-stack noise (V2, V5)
+- [ ] Assigned scenarios (`SLQR-HP-03`, `SLQR-AR-01`, `SLQR-AR-02`, `SLQR-FR-03`) pass in `tests/test_slqr_quality_plan_resolver.py` with JUnit XML at `build/test-results/slqr_task_03.xml` (V2, V5)
 - [ ] Registry and schema regression suites pass without regressions (V3)
 - [ ] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4)
 

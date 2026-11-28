@@ -27,6 +27,7 @@ Allowed files:
 - `skills/quality_check/resources/scripts/verify_polyglot_registry.py`
 - `skills/quality_check/resources/scripts/check_diff_coverage.py`
 - `skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py`
+- `skills/setup_quality_check/resources/templates/web-quality.template.json`
 - `skills/finishing-a-development-branch/resources/scripts/integrate_branch.py`
 - `tests/test_slqr_receipt_coverage_and_scaffolder.py` (new)
 
@@ -49,7 +50,7 @@ Read-only context:
   - `skills/quality_check/resources/scripts/verify_polyglot_registry.py` (`L1576-L1601`): `verify_polyglot_execution()` `else` branch unlinking `build/quality/gate4_receipt.json` (`missing_ok=True`) when `requested_profile in ("epic", "release")` and `out_res.get("status") != "PASS"`.
   - `skills/finishing-a-development-branch/resources/scripts/integrate_branch.py` (`L409-L426`): `cmd_verify_tier()` checks `dirty_files(untracked=False)` and appends `"the worktree has uncommitted changes"` to `warnings` (matching `cmd_preflight` `L338-L339`).
   - `skills/quality_check/resources/scripts/check_diff_coverage.py` (`L1050-L1245`, `L1297-L1555`): `_load_package_floors()`, `evaluate_coverage(..., custom_floors=...)`, and CLI `--package-floors <path>` flag.
-  - `skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py` (`L101-L950`): deduplicate `epic`/`release` (`workspace_audit` + `workspace_impact`, keeping `epic.issubset(release)`), set Rust `security` to `["./scripts/check_security.sh"]` (`cargo audit` stays in `security_deps`), use `npx --no-install` in Web, drop `test_e2e` from Web `scheduled`, and set Python `type_check` to `["uv", "run", "mypy", "--strict", "src", "tests"]`.
+  - `skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py` (`L101-L950`) and `skills/setup_quality_check/resources/templates/web-quality.template.json` (`L1-L148`): deduplicate `epic`/`release` (`workspace_audit` + `workspace_impact`, keeping `epic.issubset(release)`), set Rust `security` to `["./scripts/check_security.sh"]` (`cargo audit` stays in `security_deps`), use `npx --no-install` in Web scaffolder and `web-quality.template.json`, drop `test_e2e` from Web `scheduled`, and set Python `type_check` to `["uv", "run", "mypy", "--strict", "src", "tests"]`.
   - `tests/test_slqr_receipt_coverage_and_scaffolder.py` (new): unit and subcutaneous integration tests covering `SLQR-HP-02`, `SLQR-EC-02`, `SLQR-ST-01`, `SLQR-ST-02`, `SLQR-FR-02`.
 - **Downstream Callers**: `tests/test_check_diff_coverage.py`, `skills/setup_quality_check/resources/scripts/test_scaffold_quality_manifest.py`, `tests/test_plq_quality_contracts_and_scaffolder.py`, `tests/test_polyglot_gate4.py`.
 - **Cross-Platform Bridges**: None.
@@ -60,11 +61,11 @@ Read-only context:
 Covers: SLQR-HP-02, SLQR-EC-02, SLQR-ST-01, SLQR-ST-02, SLQR-FR-02
 
 ```gherkin
-Scenario: [SLQR-HP-02] [Tier C - Integration] Scaffolder generates deduplicated offline-safe 4-profile manifests and check_diff_coverage enforces package_floors ratchets
-Given a polyglot temporary repository containing markers for all 6 stacks and a ".agents/quality/coverage_floors.json" defining adapter floor "src/pkg/align": 0.88 and module floor "src/web/studio.js": 0.50
+Scenario: [SLQR-HP-02] [Tier C - Integration] Scaffolder and web template generate deduplicated offline-safe 4-profile manifests and check_diff_coverage enforces package_floors ratchets
+Given a polyglot temporary repository containing markers for all 6 stacks, "skills/setup_quality_check/resources/templates/web-quality.template.json", and a ".agents/quality/coverage_floors.json" defining adapter floor "src/pkg/align": 0.88 and module floor "src/web/studio.js": 0.50
 When scaffold_quality_manifest.py runs and check_diff_coverage.py evaluates LCOV/Cobertura reports with "--package-floors .agents/quality/coverage_floors.json"
-Then every generated stack manifest has 0 duplicate audit or impact invocations per profile ("pr_diff_audit" and "pr_impact" in "pr" only; "workspace_audit" and "workspace_impact" in "epic", "scheduled", and "release")
-And generated Web capabilities use "npx --no-install", generated Rust "pr" and "epic" profiles omit "cargo audit", and generated Python "type_check" targets ["uv", "run", "mypy", "--strict", "src", "tests"]
+Then every generated stack manifest and "web-quality.template.json" has 0 duplicate audit or impact invocations per profile ("pr_diff_audit" and "pr_impact" in "pr" only; "workspace_audit" and "workspace_impact" in "epic", "scheduled", and "release")
+And generated Web capabilities and "web-quality.template.json" use "npx --no-install" and omit "test_e2e" from "scheduled", generated Rust "pr" and "epic" profiles omit "cargo audit", and generated Python "type_check" targets ["uv", "run", "mypy", "--strict", "src", "tests"]
 And check_diff_coverage.py returns exit code 0 when "src/pkg/align" is at 90.0% and "src/web/studio.js" is at 55.0%, and returns exit code 1 naming the breached ratchet when either drops below its floor
 
 Scenario: [SLQR-EC-02] [Tier C - Integration] check_diff_coverage handles missing or malformed package_floors file as exit 2 BLOCKED and exempts unmeasured files cleanly

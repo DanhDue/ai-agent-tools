@@ -57,31 +57,26 @@ Read-only context:
   - `skills/python-quality-check/resources/schemas/python-quality.schema.json` (`L80-L240`): add top-level `test_routing`, `coverage.properties.package_floors`, and `capabilities.properties.cache_enable` + `cache_purge`.
   - `skills/android-quality-check/resources/schemas/android-quality.schema.json` (`L80-L230`): add top-level `test_routing` and `coverage.properties.package_floors`.
   - `skills/ios-quality-check/resources/schemas/ios-quality.schema.json` (`L80-L225`): add top-level `test_routing` and `coverage.properties.package_floors`.
-  - `tests/test_slqr_registry_and_schemas.py` (new): unit and subcutaneous integration tests covering `SLQR-HP-01`, `SLQR-EC-01`, `SLQR-AR-01`, `SLQR-FR-01`.
+  - `tests/test_slqr_registry_and_schemas.py` (new): unit and subcutaneous integration tests covering `SLQR-HP-01`, `SLQR-EC-01`, `SLQR-FR-01` (plus `_stack_lifecycle_registry.py` stdlib import isolation).
 - **Downstream Callers**: `tests/test_stack_lifecycle_registry.py`, `tests/test_plq_quality_contracts_and_scaffolder.py`.
 - **Cross-Platform Bridges**: None (kit Python & JSON Schema contracts).
 - **Target Coverage Threshold**: >= 90% across modified registry/validator functions, 100% on `test_routing` fail-closed error paths.
 
 ### BDD SCENARIOS
 
-Covers: SLQR-HP-01, SLQR-EC-01, SLQR-AR-01, SLQR-FR-01
+Covers: SLQR-HP-01, SLQR-EC-01, SLQR-FR-01
 
 ```gherkin
 Scenario: [SLQR-HP-01] [Tier C - Integration] Provider schemas and runtime validators accept additive test_routing, package_floors, architecture, and cache capabilities
 Given all 6 stack JSON Schemas ("*-quality.schema.json") and runtime validators ("validate_*_quality.py")
 When manifests declaring optional "test_routing", "coverage.package_floors", Flutter "architecture", and Rust/Web/Python "cache_enable" and "cache_purge" are validated across profiles ("pr", "epic", "scheduled", "release")
 Then all 6 runtime validators return status "PASS" with 0 findings
-And every capability key accepted by each runtime validator exists in the corresponding JSON Schema "capabilities.properties"
+And every capability key emitted by scaffold_quality_manifest.py, present in repository/template manifests, or added for Flutter ("architecture") and Rust/Web/Python ("cache_enable", "cache_purge") exists in the corresponding JSON Schema "capabilities.properties" alongside top-level "test_routing" and "coverage.properties.package_floors"
 
-Scenario: [SLQR-EC-01] [Tier C - Integration] TierBContractAdapter unwraps monorepo directory flags, mise exec prefixes, and relocated script paths
+Scenario: [SLQR-EC-01] [Tier C - Integration] TierBContractAdapter unwraps monorepo directory flags, mise exec prefixes, and relocated script paths while rejecting mismatched directories
 Given stack manifests declaring "uv --directory apps/align-worker run ruff check .", "mise exec -- swiftlint lint --config quality/.swiftlint.yml --strict", and "python3 {skills_dir}/web-quality-check/resources/scripts/check_vanilla_js.py --target-dir src/preview"
-When TierBContractAdapter.validate_tier_b evaluates task TIER-B rows using "uv --directory apps/align-worker run ruff check apps/align-worker/src/mod.py", "swiftlint lint --config quality/.swiftlint.yml --strict Packages/Core/Sources/Foo.swift", and "python3 \"$D3NEXUS_KIT/skills/web-quality-check/resources/scripts/check_vanilla_js.py\" --target-dir src/preview"
-Then all three TIER-B subcommands match their respective stack capabilities with 0 problems
-
-Scenario: [SLQR-AR-01] [Tier C - Integration] Stack lifecycle registry and quality plan resolver maintain zero circular imports and Python 3 stdlib purity
-Given "skills/dev-implementation/resources/scripts/_stack_lifecycle_registry.py" and "skills/dev-implementation/resources/scripts/resolve_task_quality_plan.py"
-When AST imports are inspected and both modules are imported in a clean Python 3 stdlib environment without third-party packages
-Then neither module imports "check_task_contract" or "manage_worker_pool", and 100% of imported modules belong to the Python 3 standard library or "_stack_lifecycle_registry"
+When TierBContractAdapter.validate_tier_b evaluates task TIER-B rows using "uv --directory apps/align-worker run ruff check apps/align-worker/src/mod.py", "swiftlint lint --config quality/.swiftlint.yml --strict Packages/Core/Sources/Foo.swift", and "python3 \"$D3NEXUS_KIT/skills/web-quality-check/resources/scripts/check_vanilla_js.py\" --target-dir src/preview", alongside a negative row using "uv --directory apps/other-worker run ruff check apps/other-worker/src/mod.py"
+Then all three valid TIER-B subcommands match their respective stack capabilities with 0 problems, while the mismatched "--directory apps/other-worker" subcommand fails to match
 
 Scenario: [SLQR-FR-01] [Tier C - Integration] Provider manifest validators fail closed on invalid test_routing keys or path traversal globs
 Given a provider manifest containing unknown key "test_routing.rogue_key" or traversal glob "test_routing.canonical_test_globs": ["../outside/test_*.py"]
@@ -113,16 +108,15 @@ Then validation fails closed with status "BLOCKED" and finding code "invalid_tes
 - **New contract**:
   - `TestRoutingPolicy(canonical_test_globs=(), forbidden_test_globs=(), paired_source_globs=(), lcov_unit_test_globs=(), cache_bust_extensions=())` added as an optional field (`test_routing: TestRoutingPolicy = TestRoutingPolicy()`) on `StackDescriptor` so existing positional/keyword callers stay 100% compatible.
   - `TEST_ROUTING_KEYS = ("canonical_test_globs", "forbidden_test_globs", "paired_source_globs", "lcov_unit_test_globs", "cache_bust_extensions")`; `validate_additive_provider_fields` emits finding code `"invalid_test_routing"` when `test_routing` is non-dict, has unknown keys, has empty/non-list values, contains `..`/absolute paths in glob keys, or contains strings not matching `EXTENSION_PATTERN` in `cache_bust_extensions`.
-  - `validate_dual_floor_coverage` accepts `"package_floors"` validated via `is_safe_relative_path()` (emitting `"invalid_coverage_config"` if invalid).
-  - `_strip_command_wrappers` unwraps `uv [--directory <d>|--project <d>|-q|--quiet|--frozen|--offline|--no-sync]... run`, `mise exec [<tool@ver>...] --` (or `mise x --`), and `npm [--prefix <d>] exec [--]`.
-  - In `SLQR-AR-01` inside `tests/test_slqr_registry_and_schemas.py`, inspect `_stack_lifecycle_registry.py` unconditionally and inspect `resolve_task_quality_plan.py` when present (Task 03 also re-verifies `SLQR-AR-01` once `resolve_task_quality_plan.py` is created).
+  - `validate_dual_floor_coverage` accepts `"package_floors"` validated via `is_safe_relative_path()` (emitting `"invalid_coverage_config"` if invalid). Note: `validate_*_quality.py` already accept arbitrary capability arrays and delegate additive fields to `_provider_manifest_common.py`, so `validate_*_quality.py` require no edits; `SLQR-HP-01` tests parity across `scaffold_quality_manifest.py` capabilities ∪ repository/template capabilities ∪ (`architecture`, `cache_enable`, `cache_purge`) ⊆ schema `capabilities.properties`, plus top-level `test_routing` and `coverage.properties.package_floors`.
+  - `_strip_command_wrappers` unwraps `uv [--directory <d>|--project <d>|-q|--quiet|--frozen|--offline|--no-sync]... run`, `mise exec [<tool@ver>...] --` (or `mise x --`), and `npm [--prefix <d>] exec [--]`. In `_subcommand_matches_prefix`, unwrap version-manager prefixes (`mise exec`) on **both** `sub` and `ptoks` so a `mise exec -- swiftlint ...` manifest matches a bare `swiftlint ...` task command; extract monorepo directory wrapper values (`--directory <d>`, `--project <d>`, `--prefix <d>`) from `sub` and `ptoks` before Rule 2 (stripping those wrapper flag/value pairs from `req_flags`), rejecting mismatches whenever `sub` and `ptoks` specify different wrapper directories or when `ptoks` specifies `<d>` and `sub` omits the wrapper without scoping its positional targets under `<d>/`.
   - In TDD `RED` (`V1`), `test_slqr_hp_01_provider_schemas_and_validators_accept_additive_contracts` asserts `"test_routing"` is in `flutter-quality.schema.json` `properties` so `V1` exits `1` with `FAILED` before implementation.
 
 ## Definition of Done
 
-- [ ] `_stack_lifecycle_registry.py` implements `TestRoutingPolicy`, Web `"check_vanilla_js.py"` typecheck default, `{skills_dir}` normalization, monorepo/mise wrapper stripping, and `.py`/`.sh` script basename + required-flag matching (V2, V5)
+- [ ] `_stack_lifecycle_registry.py` implements `TestRoutingPolicy`, Web `"check_vanilla_js.py"` typecheck default, `{skills_dir}` normalization, bidirectional version-manager unwrapping + monorepo directory-wrapper enforcement, and `.py`/`.sh` script basename + required-flag matching (V2, V5)
 - [ ] `_provider_manifest_common.py` and all 6 `*-quality.schema.json` files validate `test_routing`, `coverage.package_floors`, Flutter `architecture`, and Rust/Web/Python `cache_enable`/`cache_purge` cleanly while failing closed on invalid `test_routing` (V2, V5)
-- [ ] All 4 assigned scenarios (`SLQR-HP-01`, `SLQR-EC-01`, `SLQR-AR-01`, `SLQR-FR-01`) pass in `tests/test_slqr_registry_and_schemas.py` with JUnit XML written to `build/test-results/slqr_task_01.xml` (V2, V5)
+- [ ] All 3 assigned scenarios (`SLQR-HP-01`, `SLQR-EC-01`, `SLQR-FR-01`) pass in `tests/test_slqr_registry_and_schemas.py` with JUnit XML written to `build/test-results/slqr_task_01.xml` (V2, V5)
 - [ ] Existing stack lifecycle registry and provider schema/scaffolder regression suites pass without regressions (V3)
 - [ ] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed Python files (V4)
 

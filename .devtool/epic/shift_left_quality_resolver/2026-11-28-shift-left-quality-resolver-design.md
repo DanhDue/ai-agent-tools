@@ -32,7 +32,7 @@ Across polyglot and mobile repositories consuming `d3nexus` (`D3Nexus`, `lyrics-
 
 ### Goals
 
-- Derive task-level test topology, coverage floors, referencing `?v=` templates, and scoped `TIER-B` commands **100% mechanically** from `.agents/quality/*.json` and `_stack_lifecycle_registry.py` using Python 3 standard library only (`0` LLM tokens, `< 0.1s` execution).
+- Derive task-level test topology, coverage floors, referencing `?v=` templates, and scoped `TIER-B` commands **100% mechanically** from `.agents/quality/*.json` and `_stack_lifecycle_registry.py` using Python 3 standard library only (`0` LLM tokens, `< 0.1s` in-process resolution and `< 1.0s` cold CLI execution).
 - Expose an on-demand CLI resolver (`resolve_task_quality_plan.py` / `d3nexus resolve-quality --files <planned_files>`) emitting **5–10 compact lines** scoped strictly to the touched file extensions and paths.
 - Enforce the exact same invariants fail-closed (`exit 1`) in `check_task_contract.py --design` (for `/dev-designer` Gate 2) and a new `check_task_contract.py --check-plan <plan.md>` mode (for `/writing-plans`).
 - Fix multi-target `matches_cap()`, `{skills_dir}` placeholder normalization, stale `gate4_receipt.json` deletion on non-passing `epic`/`release` runs, legacy script references in `dev-designer`, and JSON Schema capability parity across all 6 stack providers.
@@ -83,25 +83,26 @@ Any `.agents/quality/<stack>-quality.json` manifest may optionally declare a com
 ```
 
 Validation rules in `_provider_manifest_common.py` (`validate_additive_provider_fields`):
-- `test_routing` must be a JSON object containing only the five allowed keys above (`unknown_field` -> `BLOCKED`).
+- `test_routing` must be a JSON object containing only the five allowed keys above (`invalid_test_routing` -> `BLOCKED`).
 - Every present key must be an array of non-empty relative glob/extension strings without `..` path traversal (`invalid_test_routing` -> `BLOCKED`).
 - `coverage` object in `*-quality.json` additionally accepts optional `"package_floors"` (non-empty relative path string, e.g. `".agents/quality/coverage_floors.json"`).
 
 ### 4.2 Provider JSON Schema Synchronization
 
-Update `skills/*-quality-check/resources/schemas/*-quality.schema.json` and the matching `validate_<stack>_quality.py` scripts so JSON Schema `additionalProperties: false` matches runtime validators 100%:
+Update `skills/*-quality-check/resources/schemas/*-quality.schema.json` so JSON Schema `additionalProperties: false` matches the generic capability validation in `validate_<stack>_quality.py` and shared helpers in `_provider_manifest_common.py` 100% (`validate_<stack>_quality.py` accept arbitrary capability arrays and delegate `test_routing`/`package_floors` to `_provider_manifest_common.py`, requiring no edits to `validate_<stack>_quality.py`):
 - Add `"test_routing"` top-level property and `"package_floors"` inside `capabilities.coverage.properties` across all 6 stack schemas.
-- Add `"architecture"` to `flutter-quality.schema.json` (and `validate_flutter_quality.py` if absent).
+- Add `"architecture"` to `flutter-quality.schema.json`.
 - Add `"cache_enable"` and `"cache_purge"` to `rust-quality.schema.json`, `web-quality.schema.json`, and `python-quality.schema.json` (matching `D3Nexus` subtree receipt runners).
 
 ### 4.3 Multi-Target Capability Stripping and `{skills_dir}` Normalization (`#0022`)
 
 1. **`check_task_contract.py` (`_cap_tool_prefix` & `matches_cap`)**:
-   - Expand `_cap_tool_prefix(cap)` to retain the runner wrapper (`uv run`, `uv --directory <dir> run`, `python3 -m`), tool binary (`ruff`, `mypy`, `pyright`, `ty`, `flake8`, `pylint`), subcommand (`check`, `format`), and all leading flags — including value-taking flags (`--extend-select <val>`, `--select <val>`, `--ignore <val>`, `--config <path>`, `--config-file <path>`, `--target-version <val>`, `--line-length <val>`) — stopping immediately before trailing positional file/directory targets (`src`, `tests`, `.`).
-   - Enable `_cap_tool_prefix(cap)` matching unconditionally inside `matches_cap()` (not gated on `allow_historical_prefix`), while requiring at least one target argument (`len(sub) > len(prefix)`) and relying on `_check_python_tier_b_allowed_coverage()` to verify every Allowed `.py` file is covered.
-2. **`_stack_lifecycle_registry.py` (`_cap_command_str`, `_match_prefix_on_tokens`, `BUILTIN_STACKS["web"]`)**:
+   - Expand `_cap_tool_prefix(cap)` to retain the runner wrapper (`uv run`, `uv --directory <dir> run`, `python3 -m`), tool binary (`ruff`, `mypy`, `pyright`, `ty`, `flake8`, `pylint`), subcommand (`check`, `format`), and all leading flags — including value-taking flags (`--extend-select <val>`, `--select <val>`, `--ignore <val>`, `--per-file-ignores <val>`, `--config <path>`, `--config-file <path>`, `--target-version <val>`, `--line-length <val>`, `--python-version <val>`) — stopping immediately before trailing positional file/directory targets (`src`, `tests`, `.`).
+   - Enable `_cap_tool_prefix(cap)` matching for active `todo` tasks (`not allow_historical_prefix`) ONLY when `len(sub) > len(prefix)`, `allowed_py` is non-empty, every file in `allowed_py` is covered by the subcommand's non-flag positional targets, and every positional target either covers at least one `allowed_py` path or appears in `cap[len(prefix):]` (preventing `mypy unrelated.py` bypasses on single-file tasks and preserving `test_todo_task_still_rejected_when_omitting_newly_registered_targets`).
+2. **`_stack_lifecycle_registry.py` (`_cap_command_str`, `_match_prefix_on_tokens`, `_subcommand_matches_prefix`, `BUILTIN_STACKS["web"]`)**:
    - Add `"check_vanilla_js.py"` to `BUILTIN_STACKS["web"].default_tier_b.typecheck_prefixes`.
    - Normalize `{skills_dir}` to `$D3NEXUS_KIT/skills` when building `TierBPolicy` prefixes from `capabilities` (while skipping `--base-ref {base_ref}` tail value comparison in prefix matching), and extend `_strip_command_wrappers()` to unwrap monorepo and version-manager prefixes (`uv --directory <dir> run`, `uv --project <dir> run`, `mise exec [--]`, `npm --prefix <dir>`) observed across `D3Nexus` and `ios_digital_wallet`.
+   - In `_subcommand_matches_prefix()`, unwrap version-manager prefixes (`mise exec [--]`) on both `sub` and `ptoks` while enforcing monorepo directory wrapper agreement (`--directory <dir>`, `--project <dir>`, `--prefix <dir>`): a candidate with a different wrapper directory never matches, and when `ptoks` carries a monorepo directory wrapper, either `sub` carries the exact same wrapper directory or its unwrapped positional targets all lie under `<dir>/`. Strip value-taking wrapper flags before Rule 2 flag scanning.
    - Extend Rule 4 in `_match_prefix_on_tokens()` so multi-token capability prefixes invoking a `.py` or `.sh` script (`python3 {skills_dir}/.../check_vanilla_js.py --target-dir src/...`) match any candidate subcommand invoking the same script basename (`Path(tok).name == script_name`) regardless of whether the caller wrote `$D3NEXUS_KIT/skills/...`, `"$HOME/.gemini/..."`, or a repo-relative `scripts/...` path, provided required `--flag` names are present.
 
 ## 5. On-Demand File-Scoped Quality Resolver CLI
@@ -116,7 +117,7 @@ d3nexus resolve-quality --files <path1> [<path2> ...] [--repo-root <dir>] [--bas
 
 - Exit `0`: Valid resolution emitted (`5–10` compact lines by default, or structured JSON when `--json` is passed).
 - Exit `2`: Invalid CLI arguments, missing `--files`, or malformed `.agents/quality/*.json` manifest.
-- Performance target: `< 0.1s` cold execution using Python 3 stdlib (`json`, `pathlib`, `re`, `shlex`, `argparse`).
+- Performance target: `< 0.1s` in-process `resolve_quality_plan()` execution (and `< 1.0s` cold CLI subprocess wall-clock time) using Python 3 stdlib (`json`, `pathlib`, `re`, `shlex`, `argparse`).
 
 ### 5.2 Deterministic Resolution Rules
 
@@ -156,12 +157,12 @@ Given `--files <planned_files>` (stripping `(new)` annotations and line anchors)
 During `--design` validation (invoked by `check_epic_readiness.py` at Gate 2), `check_task_contract.py` enforces five mechanical guards across `tasks`:
 
 1. **Unexpanded Placeholder Guard**: Any `Verification` row containing literal `{skills_dir}` or `{base_ref}` fails closed (`unexpanded manifest placeholder '{skills_dir}'; use "$D3NEXUS_KIT/skills"`).
-2. **Intermediate-Task Full-Repo Python `TIER-B` Guard**: When an epic has `>= 2` tasks, for every task except the final task (highest task number / sink in `tasks`) and unless `pyproject.toml` or `.agents/quality/` is in `Allowed files`, any Python `ruff` or `mypy`/`pyright` `TIER-B` subcommand targeting bare `.` or whole `src` / `tests` top-level directories instead of explicit `Allowed files` fails closed (`Task 1..N-1 TIER-B must scope ruff/mypy to Allowed files, not full-repo '.' or 'src tests'`).
+2. **Intermediate-Task Full-Repo Python `TIER-B` Guard**: When an epic has `>= 2` tasks, for every task except the final task (highest task number / sink in `tasks`) and unless `pyproject.toml` or `.agents/quality/` is in `Allowed files`, any Python `ruff` or `mypy`/`pyright` `TIER-B` subcommand whose manifest capability ends in `"."` or `["src", "tests"]` (or when `.agents/quality/python-quality.json` is absent) that still passes bare `"."` or both `"src"` and `"tests"` instead of scoping to `Allowed files` fails closed (`Task 1..N-1 TIER-B must scope ruff/mypy to Allowed files, not full-repo '.' or 'src tests'`).
 3. **Web V8 LCOV Unit-Test Guard**: When a task modifies or creates production `.js`/`.mjs` files in a repository whose `web-quality.json` enforces LCOV `diff_coverage` on `.js`/`.mjs`, at least one JS unit test file (`tests/js/*.test.mjs`, `*.test.js`, `*.test.mjs`, `*.test.ts`, or `test_routing.lcov_unit_test_globs`) must appear in `Allowed files` OR be executed in `GREEN`/`REGRESSION` rows. Planning only Playwright E2E (`tests/e2e/...`) fails closed.
 4. **Canonical Test Directory & Pairing Guard**:
    - Any `(new)` test file matching `test_routing.forbidden_test_globs` (or placed outside `test_routing.canonical_test_globs` when configured) fails closed.
    - Any `(new)` production source file matching `test_routing.paired_source_globs` without a `(new)` or modified unit test in `Allowed files` fails closed.
-5. **Atomic `?v=` Cache-Bust Template Guard**: When a task modifies an existing non-test `.js` or `.css` asset in a repository with `ui_review` (or `test_routing.cache_bust_extensions`) enabled, every existing tracked template (`*.html`, `*.astro`, `*.jinja`, `*.jinja2`) referencing that asset with `?v=` (or `src=`/`href=` under `ui_review` project root) must appear in the same task's `Allowed files` (unless claimed in an explicit downstream integration task within the same epic? No — `audit_ui_state_and_styles.py` / `check_pr_diff_review.py` runs per-task in `TIER-B`, so the referencing template MUST be in the **same task's** `Allowed files` for atomic `?v=` updates!).
+5. **Atomic `?v=` Cache-Bust Template Guard**: When a task modifies an existing non-test `.js` or `.css` asset in a repository with `ui_review` (or `test_routing.cache_bust_extensions`) enabled, every existing tracked template (`*.html`, `*.astro`, `*.jinja`, `*.jinja2`) referencing that asset via `(?:src|href)=['"][^'"]*?<asset_name>(\?[^'"]*)?['"]` must appear in the same task's `Allowed files`.
 
 ### 6.2 Standalone Plan Mode: `check_task_contract.py --check-plan <plan.md>`
 
@@ -195,20 +196,20 @@ In `skills/quality_check/resources/scripts/verify_polyglot_registry.py` (`verify
 ### 7.2 Clean Working-Tree Precondition on Receipt Reuse
 
 In `skills/finishing-a-development-branch/SKILL.md` (and `integrate_branch.py` `verify-tier` warning / check):
-- Clarify that reusing an existing Gate 4 `PASS` verdict under `verify-tier == noop` requires both `repository_sha == HEAD` AND a clean tracked/untracked non-ignored working tree (`git status --porcelain` empty), ensuring uncommitted dirty edits on the verified SHA can never ride a prior `gate4_receipt.json`.
+- Clarify that reusing an existing Gate 4 `PASS` verdict under `verify-tier == noop` requires both `repository_sha == HEAD` AND zero uncommitted tracked changes (`dirty_files(untracked=False)` empty, matching `integrate_branch.py::cmd_preflight`), ensuring uncommitted dirty edits on the verified SHA can never ride a prior `gate4_receipt.json`.
 
 ## 8. Post-Rollout Blueprint Alignment in setup_quality_check and check_diff_coverage
 
 Reconciling the original Open-Closed Polyglot Lifecycle Blueprint (`nexus/docs/development/polyglot-quality-lifecycle-handoff.md`) with the empirical rollout across all five repositories establishes **`QualityPlanResolver`** (`resolve_task_quality_plan.py` + `test_routing`) as the **fifth Open-Closed Contract** alongside `TierBContractAdapter`, `PoolWorkspaceStrategy`, `TriageSurfaceRegistry`, and `TierCTaxonomy`, and upgrades two shared kit engines:
 
-1. **Deduplicated, Offline-Safe Scaffolding in `scaffold_quality_manifest.py` (`setup_quality_check`)**:
-   - Deduplicate `profiles.epic` and `profiles.release` across all 6 stack templates: keep delta checks (`pr_diff_audit`, `pr_impact`) strictly in `pr`, and use `workspace_audit` + `workspace_impact` (`--all-files --base-ref {base_ref}`) in `epic`, `scheduled`, and `release` (`0` duplicate audit/impact invocations per profile).
+1. **Deduplicated, Offline-Safe Scaffolding in `scaffold_quality_manifest.py` and `web-quality.template.json` (`setup_quality_check`)**:
+   - Deduplicate `profiles.epic` and `profiles.release` across all 6 stack templates (and `skills/setup_quality_check/resources/templates/web-quality.template.json`): keep delta checks (`pr_diff_audit`, `pr_impact`) strictly in `pr`, and use `workspace_audit` + `workspace_impact` (`--all-files`) in `epic`, `scheduled`, and `release` (`0` duplicate audit/impact invocations per profile).
    - Enforce offline `pr` and `epic` determinism in the Rust template (`security` runs local secret/unsafe hygiene rather than online `cargo audit`, keeping `cargo audit` / `cargo deny` advisories in `security_deps` for `scheduled`/`release`).
-   - Replace bare `npx` commands in the Web template with `npx --no-install` (`prettier`, `playwright`), remove `test_e2e` from `scheduled` (matching offline/headless nightly parity), and default Python `type_check` to `["uv", "run", "mypy", "--strict", "src", "tests"]`.
+   - Replace bare `npx` commands in the Web scaffolder and `web-quality.template.json` with `npx --no-install` (`prettier`, `playwright`), remove `test_e2e` from `scheduled` (matching offline/headless nightly parity), and default Python `type_check` to `["uv", "run", "mypy", "--strict", "src", "tests"]`.
 2. **Per-Adapter / Per-Module Monotonic Floor Ratchets in `check_diff_coverage.py` (`quality_check`)**:
    - Add optional `--package-floors <path>` (reading `.agents/quality/coverage_floors.json`) to `skills/quality_check/resources/scripts/check_diff_coverage.py`, supporting both explicit per-package/adapter path prefixes (`python.adapters`, `packages`, or flat mappings) and per-file module ratchets (`web_modules`), failing closed with `exit 2` (`BLOCKED`) when a configured floor file is missing or malformed and `exit 1` (`FAIL`) when any measured adapter or module drops below its monotonic floor.
 3. **Blueprint Evolution Synchronization**:
-   - Document the 5-contract Open-Closed architecture and post-rollout improvements in `ai-agent-tools` and append the v2 post-rollout architecture summary to `/Users/danhdueexoictif/AllProjects/nexus/docs/development/polyglot-quality-lifecycle-handoff.md` during the final synchronization step (without unauthorized cross-repo commits).
+   - Document the 5-contract Open-Closed architecture and post-rollout improvements in `ai-agent-tools` and append the v2 post-rollout architecture summary to the sibling `nexus/docs/development/polyglot-quality-lifecycle-handoff.md` document during the final synchronization step (without unauthorized cross-repo commits).
 
 ## 9. Lean Skill Integration and Legacy Template Cleanup
 
@@ -243,7 +244,7 @@ Following `task-observer/references/skill-authoring.md` (Progressive Disclosure 
 ## 11. Verification and Acceptance Plan
 
 1. **Unit & BDD Negative/Positive Suites**:
-   - `resolve_task_quality_plan.py`: single-stack `.py` output (`0` Web/Flutter/Rust lines), `.js` in LCOV repo (dual `node:test` + Playwright Tier C2 + `coverage_floors.json` ratchet + `?v=` HTML template discovery + `$D3NEXUS_KIT/skills` interpolation), polyglot `.rs` + `.ts`, monorepo wrappers (`uv --directory`, `mise exec --`), and `< 0.1s` runtime assertion.
+   - `resolve_task_quality_plan.py`: single-stack `.py` output (`0` Web/Flutter/Rust lines), `.js` in LCOV repo (dual `node:test` + Playwright Tier C2 + `coverage_floors.json` ratchet + `?v=` HTML template discovery + `$D3NEXUS_KIT/skills` interpolation), polyglot `.rs` + `.ts`, monorepo wrappers (`uv --directory`, `mise exec --`), `< 0.1s` in-process resolution assertion, and `< 1.0s` cold CLI assertion.
    - `check_task_contract.py` (`--design` & `--check-plan`): positive and negative tests for multi-target `mypy --strict src tests` (`#0022`), `{skills_dir}` normalization & unexpanded placeholder rejection, intermediate-task full-repo `ruff`/`mypy` rejection, missing JS LCOV unit test when touching `.js`, forbidden test directory placement, missing `?v=` template in `Allowed files` / `Modify:`, and bare `npx` rejection in `--check-plan`.
    - `verify_polyglot_registry.py`, `scaffold_quality_manifest.py` & `check_diff_coverage.py`: `PASS` writes `gate4_receipt.json` while subsequent `FAIL` and `BLOCKED` on `epic`/`release` unlink `gate4_receipt.json` (`#0023`); `scaffold_quality_manifest.py` emits `0` duplicate `pr_*`+`workspace_*` profile entries and uses `--no-install` / offline `pr`+`epic` gates; `check_diff_coverage.py --package-floors` enforces adapter/module ratchets; schema-vs-validator parity test passes across all 6 stack schemas and all 5 live ecosystem repos (`44/44` profile checks).
 2. **Pre-Flight & Kit Release Gates**:

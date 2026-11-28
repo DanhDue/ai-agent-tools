@@ -64,10 +64,10 @@ Read-only context:
 Covers: SLQR-HP-05, SLQR-AR-04
 
 ```gherkin
-Scenario: [SLQR-HP-05] [Tier C - Integration] Updated skills pass byte/word caps, clean-shell Pre-Flight execution, and 44/44 live ecosystem profile validations
+Scenario: [SLQR-HP-05] [Tier C - Integration] Updated skills pass byte/word caps, clean-shell Pre-Flight execution, and multi-stack ecosystem profile validations
 Given the updated skill files ("dev-designer/SKILL.md", "dev-designer/references/verification-rows.md", "writing-plans/SKILL.md", "writing-plans/plan-document-reviewer-prompt.md", "finishing-a-development-branch/SKILL.md") and "scripts/verify.sh"
-When clean-shell Pre-Flight commands, check_document.py --require-toc, UTF-8 byte/word cap checks, and live 5-repo manifest validations execute
-Then "skills/dev-designer/SKILL.md" stays <= 22528 UTF-8 bytes, retired script names ("verify_importlinter_coverage.py", "pre_review_self_probe.py", "verify_bdd_coverage.py") do not appear in "dev-designer", all 44 profile checks across the 5 ecosystem repositories return "PASS", and embedded CLI commands exit 0 in a clean env shell
+When clean-shell Pre-Flight commands, check_document.py --require-toc, UTF-8 byte/word cap checks, and 5-repo ecosystem manifest validations (via optional SLQR_ECOSYSTEM_ROOT or synthetic 5-repo polyglot fixtures) execute
+Then "skills/dev-designer/SKILL.md" stays <= 22528 UTF-8 bytes, retired script names ("verify_importlinter_coverage.py", "pre_review_self_probe.py", "verify_bdd_coverage.py") do not appear in "dev-designer", all discovered ecosystem profiles return "PASS" with zero personal-path leaks in tracked files, and embedded CLI commands exit 0 in a clean env shell
 
 Scenario: [SLQR-AR-04] [Tier C - Integration] Authoring skills integrate CLI resolver in 2-3 lines without embedding multi-stack prose matrices
 Given "skills/dev-designer/SKILL.md" and "skills/writing-plans/SKILL.md"
@@ -97,7 +97,7 @@ Then both files reference "resolve-quality" (or "resolve_task_quality_plan.py"),
 
 - **Source (`tests/test_tto_docs_and_slimming.py` `L60-L78`, `tests/test_ohk2_skill_docs.py` `L1-L91`, `scripts/verify.sh` `L100-L165` & `L360-L569`)**: `dev-designer/SKILL.md` must stay `<= 22528` UTF-8 bytes with frontmatter keys `["name", "description"]`; `verification-rows.md` must retain `-q --tb=short --maxfail=3`; `test_ohk2_skill_docs.py` checks Playwright / `DevToolsActivePort` & sequential `TIER-B` wording — preserve all asserted substrings intact.
 - **New contract**:
-  - In `tests/test_slqr_end_to_end_acceptance.py`, live sibling-repo paths (`/Users/danhdueexoictif/AllProjects/{D3Nexus/.worktrees/polyglot_quality_parity_and_gate4_speed,lyrics-sync,nexus/.worktrees/quality_check_and_lifecycle_hardening,digital_wallet/android_digital_wallet,digital_wallet/ios_digital_wallet}`) are tested dynamically when present on disk (falling back to synthetic 5-repo manifest fixtures inside `tmp_path` so the test remains 100% portable in CI containers where sibling repos are absent!).
+  - **Zero Personal-Path Leaks (`tests/test_plq_end_to_end_acceptance.py:115-119`)**: Never hard-code `/Users/...` or personal usernames in `tests/test_slqr_end_to_end_acceptance.py` or any tracked file! Instead, build a comprehensive 5-repo polyglot synthetic fixture suite inside `tmp_path` (`rust+web+python` monorepo, `python+vanilla-js` LCOV repo, `flutter+python` workspace, `android` Gradle repo, `ios` Tuist/mise repo) validating `PASS` across every profile (`> 0` profiles asserted), AND optionally scan `os.environ.get("SLQR_ECOSYSTEM_ROOT")` when set in the environment (asserting every discovered `.agents/quality/check_quality.json` profile returns `PASS`).
   - Clean-shell Pre-Flight executes literal commands with `env={"PATH": os.environ["PATH"], "HOME": str(tmp_path), "D3NEXUS_KIT": str(REPO_ROOT)}` to verify zero reliance on ambient shell state.
 
 ## Definition of Done
