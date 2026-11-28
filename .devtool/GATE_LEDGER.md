@@ -75,3 +75,5 @@
 | 2026-11-27T21:54:26.547740+00:00 | unified_review_config | 4 | 02c81df | Gate 4 Local PASS (f640f0b; 22/22 BDD, @quality_check PASS, audit PASS; reverted transient .vscode/settings.json window.title) |  | developer |
 | 2026-11-27T22:13:00.464778+00:00 | unified_review_config | 4 | 02c81df | Final Gate 4 PASS on 55a5aa3 (Cross-Model Review Round 1 PASS 0 findings, 22/22 BDD, @quality_check PASS, audit PASS, clean tree) |  | developer |
 | 2026-11-28T01:50:13.778604+00:00 | unified_review_config | 5 | ad07dba | Gate 5 Approved — Option 1 Merge locally into main |  | developer |
+| 2026-11-28T02:53:08.091112+00:00 | pool_priority_only_routing | 1 | a998d50 | Gate 1 design spec approved by Role 1.0 (docs/superpowers/specs/2026-11-28-pool-priority-only-routing-design.md) |  | developer |
+| 2026-11-28T02:53:55.766646+00:00 | shift_left_quality_resolver | 1 | a998d50 | Spec approved |  | developer |
