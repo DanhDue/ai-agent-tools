@@ -1,0 +1,173 @@
+{
+  "schema": 1,
+  "task": "task_03_external_review_layered_config_and_runtime_state",
+  "runs": {
+    "red": {
+      "head": "2288728cb8145882cc185a192431fe1743da9cb4",
+      "tree": "a27875429a166c1a5eb2bf39cf45014602d45b7f",
+      "patch_id": "d2d443e02c77e1246f369182891a21ad82b1775c",
+      "started": "2026-11-27T21:04:33Z",
+      "finished": "2026-11-27T21:04:33Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_urc_external_review_integration.py::test_urc_hp_04_per_kind_pass_limits_and_global_priority",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T21:04:33Z",
+          "finished": "2026-11-27T21:04:33Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "___________ test_urc_hp_04_per_kind_pass_limits_and_global_priority ____________",
+            "tests/test_urc_external_review_integration.py:130: in test_urc_hp_04_per_kind_pass_limits_and_global_priority",
+            "    resolve_max_rounds, _, _ = _require_urc_api()",
+            "                               ^^^^^^^^^^^^^^^^^^",
+            "tests/test_urc_external_review_integration.py:116: in _require_urc_api",
+            "    pytest.fail(",
+            "E   Failed: run_external_review.resolve_effective_max_rounds is not implemented yet",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_urc_external_review_integration.py::test_urc_hp_04_per_kind_pass_limits_and_global_priority",
+            "1 failed in 0.05s"
+          ],
+          "output_sha256": "3b5f6886327f7b5a5cf7f72cec602d0769f98558f1e25f6a77f6c37d64b720f1"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "2288728cb8145882cc185a192431fe1743da9cb4",
+      "tree": "cb2d7dfbe23f28fb21b96866e691092ac1c36339",
+      "patch_id": "6e0b74478c641534e00adb6fcb03be4aae387320",
+      "started": "2026-11-27T21:09:11Z",
+      "finished": "2026-11-27T21:10:14Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_urc_external_review_integration.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T21:09:11Z",
+          "finished": "2026-11-27T21:09:11Z",
+          "output_tail": [
+            ".....                                                                    [100%]",
+            "5 passed in 0.73s"
+          ],
+          "output_sha256": "bc532a42c150373e7d6eff27dc29a2ad9a7f5de61e0a6223b708e5f3a14a2022"
+        },
+        {
+          "id": "V3",
+          "phase": "REGRESSION",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 skills/dev-implementation/resources/scripts/test_run_external_review.py tests/test_tto_external_review.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T21:09:11Z",
+          "finished": "2026-11-27T21:10:12Z",
+          "output_tail": [
+            "..................................................................... [ 85%]",
+            "............                                                             [100%]",
+            "81 passed, 3 subtests passed in 60.88s (0:01:00)"
+          ],
+          "output_sha256": "1c724e7d95957d72b204de78965517ae9ef9139f26e1cc911a6d000593730404"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py tests/test_tto_external_review.py tests/test_urc_external_review_integration.py && ruff format --check skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py tests/test_tto_external_review.py tests/test_urc_external_review_integration.py && mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py tests/test_tto_external_review.py tests/test_urc_external_review_integration.py --ignore-missing-imports --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T21:10:12Z",
+          "finished": "2026-11-27T21:10:13Z",
+          "output_tail": [
+            "All checks passed!",
+            "4 files already formatted",
+            "Success: no issues found in 11 source files"
+          ],
+          "output_sha256": "0d6a3c1524a294ab6c0ef3575f17ec57cf7dd43c21961cb2e68a0d15660cd521"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_urc_external_review_integration.py --junitxml=build/test-results/task_03.xml",
+          "expect": "exit 0; results build/test-results/task_03.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T21:10:13Z",
+          "finished": "2026-11-27T21:10:14Z",
+          "output_tail": [
+            ".....                                                                    [100%]",
+            "5 passed in 0.84s"
+          ],
+          "output_sha256": "6abad1658387cd3a04620f2c53625edd73095251f681f43bec807a97b68ee2e7",
+          "results": {
+            "path": "build/test-results/task_03.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 5,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_urc_hp_04_per_kind_pass_limits_and_global_priority",
+                  "classname": "tests.test_urc_external_review_integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_ec_04_custom_layered_quota_thresholds_control_selection",
+                  "classname": "tests.test_urc_external_review_integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_st_03_sticky_runtime_state_isolated_from_review_config",
+                  "classname": "tests.test_urc_external_review_integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_ar_02_satellite_repo_loads_persona_config_relative_to_plugin",
+                  "classname": "tests.test_urc_external_review_integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_03_corrupted_legacy_and_runtime_json_fallback_cleanly",
+                  "classname": "tests.test_urc_external_review_integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/run_external_review.py",
+            "skills/dev-implementation/resources/scripts/test_run_external_review.py",
+            "tests/test_tto_external_review.py",
+            "tests/test_urc_external_review_integration.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

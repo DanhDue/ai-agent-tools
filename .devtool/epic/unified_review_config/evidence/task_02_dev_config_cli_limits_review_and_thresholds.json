@@ -1,0 +1,184 @@
+{
+  "schema": 1,
+  "task": "task_02_dev_config_cli_limits_review_and_thresholds",
+  "runs": {
+    "red": {
+      "head": "80fa410ba7e669ad77bd4376f028f7c1b4d0826d",
+      "tree": "a4a2638b599b29ea8eec9bb135950b29d7d0fee4",
+      "patch_id": "4dac7372543c7e038520dd27d343c4a49b59f47a",
+      "started": "2026-11-27T20:49:40Z",
+      "finished": "2026-11-27T20:49:41Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_urc_dev_config_cli.py::test_urc_hp_02_limits_subcommand_global_and_project",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T20:49:40Z",
+          "finished": "2026-11-27T20:49:41Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "_____________ test_urc_hp_02_limits_subcommand_global_and_project ______________",
+            "tests/test_urc_dev_config_cli.py:168: in test_urc_hp_02_limits_subcommand_global_and_project",
+            "    _assert_urc_hp_02(tmp_path)",
+            "tests/test_urc_dev_config_cli.py:86: in _assert_urc_hp_02",
+            "    assert res_global.returncode == 0, res_global.stderr",
+            "E   AssertionError: Error: argument command: invalid choice: 'limits' (choose from 'status', 'models', 'preset', 'set', 'reset', 'low-quota', 'checkpoint', 'quota-check', 'resolve', 'profiles', 'dispatch')",
+            "E     ",
+            "E   assert 1 == 0",
+            "E    +  where 1 = CompletedProcess(args=['/opt/homebrew/opt/python@3.15/bin/python3.15', '/Users/danhdueexoictif/AllProjects/ai-agent-to...', 'models', 'preset', 'set', 'reset', 'low-quota', 'checkpoint', 'quota-check', 'resolve', 'profiles', 'dispatch')\\n\").returncode",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_urc_dev_config_cli.py::test_urc_hp_02_limits_subcommand_global_and_project",
+            "1 failed in 0.21s"
+          ],
+          "output_sha256": "e9c9df376bdfe4dbb83ac61de66e198d0eca27285d0bf65e5362755180d322e7"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "80fa410ba7e669ad77bd4376f028f7c1b4d0826d",
+      "tree": "b238e932635f7e191ff6634c69b4c2281b7b8821",
+      "patch_id": "b816e26eee28ac2973c583f4a9815da7916c55b5",
+      "started": "2026-11-27T20:51:31Z",
+      "finished": "2026-11-27T20:51:49Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_urc_dev_config_cli.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T20:51:31Z",
+          "finished": "2026-11-27T20:51:35Z",
+          "output_tail": [
+            "........                                                                 [100%]",
+            "8 passed in 4.11s"
+          ],
+          "output_sha256": "d12f5d193d91122882ccbada370bb9a15e644ba1c716c31632aa5c58368a3042"
+        },
+        {
+          "id": "V3",
+          "phase": "REGRESSION",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_fpg_agy_dispatch.py tests/test_fpg_set_provider_model_profile.py tests/test_fpg_agy_profile_pool.py tests/test_trc_persona_limits.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T20:51:35Z",
+          "finished": "2026-11-27T20:51:44Z",
+          "output_tail": [
+            "........................................................................ [ 75%]",
+            "........................                                                 [100%]",
+            "96 passed in 8.59s"
+          ],
+          "output_sha256": "17d4ae4a1278d17a17c37bbe05d18580e988725bb43d2f21f6fd9f349aca15fe"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py scripts/dev_config.py scripts/agy_dispatch.py tests/test_urc_dev_config_cli.py && ruff format --check scripts/dev_config.py scripts/agy_dispatch.py tests/test_urc_dev_config_cli.py && mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py scripts/dev_config.py scripts/agy_dispatch.py tests/test_urc_dev_config_cli.py --ignore-missing-imports --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T20:51:44Z",
+          "finished": "2026-11-27T20:51:44Z",
+          "output_tail": [
+            "All checks passed!",
+            "3 files already formatted",
+            "Success: no issues found in 10 source files"
+          ],
+          "output_sha256": "a055c79c32ba9317c4a57778b5d466ef576d88ec355e7f0818236e93805cb535"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_urc_dev_config_cli.py --junitxml=build/test-results/task_02.xml",
+          "expect": "exit 0; results build/test-results/task_02.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T20:51:44Z",
+          "finished": "2026-11-27T20:51:48Z",
+          "output_tail": [
+            "........                                                                 [100%]",
+            "8 passed in 3.89s"
+          ],
+          "output_sha256": "e6adcc21953ee7ebaec26251f573292cd612e69b3664b0e13fa0db1ed072e016",
+          "results": {
+            "path": "build/test-results/task_02.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 7,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_urc_hp_02_limits_subcommand_global_and_project",
+                  "classname": "tests.test_urc_dev_config_cli",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_hp_02_limits_subcommand_global_and_project",
+                  "classname": "tests.test_urc_dev_config_cli.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_hp_03_review_subcommand_priority_models_and_thresholds",
+                  "classname": "tests.test_urc_dev_config_cli.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_ec_03_global_write_emits_masking_warning_on_project_override",
+                  "classname": "tests.test_urc_dev_config_cli.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_st_01_reset_project_overrides_restores_global_without_disturbing_siblings",
+                  "classname": "tests.test_urc_dev_config_cli.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_st_02_reset_all_review_prunes_empty_objects_idempotently",
+                  "classname": "tests.test_urc_dev_config_cli.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_02_models_remove_guard_and_atomic_validation_rejection",
+                  "classname": "tests.test_urc_dev_config_cli.Test_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/agy_dispatch.py",
+            "scripts/dev_config.py",
+            "tests/test_urc_dev_config_cli.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

@@ -1,13 +1,13 @@
 ---
 id: "task_01_persona_review_config_schema_and_resolver"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "unified_review_config"
 dueDate: null
 created: "2026-11-28T03:12:00+07:00"
-modified: "2026-11-28T03:12:00+07:00"
-completedAt: null
+modified: "2026-11-27T20:43:57Z"
+completedAt: "2026-11-27T20:43:57Z"
 labels: ["architecture", "contract", "dev-config", "persona-config"]
 order: "a01"
 review_tier: "full"
@@ -123,11 +123,11 @@ Then every invalid case raises PersonaConfigError with an actionable message nam
 
 ## Definition of Done
 
-- [ ] `scripts/personas.default.json` adds `max_principal_review_passes` (`3`), `max_cross_model_review_passes` (`3`), and `review` (`provider_priority`, `quota_thresholds`, `providers`) while keeping existing defaults intact (V2, V5)
-- [ ] `scripts/persona_config.py` implements `ReviewLimits`, `ReviewProviderBinding`, `ResolvedReviewConfig`, `resolve_review_limits`, `resolve_review_config`, 5-tier precedence (`project > global > legacy > kit`), alias-or-raw expansion, validation guards, and legacy review warnings (V2, V5)
-- [ ] All 5 assigned scenarios (`URC-HP-01`, `URC-EC-01`, `URC-EC-02`, `URC-AR-01`, `URC-FR-01`) pass in `tests/test_urc_persona_review_config.py` with JUnit XML written to `build/test-results/task_01.xml` (V2, V5)
-- [ ] Existing persona config, limits, and effortless-models regression suites pass without regressions (V3)
-- [ ] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4)
+- [x] `scripts/personas.default.json` adds `max_principal_review_passes` (`3`), `max_cross_model_review_passes` (`3`), and `review` (`provider_priority`, `quota_thresholds`, `providers`) while keeping existing defaults intact (V2, V5) — Verified PASS (46 passed; kit defaults & schema intact)
+- [x] `scripts/persona_config.py` implements `ReviewLimits`, `ReviewProviderBinding`, `ResolvedReviewConfig`, `resolve_review_limits`, `resolve_review_config`, 5-tier precedence (`project > global > legacy > kit`), alias-or-raw expansion, validation guards, and legacy review warnings (V2, V5) — Verified PASS (exit 0)
+- [x] All 5 assigned scenarios (`URC-HP-01`, `URC-EC-01`, `URC-EC-02`, `URC-AR-01`, `URC-FR-01`) pass in `tests/test_urc_persona_review_config.py` with JUnit XML written to `build/test-results/task_01.xml` (V2, V5) — Verified PASS (46 passed; JUnit XML written)
+- [x] Existing persona config, limits, and effortless-models regression suites pass without regressions (V3) — Verified PASS (exit 0)
+- [x] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4) — Verified PASS (exit 0)
 
 ## Dependencies & Blockers
 

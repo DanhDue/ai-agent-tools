@@ -123,23 +123,14 @@ def _git_snapshot(cwd: Path) -> tuple[str, list[str]] | None:
     return head_proc.stdout.strip(), filtered_lines
 
 
-def _load_thresholds(project_root: Path) -> dict[str, float]:
-    thresholds = dict(_pool.DEFAULT_QUOTA_THRESHOLDS)
-    review_cfg = project_root / ".devtool" / "review_config.json"
-    if review_cfg.is_file():
-        try:
-            import json
-
-            data = json.loads(review_cfg.read_text(encoding="utf-8"))
-        except Exception:
-            data = None
-        if isinstance(data, Mapping) and isinstance(
-            data.get("quota_thresholds"), Mapping
-        ):
-            for key, val in data["quota_thresholds"].items():
-                if isinstance(val, (int, float)) and not isinstance(val, bool):
-                    thresholds[str(key)] = float(val)
-    return thresholds
+def _load_thresholds(
+    project_root: Path,
+    *,
+    real_home: Path | str | None = None,
+) -> dict[str, float]:
+    return dict(
+        _pc.resolve_review_config(project_root, real_home=real_home).quota_thresholds
+    )
 
 
 def _append_attempt_log(
@@ -309,7 +300,9 @@ def _format_busy_pool_report(
         if isinstance(wait_seconds, (int, float)) and float(wait_seconds).is_integer()
         else wait_seconds
     )
-    lines = [f"Stopped: agy profile pool is busy (stayed in use for {wait_display} seconds)."]
+    lines = [
+        f"Stopped: agy profile pool is busy (stayed in use for {wait_display} seconds)."
+    ]
     resident_profiles = [
         profile for profile, why in skipped.items() if why == "resident_process"
     ]
@@ -446,7 +439,9 @@ def _dispatch_direct_non_pool(
     status = (
         "model_unavailable" if failure_kind == "model_unavailable" else "task_failure"
     )
-    is_timeout = status == "task_failure" and rc == 124 and err.startswith("Process timeout:")
+    is_timeout = (
+        status == "task_failure" and rc == 124 and err.startswith("Process timeout:")
+    )
     reason = (
         "model_unavailable"
         if status == "model_unavailable"
@@ -699,7 +694,9 @@ def run_on_pool(
         )
 
     active_thresholds = (
-        dict(thresholds) if thresholds is not None else _load_thresholds(cwd_path)
+        dict(thresholds)
+        if thresholds is not None
+        else _load_thresholds(cwd_path, real_home=resolved_real_home)
     )
     agy_args = [*_pc.build_dispatch_argv(binding, mode)[1:], *extra_agy_args]
     heartbeat_seconds = float(pool_cfg["heartbeat_seconds"])

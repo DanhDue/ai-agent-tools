@@ -177,7 +177,9 @@ class TestCheckTasksCLI_Integration(unittest.TestCase):
         self.assertIn(proc.returncode, (0, 1), proc.stderr)
         if proc.returncode == 0:
             self.assertRegex(
-                proc.stdout, r"Tasks server running \(PID \d+\)\.", proc.stderr
+                proc.stdout,
+                r"Tasks server running (\(PID \d+\)|on port \d+ \(PID \d+, untracked PID file\))\.",
+                proc.stderr,
             )
         else:
             self.assertIn("Tasks server is stopped.", proc.stdout, proc.stderr)

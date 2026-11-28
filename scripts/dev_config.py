@@ -23,7 +23,9 @@ if TYPE_CHECKING:
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 
 
-def _load_module_by_path(name: str, path: Path, *, extra_sys_path: Path | None = None) -> ModuleType:
+def _load_module_by_path(
+    name: str, path: Path, *, extra_sys_path: Path | None = None
+) -> ModuleType:
     existing = sys.modules.get(name)
     if existing is not None:
         return existing
@@ -69,6 +71,8 @@ _SUBCOMMANDS = frozenset(
         "reset",
         "low-quota",
         "checkpoint",
+        "limits",
+        "review",
         "quota-check",
         "resolve",
         "profiles",
@@ -81,6 +85,25 @@ PROVIDER_PRESETS: dict[str, str] = {
     "codex": "all-codex",
 }
 _POOL_KEYS = ("gemini5h", "argonWeekly", "geminiWeekly", "creditsPool")
+_LIMIT_KEY_MAP: dict[str, str] = {
+    "task": "max_task_review_passes",
+    "fix": "max_fix_passes",
+    "principal": "max_principal_review_passes",
+    "cross-model": "max_cross_model_review_passes",
+}
+_ALL_LIMIT_KEYS: tuple[str, ...] = (
+    "max_task_review_passes",
+    "max_fix_passes",
+    "max_principal_review_passes",
+    "max_cross_model_review_passes",
+)
+_THRESHOLD_FLAG_MAP: tuple[tuple[str, str], ...] = (
+    ("five_h", "5h_min_fraction"),
+    ("seven_d", "7d_min_fraction"),
+    ("kiro_frac", "kiro_min_fraction"),
+    ("kiro_credits", "kiro_min_credits"),
+    ("argon", "agy_argon_min_fraction"),
+)
 
 
 class _DevConfigParser(argparse.ArgumentParser):
@@ -92,7 +115,9 @@ class _DevConfigParser(argparse.ArgumentParser):
 
 
 def _detect_profile(project_root: Path, *, real_home: Path | str | None = None) -> str:
-    resume_mod = _load_module_by_path("resume_context", _SCRIPTS_DIR / "resume_context.py")
+    resume_mod = _load_module_by_path(
+        "resume_context", _SCRIPTS_DIR / "resume_context.py"
+    )
     resolved_home = _pc.get_real_home(real_home)
     profile = str(
         resume_mod.detect_current_profile(project_root, real_home=resolved_home) or ""
@@ -116,21 +141,143 @@ def _load_external_review_module() -> ModuleType:
     )
 
 
-def _load_quota_thresholds(project_root: Path, review_mod: ModuleType) -> dict[str, float]:
-    thresholds: dict[str, float] = {
-        str(k): float(v) for k, v in dict(review_mod.QUOTA_THRESHOLDS).items()
+def _load_quota_thresholds(
+    project_root: Path,
+    review_mod: ModuleType | None = None,
+    *,
+    real_home: Path | str | None = None,
+) -> dict[str, float]:
+    _ = review_mod
+    return dict(
+        _pc.resolve_review_config(project_root, real_home=real_home).quota_thresholds
+    )
+
+
+def _read_json_mapping(path: Path) -> Mapping[str, Any]:
+    if not path.is_file():
+        return {}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return {}
+    return raw if isinstance(raw, Mapping) else {}
+
+
+def _read_last_used_provider(project_root: Path) -> str:
+    for rel in (
+        Path(".devtool") / "state" / "review_runtime.json",
+        Path(".devtool") / "review_config.json",
+    ):
+        data = _read_json_mapping(project_root / rel)
+        val = data.get("last_used_provider")
+        if isinstance(val, str) and val.strip():
+            return val.strip()
+    return "claude"
+
+
+def _serialize_review_config(
+    project_root: Path,
+    review_cfg: Any,
+) -> dict[str, Any]:
+    providers_payload: dict[str, Any] = {}
+    for cli, binding in review_cfg.providers.items():
+        entry: dict[str, Any] = {
+            "model": binding.model,
+            "model_id": binding.model_id,
+            "effort": binding.effort,
+            "source": binding.source,
+        }
+        if binding.host is not None:
+            entry["host"] = binding.host
+        providers_payload[cli] = entry
+    return {
+        "provider_priority": list(review_cfg.provider_priority),
+        "providers": providers_payload,
+        "quota_thresholds": dict(review_cfg.quota_thresholds),
+        "last_used_provider": _read_last_used_provider(project_root),
+        "sources": dict(review_cfg.sources),
     }
-    review_cfg = project_root / ".devtool" / "review_config.json"
-    if review_cfg.is_file():
-        try:
-            data = json.loads(review_cfg.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-            data = None
-        if isinstance(data, Mapping) and isinstance(data.get("quota_thresholds"), Mapping):
-            for key, val in data["quota_thresholds"].items():
-                if isinstance(val, (int, float)) and not isinstance(val, bool):
-                    thresholds[str(key)] = float(val)
-    return thresholds
+
+
+def _print_review_summary(project_root: Path, review_cfg: Any) -> None:
+    prio_str = ", ".join(review_cfg.provider_priority)
+    prio_src = review_cfg.sources["provider_priority"]
+    last_used = _read_last_used_provider(project_root)
+    print(f"External review priority: {prio_str} ({prio_src}) | last_used={last_used}")
+    print(
+        f"{'Provider':<10} {'Model':<22} {'Resolved ID':<26} {'Effort':<10} "
+        f"{'Host':<24} {'Source'}"
+    )
+    for cli in _pc.REVIEW_PROVIDERS:
+        b = review_cfg.providers[cli]
+        host_str = b.host or "-"
+        print(
+            f"{cli:<10} {b.model:<22} {b.model_id:<26} {b.effort:<10} "
+            f"{host_str:<24} {b.source}"
+        )
+
+
+def _warn_project_masks_global_limits(
+    project_root: Path,
+    updates: Mapping[str, int],
+) -> None:
+    proj_data = _read_json_mapping(_pc.project_config_path(project_root))
+    for key, new_val in updates.items():
+        if key in proj_data:
+            print(
+                f"Warning: project override in .agents/config/personas.json masks "
+                f"global {key} ({new_val}) with {proj_data[key]}.",
+                file=sys.stderr,
+            )
+
+
+def _warn_project_masks_global_review(
+    project_root: Path,
+    *,
+    priority: bool = False,
+    provider: str | None = None,
+    threshold_keys: Sequence[str] = (),
+) -> None:
+    proj_data = _read_json_mapping(_pc.project_config_path(project_root))
+    proj_review = proj_data.get("review")
+    if not isinstance(proj_review, Mapping):
+        return
+    if priority and "provider_priority" in proj_review:
+        print(
+            "Warning: project override in .agents/config/personas.json masks "
+            f"global review.provider_priority with {proj_review['provider_priority']}.",
+            file=sys.stderr,
+        )
+    if provider is not None:
+        proj_provs = proj_review.get("providers")
+        if isinstance(proj_provs, Mapping) and provider in proj_provs:
+            print(
+                "Warning: project override in .agents/config/personas.json masks "
+                f"global review.providers.{provider}.",
+                file=sys.stderr,
+            )
+    if threshold_keys:
+        proj_th = proj_review.get("quota_thresholds")
+        if isinstance(proj_th, Mapping):
+            for key in threshold_keys:
+                if key in proj_th:
+                    print(
+                        "Warning: project override in .agents/config/personas.json masks "
+                        f"global review.quota_thresholds.{key} with {proj_th[key]}.",
+                        file=sys.stderr,
+                    )
+
+
+def _prune_empty_review(layer: dict[str, Any]) -> None:
+    review = layer.get("review")
+    if not isinstance(review, dict):
+        return
+    for subkey in ("providers", "quota_thresholds"):
+        subval = review.get(subkey)
+        if isinstance(subval, dict) and not subval:
+            review.pop(subkey, None)
+    if not review:
+        layer.pop("review", None)
 
 
 def _agy_status_ok(payload: Mapping[str, Any]) -> bool:
@@ -191,7 +338,11 @@ def _evaluate_binding_quota(
             and frac_5h >= thresholds["5h_min_fraction"]
             and frac_7d > thresholds["7d_min_fraction"]
         )
-        return ok, f"5H={frac_5h * 100:.1f}%, 7D={frac_7d * 100:.1f}%, status={status}", None
+        return (
+            ok,
+            f"5H={frac_5h * 100:.1f}%, 7D={frac_7d * 100:.1f}%, status={status}",
+            None,
+        )
 
     if binding.cli == "kiro":
         cp_raw = payload.get("creditsPool") or payload.get("gemini5h")
@@ -204,7 +355,11 @@ def _evaluate_binding_quota(
             and frac >= thresholds["kiro_min_fraction"]
             and remaining >= thresholds["kiro_min_credits"]
         )
-        return ok, f"monthly={frac * 100:.1f}% ({remaining:.1f} credits), status={status}", None
+        return (
+            ok,
+            f"monthly={frac * 100:.1f}% ({remaining:.1f} credits), status={status}",
+            None,
+        )
 
     return True, "", "quota_unknown"
 
@@ -218,7 +373,9 @@ def _validate_persona_name(persona: str) -> None:
 
 def _validate_scope(scope: str) -> None:
     if scope not in ("global", "project"):
-        raise PersonaConfigError(f"Invalid scope '{scope}'; expected 'global' or 'project'")
+        raise PersonaConfigError(
+            f"Invalid scope '{scope}'; expected 'global' or 'project'"
+        )
 
 
 def cmd_status(
@@ -232,9 +389,13 @@ def cmd_status(
     bindings = _pc.resolve_all_personas(project_root, real_home=real_home)
     profile = _detect_profile(project_root, real_home=real_home)
     lq_state = _pc.low_quota_state(project_root, profile, real_home=real_home)
-    base_turns = int(cfg["checkpoint_policy"]["max_orchestrator_turns_before_checkpoint"])
+    base_turns = int(
+        cfg["checkpoint_policy"]["max_orchestrator_turns_before_checkpoint"]
+    )
     eff_turns = _pc.effective_turn_budget(project_root, profile, real_home=real_home)
-    max_rev, max_fix = _pc.resolve_task_review_limits(project_root, real_home=real_home)
+    review_cfg = _pc.resolve_review_config(project_root, real_home=real_home)
+    limits = review_cfg.limits
+    review_payload = _serialize_review_config(project_root, review_cfg)
 
     warnings = _pc.detect_legacy_warnings(project_root)
     personas_payload: dict[str, Any] = {}
@@ -256,9 +417,11 @@ def cmd_status(
         "profile": profile,
         "turn_budget": {"base": base_turns, "effective": eff_turns},
         "task_review_limits": {
-            "max_task_review_passes": max_rev,
-            "max_fix_passes": max_fix,
+            "max_task_review_passes": limits.max_task_review_passes,
+            "max_fix_passes": limits.max_fix_passes,
         },
+        "review_limits": asdict(limits),
+        "review": review_payload,
         "low_quota": lq_state,
         "personas": personas_payload,
         "warnings": warnings,
@@ -267,11 +430,20 @@ def cmd_status(
         print(json.dumps(payload, indent=2))
         return 0
 
-    print(f"Active preset: {cfg['active_preset']} (presets: {', '.join(payload['presets'])})")
+    print(
+        f"Active preset: {cfg['active_preset']} (presets: {', '.join(payload['presets'])})"
+    )
     print(f"Profile: {profile} | Turn budget: {eff_turns} (base {base_turns})")
     print(
-        f"Task review limits: max_task_review_passes={max_rev}, "
-        f"max_fix_passes={max_fix}"
+        "Review limits: "
+        f"max_task_review_passes={limits.max_task_review_passes} "
+        f"({limits.sources['max_task_review_passes']}), "
+        f"max_fix_passes={limits.max_fix_passes} "
+        f"({limits.sources['max_fix_passes']}), "
+        f"max_principal_review_passes={limits.max_principal_review_passes} "
+        f"({limits.sources['max_principal_review_passes']}), "
+        f"max_cross_model_review_passes={limits.max_cross_model_review_passes} "
+        f"({limits.sources['max_cross_model_review_passes']})"
     )
     if lq_state:
         print(f"Low-quota mode: ON (expires_at={lq_state.get('expires_at', 'none')})")
@@ -292,6 +464,8 @@ def cmd_status(
         print(
             f"{persona:<24} {cli_tag:<7} {b.model_id:<28} {b.effort:<8} {fb:<15} {src_str}"
         )
+    print()
+    _print_review_summary(project_root, review_cfg)
     if warnings:
         print("\nWarnings:")
         for w in warnings:
@@ -320,8 +494,7 @@ def cmd_models(
     quota_cache: dict[str, dict[str, Any]] = {}
     thresholds: dict[str, float] | None = None
     if fetcher is not None:
-        review_mod = _load_external_review_module()
-        thresholds = _load_quota_thresholds(project_root, review_mod)
+        thresholds = _load_quota_thresholds(project_root, real_home=real_home)
 
     current_alias = bindings[persona].alias if persona else None
     aliases = list(cfg["models"].keys())
@@ -354,7 +527,9 @@ def cmd_models(
                 fallback_alias=None,
                 sources={},
             )
-            _, q_line, warn = _evaluate_binding_quota(probe, quota_cache[cli], thresholds)
+            _, q_line, warn = _evaluate_binding_quota(
+                probe, quota_cache[cli], thresholds
+            )
             quota_line = q_line or warn
         entries.append(
             {
@@ -378,7 +553,9 @@ def cmd_models(
         print(json.dumps(payload, indent=2))
         return 0
 
-    print(f"{'Alias':<16} {'CLI':<7} {'PATH':<6} {'Pool':<12} {'Efforts':<22} {'Used By'}")
+    print(
+        f"{'Alias':<16} {'CLI':<7} {'PATH':<6} {'Pool':<12} {'Efforts':<22} {'Used By'}"
+    )
     for e in entries:
         eff_str = ",".join(e["efforts"])
         used_str = ",".join(e["used_by"]) or "-"
@@ -409,7 +586,9 @@ def cmd_models_add(
         )
     efforts = [item.strip() for item in efforts_raw.split(",") if item.strip()]
     if not efforts:
-        raise PersonaConfigError(f"Invalid efforts '{efforts_raw}'; must list at least one effort")
+        raise PersonaConfigError(
+            f"Invalid efforts '{efforts_raw}'; must list at least one effort"
+        )
     entry: dict[str, Any] = {"cli": cli, "id": model_id, "efforts": efforts}
     if quota_pool is not None:
         entry["quota_pool"] = quota_pool
@@ -445,6 +624,15 @@ def _find_alias_references(cfg: Mapping[str, Any], alias: str) -> list[str]:
             refs.append(f"overrides.{persona_name}.model")
         if ov.get("fallback_model") == alias:
             refs.append(f"overrides.{persona_name}.fallback_model")
+    review = cfg.get("review")
+    if isinstance(review, Mapping):
+        providers = review.get("providers")
+        if isinstance(providers, Mapping):
+            for provider_name, entry in providers.items():
+                if not isinstance(entry, Mapping):
+                    continue
+                if entry.get("model") == alias:
+                    refs.append(f"review.providers.{provider_name}.model")
     return refs
 
 
@@ -652,7 +840,10 @@ def _checked_set_profile(
             f"--profile applies only to agy models; '{alias}' uses '{cli}'"
         )
     _pool.validate_profile_name(profile)
-    pool_names = {str(item["profile"]) for item in _pool.load_pool_config(real_home=real_home)["pool"]}
+    pool_names = {
+        str(item["profile"])
+        for item in _pool.load_pool_config(real_home=real_home)["pool"]
+    }
     if profile not in pool_names:
         raise PersonaConfigError(
             f"Profile '{profile}' is not in the agy pool; add it first with 'profiles add {profile}'"
@@ -686,9 +877,13 @@ def _resolve_set_request(
     inferred_effortless = False
     if flagged:
         if flag_model is None:
-            raise PersonaConfigError("--model and --effort are both required when using flags")
+            raise PersonaConfigError(
+                "--model and --effort are both required when using flags"
+            )
         if flag_effort is None:
-            models = _pc.load_persona_config(project_root, real_home=real_home)["models"]
+            models = _pc.load_persona_config(project_root, real_home=real_home)[
+                "models"
+            ]
             if not _is_effortless_target(models, flag_model, provider):
                 raise PersonaConfigError(
                     "--model and --effort are both required when using flags"
@@ -731,7 +926,9 @@ def _resolve_set_request(
             f"Unsupported effort '{effort}' for model '{alias}'; "
             f"allowed: {', '.join(allowed_efforts)}"
         )
-    checked = _checked_set_profile(profile, alias=alias, cli=str(entry["cli"]), real_home=real_home)
+    checked = _checked_set_profile(
+        profile, alias=alias, cli=str(entry["cli"]), real_home=real_home
+    )
     return alias, effort, checked
 
 
@@ -766,7 +963,9 @@ def cmd_set(
     def _mutate(layer: dict[str, Any]) -> None:
         overrides = layer.setdefault("overrides", {})
         if not isinstance(overrides, dict):
-            raise PersonaConfigError("Invalid 'overrides' section; expected JSON object")
+            raise PersonaConfigError(
+                "Invalid 'overrides' section; expected JSON object"
+            )
         entry: dict[str, Any] = {"model": alias, "effort": resolved_effort}
         if fallback is not None:
             entry["fallback_model"] = fallback
@@ -817,7 +1016,9 @@ def cmd_low_quota(
 ) -> int:
     """Enable or disable profile-scoped low-quota mode in the global configuration layer."""
     if action not in ("on", "off"):
-        raise PersonaConfigError(f"Invalid low-quota action '{action}'; expected 'on' or 'off'")
+        raise PersonaConfigError(
+            f"Invalid low-quota action '{action}'; expected 'on' or 'off'"
+        )
     if action == "on" and hours <= 0:
         raise PersonaConfigError(f"Invalid --for duration '{hours}'; must be positive")
 
@@ -835,7 +1036,9 @@ def cmd_low_quota(
     def _mutate(layer: dict[str, Any]) -> None:
         low_quota = layer.setdefault("low_quota", {})
         if not isinstance(low_quota, dict):
-            raise PersonaConfigError("Invalid 'low_quota' section; expected JSON object")
+            raise PersonaConfigError(
+                "Invalid 'low_quota' section; expected JSON object"
+            )
         if action == "on":
             expires_dt = current_now + timedelta(hours=hours)
             low_quota[resolved_profile] = {
@@ -870,11 +1073,397 @@ def cmd_checkpoint(
     def _mutate(layer: dict[str, Any]) -> None:
         policy = layer.setdefault("checkpoint_policy", {})
         if not isinstance(policy, dict):
-            raise PersonaConfigError("Invalid 'checkpoint_policy' section; expected JSON object")
+            raise PersonaConfigError(
+                "Invalid 'checkpoint_policy' section; expected JSON object"
+            )
         policy["max_orchestrator_turns_before_checkpoint"] = turns
 
     _pc.locked_update_layer(project_root, scope, _mutate, real_home=real_home)
     print(f"Set max_orchestrator_turns_before_checkpoint={turns} in {scope} scope.")
+    return 0
+
+
+def cmd_limits(
+    project_root: Path,
+    *,
+    task_review: int | None = None,
+    fix: int | None = None,
+    principal_review: int | None = None,
+    cross_model_review: int | None = None,
+    json_output: bool = False,
+    scope: str = "global",
+    real_home: Path | None = None,
+) -> int:
+    """Display or update the four independent pass limits."""
+    updates: dict[str, int] = {}
+    if task_review is not None:
+        if type(task_review) is not int or task_review < 1:
+            raise PersonaConfigError(
+                f"Invalid max_task_review_passes '{task_review}'; "
+                "must be a positive integer"
+            )
+        updates["max_task_review_passes"] = task_review
+    if fix is not None:
+        if type(fix) is not int or fix < 0:
+            raise PersonaConfigError(
+                f"Invalid max_fix_passes '{fix}'; must be a non-negative integer"
+            )
+        updates["max_fix_passes"] = fix
+    if principal_review is not None:
+        if type(principal_review) is not int or principal_review < 1:
+            raise PersonaConfigError(
+                f"Invalid max_principal_review_passes '{principal_review}'; "
+                "must be a positive integer"
+            )
+        updates["max_principal_review_passes"] = principal_review
+    if cross_model_review is not None:
+        if type(cross_model_review) is not int or cross_model_review < 1:
+            raise PersonaConfigError(
+                f"Invalid max_cross_model_review_passes '{cross_model_review}'; "
+                "must be a positive integer"
+            )
+        updates["max_cross_model_review_passes"] = cross_model_review
+
+    if updates:
+        if json_output:
+            raise PersonaConfigError("Cannot combine --json with limit update flags")
+        _validate_scope(scope)
+
+        def _mutate(layer: dict[str, Any]) -> None:
+            for key, val in updates.items():
+                layer[key] = val
+
+        _pc.locked_update_layer(project_root, scope, _mutate, real_home=real_home)
+        if scope == "global":
+            _warn_project_masks_global_limits(project_root, updates)
+        summary = ", ".join(f"{k}={v}" for k, v in updates.items())
+        print(f"Updated limits ({summary}) in {scope} scope.")
+        return 0
+
+    limits = _pc.resolve_review_limits(project_root, real_home=real_home)
+    if json_output:
+        print(json.dumps(asdict(limits), indent=2))
+        return 0
+    print("Pass limits:")
+    for key in _ALL_LIMIT_KEYS:
+        val = getattr(limits, key)
+        src = limits.sources[key]
+        print(f"  {key:<31} {val} ({src})")
+    return 0
+
+
+def cmd_limits_reset(
+    project_root: Path,
+    *,
+    target: str = "all",
+    scope: str = "global",
+    real_home: Path | None = None,
+) -> int:
+    """Reset one or all pass limits in the target scope."""
+    _validate_scope(scope)
+    normalized = target or "all"
+    if normalized != "all" and normalized not in _LIMIT_KEY_MAP:
+        allowed = ", ".join((*_LIMIT_KEY_MAP, "all"))
+        raise PersonaConfigError(
+            f"Unknown limits reset target '{normalized}'; expected one of {allowed}"
+        )
+    keys = _ALL_LIMIT_KEYS if normalized == "all" else (_LIMIT_KEY_MAP[normalized],)
+    target_path = _pc.config_path_for_scope(project_root, scope, real_home=real_home)
+    if target_path.is_file():
+
+        def _mutate(layer: dict[str, Any]) -> None:
+            for key in keys:
+                layer.pop(key, None)
+
+        _pc.locked_update_layer(project_root, scope, _mutate, real_home=real_home)
+    print(f"Reset limits ({normalized}) in {scope} scope.")
+    return 0
+
+
+def cmd_review_status(
+    project_root: Path,
+    *,
+    json_output: bool = False,
+    real_home: Path | None = None,
+) -> int:
+    """Show resolved external review priority, providers, quota thresholds, and warnings."""
+    review_cfg = _pc.resolve_review_config(project_root, real_home=real_home)
+    warnings = _pc.detect_legacy_warnings(project_root)
+    payload = _serialize_review_config(project_root, review_cfg)
+    payload["limits"] = asdict(review_cfg.limits)
+    payload["warnings"] = warnings
+    if json_output:
+        print(json.dumps(payload, indent=2))
+        return 0
+
+    _print_review_summary(project_root, review_cfg)
+    print("\nQuota thresholds:")
+    for key, val in review_cfg.quota_thresholds.items():
+        src = review_cfg.sources.get(f"quota_thresholds.{key}", "kit")
+        print(f"  {key:<24} {val} ({src})")
+    if warnings:
+        print("\nWarnings:")
+        for w in warnings:
+            print(f"  - {w}")
+    return 0
+
+
+def cmd_review_priority(
+    project_root: Path,
+    *,
+    providers: Sequence[str],
+    scope: str = "global",
+    real_home: Path | None = None,
+) -> int:
+    """Update shared external review provider_priority in target scope."""
+    _validate_scope(scope)
+    items = [
+        item.strip() for raw in providers for item in raw.split(",") if item.strip()
+    ]
+    validated = _pc._validate_review_priority(items)
+
+    def _mutate(layer: dict[str, Any]) -> None:
+        review = layer.setdefault("review", {})
+        if not isinstance(review, dict):
+            raise PersonaConfigError("Invalid 'review' section; expected JSON object")
+        review["provider_priority"] = list(validated)
+
+    _pc.locked_update_layer(project_root, scope, _mutate, real_home=real_home)
+    if scope == "global":
+        _warn_project_masks_global_review(project_root, priority=True)
+    print(f"Set review.provider_priority={list(validated)} in {scope} scope.")
+    return 0
+
+
+def _resolve_review_set_effort(
+    project_root: Path,
+    *,
+    provider: str,
+    model: str,
+    effort: str | None,
+    models: Mapping[str, Any],
+    real_home: Path | None,
+) -> str:
+    if effort is not None and effort not in _pc.REVIEW_THINKING_LEVELS:
+        raise PersonaConfigError(
+            f"Invalid effort '{effort}' for review provider '{provider}'; "
+            f"allowed: {', '.join(_pc.REVIEW_THINKING_LEVELS)}"
+        )
+    if model in models:
+        alias_entry = models[model]
+        alias_cli = str(alias_entry["cli"])
+        if alias_cli != provider:
+            raise PersonaConfigError(
+                f"Review provider '{provider}' cannot use model alias '{model}' "
+                f"(belongs to cli '{alias_cli}', expected '{provider}')"
+            )
+        alias_efforts = list(alias_entry["efforts"])
+        if alias_efforts == ["none"]:
+            if effort is not None and effort != "none":
+                raise PersonaConfigError(
+                    f"Unsupported effort '{effort}' for fixed-effort model alias "
+                    f"'{model}'; allowed: none"
+                )
+            resolved_effort = "none"
+        elif effort is not None:
+            resolved_effort = effort
+        else:
+            current_eff = (
+                _pc.resolve_review_config(project_root, real_home=real_home)
+                .providers[provider]
+                .effort
+            )
+            if current_eff in alias_efforts:
+                resolved_effort = current_eff
+            elif "high" in alias_efforts:
+                resolved_effort = "high"
+            else:
+                resolved_effort = str(alias_efforts[0])
+        _pc._resolve_review_provider_model(provider, model, resolved_effort, models)
+        return resolved_effort
+
+    if effort is not None:
+        return effort
+    return str(
+        _pc.resolve_review_config(project_root, real_home=real_home)
+        .providers[provider]
+        .effort
+    )
+
+
+def cmd_review_set(
+    project_root: Path,
+    *,
+    provider: str,
+    model: str,
+    effort: str | None = None,
+    host: str | None = None,
+    scope: str = "global",
+    real_home: Path | None = None,
+) -> int:
+    """Set model, effort, and optional Ollama host for an external review provider."""
+    _validate_scope(scope)
+    if provider not in _pc.REVIEW_PROVIDERS:
+        raise PersonaConfigError(
+            f"Unknown review provider '{provider}'; "
+            f"allowed: {', '.join(_pc.REVIEW_PROVIDERS)}"
+        )
+    trimmed_model = model.strip()
+    if not trimmed_model:
+        raise PersonaConfigError(
+            f"Invalid model '{model}' for review provider '{provider}'; "
+            "must be a non-empty string"
+        )
+    if host is not None:
+        if provider != "ollama":
+            raise PersonaConfigError(
+                f"--host is only allowed for review provider 'ollama', not '{provider}'"
+            )
+        if not _pc._is_valid_ollama_host(host):
+            raise PersonaConfigError(
+                f"Invalid host '{host}' in review.providers.ollama.host; "
+                "must start with http:// or https://"
+            )
+
+    merged = _pc.load_persona_config(project_root, real_home=real_home)
+    resolved_effort = _resolve_review_set_effort(
+        project_root,
+        provider=provider,
+        model=trimmed_model,
+        effort=effort,
+        models=merged["models"],
+        real_home=real_home,
+    )
+
+    def _mutate(layer: dict[str, Any]) -> None:
+        review = layer.setdefault("review", {})
+        if not isinstance(review, dict):
+            raise PersonaConfigError("Invalid 'review' section; expected JSON object")
+        providers = review.setdefault("providers", {})
+        if not isinstance(providers, dict):
+            raise PersonaConfigError(
+                "Invalid 'review.providers' section; expected JSON object"
+            )
+        existing = providers.get(provider)
+        entry: dict[str, Any] = {"model": trimmed_model, "effort": resolved_effort}
+        if provider == "ollama":
+            if host is not None:
+                entry["host"] = host.strip()
+            elif isinstance(existing, Mapping) and "host" in existing:
+                entry["host"] = existing["host"]
+        providers[provider] = entry
+
+    _pc.locked_update_layer(project_root, scope, _mutate, real_home=real_home)
+    if scope == "global":
+        _warn_project_masks_global_review(project_root, provider=provider)
+    host_suffix = f" host={host.strip()}" if host is not None else ""
+    print(
+        f"Set review.providers.{provider} -> {trimmed_model} "
+        f"(effort={resolved_effort}{host_suffix}) in {scope} scope."
+    )
+    return 0
+
+
+def cmd_review_thresholds(
+    project_root: Path,
+    *,
+    five_h: float | None = None,
+    seven_d: float | None = None,
+    kiro_frac: float | None = None,
+    kiro_credits: float | None = None,
+    argon: float | None = None,
+    scope: str = "global",
+    real_home: Path | None = None,
+) -> int:
+    """Update external review and dispatch quota thresholds in target scope."""
+    _validate_scope(scope)
+    raw_values = {
+        "five_h": five_h,
+        "seven_d": seven_d,
+        "kiro_frac": kiro_frac,
+        "kiro_credits": kiro_credits,
+        "argon": argon,
+    }
+    updates = {
+        key: raw_values[arg_name]
+        for arg_name, key in _THRESHOLD_FLAG_MAP
+        if raw_values[arg_name] is not None
+    }
+    if not updates:
+        raise PersonaConfigError(
+            "Specify at least one threshold flag "
+            "(--5h, --7d, --kiro-frac, --kiro-credits, --argon)"
+        )
+    validated = _pc._validate_review_quota_thresholds(updates)
+
+    def _mutate(layer: dict[str, Any]) -> None:
+        review = layer.setdefault("review", {})
+        if not isinstance(review, dict):
+            raise PersonaConfigError("Invalid 'review' section; expected JSON object")
+        thresholds = review.setdefault("quota_thresholds", {})
+        if not isinstance(thresholds, dict):
+            raise PersonaConfigError(
+                "Invalid 'review.quota_thresholds' section; expected JSON object"
+            )
+        thresholds.update(validated)
+
+    _pc.locked_update_layer(project_root, scope, _mutate, real_home=real_home)
+    if scope == "global":
+        _warn_project_masks_global_review(
+            project_root, threshold_keys=tuple(validated.keys())
+        )
+    summary = ", ".join(f"{k}={v}" for k, v in validated.items())
+    print(f"Updated review.quota_thresholds ({summary}) in {scope} scope.")
+    return 0
+
+
+def cmd_review_reset(
+    project_root: Path,
+    *,
+    target: str = "all",
+    scope: str = "global",
+    real_home: Path | None = None,
+) -> int:
+    """Reset targeted external review overrides in a scope and prune empty dicts."""
+    _validate_scope(scope)
+    normalized = target or "all"
+    valid_targets = (
+        "priority",
+        "providers",
+        *_pc.REVIEW_PROVIDERS,
+        "thresholds",
+        "all",
+    )
+    if normalized not in valid_targets:
+        raise PersonaConfigError(
+            f"Unknown review reset target '{normalized}'; "
+            f"expected one of {', '.join(valid_targets)}"
+        )
+
+    target_path = _pc.config_path_for_scope(project_root, scope, real_home=real_home)
+    if target_path.is_file():
+
+        def _mutate(layer: dict[str, Any]) -> None:
+            if normalized == "all":
+                layer.pop("review", None)
+                return
+            review = layer.get("review")
+            if not isinstance(review, dict):
+                return
+            if normalized == "priority":
+                review.pop("provider_priority", None)
+            elif normalized == "providers":
+                review.pop("providers", None)
+            elif normalized == "thresholds":
+                review.pop("quota_thresholds", None)
+            else:
+                provs = review.get("providers")
+                if isinstance(provs, dict):
+                    provs.pop(normalized, None)
+            _prune_empty_review(layer)
+
+        _pc.locked_update_layer(project_root, scope, _mutate, real_home=real_home)
+    print(f"Reset review ({normalized}) in {scope} scope.")
     return 0
 
 
@@ -917,12 +1506,18 @@ def _check_agy_pool_quota(
         if chosen is None:
             st = _pool.pool_status(real_home=real_home)
             for item in st.get("profiles", []):
-                if item.get("profile") == acq.profile and isinstance(item.get("quota"), Mapping):
+                if item.get("profile") == acq.profile and isinstance(
+                    item.get("quota"), Mapping
+                ):
                     chosen = dict(item["quota"])
                     break
         if chosen is not None:
             _, q_line, warn = _evaluate_binding_quota(binding, chosen, thresholds)
-            detail = f"profile={acq.profile} ({q_line})" if q_line else f"profile={acq.profile}"
+            detail = (
+                f"profile={acq.profile} ({q_line})"
+                if q_line
+                else f"profile={acq.profile}"
+            )
             return True, detail, warn
         return True, f"profile={acq.profile}", None
 
@@ -946,8 +1541,10 @@ def cmd_quota_check(
         _validate_persona_name(persona)
 
     review_mod = _load_external_review_module()
-    thresholds = _load_quota_thresholds(project_root, review_mod)
-    active_fetcher = fetcher if fetcher is not None else review_mod._default_quota_fetcher
+    thresholds = _load_quota_thresholds(project_root, review_mod, real_home=real_home)
+    active_fetcher = (
+        fetcher if fetcher is not None else review_mod._default_quota_fetcher
+    )
     pool_cfg = _pool.load_pool_config(real_home=real_home)
     has_pool = bool(pool_cfg["pool"])
 
@@ -988,12 +1585,18 @@ def cmd_quota_check(
 
     overall_sufficient = all(item["sufficient"] for item in results)
     if json_output:
-        print(json.dumps({"sufficient": overall_sufficient, "personas": results}, indent=2))
+        print(
+            json.dumps(
+                {"sufficient": overall_sufficient, "personas": results}, indent=2
+            )
+        )
     else:
         for item in results:
             state = "OK" if item["sufficient"] else "INSUFFICIENT"
             detail = item["quota_line"] or item["warning"] or ""
-            print(f"{item['persona']} ({item['cli']}/{item['alias']}): {state} [{detail}]")
+            print(
+                f"{item['persona']} ({item['cli']}/{item['alias']}): {state} [{detail}]"
+            )
     return 0 if overall_sufficient else 2
 
 
@@ -1010,7 +1613,9 @@ def cmd_resolve(
     if fmt not in ("json", "argv"):
         raise PersonaConfigError(f"Invalid format '{fmt}'; expected 'json' or 'argv'")
     if mode not in ("read-only", "write"):
-        raise PersonaConfigError(f"Invalid mode '{mode}'; expected 'read-only' or 'write'")
+        raise PersonaConfigError(
+            f"Invalid mode '{mode}'; expected 'read-only' or 'write'"
+        )
 
     binding = _pc.resolve_persona(persona, project_root, real_home=real_home)
     argv = _pc.build_dispatch_argv(binding, mode)
@@ -1035,7 +1640,9 @@ def cmd_profiles_list(
     if json_output:
         print(json.dumps(status, indent=2))
         return 0
-    print(f"Pool state: {status['state']} (earliest_reset: {status['earliest_reset'] or 'none'})")
+    print(
+        f"Pool state: {status['state']} (earliest_reset: {status['earliest_reset'] or 'none'})"
+    )
     if not status["profiles"]:
         print("No profiles configured in agy pool.")
         return 0
@@ -1191,7 +1798,10 @@ def cmd_profiles_discover(
     _ = project_root
     find = discoverer if discoverer is not None else _discover_agy_profiles
     host = host_profile if host_profile is not None else _pool.detect_host_profile()
-    in_pool = [str(item["profile"]) for item in _pool.load_pool_config(real_home=real_home)["pool"]]
+    in_pool = [
+        str(item["profile"])
+        for item in _pool.load_pool_config(real_home=real_home)["pool"]
+    ]
     candidates = sorted({str(name) for name in find()} - set(in_pool))
     entries = [{"profile": name, "host": name == host} for name in candidates]
     if json_output:
@@ -1239,9 +1849,15 @@ def _print_outside_pool_probe(result: Mapping[str, Any]) -> None:
         quota_state = "pass"
 
     print(f"Probed '{result['profile']}' (not in the pool): status={result['status']}")
-    print(f"  Quota: 5H={w_5h} (>= {t_5h:.1f}%), 7D={w_7d} (> {t_7d:.1f}%) -> {quota_state}")
+    print(
+        f"  Quota: 5H={w_5h} (>= {t_5h:.1f}%), 7D={w_7d} (> {t_7d:.1f}%) -> {quota_state}"
+    )
     if result["resident_process"]:
-        res_text = "yes (host profile)" if result["is_host"] else "yes (held by a running process)"
+        res_text = (
+            "yes (host profile)"
+            if result["is_host"]
+            else "yes (held by a running process)"
+        )
     else:
         res_text = "no"
     print(f"  Resident process: {res_text}")
@@ -1255,7 +1871,9 @@ def _print_outside_pool_probe(result: Mapping[str, Any]) -> None:
     if not result["status_ok"]:
         reasons.append(f"status={result['status']}")
     if not verdict.sufficient:
-        reasons.append(", ".join(f"{item['window']} below floor" for item in verdict.failing))
+        reasons.append(
+            ", ".join(f"{item['window']} below floor" for item in verdict.failing)
+        )
     if result["resident_process"] and not result["is_host"]:
         reasons.append("held by resident process")
     print(f"  Verdict: not usable ({'; '.join(reasons)})")
@@ -1284,7 +1902,7 @@ def cmd_profiles_probe(
                 discoverer=find,
                 resident_probe=resident_probe,
                 thresholds=lambda: _load_quota_thresholds(
-                    project_root, _load_external_review_module()
+                    project_root, real_home=real_home
                 ),
                 host_profile=host_profile,
                 real_home=real_home,
@@ -1322,9 +1940,13 @@ def cmd_dispatch(
     """Resolve persona binding, dispatch through agy pool (or directly for other CLIs), and print JSON."""
     _validate_persona_name(persona)
     if mode not in ("write", "read-only"):
-        raise PersonaConfigError(f"Invalid mode '{mode}'; expected 'write' or 'read-only'")
+        raise PersonaConfigError(
+            f"Invalid mode '{mode}'; expected 'write' or 'read-only'"
+        )
     if role not in ("orchestrator", "runner"):
-        raise AgyPoolError(f"Invalid role '{role}'; expected 'orchestrator' or 'runner'")
+        raise AgyPoolError(
+            f"Invalid role '{role}'; expected 'orchestrator' or 'runner'"
+        )
     if wait < 0:
         raise AgyPoolError(f"Invalid --wait '{wait}'; must be >= 0")
     if not prompt_file.is_file():
@@ -1412,15 +2034,21 @@ def _add_top_level_options(parser: argparse.ArgumentParser) -> None:
 def _build_parser() -> _DevConfigParser:
     parser = _DevConfigParser(prog="dev_config.py")
     _add_top_level_options(parser)
-    sub = parser.add_subparsers(dest="command", required=False, parser_class=_DevConfigParser)
+    sub = parser.add_subparsers(
+        dest="command", required=False, parser_class=_DevConfigParser
+    )
 
-    p_status = sub.add_parser("status", help="Show resolved persona bindings and warnings.")
+    p_status = sub.add_parser(
+        "status", help="Show resolved persona bindings and warnings."
+    )
     p_status.add_argument("--json", action="store_true")
 
     p_models = sub.add_parser("models", help="Inspect or modify the model catalogue.")
     p_models.add_argument("--persona", default=None)
     p_models.add_argument("--json", action="store_true")
-    models_sub = p_models.add_subparsers(dest="models_action", parser_class=_DevConfigParser)
+    models_sub = p_models.add_subparsers(
+        dest="models_action", parser_class=_DevConfigParser
+    )
 
     p_madd = models_sub.add_parser("add", help="Add or replace a model alias.")
     p_madd.add_argument("alias")
@@ -1455,12 +2083,73 @@ def _build_parser() -> _DevConfigParser:
 
     p_lq = sub.add_parser("low-quota", help="Toggle profile-scoped low-quota mode.")
     p_lq.add_argument("action")
-    p_lq.add_argument("--for", dest="hours", type=float, default=_pc.DEFAULT_LOW_QUOTA_HOURS)
+    p_lq.add_argument(
+        "--for", dest="hours", type=float, default=_pc.DEFAULT_LOW_QUOTA_HOURS
+    )
     p_lq.add_argument("--profile", default=None)
 
-    p_cp = sub.add_parser("checkpoint", help="Configure turn budget between checkpoints.")
+    p_cp = sub.add_parser(
+        "checkpoint", help="Configure turn budget between checkpoints."
+    )
     p_cp.add_argument("--turns", type=int, required=True)
     p_cp.add_argument("--scope", default=argparse.SUPPRESS)
+
+    p_limits = sub.add_parser("limits", help="Inspect, update, or reset pass limits.")
+    p_limits.add_argument("--json", action="store_true")
+    p_limits.add_argument("--task-review", type=int, default=None)
+    p_limits.add_argument("--fix", type=int, default=None)
+    p_limits.add_argument("--principal-review", type=int, default=None)
+    p_limits.add_argument("--cross-model-review", type=int, default=None)
+    p_limits.add_argument("--scope", default=argparse.SUPPRESS)
+    limits_sub = p_limits.add_subparsers(
+        dest="limits_action", parser_class=_DevConfigParser
+    )
+    p_lreset = limits_sub.add_parser("reset", help="Reset pass limits in a scope.")
+    p_lreset.add_argument("limits_target", nargs="?", default="all")
+    p_lreset.add_argument("--scope", default=argparse.SUPPRESS)
+
+    p_review = sub.add_parser(
+        "review", help="Inspect or configure external review settings."
+    )
+    review_sub = p_review.add_subparsers(
+        dest="review_action", parser_class=_DevConfigParser
+    )
+
+    p_rstatus = review_sub.add_parser(
+        "status", help="Show resolved external review settings."
+    )
+    p_rstatus.add_argument("--json", action="store_true")
+
+    p_rprio = review_sub.add_parser(
+        "priority", help="Set shared external review provider priority."
+    )
+    p_rprio.add_argument("review_providers", nargs="+")
+    p_rprio.add_argument("--scope", default=argparse.SUPPRESS)
+
+    p_rset = review_sub.add_parser(
+        "set", help="Set model, effort, or Ollama host for a review provider."
+    )
+    p_rset.add_argument("review_provider")
+    p_rset.add_argument("--model", dest="review_model", required=True)
+    p_rset.add_argument("--effort", dest="review_effort", default=None)
+    p_rset.add_argument("--host", dest="review_host", default=None)
+    p_rset.add_argument("--scope", default=argparse.SUPPRESS)
+
+    p_rth = review_sub.add_parser(
+        "thresholds", help="Set external review and dispatch quota thresholds."
+    )
+    p_rth.add_argument("--5h", dest="five_h", type=float, default=None)
+    p_rth.add_argument("--7d", dest="seven_d", type=float, default=None)
+    p_rth.add_argument("--kiro-frac", dest="kiro_frac", type=float, default=None)
+    p_rth.add_argument("--kiro-credits", dest="kiro_credits", type=float, default=None)
+    p_rth.add_argument("--argon", dest="argon", type=float, default=None)
+    p_rth.add_argument("--scope", default=argparse.SUPPRESS)
+
+    p_rreset = review_sub.add_parser(
+        "reset", help="Reset external review overrides in a scope."
+    )
+    p_rreset.add_argument("review_target", nargs="?", default="all")
+    p_rreset.add_argument("--scope", default=argparse.SUPPRESS)
 
     p_qc = sub.add_parser("quota-check", help="Evaluate quota gate for personas.")
     p_qc.add_argument("--personas", default=None)
@@ -1471,18 +2160,26 @@ def _build_parser() -> _DevConfigParser:
     p_res.add_argument("--format", dest="fmt", default="json")
     p_res.add_argument("--mode", default="write")
 
-    p_profiles = sub.add_parser("profiles", help="Manage the global agy profile pool and leases.")
+    p_profiles = sub.add_parser(
+        "profiles", help="Manage the global agy profile pool and leases."
+    )
     profiles_sub = p_profiles.add_subparsers(
         dest="profiles_action",
         parser_class=_DevConfigParser,
     )
-    p_plist = profiles_sub.add_parser("list", help="List pool profiles, leases, and exhaustion state.")
+    p_plist = profiles_sub.add_parser(
+        "list", help="List pool profiles, leases, and exhaustion state."
+    )
     p_plist.add_argument("--json", action="store_true")
 
-    p_padd = profiles_sub.add_parser("add", help="Add an Antigravity profile to the pool.")
+    p_padd = profiles_sub.add_parser(
+        "add", help="Add an Antigravity profile to the pool."
+    )
     p_padd.add_argument("name")
     p_padd.add_argument("--priority", type=int, default=1)
-    p_padd.add_argument("--max-concurrent", type=int, default=_pool.DEFAULT_MAX_CONCURRENT)
+    p_padd.add_argument(
+        "--max-concurrent", type=int, default=_pool.DEFAULT_MAX_CONCURRENT
+    )
     p_padd.add_argument(
         "--allow-concurrent-ag-run",
         "--shared",
@@ -1519,11 +2216,15 @@ def _build_parser() -> _DevConfigParser:
     p_prm = profiles_sub.add_parser("remove", help="Remove a profile from the pool.")
     p_prm.add_argument("name")
 
-    p_prel = profiles_sub.add_parser("release", help="Release leases held on a profile.")
+    p_prel = profiles_sub.add_parser(
+        "release", help="Release leases held on a profile."
+    )
     p_prel.add_argument("name")
     p_prel.add_argument("--force", action="store_true")
 
-    p_pclr = profiles_sub.add_parser("clear", help="Clear exhaustion state for a profile or all.")
+    p_pclr = profiles_sub.add_parser(
+        "clear", help="Clear exhaustion state for a profile or all."
+    )
     p_pclr.add_argument("name", nargs="?", default=None)
 
     p_pprb = profiles_sub.add_parser(
@@ -1542,7 +2243,9 @@ def _build_parser() -> _DevConfigParser:
     )
     p_pdisc.add_argument("--json", action="store_true")
 
-    p_disp = sub.add_parser("dispatch", help="Dispatch a persona task through the agy pool.")
+    p_disp = sub.add_parser(
+        "dispatch", help="Dispatch a persona task through the agy pool."
+    )
     p_disp.add_argument("--persona", required=True)
     p_disp.add_argument("--mode", default="write")
     p_disp.add_argument("--prompt-file", type=Path, required=True)
@@ -1561,7 +2264,9 @@ def _dispatch_args(args: argparse.Namespace, project_root: Path) -> int:
     cmd = args.command
     if getattr(args, "provider", None) is not None:
         if cmd is not None:
-            raise PersonaConfigError(f"Cannot combine --provider with subcommand '{cmd}'")
+            raise PersonaConfigError(
+                f"Cannot combine --provider with subcommand '{cmd}'"
+            )
         return cmd_provider(
             project_root,
             provider=args.provider,
@@ -1569,9 +2274,24 @@ def _dispatch_args(args: argparse.Namespace, project_root: Path) -> int:
         )
 
     scope = getattr(args, "scope", "global")
+    limits_has_flags = cmd == "limits" and any(
+        getattr(args, field, None) is not None
+        for field in ("task_review", "fix", "principal_review", "cross_model_review")
+    )
+    limits_mutating = cmd == "limits" and (
+        args.limits_action == "reset" or limits_has_flags
+    )
+    review_mutating = cmd == "review" and args.review_action in (
+        "priority",
+        "set",
+        "thresholds",
+        "reset",
+    )
     scoped = (
         cmd in ("preset", "set", "reset", "checkpoint")
         or (cmd == "models" and args.models_action in ("add", "remove"))
+        or limits_mutating
+        or review_mutating
     )
     if hasattr(args, "scope") and not scoped:
         raise PersonaConfigError(f"Subcommand '{cmd}' does not accept --scope")
@@ -1591,7 +2311,9 @@ def _dispatch_args(args: argparse.Namespace, project_root: Path) -> int:
             )
         if args.models_action == "remove":
             return cmd_models_remove(project_root, alias=args.alias, scope=scope)
-        return cmd_models(project_root, persona=args.persona, json_output=bool(args.json))
+        return cmd_models(
+            project_root, persona=args.persona, json_output=bool(args.json)
+        )
     if cmd == "preset":
         return cmd_preset(project_root, name=args.name, scope=scope)
     if cmd == "set":
@@ -1618,6 +2340,65 @@ def _dispatch_args(args: argparse.Namespace, project_root: Path) -> int:
         )
     if cmd == "checkpoint":
         return cmd_checkpoint(project_root, turns=args.turns, scope=scope)
+    if cmd == "limits":
+        if args.limits_action == "reset":
+            if limits_has_flags:
+                raise PersonaConfigError(
+                    "Cannot combine limit update flags with 'limits reset'"
+                )
+            return cmd_limits_reset(
+                project_root,
+                target=args.limits_target,
+                scope=scope,
+            )
+        return cmd_limits(
+            project_root,
+            task_review=args.task_review,
+            fix=args.fix,
+            principal_review=args.principal_review,
+            cross_model_review=args.cross_model_review,
+            json_output=bool(args.json),
+            scope=scope,
+        )
+    if cmd == "review":
+        action = args.review_action
+        if action in (None, "status"):
+            return cmd_review_status(
+                project_root,
+                json_output=bool(getattr(args, "json", False)),
+            )
+        if action == "priority":
+            return cmd_review_priority(
+                project_root,
+                providers=args.review_providers,
+                scope=scope,
+            )
+        if action == "set":
+            return cmd_review_set(
+                project_root,
+                provider=args.review_provider,
+                model=args.review_model,
+                effort=args.review_effort,
+                host=args.review_host,
+                scope=scope,
+            )
+        if action == "thresholds":
+            return cmd_review_thresholds(
+                project_root,
+                five_h=args.five_h,
+                seven_d=args.seven_d,
+                kiro_frac=args.kiro_frac,
+                kiro_credits=args.kiro_credits,
+                argon=args.argon,
+                scope=scope,
+            )
+        if action == "reset":
+            return cmd_review_reset(
+                project_root,
+                target=args.review_target,
+                scope=scope,
+            )
+        raise PersonaConfigError(f"Unknown review action '{action}'")
     if cmd == "quota-check":
         parsed_personas: tuple[str, ...] | None = None
         if args.personas is not None:
@@ -1631,7 +2412,9 @@ def _dispatch_args(args: argparse.Namespace, project_root: Path) -> int:
             json_output=bool(args.json),
         )
     if cmd == "resolve":
-        return cmd_resolve(project_root, persona=args.persona, fmt=args.fmt, mode=args.mode)
+        return cmd_resolve(
+            project_root, persona=args.persona, fmt=args.fmt, mode=args.mode
+        )
     if cmd == "profiles":
         action = args.profiles_action
         if action in (None, "list"):
@@ -1662,7 +2445,9 @@ def _dispatch_args(args: argparse.Namespace, project_root: Path) -> int:
         if action == "remove":
             return cmd_profiles_remove(project_root, name=args.name)
         if action == "release":
-            return cmd_profiles_release(project_root, name=args.name, force=bool(args.force))
+            return cmd_profiles_release(
+                project_root, name=args.name, force=bool(args.force)
+            )
         if action == "clear":
             return cmd_profiles_clear(project_root, name=args.name)
         if action == "probe":
@@ -1697,7 +2482,9 @@ def _dispatch_provider_shortcut(
     if rest:
         subcmd = next((tok for tok in rest if tok in _SUBCOMMANDS), None)
         if subcmd is not None:
-            raise PersonaConfigError(f"Cannot combine --provider with subcommand '{subcmd}'")
+            raise PersonaConfigError(
+                f"Cannot combine --provider with subcommand '{subcmd}'"
+            )
         parser.error(f"unrecognized arguments: {' '.join(rest)}")
     if top_args.provider is None:
         parser.error("a subcommand or --provider is required")

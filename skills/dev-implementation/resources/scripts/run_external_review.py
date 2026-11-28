@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import importlib.util
 import json
 import os
 import re
@@ -26,6 +27,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -56,10 +58,15 @@ from task_contract import (
     parse_integration_results,
     parse_integration_result_specs,
 )
+
 PROMPT = SCRIPTS.parent.parent / "references" / "external-review-prompt.md"
 RULES = SCRIPTS.parent.parent / "references" / "review-rules.md"
 KINDS = ("code", "principal", "epic")
 REVIEW_CONFIG_FILE = ".devtool/review_config.json"
+REVIEW_RUNTIME_FILE = ".devtool/state/review_runtime.json"
+_PERSONA_CONFIG_PATH = (
+    Path(__file__).resolve().parents[4] / "scripts" / "persona_config.py"
+)
 THINKING_LEVELS = ("none", "light", "low", "medium", "high", "xhigh", "extra-high")
 LEGACY_PROGRAMMER_MODELS = frozenset({"gemini-3.8-flash", "gemini-3.8-flash-high"})
 DEFAULT_PROGRAMMER_MODEL = "gemini-4-hydrogen-xhigh"
@@ -79,26 +86,33 @@ DEFAULT_REVIEW_CONFIG: dict[str, Any] = {
     "last_used_provider": "claude",
     "provider_priority": list(PROVIDER_PRIORITY),
     "max_rounds": MAX_REVIEW_ROUNDS,
+    "max_principal_review_passes": MAX_REVIEW_ROUNDS,
+    "max_cross_model_review_passes": MAX_REVIEW_ROUNDS,
     "quota_thresholds": dict(QUOTA_THRESHOLDS),
     "providers": {
         "claude": {
-            "model": "Opus 5.5",
+            "model": "opus",
+            "effort": "high",
             "thinking_level": "high",
         },
         "codex": {
             "model": "gpt-6.1-sol",
+            "effort": "high",
             "thinking_level": "high",
         },
         "kiro": {
             "model": "claude-opus-5.5",
+            "effort": "high",
             "thinking_level": "high",
         },
         "agy": {
-            "model": "Gemini 4 Argon (Medium)",
-            "thinking_level": "medium",
+            "model": "gemini-4-argon-high",
+            "effort": "high",
+            "thinking_level": "high",
         },
         "ollama": {
-            "model": "qwen38-fast:latest",
+            "model": "gemma4:31b-it-qat",
+            "effort": "high",
             "thinking_level": "high",
             "host": "http://localhost:11434",
         },
@@ -114,6 +128,35 @@ DEFAULT_REVIEW_CONFIG: dict[str, Any] = {
 }
 
 
+def _load_persona_config_module() -> Any:
+    """Load scripts/persona_config.py relative to the installed plugin path."""
+    target = _PERSONA_CONFIG_PATH.resolve()
+    cached = sys.modules.get("persona_config")
+    if cached is not None:
+        cached_file = getattr(cached, "__file__", None)
+        if cached_file and Path(cached_file).resolve() == target:
+            return cached
+    if not target.is_file():
+        raise RuntimeError(f"persona_config.py not found at {target}")
+    mod_name = (
+        "persona_config"
+        if "persona_config" not in sys.modules
+        else "_d3nexus_persona_config"
+    )
+    cached_alt = sys.modules.get(mod_name)
+    if cached_alt is not None:
+        cached_alt_file = getattr(cached_alt, "__file__", None)
+        if cached_alt_file and Path(cached_alt_file).resolve() == target:
+            return cached_alt
+    spec = importlib.util.spec_from_file_location(mod_name, target)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Failed to create import spec for {target}")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[mod_name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def upgrade_legacy_programmer_provider(pdata: dict[str, Any]) -> tuple[str, str]:
     """Upgrade legacy programmer model IDs in memory while preserving custom models."""
     raw_model = str(pdata.get("model") or "").strip()
@@ -123,55 +166,129 @@ def upgrade_legacy_programmer_provider(pdata: dict[str, Any]) -> tuple[str, str]
     return raw_model, (raw_level or DEFAULT_PROGRAMMER_THINKING)
 
 
-def _is_git_tracked(root: Path, rel_path: str) -> bool:
-    try:
-        res = subprocess.run(
-            ["git", "ls-files", "--error-unmatch", rel_path],
-            cwd=root,
-            capture_output=True,
-            check=False,
-        )
-        return res.returncode == 0
-    except OSError:
-        return False
-
-
-def load_review_config(root: Path) -> dict[str, Any]:
-    path = root / REVIEW_CONFIG_FILE
+def load_review_runtime(root: Path) -> dict[str, Any]:
+    """Read isolated runtime review state from .devtool/state/review_runtime.json safely."""
+    path = root / REVIEW_RUNTIME_FILE
     if not path.is_file():
-        return copy.deepcopy(DEFAULT_REVIEW_CONFIG)
+        return {}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(data, dict):
-            return copy.deepcopy(DEFAULT_REVIEW_CONFIG)
-        cfg: dict[str, Any] = copy.deepcopy(DEFAULT_REVIEW_CONFIG)
-        if "last_used_provider" in data and isinstance(data["last_used_provider"], str):
-            cfg["last_used_provider"] = data["last_used_provider"]
-        if "provider_priority" in data and isinstance(data["provider_priority"], list):
-            cfg["provider_priority"] = [
-                str(x) for x in data["provider_priority"] if isinstance(x, str)
-            ]
-        existing_providers = data.get("providers")
-        missing_default_provider = not isinstance(existing_providers, dict) or any(
-            p not in existing_providers for p in DEFAULT_REVIEW_CONFIG["providers"]
-        )
-        if isinstance(existing_providers, dict):
-            for p, pdata in existing_providers.items():
-                if isinstance(pdata, dict):
-                    cfg["providers"].setdefault(p, {})
-                    cfg["providers"][p].update(pdata)
-        if missing_default_provider and not _is_git_tracked(root, REVIEW_CONFIG_FILE):
-            save_review_config(root, cfg)
-        prog_pdata = cfg["providers"].get("programmer")
-        if isinstance(prog_pdata, dict):
-            upgraded_model, upgraded_level = upgrade_legacy_programmer_provider(
-                prog_pdata
-            )
-            prog_pdata["model"] = upgraded_model
-            prog_pdata["thinking_level"] = upgraded_level
-        return cfg
     except (json.JSONDecodeError, OSError, UnicodeDecodeError):
-        return copy.deepcopy(DEFAULT_REVIEW_CONFIG)
+        return {}
+    return dict(data) if isinstance(data, dict) else {}
+
+
+def save_review_runtime(root: Path, data: dict[str, Any]) -> None:
+    """Atomically write runtime review state to .devtool/state/review_runtime.json."""
+    path = root / REVIEW_RUNTIME_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps(data, indent=2) + "\n"
+    tmp_path: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            tmp_path = handle.name
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_path, path)
+    except Exception:
+        if tmp_path is not None:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+        raise
+
+
+def _read_legacy_review_json(root: Path) -> dict[str, Any]:
+    """Read legacy .devtool/review_config.json safely without modifying disk."""
+    path = root / REVIEW_CONFIG_FILE
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+        return {}
+    return dict(data) if isinstance(data, dict) else {}
+
+
+def load_review_config(
+    root: Path,
+    *,
+    real_home: Path | str | None = None,
+) -> dict[str, Any]:
+    """Resolve layered external review config via persona_config without writing review_config.json."""
+    pc = _load_persona_config_module()
+    resolved = pc.resolve_review_config(root, real_home=real_home)
+    legacy_raw = _read_legacy_review_json(root)
+    runtime_data = load_review_runtime(root)
+
+    runtime_provider = runtime_data.get("last_used_provider")
+    legacy_provider = legacy_raw.get("last_used_provider")
+    if isinstance(runtime_provider, str) and runtime_provider.strip():
+        last_used_provider = runtime_provider.strip()
+    elif isinstance(legacy_provider, str) and legacy_provider.strip():
+        last_used_provider = legacy_provider.strip()
+    else:
+        last_used_provider = "claude"
+
+    providers: dict[str, dict[str, Any]] = {}
+    for cli_name, binding in resolved.providers.items():
+        entry: dict[str, Any] = {
+            "model": binding.model_id,
+            "effort": binding.effort,
+            "thinking_level": binding.effort,
+        }
+        if binding.host is not None:
+            entry["host"] = binding.host
+        providers[cli_name] = entry
+
+    legacy_providers = legacy_raw.get("providers")
+    for compat_key in ("assistant", "programmer"):
+        compat_entry = copy.deepcopy(DEFAULT_REVIEW_CONFIG["providers"][compat_key])
+        if isinstance(legacy_providers, dict) and isinstance(
+            legacy_providers.get(compat_key), dict
+        ):
+            compat_entry.update(legacy_providers[compat_key])
+        if compat_key == "programmer":
+            upgraded_model, upgraded_level = upgrade_legacy_programmer_provider(
+                compat_entry
+            )
+            compat_entry["model"] = upgraded_model
+            compat_entry["thinking_level"] = upgraded_level
+        providers[compat_key] = compat_entry
+
+    return {
+        "last_used_provider": last_used_provider,
+        "provider_priority": list(resolved.provider_priority),
+        "max_rounds": resolved.limits.max_cross_model_review_passes,
+        "max_principal_review_passes": resolved.limits.max_principal_review_passes,
+        "max_cross_model_review_passes": resolved.limits.max_cross_model_review_passes,
+        "quota_thresholds": dict(resolved.quota_thresholds),
+        "providers": providers,
+    }
+
+
+def resolve_effective_max_rounds(
+    root: Path,
+    kind: str,
+    cli_max_rounds: int | None = None,
+    *,
+    real_home: Path | str | None = None,
+) -> int:
+    """Return explicit CLI max_rounds override, else kind-specific limit from persona_config."""
+    if cli_max_rounds is not None:
+        return cli_max_rounds
+    pc = _load_persona_config_module()
+    resolved = pc.resolve_review_config(root, real_home=real_home)
+    return int(resolved.max_rounds_for_kind(kind))
 
 
 def save_review_config(root: Path, config: dict[str, Any]) -> None:
@@ -185,30 +302,38 @@ def save_review_config(root: Path, config: dict[str, Any]) -> None:
 def update_sticky_review_config(
     root: Path, cli: str, model: str | None, thinking_level: str | None
 ) -> None:
+    """Persist runtime last_used_provider into .devtool/state/review_runtime.json without mutating review_config.json."""
+    _ = (model, thinking_level)
     try:
-        cfg = load_review_config(root)
-        cfg["last_used_provider"] = cli
-        if cli not in cfg.get("providers", {}):
-            cfg.setdefault("providers", {})[cli] = {}
-        if model:
-            cfg["providers"][cli]["model"] = model
-        if thinking_level:
-            cfg["providers"][cli]["thinking_level"] = thinking_level
-        save_review_config(root, cfg)
-    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+        save_review_runtime(
+            root,
+            {
+                "last_used_provider": cli,
+                "updated_at": datetime.now(UTC).isoformat(),
+            },
+        )
+    except OSError:
         pass
 
 
-def evaluate_provider_quota(cli: str, quota_data: dict[str, Any]) -> tuple[bool, str]:
+def evaluate_provider_quota(
+    cli: str,
+    quota_data: dict[str, Any],
+    *,
+    thresholds: dict[str, float] | None = None,
+) -> tuple[bool, str]:
     """Evaluate check-quota payload against 5H/7D/Monthly thresholds for Claude -> Codex -> Kiro -> Argon."""
+    eff_thresholds = dict(QUOTA_THRESHOLDS)
+    if thresholds:
+        eff_thresholds.update(thresholds)
     status = str(quota_data.get("status", ""))
     if cli in ("claude", "codex"):
         frac_5h = float((quota_data.get("gemini5h") or {}).get("fraction", 0.0))
         frac_7d = float((quota_data.get("geminiWeekly") or {}).get("fraction", 0.0))
         ok = (
             status == "ACTIVE"
-            and frac_5h >= QUOTA_THRESHOLDS["5h_min_fraction"]
-            and frac_7d > QUOTA_THRESHOLDS["7d_min_fraction"]
+            and frac_5h >= eff_thresholds["5h_min_fraction"]
+            and frac_7d > eff_thresholds["7d_min_fraction"]
         )
         return ok, f"5H={frac_5h * 100:.1f}%, 7D={frac_7d * 100:.1f}%, status={status}"
     if cli == "kiro":
@@ -218,8 +343,8 @@ def evaluate_provider_quota(cli: str, quota_data: dict[str, Any]) -> tuple[bool,
         remaining = float(cp.get("remaining", frac * limit))
         ok = (
             status.startswith("ACTIVE")
-            and frac >= QUOTA_THRESHOLDS["kiro_min_fraction"]
-            and remaining >= QUOTA_THRESHOLDS["kiro_min_credits"]
+            and frac >= eff_thresholds["kiro_min_fraction"]
+            and remaining >= eff_thresholds["kiro_min_credits"]
         )
         return (
             ok,
@@ -231,8 +356,8 @@ def evaluate_provider_quota(cli: str, quota_data: dict[str, Any]) -> tuple[bool,
         frac_argon = float(argon.get("fraction", 0.0))
         frac_5h = float(g5h.get("fraction", 0.0))
         ok = (status == "ACTIVE" or bool(quota_data.get("success"))) and (
-            frac_argon >= QUOTA_THRESHOLDS["agy_argon_min_fraction"]
-            or frac_5h >= QUOTA_THRESHOLDS["5h_min_fraction"]
+            frac_argon >= eff_thresholds["agy_argon_min_fraction"]
+            or frac_5h >= eff_thresholds["5h_min_fraction"]
         )
         return (
             ok,
@@ -245,8 +370,6 @@ def _default_quota_fetcher(cli: str) -> dict[str, Any]:
     quota_script = SCRIPTS.parents[3] / "scripts" / "agy_quota.py"
     if not quota_script.is_file():
         return {}
-    import importlib.util
-
     spec = importlib.util.spec_from_file_location("agy_quota", quota_script)
     if spec is None or spec.loader is None:
         return {}
@@ -275,6 +398,8 @@ def select_provider_by_quota(
     quota_fetcher: Any = None,
     binary_resolver: Any = None,
     priority: list[str] | None = None,
+    *,
+    thresholds: dict[str, float] | None = None,
 ) -> tuple[str | None, list[str]]:
     """Select the highest-priority eligible provider via check-quota."""
     fetcher = quota_fetcher or _default_quota_fetcher
@@ -290,7 +415,7 @@ def select_provider_by_quota(
         except Exception as exc:
             diagnostics.append(f"{candidate}: quota check error ({exc})")
             continue
-        ok, detail = evaluate_provider_quota(candidate, data)
+        ok, detail = evaluate_provider_quota(candidate, data, thresholds=thresholds)
         diagnostics.append(f"{candidate}: {'ELIGIBLE' if ok else 'SKIPPED'} ({detail})")
         if ok:
             return candidate, diagnostics
@@ -306,8 +431,10 @@ def resolve_review_settings(
     thinking_arg: str | None,
     auto_quota: bool = False,
     provider_priority_arg: list[str] | None = None,
+    *,
+    real_home: Path | str | None = None,
 ) -> tuple[str, str | None, str]:
-    config = load_review_config(root)
+    config = load_review_config(root, real_home=real_home)
     prev_cli = None
     prev_model = None
     prev_thinking = None
@@ -324,7 +451,10 @@ def resolve_review_settings(
 
     if cli_arg is None and auto_quota:
         effective_priority = provider_priority_arg or config.get("provider_priority")
-        selected, diag = select_provider_by_quota(priority=effective_priority)
+        selected, diag = select_provider_by_quota(
+            priority=effective_priority,
+            thresholds=config.get("quota_thresholds"),
+        )
         if selected:
             print(
                 f"{CYAN}⚡ [check-quota]{RESET} Selected provider: {selected} ({'; '.join(diag)})",
@@ -356,6 +486,7 @@ def resolve_review_settings(
         thinking_arg
         or prev_thinking
         or provider_cfg.get("thinking_level")
+        or provider_cfg.get("effort")
         or default_thinking
     )
     if thinking_level not in THINKING_LEVELS:
@@ -701,10 +832,9 @@ def collect_facts(
     roots = re.search(r"^Integration test roots:\s*(.+)$", hld_text, re.MULTILINE)
     if roots:
         roots_list = [r.strip("`") for r in roots.group(1).strip().split()]
-        scenarios_file = (
-            resolve_epic_doc(root / ".devtool" / "epic" / epic_dir, "bdd_scenarios")
-            or (root / ".devtool" / "epic" / epic_dir / "bdd_scenarios.md")
-        )
+        scenarios_file = resolve_epic_doc(
+            root / ".devtool" / "epic" / epic_dir, "bdd_scenarios"
+        ) or (root / ".devtool" / "epic" / epic_dir / "bdd_scenarios.md")
 
         if skipped_live_commands:
             # 1. Static check across 100% of scenarios without --results
@@ -1716,13 +1846,16 @@ def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
     if getattr(args, "developer_note", None):
         prompt += f"\n\n## Developer Special Instructions\n\n{args.developer_note}\n"
 
+    max_rounds = resolve_effective_max_rounds(
+        root, "principal", getattr(args, "max_rounds", None)
+    )
     _emit_review_heartbeat(
         root,
         args.epic_dir,
         kind="principal",
         phase="reviewing",
         round_num=_completed_rounds_count(root, args.epic_dir, "principal") + 1,
-        max_rounds=getattr(args, "max_rounds", MAX_REVIEW_ROUNDS),
+        max_rounds=max_rounds,
         cli=args.cli,
         model=effective_model(args.cli, getattr(args, "model", None)),
     )
@@ -1865,7 +1998,10 @@ def run(args: argparse.Namespace) -> int:
     if status_lines(root):
         print("commit or stash your changes before a review", file=sys.stderr)
         return 2
-    max_rounds = getattr(args, "max_rounds", MAX_REVIEW_ROUNDS)
+    max_rounds = resolve_effective_max_rounds(
+        root, kind, getattr(args, "max_rounds", None)
+    )
+    args.max_rounds = max_rounds
     if getattr(args, "epic_dir", None) and not getattr(args, "force", False):
         completed_count = _completed_rounds_count(root, args.epic_dir, kind)
         if completed_count >= max_rounds:
@@ -2115,9 +2251,7 @@ def path_of(location: str) -> str:
     return location.split(":", 1)[0].strip().strip("`")
 
 
-def _is_immutable_epic_doc_location(
-    location: str, epic_dir: str | None = None
-) -> bool:
+def _is_immutable_epic_doc_location(location: str, epic_dir: str | None = None) -> bool:
     """Return True when location points to an immutable epic artefact under .devtool/epic/."""
     raw = path_of(location).replace("\\", "/").strip()
     while raw.startswith("./"):
@@ -2263,13 +2397,17 @@ def record_round(
     crit_c = sum(1 for sev, _, _ in findings if sev == "Critical")
     imp_c = sum(1 for sev, _, _ in findings if sev == "Important")
     min_c = sum(1 for sev, _, _ in findings if sev == "Minor")
+    kind_val = getattr(args, "kind", "code")
+    eff_max_rounds = resolve_effective_max_rounds(
+        root, kind_val, getattr(args, "max_rounds", None)
+    )
     _emit_review_heartbeat(
         root,
         args.epic_dir,
-        kind=getattr(args, "kind", "code"),
+        kind=kind_val,
         phase="triage",
         round_num=round_num,
-        max_rounds=getattr(args, "max_rounds", MAX_REVIEW_ROUNDS),
+        max_rounds=eff_max_rounds,
         cli=args.cli,
         model=effective_model(args.cli, getattr(args, "model", None)),
         verdict=verdict_text,
@@ -2672,9 +2810,7 @@ def triage(args: argparse.Namespace) -> int:
     out = [
         *header,
         "",
-        *top_risk_findings_section(
-            latest, limit=3, kind=kind, epic_dir=args.epic_dir
-        ),
+        *top_risk_findings_section(latest, limit=3, kind=kind, epic_dir=args.epic_dir),
         "",
         "## Passes",
         "",
@@ -2725,11 +2861,14 @@ def triage(args: argparse.Namespace) -> int:
         ]
     else:
         out += ["## Since the Previous Round", "", "No earlier round."]
+    max_rounds = resolve_effective_max_rounds(
+        root, kind, getattr(args, "max_rounds", None)
+    )
     triage_lines = auto_triage_section(
         number,
         rounds,
         latest,
-        getattr(args, "max_rounds", MAX_REVIEW_ROUNDS),
+        max_rounds,
         kind=kind,
         epic_dir=args.epic_dir,
     )
@@ -2748,7 +2887,7 @@ def triage(args: argparse.Namespace) -> int:
         kind=kind,
         phase="triage",
         round_num=number,
-        max_rounds=getattr(args, "max_rounds", MAX_REVIEW_ROUNDS),
+        max_rounds=max_rounds,
         cli=cli,
         model=meta.get("Model", "?"),
         verdict=meta.get("Verdict", "none"),
@@ -2924,8 +3063,14 @@ def _emit_review_heartbeat(
             last_event=event_msg,
             extra_devtool_dirs=extra_dirs,
         )
-        is_active_phase = phase in ("reviewing", "fixing", "verifying", "converged") or (
-            phase == "triage" and not str(action or "").startswith("CIRCUIT_BREAKER_HALT")
+        is_active_phase = phase in (
+            "reviewing",
+            "fixing",
+            "verifying",
+            "converged",
+        ) or (
+            phase == "triage"
+            and not str(action or "").startswith("CIRCUIT_BREAKER_HALT")
         )
         if is_active_phase:
             _state_envelope.clear_pending_decision(
@@ -2950,13 +3095,16 @@ def status_cmd(args: argparse.Namespace) -> int:
         path = root / ".devtool" / "epic" / args.epic_dir / name
         rounds = rounds_in(path.read_text(encoding="utf-8")) if path.exists() else []
         round_num = rounds[-1][0] if rounds else 1
+    max_rounds = resolve_effective_max_rounds(
+        root, kind, getattr(args, "max_rounds", None)
+    )
     _emit_review_heartbeat(
         root,
         args.epic_dir,
         kind=kind,
         phase=args.phase,
         round_num=round_num,
-        max_rounds=getattr(args, "max_rounds", MAX_REVIEW_ROUNDS),
+        max_rounds=max_rounds,
         detail=getattr(args, "detail", "") or "",
         head_sha=head_of(root),
     )
@@ -2988,8 +3136,8 @@ def main(argv: list[str] | None = None) -> int:
     runner.add_argument(
         "--max-rounds",
         type=int,
-        default=MAX_REVIEW_ROUNDS,
-        help="maximum completed review rounds before Circuit Breaker halts (default: 3)",
+        default=None,
+        help="maximum completed review rounds before Circuit Breaker halts (default: per-kind config)",
     )
     runner.add_argument(
         "--force",
@@ -3023,7 +3171,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     triager.add_argument("--kind", choices=KINDS, default="code")
     triager.add_argument("--epic-dir", required=True)
-    triager.add_argument("--max-rounds", type=int, default=MAX_REVIEW_ROUNDS)
+    triager.add_argument("--max-rounds", type=int, default=None)
     status_parser = modes.add_parser(
         "status", help="update review micro-step phase in epic heartbeat"
     )
@@ -3035,7 +3183,7 @@ def main(argv: list[str] | None = None) -> int:
         required=True,
     )
     status_parser.add_argument("--round", type=int, default=None)
-    status_parser.add_argument("--max-rounds", type=int, default=MAX_REVIEW_ROUNDS)
+    status_parser.add_argument("--max-rounds", type=int, default=None)
     status_parser.add_argument("--detail", type=str, default="")
     args = parser.parse_args(argv)
 

@@ -22,7 +22,7 @@ Invoked automatically after all tasks of an epic are implemented and Gate 4 (mac
 - **Trigger**: Automatic transition from `dev-implementation` upon Gate 4 local PASS (zero intermediate confirmation pauses).
 - **Scope**: Evaluates all task commits, diffs against base branch, audit disclosures, and integration test traceability in `.devtool/epic/<epic_dir>/`.
 - **Execution**:
-  - External CLI (`--auto-quota` or explicit `--cli` following priority `Claude -> Codex -> Kiro -> Argon` from `.devtool/review_config.json`):
+  - External CLI (`--auto-quota` or explicit `--cli` following shared priority `Claude -> Codex -> Kiro -> Argon` from `/d3nexus:dev-config review`, with `.devtool/review_config.json` read-only fallback):
     ```bash
     python3 skills/dev-implementation/resources/scripts/run_external_review.py run \
       --epic-dir <epic_dir> --base <base_branch> [--auto-quota | --cli <claude|codex|kiro|agy>]
@@ -55,12 +55,12 @@ Invoked on-demand to review a feature branch, pull request diff, or specific com
 1. **Clean Working Tree & Fast Mechanical Pre-Checks (< 5s, 0 Credits on Failure)**:
    - The runner enforces a clean git working tree before invoking any model (`commit or stash your changes before a review`).
    - Before invoking any external reviewer CLI, `run_external_review.py` runs fast mechanical pre-checks:
-     - **Max 3 Rounds Guard**: Refuses a 4th round unless `--force` is passed (`[PRECONDITION BLOCKED] — Max review rounds (3) reached`).
+     - **Max Rounds Guard (`max_cross_model_review_passes`, default `3`)**: Refuses a round beyond the resolved `max_cross_model_review_passes` limit (configured via `/d3nexus:dev-config limits --cross-model-review N`, or `--max-rounds N`) unless `--force` is passed (`[PRECONDITION BLOCKED] — Max review rounds (<N>) reached`).
      - **Gate 4 Epic Audit (`audit_epic.py`)**: Including the **Anti-Stub Enforcer** (`! git grep -n -E "def .+_stub\(|raise NotImplementedError|# STUB" src/`).
      - **Python Mechanical Gates** (when `.agents/quality/python-quality.json` is present): `anti_stub`, `importlinter_coverage` (`verify_importlinter_coverage.py`), and `self_probe` (`pre_review_self_probe.py`), plus Blast-Radius Scoped `Integration results:` and `check_bdd_traceability.py tests --results`.
 
 2. **Quota-Aware Provider Selection (`check-quota`), 3-Round Convergence Funnel & Shared Context**:
-   - **Provider Priority (`Claude -> Codex -> Kiro -> Argon`)**: Configured in `.devtool/review_config.json` (`provider_priority: ["claude", "codex", "kiro", "agy"]`, `max_rounds: 3`). With `--auto-quota`, `run_external_review.py` selects the highest-priority ACTIVE provider meeting thresholds: Claude/Codex (`5H >= 15%` AND `7D > 2%`), Kiro (`Monthly Credits >= 3%` AND `>= 15.0 credits`), or Argon (`Argon Weekly >= 10%` or `5H >= 15%`).
+   - **Provider Priority (`Claude -> Codex -> Kiro -> Argon`)**: Configured via layered `/d3nexus:dev-config review` and `/d3nexus:dev-config limits` (`CLI flags > .agents/config/personas.json > $REAL_HOME/.d3nexus/personas.json > .devtool/review_config.json` read-only fallback `> scripts/personas.default.json`; defaults: `provider_priority: ["claude", "codex", "kiro", "agy"]`, `max_cross_model_review_passes: 3`). Runtime `last_used_provider` is isolated in `.devtool/state/review_runtime.json` without mutating `.devtool/review_config.json`. With `--auto-quota`, `run_external_review.py` selects the highest-priority ACTIVE provider meeting resolved `review.quota_thresholds` (defaults: Claude/Codex `5H >= 15%` AND `7D > 2%`, Kiro `Monthly Credits >= 3%` AND `>= 15.0 credits`, or Argon `Argon Weekly >= 10%` or `5H >= 15%`).
    - **3-Round Scope-Narrowing Convergence Funnel (Max 3 Rounds)**:
      - **Round 1 (`Scope: full`)**: Full audit of `base...HEAD` across touched modules (enforcing the **Exhaustive Per-File Pass** anti-drip-feed rule).
      - **Round 2 (`Scope: delta`)**: Verifies `fixed in <sha>` items and scopes diff to `Round1_SHA..Round2_SHA`; prohibits new `Minor` findings on untouched code.

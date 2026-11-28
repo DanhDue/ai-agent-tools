@@ -1,13 +1,13 @@
 ---
 id: "task_04_lifecycle_runner_external_review_integration"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "unified_review_config"
 dueDate: null
 created: "2026-11-28T03:12:00+07:00"
-modified: "2026-11-28T03:12:00+07:00"
-completedAt: null
+modified: "2026-11-27T21:29:48Z"
+completedAt: "2026-11-27T21:29:48Z"
 labels: ["architecture", "dev-lifecycle", "dev-config"]
 order: "a04"
 review_tier: "full"
@@ -105,10 +105,10 @@ And stage "code" does not trigger max-rounds halt at round 1 because its cap is 
 
 ## Definition of Done
 
-- [ ] `RunnerConfig` and `LifecycleRunner` in `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` resolve separate principal and cross-model review round caps and layered `provider_priority` from `persona_config` while honoring explicit overrides (V2, V5)
-- [ ] All 3 assigned scenarios (`URC-HP-05`, `URC-ST-04`, `URC-AR-03`) pass in `tests/test_urc_lifecycle_runner_review_config.py` with JUnit XML written to `build/test-results/task_04.xml` (V2, V5)
-- [ ] Existing `tests/test_lifecycle_runner.py` regression suite passes without regressions (V3)
-- [ ] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4)
+- [x] `RunnerConfig` and `LifecycleRunner` in `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` resolve separate principal and cross-model review round caps and layered `provider_priority` from `persona_config` while honoring explicit overrides (V2, V5) — Verified PASS (6 passed in `tests/test_urc_lifecycle_runner_review_config.py`)
+- [x] All 3 assigned scenarios (`URC-HP-05`, `URC-ST-04`, `URC-AR-03`) pass in `tests/test_urc_lifecycle_runner_review_config.py` with JUnit XML written to `build/test-results/task_04.xml` (V2, V5) — Verified PASS (3/3 BDD traceability covered; JUnit XML fresh)
+- [x] Existing `tests/test_lifecycle_runner.py` regression suite passes without regressions (V3) — Verified PASS (50 passed)
+- [x] `ruff check`, `ruff format --check`, and `mypy` pass across all Allowed files (V4) — Verified PASS (0 ruff/format/mypy issues)
 
 ## Dependencies & Blockers
 

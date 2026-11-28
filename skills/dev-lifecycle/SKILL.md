@@ -14,7 +14,7 @@ The orchestrator for epic-scale work. It owns **sequence and gates only** — ea
 ## When NOT to use this
 
 - Single-component feature, bugfix, or one implementation plan → `dev-brainstorming` then `writing-plans` (no epic).
-- Already mid-stage and know which stage → invoke that stage's skill directly.
+- Already mid-stage → invoke that stage's skill directly.
 
 ## The Sequence
 
@@ -84,10 +84,10 @@ For hands-off execution, `lifecycle_runner.py` drives Stage 2 and Stage 3:
 
 Follow [references/principal-review.md](references/principal-review.md) across Stage 2 -> Principal Review -> Packaging -> Stage 3:
 
-- **Gate 2 Unified Confirmation (Tasks & AUTO MODE):** After Gate 2 and `check_epic_readiness.py <epic_dir>` pass, save Gate 2 & state (`--status "Stage 2: Ready for Principal Review"`, `--checkpoint gate2_tasks_locked`), read `.devtool/review_config.json`, stop calling tools, and present the **provider/model priority** order:
-  1. **(Recommended) Phê duyệt & Chạy AUTO MODE xuyên suốt (Triển khai (tự động)):** Run `/principal-review` -> `handoff.md` -> `/dev-implementation` (2-slot pool) -> `/cross-model-review` without pausing; Stage 3 runs on this session's model (name the `orchestrator` binding). Halts ONLY on Circuit Breakers, `ESCALATE`, model/quota stops, or Gate 5.
+- **Gate 2 Unified Confirmation (Tasks & AUTO MODE):** After Gate 2 and `check_epic_readiness.py <epic_dir>` pass, save Gate 2 & state (`--status "Stage 2: Ready for Principal Review"`, `--checkpoint gate2_tasks_locked`), read `/d3nexus:dev-config review` (`.devtool/review_config.json` fallback; caps via `/d3nexus:dev-config limits`), stop calling tools, and present the **provider/model priority** order:
+  1. **(Recommended) Phê duyệt & Chạy AUTO MODE xuyên suốt (Triển khai (tự động)):** Run `/principal-review` -> `handoff.md` -> `/dev-implementation` (2-slot pool) -> `/cross-model-review` without pausing; Stage 3 uses this session's model (state `orchestrator` binding). Halts ONLY on Circuit Breakers, `ESCALATE`, model/quota stops, or Gate 5.
   2. **Phê duyệt & Handoff Mode (Dừng lại):** Run `/principal-review` -> `handoff.md` -> stop cleanly (new session on the `orchestrator` model).
-- **Automatic `/principal-review` (Zero-Pause):** Run `d3nexus:principal-review` (`--auto-quota` / `--provider-priority` / `--cli`, max 3 rounds; mid-loop runs `check_epic_readiness.py`, never `package_epic.py`). Auto-fix `Valid` findings without pausing; halt only on the five halt triggers.
+- **Automatic `/principal-review` (Zero-Pause):** Run `d3nexus:principal-review` (`--auto-quota`/`--provider-priority`/`--cli`, default 3 rounds; mid-loop runs `check_epic_readiness.py`, never `package_epic.py`). Auto-fix `Valid` findings without pausing; halt only on the five triggers.
 - **End-of-Review Packaging:** On convergence, run `python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir> [--revise --reason "<reason>"]` (omit `--revise` when `handoff.md` is absent):
 1. **Preflight:** `python3 "$SCRIPTS"/check_epic_readiness.py <epic_dir>` (runs `check_task_contract.py --design`). First line prints task count.
 2. Copy `references/handoff-template.md` to `.devtool/epic/<epic_dir>/handoff.md` (`<N>` is the task count the preflight printed) and lint via `python3 "$CHECK_DOC" --require-toc .devtool/epic/<epic_dir>/handoff.md`.

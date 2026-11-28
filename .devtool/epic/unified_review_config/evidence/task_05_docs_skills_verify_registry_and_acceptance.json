@@ -1,0 +1,494 @@
+{
+  "schema": 1,
+  "task": "task_05_docs_skills_verify_registry_and_acceptance",
+  "runs": {
+    "red": {
+      "head": "09feadcc23d471a8d41cd101a160e44d11b50ed6",
+      "tree": "24e24dccb75f9aa4d70f1aa8a9843526ae3fc9a9",
+      "patch_id": "22ea515a80d8ab899e9b5d35106ae86081a842c3",
+      "started": "2026-11-27T21:33:29Z",
+      "finished": "2026-11-27T21:33:30Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_urc_end_to_end_acceptance.py::test_urc_hp_06_end_to_end_cli_propagation_and_docs_registry",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T21:33:29Z",
+          "finished": "2026-11-27T21:33:30Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "_________ test_urc_hp_06_end_to_end_cli_propagation_and_docs_registry __________",
+            "tests/test_urc_end_to_end_acceptance.py:409: in test_urc_hp_06_end_to_end_cli_propagation_and_docs_registry",
+            "    _assert_urc_hp_06(tmp_path)",
+            "tests/test_urc_end_to_end_acceptance.py:402: in _assert_urc_hp_06",
+            "    _assert_docs_and_verify_registry()",
+            "tests/test_urc_end_to_end_acceptance.py:143: in _assert_docs_and_verify_registry",
+            "    assert token in dev_cfg_skill, f\"skills/dev-config/SKILL.md missing {token!r}\"",
+            "E   AssertionError: skills/dev-config/SKILL.md missing 'limits [--json]'",
+            "E   assert 'limits [--json]' in '---\\nname: dev-config\\ndescription: Configures layered AI persona model bindings, presets, model catalogue aliases, t... clear`, and explicit `/d3nexus:dev-config set programmer ...` commands without ever switching models automatically.\\n'",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_urc_end_to_end_acceptance.py::test_urc_hp_06_end_to_end_cli_propagation_and_docs_registry",
+            "1 failed in 0.75s"
+          ],
+          "output_sha256": "d9043f0d49cfd38fe3a787090ff1d582c196aadfa83841cbced016631ce2ee27"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "09feadcc23d471a8d41cd101a160e44d11b50ed6",
+      "tree": "8e92a78b3a3b33fd111797f987c15b8b2ee069fe",
+      "patch_id": "df478e29f3724a6d3c138d590a429763bd02d2df",
+      "started": "2026-11-27T21:35:54Z",
+      "finished": "2026-11-27T21:36:07Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_urc_end_to_end_acceptance.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T21:35:54Z",
+          "finished": "2026-11-27T21:35:55Z",
+          "output_tail": [
+            "....                                                                     [100%]",
+            "4 passed in 1.64s"
+          ],
+          "output_sha256": "30a14cb7903c3fc2fca7143fa38f0ce7f48642aa1ed83639f611d147f9dad5cc"
+        },
+        {
+          "id": "V3",
+          "phase": "REGRESSION",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_tto_docs_and_slimming.py tests/test_urc_persona_review_config.py tests/test_urc_dev_config_cli.py tests/test_urc_external_review_integration.py tests/test_urc_lifecycle_runner_review_config.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T21:35:55Z",
+          "finished": "2026-11-27T21:36:00Z",
+          "output_tail": [
+            "........................................................................ [100%]",
+            "72 passed in 4.50s"
+          ],
+          "output_sha256": "dfc13eab54e8e38bffc1ec9d8860e7cfa5970ea1bf5348a8e560e8f9a899225e"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_urc_end_to_end_acceptance.py && ruff format --check tests/test_urc_end_to_end_acceptance.py && mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_urc_end_to_end_acceptance.py --ignore-missing-imports --follow-imports=silent && python3 skills/doc_quality_check/resources/scripts/check_document.py --require-toc docs/dev-config-quick-guide.en.md",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T21:36:00Z",
+          "finished": "2026-11-27T21:36:00Z",
+          "output_tail": [
+            "All checks passed!",
+            "1 file already formatted",
+            "Success: no issues found in 8 source files",
+            "  checked 1 documents, 0 findings"
+          ],
+          "output_sha256": "ef6b91ef10967f30b074ffab7ff66f922f422f7ab7dce976462633af53d88bee"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_urc_persona_review_config.py tests/test_urc_dev_config_cli.py tests/test_urc_external_review_integration.py tests/test_urc_lifecycle_runner_review_config.py tests/test_urc_end_to_end_acceptance.py --junitxml=build/test-results/unified-review-config.xml",
+          "expect": "exit 0; results build/test-results/unified-review-config.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-27T21:36:00Z",
+          "finished": "2026-11-27T21:36:06Z",
+          "output_tail": [
+            ".....................................................................    [100%]",
+            "69 passed in 5.80s"
+          ],
+          "output_sha256": "83386cccbb23193c51cc95ed6679a19a95b8cbee855ace715a9f9ddd32343703",
+          "results": {
+            "path": "build/test-results/unified-review-config.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 68,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_urc_hp_01_kit_defaults_resolve_limits_and_review_config",
+                  "classname": "tests.test_urc_persona_review_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_hp_01_kit_defaults_resolve_limits_and_review_config",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_ec_01_review_provider_alias_expansion_and_raw_model_ids",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_ec_02_legacy_review_config_read_only_fallback_and_warnings",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_ar_01_global_beats_legacy_and_project_beats_global",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload0-max_principal_review_passes]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload1-max_principal_review_passes]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload2-max_principal_review_passes]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload3-max_principal_review_passes]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload4-max_principal_review_passes]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload5-max_cross_model_review_passes]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload6-max_cross_model_review_passes]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload7-max_cross_model_review_passes]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload8-max_fix_passes]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload9-max_fix_passes]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload10-review]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload11-unknown_review_key]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload12-provider_priority]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload13-provider_priority]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload14-claude]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload15-ollama]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload16-bogus]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload17-provider_priority]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload18-quota_thresholds]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload19-bogus_key]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload20-5h_min_fraction]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload21-5h_min_fraction]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload22-5h_min_fraction]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload23-5h_min_fraction]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload24-kiro_min_credits]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload25-providers]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload26-gemini]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload27-claude]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload28-extra]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload29-claude]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload30-claude]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload31-effort]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload32-thinking_level]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload33-codex-gpt]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload34-claude-opus]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload35-xhigh]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload36-host]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload37-host]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload38-host]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_invalid_review_config_and_limits_raise_persona_config_error[layer_payload39-host]",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_01_non_finite_thresholds_and_unknown_review_kind",
+                  "classname": "tests.test_urc_persona_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_hp_02_limits_subcommand_global_and_project",
+                  "classname": "tests.test_urc_dev_config_cli",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_hp_02_limits_subcommand_global_and_project",
+                  "classname": "tests.test_urc_dev_config_cli.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_hp_03_review_subcommand_priority_models_and_thresholds",
+                  "classname": "tests.test_urc_dev_config_cli.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_ec_03_global_write_emits_masking_warning_on_project_override",
+                  "classname": "tests.test_urc_dev_config_cli.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_st_01_reset_project_overrides_restores_global_without_disturbing_siblings",
+                  "classname": "tests.test_urc_dev_config_cli.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_st_02_reset_all_review_prunes_empty_objects_idempotently",
+                  "classname": "tests.test_urc_dev_config_cli.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_02_models_remove_guard_and_atomic_validation_rejection",
+                  "classname": "tests.test_urc_dev_config_cli.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_hp_04_per_kind_pass_limits_and_global_priority",
+                  "classname": "tests.test_urc_external_review_integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_ec_04_custom_layered_quota_thresholds_control_selection",
+                  "classname": "tests.test_urc_external_review_integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_st_03_sticky_runtime_state_isolated_from_review_config",
+                  "classname": "tests.test_urc_external_review_integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_ar_02_satellite_repo_loads_persona_config_relative_to_plugin",
+                  "classname": "tests.test_urc_external_review_integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_03_corrupted_legacy_and_runtime_json_fallback_cleanly",
+                  "classname": "tests.test_urc_external_review_integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_hp_05_runner_resolves_separate_caps_and_priority",
+                  "classname": "tests.test_urc_lifecycle_runner_review_config",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_hp_05_runner_resolves_separate_caps_and_priority",
+                  "classname": "tests.test_urc_lifecycle_runner_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_hp_05_kit_defaults_and_step_subprocess_arguments",
+                  "classname": "tests.test_urc_lifecycle_runner_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_st_04_explicit_runner_config_overrides_persona_limits_and_priority",
+                  "classname": "tests.test_urc_lifecycle_runner_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_st_04_cli_max_rounds_and_config_wiring",
+                  "classname": "tests.test_urc_lifecycle_runner_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_ar_03_runner_isolates_principal_and_cross_model_circuit_breaker_caps",
+                  "classname": "tests.test_urc_lifecycle_runner_review_config.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_hp_06_end_to_end_cli_propagation_and_docs_registry",
+                  "classname": "tests.test_urc_end_to_end_acceptance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_hp_06_end_to_end_cli_propagation_and_docs_registry",
+                  "classname": "tests.test_urc_end_to_end_acceptance.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_ec_05_fixed_effort_alias_and_zero_fix_passes",
+                  "classname": "tests.test_urc_end_to_end_acceptance.Test_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_urc_fr_04_missing_parent_dirs_atomic_write_no_tmp",
+                  "classname": "tests.test_urc_end_to_end_acceptance.Test_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "docs/dev-config-quick-guide.en.md",
+            "rules/CRITICAL_RULES.md",
+            "scripts/verify.sh",
+            "skills/cross-model-review/SKILL.md",
+            "skills/dev-config/SKILL.md",
+            "skills/dev-lifecycle/SKILL.md",
+            "skills/principal-review/SKILL.md",
+            "tests/test_urc_end_to_end_acceptance.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

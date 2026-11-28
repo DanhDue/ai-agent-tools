@@ -486,6 +486,13 @@ SUITES = [
     ("25", "pytest", "tests/test_plq_task_contract_polyglot.py", 25, False),
     ("25", "pytest", "tests/test_plq_worker_pool_polyglot.py", 35, False),
     ("25", "pytest", "tests/test_plq_end_to_end_acceptance.py", 25, True),
+
+    # 26. Unified Review Config suites
+    ("26", "pytest", "tests/test_urc_persona_review_config.py", 15, False),
+    ("26", "pytest", "tests/test_urc_dev_config_cli.py", 15, False),
+    ("26", "pytest", "tests/test_urc_external_review_integration.py", 15, False),
+    ("26", "pytest", "tests/test_urc_lifecycle_runner_review_config.py", 15, False),
+    ("26", "pytest", "tests/test_urc_end_to_end_acceptance.py", 15, True),
 ]
 
 active_suites = [

@@ -9,7 +9,7 @@ trigger: always_on
 
 ## 1. Mandatory Quality Gates
 
-After completing any workflow/skill, run its quality gate and fix all issues:
+After any workflow/skill, run its quality gate and fix all issues:
 - Shipped/build-affecting change -> `@quality_check`
 - Prose/documentation deliverable -> `@doc_quality_check`
 
@@ -27,23 +27,23 @@ After completing any workflow/skill, run its quality gate and fix all issues:
 
 ## 3. Git Push Operations (No Unauthorized Push)
 
-Local `git add` / `git commit` are allowed per task scope; **`git push` is STRICTLY PROHIBITED** without explicit user permission.
+Local `git add`/`git commit` allowed per scope; **`git push` is STRICTLY PROHIBITED** without explicit permission.
 
 ## 4. Native Planning Mode Interception
 
-Never create loose native plans (`implementation_plan.md`, Composer/Cascade/Codex plans) unless explicitly instructed to bypass `d3nexus`. Use `d3nexus:brainstorming` for single features and `d3nexus:dev-lifecycle` for epics.
+Never create loose native plans (`implementation_plan.md`, Composer/Cascade/Codex) unless told to bypass `d3nexus`. Use `d3nexus:brainstorming` for single features, `d3nexus:dev-lifecycle` for epics.
 
 ## 5. Automated Execution, Cross-Model Review & Stage 4 Finish Gate
 
-1. **Gate 2 Unified Confirmation**: After Gate 2 readiness passes, stop before `package_epic.py`, record Gate 2, read `.devtool/review_config.json`, record `--pending-decision` (Choice A), and present the provider priority:
+1. **Gate 2 Unified Confirmation**: After Gate 2 readiness passes, stop before `package_epic.py`, record Gate 2, read `/d3nexus:dev-config review` (`.devtool/review_config.json` fallback), record `--pending-decision` (Choice A), and present provider priority:
    - **Option 1 (Recommended) — `Triển khai (tự động)`**: `/principal-review` -> `package_epic.py` -> Gate 3 -> `dev-implementation` (`--parallel`) -> Gate 4 -> `/cross-model-review`, pausing only on Circuit Breakers, `ESCALATE`, model/quota stops or Gate 5. Stage 3 runs in this session as Role 2.2 (`orchestrator`).
    - **Option 2 — `Dừng lại`**: Stops after packaging, printing `--emit-prompt implement`.
 2. **Cross-Model Review**: When tasks finish (after Gate 4 passes, Cross-model review must return to a full Gate 4 run), run `/cross-model-review` (`run_external_review.py run --epic-dir <epic_dir> --auto-quota --base <ref>`) with no Review Choice prompt.
-3. **Stage 4 Finish & Gate 5**: After convergence + Gate 4 PASS on latest SHA, record `--pending-decision`, stop ONCE with the unified Gate 5 report + Finish options (never double-prompt). Never auto-merge or auto-push.
+3. **Stage 4 Finish & Gate 5**: After convergence + Gate 4 PASS on latest SHA, record `--pending-decision`, stop ONCE with unified Gate 5 report + Finish options (never double-prompt). Never auto-merge or push.
 
 ## 6. Auto-Triage Gate, 3-Round Funnel & Remediation Protocol
 
-External reviews use `max_rounds = 3` and Auto-Triage; details: [governance-checklists.md](../skills/dev-lifecycle/references/governance-checklists.md).
+External reviews use `/d3nexus:dev-config limits` (default 3) and Auto-Triage ([governance-checklists.md](../skills/dev-lifecycle/references/governance-checklists.md)).
 
 - **`AUTO_PASS_CLEAN` / `AUTO_PASS_FINAL_MINOR_SWEEP`**: verify against source + Spec/HLD, fix valid `Minor` items once.
 - **`AUTO_FIX_ELIGIBLE`** (Rounds 1–2):

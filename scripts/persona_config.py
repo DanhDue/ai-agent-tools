@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import fcntl
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -25,9 +26,46 @@ DEFAULT_TURN_BUDGET: int = 8
 DEFAULT_LOW_QUOTA_HOURS: float = 5.0
 DEFAULT_MAX_TASK_REVIEW_PASSES: int = 2
 DEFAULT_MAX_FIX_PASSES: int = 1
+DEFAULT_MAX_PRINCIPAL_REVIEW_PASSES: int = 3
+DEFAULT_MAX_CROSS_MODEL_REVIEW_PASSES: int = 3
+REVIEW_PRIORITY_PROVIDERS: tuple[str, ...] = ("claude", "codex", "kiro", "agy")
+REVIEW_PROVIDERS: tuple[str, ...] = ("claude", "codex", "kiro", "agy", "ollama")
+REVIEW_THINKING_LEVELS: tuple[str, ...] = (
+    "none",
+    "light",
+    "low",
+    "medium",
+    "high",
+    "xhigh",
+    "extra-high",
+)
+DEFAULT_REVIEW_QUOTA_THRESHOLDS: dict[str, float] = {
+    "5h_min_fraction": 0.15,
+    "7d_min_fraction": 0.02,
+    "kiro_min_fraction": 0.03,
+    "kiro_min_credits": 15.0,
+    "agy_argon_min_fraction": 0.10,
+}
+DEFAULT_REVIEW_PROVIDERS: dict[str, dict[str, str]] = {
+    "claude": {"model": "claude-opus", "effort": "high"},
+    "codex": {"model": "codex-gpt", "effort": "high"},
+    "kiro": {"model": "kiro-opus", "effort": "high"},
+    "agy": {"model": "argon", "effort": "high"},
+    "ollama": {
+        "model": "gemma4:31b-it-qat",
+        "effort": "high",
+        "host": "http://localhost:11434",
+    },
+}
 
 KIT_DEFAULTS_PATH: Path = Path(__file__).resolve().with_name("personas.default.json")
-_LAYER_RANK: dict[str, int] = {"kit": 0, "global": 1, "project": 2, "cli": 3}
+_LAYER_RANK: dict[str, int] = {
+    "kit": 0,
+    "legacy": 1,
+    "global": 2,
+    "project": 3,
+    "cli": 4,
+}
 _ALLOWED_OVERRIDE_FIELDS: frozenset[str] = frozenset(
     {"model", "effort", "fallback_model", "profile"}
 )
@@ -43,8 +81,28 @@ _ALLOWED_TOP_KEYS: frozenset[str] = frozenset(
         "low_quota",
         "max_task_review_passes",
         "max_fix_passes",
+        "max_principal_review_passes",
+        "max_cross_model_review_passes",
+        "review",
     }
 )
+_ALLOWED_REVIEW_KEYS: frozenset[str] = frozenset(
+    {"provider_priority", "providers", "quota_thresholds"}
+)
+_ALLOWED_REVIEW_PROVIDER_FIELDS: frozenset[str] = frozenset(
+    {"model", "effort", "thinking_level", "host"}
+)
+_FRACTION_THRESHOLD_KEYS: frozenset[str] = frozenset(
+    {
+        "5h_min_fraction",
+        "7d_min_fraction",
+        "kiro_min_fraction",
+        "agy_argon_min_fraction",
+    }
+)
+_REVIEW_THINKING_LEVEL_SET: frozenset[str] = frozenset(REVIEW_THINKING_LEVELS)
+_REVIEW_PRIORITY_SET: frozenset[str] = frozenset(REVIEW_PRIORITY_PROVIDERS)
+_REVIEW_PROVIDER_SET: frozenset[str] = frozenset(REVIEW_PROVIDERS)
 _CODEX_EFFORT_MAP: dict[str, str] = {
     "light": "low",
     "low": "low",
@@ -95,6 +153,50 @@ class PersonaBinding:
     profile: str | None = None
 
 
+@dataclass(frozen=True)
+class ReviewLimits:
+    """Resolved independent pass limits and source layer provenance."""
+
+    max_task_review_passes: int
+    max_fix_passes: int
+    max_principal_review_passes: int
+    max_cross_model_review_passes: int
+    sources: dict[str, str]
+
+
+@dataclass(frozen=True)
+class ReviewProviderBinding:
+    """Resolved external review provider model, effort, optional host, and source."""
+
+    provider: str
+    model: str
+    model_id: str
+    effort: str
+    host: str | None
+    source: str
+
+
+@dataclass(frozen=True)
+class ResolvedReviewConfig:
+    """Resolved external review priority, providers, quota thresholds, and pass limits."""
+
+    provider_priority: tuple[str, ...]
+    providers: dict[str, ReviewProviderBinding]
+    quota_thresholds: dict[str, float]
+    limits: ReviewLimits
+    sources: dict[str, str]
+
+    def max_rounds_for_kind(self, kind: str) -> int:
+        """Return the configured round cap for 'principal', 'code', or 'epic'."""
+        if kind == "principal":
+            return self.limits.max_principal_review_passes
+        if kind in ("code", "epic"):
+            return self.limits.max_cross_model_review_passes
+        raise PersonaConfigError(
+            f"Unknown review kind '{kind}'; expected 'principal', 'code', or 'epic'"
+        )
+
+
 def get_real_home(real_home: Path | str | None = None) -> Path:
     """Resolve the host user's real HOME directory even inside an isolated profile."""
     if real_home is not None:
@@ -143,6 +245,217 @@ def _validate_task_review_limits(cfg: Mapping[str, Any]) -> None:
         raise PersonaConfigError(
             f"Invalid max_fix_passes '{max_fix}'; must be a non-negative integer"
         )
+    max_principal = cfg.get(
+        "max_principal_review_passes", DEFAULT_MAX_PRINCIPAL_REVIEW_PASSES
+    )
+    if type(max_principal) is not int or max_principal < 1:
+        raise PersonaConfigError(
+            f"Invalid max_principal_review_passes '{max_principal}'; "
+            "must be a positive integer"
+        )
+    max_cross = cfg.get(
+        "max_cross_model_review_passes", DEFAULT_MAX_CROSS_MODEL_REVIEW_PASSES
+    )
+    if type(max_cross) is not int or max_cross < 1:
+        raise PersonaConfigError(
+            f"Invalid max_cross_model_review_passes '{max_cross}'; "
+            "must be a positive integer"
+        )
+
+
+def _is_valid_ollama_host(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    stripped = value.strip()
+    if not stripped.startswith(("http://", "https://")):
+        return False
+    return bool(stripped.split("://", 1)[1])
+
+
+def _normalize_review_provider_entry(entry: Mapping[str, Any]) -> dict[str, Any]:
+    normalized: dict[str, Any] = {}
+    if "model" in entry:
+        normalized["model"] = entry["model"]
+    if "effort" in entry:
+        normalized["effort"] = entry["effort"]
+    elif "thinking_level" in entry:
+        normalized["effort"] = entry["thinking_level"]
+    if "host" in entry:
+        normalized["host"] = entry["host"]
+    return normalized
+
+
+def _validate_review_priority(priority: Any) -> tuple[str, ...]:
+    if not isinstance(priority, list) or not priority:
+        raise PersonaConfigError(
+            "Invalid review.provider_priority; must be a non-empty list of providers"
+        )
+    seen: set[str] = set()
+    validated: list[str] = []
+    for item in priority:
+        if not isinstance(item, str) or item not in _REVIEW_PRIORITY_SET:
+            raise PersonaConfigError(
+                f"Invalid provider '{item}' in review.provider_priority; "
+                f"allowed: {', '.join(REVIEW_PRIORITY_PROVIDERS)}"
+            )
+        if item in seen:
+            raise PersonaConfigError(
+                f"Duplicate provider '{item}' in review.provider_priority"
+            )
+        seen.add(item)
+        validated.append(item)
+    return tuple(validated)
+
+
+def _validate_review_quota_thresholds(thresholds: Any) -> dict[str, float]:
+    if not isinstance(thresholds, Mapping):
+        raise PersonaConfigError(
+            "Configuration 'review.quota_thresholds' must be an object"
+        )
+    validated: dict[str, float] = {}
+    for key, val in thresholds.items():
+        if key not in DEFAULT_REVIEW_QUOTA_THRESHOLDS:
+            raise PersonaConfigError(
+                f"Unknown key '{key}' in review.quota_thresholds; "
+                f"allowed: {', '.join(DEFAULT_REVIEW_QUOTA_THRESHOLDS)}"
+            )
+        if (
+            isinstance(val, bool)
+            or not isinstance(val, (int, float))
+            or not math.isfinite(val)
+        ):
+            raise PersonaConfigError(
+                f"Invalid review.quota_thresholds.{key} '{val}'; "
+                "must be a finite number"
+            )
+        fval = float(val)
+        if key in _FRACTION_THRESHOLD_KEYS:
+            if not 0.0 <= fval <= 1.0:
+                raise PersonaConfigError(
+                    f"Invalid review.quota_thresholds.{key} '{val}'; "
+                    "must be in [0.0, 1.0]"
+                )
+        elif fval < 0.0:
+            raise PersonaConfigError(
+                f"Invalid review.quota_thresholds.{key} '{val}'; must be >= 0.0"
+            )
+        validated[key] = fval
+    return validated
+
+
+def _resolve_review_provider_model(
+    provider: str,
+    model: str,
+    effort: str,
+    models: Mapping[str, Any],
+) -> tuple[str, str]:
+    trimmed = model.strip()
+    if trimmed in models:
+        entry = models[trimmed]
+        alias_cli = str(entry["cli"])
+        if alias_cli != provider:
+            raise PersonaConfigError(
+                f"Review provider '{provider}' cannot use model alias '{trimmed}' "
+                f"(belongs to cli '{alias_cli}', expected '{provider}')"
+            )
+        entry_efforts = entry["efforts"]
+        template_id = str(entry["id"])
+        if entry_efforts == ["none"]:
+            return template_id, "none"
+        if "{effort}" in template_id:
+            if effort not in entry_efforts:
+                raise PersonaConfigError(
+                    f"Unsupported effort '{effort}' for review provider '{provider}' "
+                    f"model alias '{trimmed}'; allowed: {', '.join(entry_efforts)}"
+                )
+            return template_id.replace("{effort}", effort), effort
+        return template_id, effort
+    return trimmed, effort
+
+
+def _validate_review_section(
+    review: Any,
+    models: Mapping[str, Any] | None = None,
+    *,
+    partial: bool = False,
+) -> None:
+    if not isinstance(review, Mapping):
+        raise PersonaConfigError("Configuration 'review' must be an object")
+    unknown_keys = set(review) - _ALLOWED_REVIEW_KEYS
+    if unknown_keys:
+        bad = min(unknown_keys)
+        raise PersonaConfigError(f"Unknown key '{bad}' in configuration 'review'")
+    if "provider_priority" in review:
+        _validate_review_priority(review["provider_priority"])
+    if "quota_thresholds" in review:
+        _validate_review_quota_thresholds(review["quota_thresholds"])
+    if "providers" in review:
+        providers = review["providers"]
+        if not isinstance(providers, Mapping):
+            raise PersonaConfigError(
+                "Configuration 'review.providers' must be an object"
+            )
+        for provider, entry in providers.items():
+            if provider not in _REVIEW_PROVIDER_SET:
+                raise PersonaConfigError(
+                    f"Unknown review provider '{provider}' in review.providers; "
+                    f"allowed: {', '.join(REVIEW_PROVIDERS)}"
+                )
+            if not isinstance(entry, Mapping):
+                raise PersonaConfigError(
+                    f"Configuration 'review.providers.{provider}' must be an object"
+                )
+            bad_fields = set(entry) - _ALLOWED_REVIEW_PROVIDER_FIELDS
+            if bad_fields:
+                bad = min(bad_fields)
+                raise PersonaConfigError(
+                    f"Unknown field '{bad}' in review.providers.{provider}"
+                )
+            if not partial or "model" in entry:
+                model_val = entry.get("model")
+                if not isinstance(model_val, str) or not model_val.strip():
+                    raise PersonaConfigError(
+                        f"Invalid model '{model_val}' in review.providers.{provider}.model; "
+                        "must be a non-empty string"
+                    )
+            if "effort" in entry:
+                eff_val = entry["effort"]
+                if (
+                    not isinstance(eff_val, str)
+                    or eff_val not in _REVIEW_THINKING_LEVEL_SET
+                ):
+                    raise PersonaConfigError(
+                        f"Invalid effort '{eff_val}' in review.providers.{provider}.effort; "
+                        f"allowed: {', '.join(REVIEW_THINKING_LEVELS)}"
+                    )
+            if "thinking_level" in entry:
+                tl_val = entry["thinking_level"]
+                if (
+                    not isinstance(tl_val, str)
+                    or tl_val not in _REVIEW_THINKING_LEVEL_SET
+                ):
+                    raise PersonaConfigError(
+                        f"Invalid thinking_level '{tl_val}' in "
+                        f"review.providers.{provider}.thinking_level; "
+                        f"allowed: {', '.join(REVIEW_THINKING_LEVELS)}"
+                    )
+            if "host" in entry:
+                if provider != "ollama":
+                    raise PersonaConfigError(
+                        f"Field 'host' is only allowed for review provider 'ollama', "
+                        f"not '{provider}' (review.providers.{provider}.host)"
+                    )
+                if not _is_valid_ollama_host(entry["host"]):
+                    raise PersonaConfigError(
+                        f"Invalid host '{entry['host']}' in review.providers.ollama.host; "
+                        "must start with http:// or https://"
+                    )
+            if models is not None and "model" in entry:
+                norm = _normalize_review_provider_entry(entry)
+                eff = str(norm.get("effort", "high"))
+                _resolve_review_provider_model(
+                    provider, str(norm["model"]).strip(), eff, models
+                )
 
 
 def _read_layer_json(path: Path, *, required: bool = False) -> dict[str, Any]:
@@ -153,7 +466,9 @@ def _read_layer_json(path: Path, *, required: bool = False) -> dict[str, Any]:
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise PersonaConfigError(f"Failed to read persona config '{path}': {exc}") from exc
+        raise PersonaConfigError(
+            f"Failed to read persona config '{path}': {exc}"
+        ) from exc
     if not isinstance(raw, dict):
         raise PersonaConfigError(f"Persona config '{path}' must be a JSON object")
     if "schema_version" in raw:
@@ -167,25 +482,68 @@ def _read_layer_json(path: Path, *, required: bool = False) -> dict[str, Any]:
         bad = min(unknown_keys)
         raise PersonaConfigError(f"Unknown top-level key '{bad}' in '{path}'")
     _validate_task_review_limits(raw)
+    if "review" in raw:
+        _validate_review_section(raw["review"], models=None, partial=True)
     return raw
+
+
+def _merge_review_section(
+    base: Mapping[str, Any], overlay: Mapping[str, Any]
+) -> dict[str, Any]:
+    merged_review = copy.deepcopy(dict(base))
+    for rkey, rval in overlay.items():
+        if (
+            rkey == "providers"
+            and isinstance(merged_review.get("providers"), dict)
+            and isinstance(rval, Mapping)
+        ):
+            merged_provs = copy.deepcopy(merged_review["providers"])
+            for provider, p_entry in rval.items():
+                if isinstance(p_entry, Mapping):
+                    norm_entry = _normalize_review_provider_entry(p_entry)
+                    if isinstance(merged_provs.get(provider), dict):
+                        merged_provs[provider] = _deep_merge(
+                            merged_provs[provider], norm_entry
+                        )
+                    else:
+                        merged_provs[provider] = copy.deepcopy(norm_entry)
+                else:
+                    merged_provs[provider] = copy.deepcopy(p_entry)
+            merged_review["providers"] = merged_provs
+        elif isinstance(merged_review.get(rkey), dict) and isinstance(rval, Mapping):
+            merged_review[rkey] = _deep_merge(merged_review[rkey], rval)
+        else:
+            merged_review[rkey] = copy.deepcopy(rval)
+    return merged_review
 
 
 def _deep_merge(base: dict[str, Any], overlay: Mapping[str, Any]) -> dict[str, Any]:
     result = copy.deepcopy(base)
     for key, value in overlay.items():
-        if key == "models" and isinstance(result.get(key), dict) and isinstance(value, Mapping):
+        if (
+            key == "models"
+            and isinstance(result.get(key), dict)
+            and isinstance(value, Mapping)
+        ):
             merged_models = copy.deepcopy(result[key])
             for alias, entry in value.items():
-                if (
-                    isinstance(entry, Mapping)
-                    and {"cli", "id", "efforts"}.issubset(entry)
+                if isinstance(entry, Mapping) and {"cli", "id", "efforts"}.issubset(
+                    entry
                 ):
                     merged_models[alias] = copy.deepcopy(dict(entry))
-                elif isinstance(merged_models.get(alias), dict) and isinstance(entry, Mapping):
+                elif isinstance(merged_models.get(alias), dict) and isinstance(
+                    entry, Mapping
+                ):
                     merged_models[alias] = _deep_merge(merged_models[alias], entry)
                 else:
                     merged_models[alias] = copy.deepcopy(entry)
             result[key] = merged_models
+        elif (
+            key == "review"
+            and isinstance(result.get(key), dict)
+            and isinstance(value, Mapping)
+        ):
+            result[key] = _merge_review_section(result[key], value)
         elif isinstance(result.get(key), dict) and isinstance(value, Mapping):
             result[key] = _deep_merge(result[key], value)
         else:
@@ -271,18 +629,26 @@ def _validate_binding_ref(
     fallback = binding_cfg.get("fallback_model")
     if not partial or "model" in binding_cfg:
         if not isinstance(model_alias, str) or model_alias not in models:
-            raise PersonaConfigError(f"Unknown model alias '{model_alias}' in {context}")
+            raise PersonaConfigError(
+                f"Unknown model alias '{model_alias}' in {context}"
+            )
     if not partial or "effort" in binding_cfg:
         if not isinstance(effort, str) or not effort.strip():
             raise PersonaConfigError(f"Invalid effort '{effort}' in {context}")
-        if check_effort_against_model and isinstance(model_alias, str) and model_alias in models:
+        if (
+            check_effort_against_model
+            and isinstance(model_alias, str)
+            and model_alias in models
+        ):
             allowed_efforts = models[model_alias]["efforts"]
             if effort not in allowed_efforts:
                 raise PersonaConfigError(
                     f"Unsupported effort '{effort}' for model '{model_alias}' in {context}; "
                     f"allowed: {', '.join(allowed_efforts)}"
                 )
-    if fallback is not None and (not isinstance(fallback, str) or fallback not in models):
+    if fallback is not None and (
+        not isinstance(fallback, str) or fallback not in models
+    ):
         raise PersonaConfigError(f"Unknown fallback_model '{fallback}' in {context}")
 
 
@@ -294,7 +660,9 @@ def _validate_profile_name(profile: Any, context: str) -> None:
         )
 
 
-def _validate_presets_and_overrides(cfg: Mapping[str, Any], models: Mapping[str, Any]) -> None:
+def _validate_presets_and_overrides(
+    cfg: Mapping[str, Any], models: Mapping[str, Any]
+) -> None:
     presets = cfg.get("presets")
     if not isinstance(presets, Mapping) or not presets:
         raise PersonaConfigError("Configuration 'presets' must be a non-empty object")
@@ -311,7 +679,9 @@ def _validate_presets_and_overrides(cfg: Mapping[str, Any], models: Mapping[str,
                     f"Unknown persona '{persona_key}' in preset '{preset_name}'"
                 )
         for persona in PERSONAS:
-            if persona not in preset_map or not isinstance(preset_map[persona], Mapping):
+            if persona not in preset_map or not isinstance(
+                preset_map[persona], Mapping
+            ):
                 raise PersonaConfigError(
                     f"Preset '{preset_name}' is missing binding for persona '{persona}'"
                 )
@@ -365,7 +735,10 @@ def _validate_policy_and_low_quota(cfg: Mapping[str, Any]) -> None:
             )
         expires_at = entry.get("expires_at")
         if expires_at is not None:
-            if not isinstance(expires_at, str) or _parse_utc_timestamp(expires_at) is None:
+            if (
+                not isinstance(expires_at, str)
+                or _parse_utc_timestamp(expires_at) is None
+            ):
                 raise PersonaConfigError(
                     f"Invalid low_quota expires_at '{expires_at}' for profile '{profile}'"
                 )
@@ -386,6 +759,8 @@ def validate_merged_config(cfg: Mapping[str, Any]) -> None:
         _validate_model_entry(alias, entry)
     _validate_presets_and_overrides(cfg, models)
     _validate_policy_and_low_quota(cfg)
+    if "review" in cfg:
+        _validate_review_section(cfg["review"], models=models, partial=False)
 
 
 def _load_layers(
@@ -448,7 +823,9 @@ def _resolve_from_layers(
         values[field] = preset_binding.get(field)
         field_layer = "kit"
         for layer_name, layer_data in layers:
-            preset_layer = layer_data.get("presets", {}).get(active_preset, {}).get(persona, {})
+            preset_layer = (
+                layer_data.get("presets", {}).get(active_preset, {}).get(persona, {})
+            )
             if isinstance(preset_layer, Mapping) and field in preset_layer:
                 field_layer = layer_name
         sources[field] = _max_layer(preset_source, field_layer)
@@ -499,7 +876,10 @@ def _resolve_from_layers(
     profile = values.get("profile")
     if profile is not None:
         _validate_profile_name(profile, f"persona '{persona}'")
-        if entry["cli"] != "agy" and _LAYER_RANK[sources["profile"]] < _LAYER_RANK[sources["model"]]:
+        if (
+            entry["cli"] != "agy"
+            and _LAYER_RANK[sources["profile"]] < _LAYER_RANK[sources["model"]]
+        ):
             # SE-15: a profile inherited from a lower layer is ignored when a higher layer
             # binds a model that is not an agy model; it leaves the binding and `sources`.
             profile = None
@@ -598,10 +978,153 @@ def effective_turn_budget(
 ) -> int:
     """Return turn budget N, halved (minimum 1) while low-quota mode is active for profile."""
     cfg = load_persona_config(project_root, real_home=real_home)
-    base_turns = int(cfg["checkpoint_policy"]["max_orchestrator_turns_before_checkpoint"])
+    base_turns = int(
+        cfg["checkpoint_policy"]["max_orchestrator_turns_before_checkpoint"]
+    )
     if low_quota_state(project_root, profile, now=now, real_home=real_home) is not None:
         return max(1, base_turns // 2)
     return base_turns
+
+
+def _read_legacy_review_config(project_root: Path) -> dict[str, Any]:
+    """Read legacy .devtool/review_config.json safely; return {} if absent or malformed."""
+    path = Path(project_root) / ".devtool" / "review_config.json"
+    if not path.is_file():
+        return {}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return {}
+    if not isinstance(raw, Mapping):
+        return {}
+
+    parsed: dict[str, Any] = {}
+    max_rounds = raw.get("max_rounds")
+    if type(max_rounds) is int and max_rounds >= 1:
+        parsed["max_rounds"] = max_rounds
+
+    priority = raw.get("provider_priority")
+    if isinstance(priority, list) and priority:
+        try:
+            parsed["provider_priority"] = list(_validate_review_priority(priority))
+        except PersonaConfigError:
+            pass
+
+    thresholds_raw = raw.get("quota_thresholds")
+    if isinstance(thresholds_raw, Mapping):
+        valid_thresholds: dict[str, float] = {}
+        for key, val in thresholds_raw.items():
+            if key not in DEFAULT_REVIEW_QUOTA_THRESHOLDS:
+                continue
+            try:
+                valid_thresholds.update(_validate_review_quota_thresholds({key: val}))
+            except PersonaConfigError:
+                continue
+        if valid_thresholds:
+            parsed["quota_thresholds"] = valid_thresholds
+
+    providers_raw = raw.get("providers")
+    if isinstance(providers_raw, Mapping):
+        valid_providers: dict[str, dict[str, str]] = {}
+        for cli in REVIEW_PROVIDERS:
+            entry = providers_raw.get(cli)
+            if not isinstance(entry, Mapping):
+                continue
+            cleaned: dict[str, str] = {}
+            model_val = entry.get("model")
+            if isinstance(model_val, str) and model_val.strip():
+                cleaned["model"] = model_val.strip()
+            eff_raw = (
+                entry.get("effort")
+                if "effort" in entry
+                else entry.get("thinking_level")
+            )
+            if isinstance(eff_raw, str) and eff_raw in _REVIEW_THINKING_LEVEL_SET:
+                cleaned["effort"] = eff_raw
+            if cli == "ollama" and _is_valid_ollama_host(entry.get("host")):
+                cleaned["host"] = str(entry["host"]).strip()
+            if cleaned:
+                valid_providers[cli] = cleaned
+        if valid_providers:
+            parsed["providers"] = valid_providers
+
+    return parsed
+
+
+def _resolve_review_limits_from_layers(
+    layers: list[tuple[str, dict[str, Any]]],
+    merged: Mapping[str, Any],
+    legacy: Mapping[str, Any],
+) -> ReviewLimits:
+    layer_map = dict(layers)
+    global_layer = layer_map.get("global", {})
+    project_layer = layer_map.get("project", {})
+    sources: dict[str, str] = {}
+
+    if "max_task_review_passes" not in merged:
+        task_passes = DEFAULT_MAX_TASK_REVIEW_PASSES
+        sources["max_task_review_passes"] = "kit"
+    else:
+        task_passes = int(merged["max_task_review_passes"])
+        if "max_task_review_passes" in project_layer:
+            sources["max_task_review_passes"] = "project"
+        elif "max_task_review_passes" in global_layer:
+            sources["max_task_review_passes"] = "global"
+        else:
+            sources["max_task_review_passes"] = "kit"
+
+    if "max_fix_passes" not in merged:
+        fix_passes = DEFAULT_MAX_FIX_PASSES
+        sources["max_fix_passes"] = "kit"
+    else:
+        fix_passes = int(merged["max_fix_passes"])
+        if "max_fix_passes" in project_layer:
+            sources["max_fix_passes"] = "project"
+        elif "max_fix_passes" in global_layer:
+            sources["max_fix_passes"] = "global"
+        else:
+            sources["max_fix_passes"] = "kit"
+
+    legacy_rounds = legacy.get("max_rounds")
+    resolved_external: dict[str, int] = {}
+    for key, default_val in (
+        ("max_principal_review_passes", DEFAULT_MAX_PRINCIPAL_REVIEW_PASSES),
+        ("max_cross_model_review_passes", DEFAULT_MAX_CROSS_MODEL_REVIEW_PASSES),
+    ):
+        if key in project_layer:
+            resolved_external[key] = int(project_layer[key])
+            sources[key] = "project"
+        elif key in global_layer:
+            resolved_external[key] = int(global_layer[key])
+            sources[key] = "global"
+        elif type(legacy_rounds) is int and legacy_rounds >= 1:
+            resolved_external[key] = legacy_rounds
+            sources[key] = "legacy"
+        else:
+            resolved_external[key] = int(merged.get(key, default_val))
+            sources[key] = "kit"
+
+    return ReviewLimits(
+        max_task_review_passes=task_passes,
+        max_fix_passes=fix_passes,
+        max_principal_review_passes=resolved_external["max_principal_review_passes"],
+        max_cross_model_review_passes=resolved_external[
+            "max_cross_model_review_passes"
+        ],
+        sources=sources,
+    )
+
+
+def resolve_review_limits(
+    project_root: Path,
+    *,
+    real_home: Path | str | None = None,
+) -> ReviewLimits:
+    """Resolve all four independent pass limits with per-key layer provenance."""
+    merged = load_persona_config(project_root, real_home=real_home)
+    layers = _load_layers(project_root, real_home=real_home)
+    legacy = _read_legacy_review_config(project_root)
+    return _resolve_review_limits_from_layers(layers, merged, legacy)
 
 
 def resolve_task_review_limits(
@@ -610,10 +1133,167 @@ def resolve_task_review_limits(
     real_home: Path | str | None = None,
 ) -> tuple[int, int]:
     """Resolve layered (max_task_review_passes, max_fix_passes) limits for a workspace."""
-    cfg = load_persona_config(project_root, real_home=real_home)
-    return (
-        int(cfg.get("max_task_review_passes", DEFAULT_MAX_TASK_REVIEW_PASSES)),
-        int(cfg.get("max_fix_passes", DEFAULT_MAX_FIX_PASSES)),
+    limits = resolve_review_limits(project_root, real_home=real_home)
+    return (limits.max_task_review_passes, limits.max_fix_passes)
+
+
+def resolve_review_config(
+    project_root: Path,
+    *,
+    real_home: Path | str | None = None,
+) -> ResolvedReviewConfig:
+    """Resolve layered external review priority, providers, quota thresholds, and limits."""
+    layers = _load_layers(project_root, real_home=real_home)
+    merged = _merge_and_validate(layers)
+    legacy = _read_legacy_review_config(project_root)
+    limits = _resolve_review_limits_from_layers(layers, merged, legacy)
+
+    layer_map = dict(layers)
+    kit_review = layer_map.get("kit", {}).get("review", {})
+    global_review = layer_map.get("global", {}).get("review", {})
+    project_review = layer_map.get("project", {}).get("review", {})
+    models = merged["models"]
+    sources: dict[str, str] = {}
+
+    if isinstance(project_review, Mapping) and "provider_priority" in project_review:
+        priority = tuple(project_review["provider_priority"])
+        sources["provider_priority"] = "project"
+    elif isinstance(global_review, Mapping) and "provider_priority" in global_review:
+        priority = tuple(global_review["provider_priority"])
+        sources["provider_priority"] = "global"
+    elif "provider_priority" in legacy:
+        priority = tuple(legacy["provider_priority"])
+        sources["provider_priority"] = "legacy"
+    else:
+        kit_prio = (
+            kit_review.get("provider_priority")
+            if isinstance(kit_review, Mapping)
+            else None
+        )
+        priority = tuple(kit_prio) if kit_prio else REVIEW_PRIORITY_PROVIDERS
+        sources["provider_priority"] = "kit"
+
+    kit_th = (
+        kit_review.get("quota_thresholds", {})
+        if isinstance(kit_review, Mapping)
+        else {}
+    )
+    global_th = (
+        global_review.get("quota_thresholds", {})
+        if isinstance(global_review, Mapping)
+        else {}
+    )
+    project_th = (
+        project_review.get("quota_thresholds", {})
+        if isinstance(project_review, Mapping)
+        else {}
+    )
+    legacy_th = legacy.get("quota_thresholds", {})
+    quota_thresholds: dict[str, float] = {}
+    for key, default_val in DEFAULT_REVIEW_QUOTA_THRESHOLDS.items():
+        if isinstance(project_th, Mapping) and key in project_th:
+            quota_thresholds[key] = float(project_th[key])
+            sources[f"quota_thresholds.{key}"] = "project"
+        elif isinstance(global_th, Mapping) and key in global_th:
+            quota_thresholds[key] = float(global_th[key])
+            sources[f"quota_thresholds.{key}"] = "global"
+        elif isinstance(legacy_th, Mapping) and key in legacy_th:
+            quota_thresholds[key] = float(legacy_th[key])
+            sources[f"quota_thresholds.{key}"] = "legacy"
+        elif isinstance(kit_th, Mapping) and key in kit_th:
+            quota_thresholds[key] = float(kit_th[key])
+            sources[f"quota_thresholds.{key}"] = "kit"
+        else:
+            quota_thresholds[key] = float(default_val)
+            sources[f"quota_thresholds.{key}"] = "kit"
+
+    kit_provs = (
+        kit_review.get("providers", {}) if isinstance(kit_review, Mapping) else {}
+    )
+    global_provs = (
+        global_review.get("providers", {}) if isinstance(global_review, Mapping) else {}
+    )
+    project_provs = (
+        project_review.get("providers", {})
+        if isinstance(project_review, Mapping)
+        else {}
+    )
+    legacy_provs = legacy.get("providers", {})
+    providers: dict[str, ReviewProviderBinding] = {}
+    for cli in REVIEW_PROVIDERS:
+        base_entry: dict[str, Any] = dict(DEFAULT_REVIEW_PROVIDERS[cli])
+        kit_entry = kit_provs.get(cli) if isinstance(kit_provs, Mapping) else None
+        if isinstance(kit_entry, Mapping):
+            base_entry.update(_normalize_review_provider_entry(kit_entry))
+
+        has_project = isinstance(project_provs, Mapping) and cli in project_provs
+        has_global = isinstance(global_provs, Mapping) and cli in global_provs
+        has_legacy = isinstance(legacy_provs, Mapping) and cli in legacy_provs
+
+        effective_entry = dict(base_entry)
+        if has_project or has_global:
+            if has_global:
+                effective_entry.update(
+                    _normalize_review_provider_entry(global_provs[cli])
+                )
+            if has_project:
+                effective_entry.update(
+                    _normalize_review_provider_entry(project_provs[cli])
+                )
+            provider_source = "project" if has_project else "global"
+            model_raw = str(effective_entry["model"]).strip()
+            effort_raw = str(effective_entry.get("effort", "high"))
+            model_id, resolved_effort = _resolve_review_provider_model(
+                cli, model_raw, effort_raw, models
+            )
+        elif has_legacy:
+            legacy_candidate = dict(base_entry)
+            legacy_candidate.update(legacy_provs[cli])
+            try:
+                model_raw = str(legacy_candidate["model"]).strip()
+                effort_raw = str(legacy_candidate.get("effort", "high"))
+                model_id, resolved_effort = _resolve_review_provider_model(
+                    cli, model_raw, effort_raw, models
+                )
+                effective_entry = legacy_candidate
+                provider_source = "legacy"
+            except PersonaConfigError:
+                model_raw = str(base_entry["model"]).strip()
+                effort_raw = str(base_entry.get("effort", "high"))
+                model_id, resolved_effort = _resolve_review_provider_model(
+                    cli, model_raw, effort_raw, models
+                )
+                effective_entry = base_entry
+                provider_source = "kit"
+        else:
+            model_raw = str(base_entry["model"]).strip()
+            effort_raw = str(base_entry.get("effort", "high"))
+            model_id, resolved_effort = _resolve_review_provider_model(
+                cli, model_raw, effort_raw, models
+            )
+            provider_source = "kit"
+
+        host_val = (
+            str(effective_entry["host"]).strip()
+            if cli == "ollama" and effective_entry.get("host") is not None
+            else None
+        )
+        providers[cli] = ReviewProviderBinding(
+            provider=cli,
+            model=model_raw,
+            model_id=model_id,
+            effort=resolved_effort,
+            host=host_val,
+            source=provider_source,
+        )
+        sources[f"providers.{cli}"] = provider_source
+
+    return ResolvedReviewConfig(
+        provider_priority=priority,
+        providers=providers,
+        quota_thresholds=quota_thresholds,
+        limits=limits,
+        sources=sources,
     )
 
 
@@ -642,7 +1322,15 @@ def build_dispatch_argv(binding: PersonaBinding, mode: str) -> list[str]:
 
     if cli == "agy":
         if mode == "read-only":
-            return ["agy", "--sandbox", "--mode", "plan", "--model", model_id, *effort_args]
+            return [
+                "agy",
+                "--sandbox",
+                "--mode",
+                "plan",
+                "--model",
+                model_id,
+                *effort_args,
+            ]
         return ["agy", "--model", model_id, *effort_args, "--mode", "auto"]
     if cli == "claude":
         perm_flags = (
@@ -721,7 +1409,7 @@ def detect_legacy_warnings(
     project_root: Path,
     env: Mapping[str, str] | None = None,
 ) -> list[str]:
-    """Report legacy review_config.json persona keys and AGY_* env vars that are ignored."""
+    """Report legacy review_config.json settings and AGY_* env vars."""
     warnings: list[str] = []
     review_cfg = Path(project_root) / ".devtool" / "review_config.json"
     if review_cfg.is_file():
@@ -738,8 +1426,27 @@ def detect_legacy_warnings(
                             f"Legacy setting '.devtool/review_config.json providers.{key}' "
                             "is ignored; configure personas via dev-config instead."
                         )
+            review_keys = [
+                key
+                for key in ("provider_priority", "max_rounds", "quota_thresholds")
+                if key in data
+            ]
+            if isinstance(providers, Mapping):
+                reviewer_provs = [cli for cli in REVIEW_PROVIDERS if cli in providers]
+                if reviewer_provs:
+                    review_keys.append(f"providers ({', '.join(reviewer_provs)})")
+            if review_keys:
+                warnings.append(
+                    "Legacy '.devtool/review_config.json' defines review settings "
+                    f"({', '.join(review_keys)}) used only as fallback; "
+                    "migrate via 'dev-config review' / 'dev-config limits'."
+                )
     env_map = os.environ if env is None else env
-    for var_name in ("AGY_PROGRAMMER_MODEL", "AGY_PROGRAMMER_EFFORT", "AGY_ASSISTANT_MODEL"):
+    for var_name in (
+        "AGY_PROGRAMMER_MODEL",
+        "AGY_PROGRAMMER_EFFORT",
+        "AGY_ASSISTANT_MODEL",
+    ):
         if env_map.get(var_name):
             warnings.append(
                 f"Legacy environment variable '{var_name}' is ignored; "
@@ -795,19 +1502,31 @@ def locked_update_layer(
             global_data = _read_layer_json(global_path)
             project_data = _read_layer_json(project_path)
 
-            layer_copy = copy.deepcopy(global_data if scope == "global" else project_data)
+            layer_copy = copy.deepcopy(
+                global_data if scope == "global" else project_data
+            )
             mutator(layer_copy)
             if "schema_version" not in layer_copy:
                 layer_copy["schema_version"] = SCHEMA_VERSION
 
             if scope == "global":
-                _merge_and_validate([("kit", kit_data), ("global", layer_copy), ("project", {})])
+                _merge_and_validate(
+                    [("kit", kit_data), ("global", layer_copy), ("project", {})]
+                )
                 merged = _merge_and_validate(
-                    [("kit", kit_data), ("global", layer_copy), ("project", project_data)]
+                    [
+                        ("kit", kit_data),
+                        ("global", layer_copy),
+                        ("project", project_data),
+                    ]
                 )
             else:
                 merged = _merge_and_validate(
-                    [("kit", kit_data), ("global", global_data), ("project", layer_copy)]
+                    [
+                        ("kit", kit_data),
+                        ("global", global_data),
+                        ("project", layer_copy),
+                    ]
                 )
 
             _atomic_write_json(target_path, layer_copy)
