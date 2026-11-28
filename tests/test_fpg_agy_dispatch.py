@@ -1157,3 +1157,82 @@ def test_fpg_fr_05_work_file_plus_log_inside_cwd_stays_quota_midrun(
     assert res.profile_used == "p1"
     assert res.attempts == 1
     assert calls == ["p1"]
+
+
+def test_run_on_pool_ignores_binding_profile_and_dispatches_p1_first(
+    tmp_path: Path,
+) -> None:
+    """run_on_pool() always acquires p1 (priority 1) ahead of p2 (priority 2), even if PersonaBinding.profile is set."""
+    pc = _persona_mod()
+    dispatch_mod = _dispatch_mod()
+    real_home = tmp_path / "real_home"
+    repo = tmp_path / "repo"
+    _init_git_repo(repo)
+    for name in ("p1", "p2"):
+        (real_home / "antigravity_homes" / name).mkdir(parents=True, exist_ok=True)
+    _write_json(
+        real_home / ".d3nexus" / "agy_profiles.json",
+        {
+            "schema_version": 1,
+            "pool": [
+                {"profile": "p1", "priority": 1, "max_concurrent": 2},
+                {"profile": "p2", "priority": 2, "max_concurrent": 6},
+            ],
+            "allow_concurrent_ag_run": True,
+        },
+    )
+    prompt_file = tmp_path / "prompt.md"
+    prompt_file.write_text("run task\n", encoding="utf-8")
+    binding = pc.PersonaBinding(
+        persona="programmer",
+        alias="neon",
+        cli="agy",
+        model_id="gemini-4-neon-xhigh",
+        effort="xhigh",
+        quota_pool="gemini5h",
+        fallback_alias="claude-sonnet",
+        sources={"model": "global", "effort": "global"},
+        profile="p2",
+    )
+    launched: list[str | None] = []
+
+    def ok_launcher(
+        argv: list[str],
+        *,
+        cwd: Path,
+        env: dict[str, str],
+        stdin_text: str,
+        profile: str | None,
+        via_ag_run: bool,
+    ) -> tuple[int, str, str]:
+        _ = (argv, cwd, env, stdin_text, via_ag_run)
+        launched.append(profile)
+        return (0, "ok\n", "")
+
+    res = dispatch_mod.run_on_pool(
+        binding,
+        "write",
+        prompt_file=prompt_file,
+        cwd=repo,
+        log=tmp_path / "dispatch.log",
+        owner={
+            "repo": "repo",
+            "epic": "e1",
+            "task": "t1",
+            "slot": 1,
+            "role": "orchestrator",
+        },
+        real_home=real_home,
+        host_profile="p1",
+        launcher=ok_launcher,
+        fetcher=lambda _p: {
+            "status": "ACTIVE",
+            "gemini5h": {"fraction": 0.85},
+            "geminiWeekly": {"fraction": 0.70},
+        },
+        resident_probe=lambda _p: False,
+        preflight=lambda: 0,
+    )
+    assert res.status == "ok"
+    assert res.profile_used == "p1"
+    assert launched == ["p1"]

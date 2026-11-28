@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import importlib.util
+import inspect
 import json
 import os
 from pathlib import Path
@@ -1739,15 +1740,26 @@ def test_quota_check_pool_empty_payload_propagates_quota_unknown(
     assert entry["warning"] == "quota_unknown"
 
 
+def test_acquire_rejects_removed_preferred_profile_kwarg() -> None:
+    """acquire() and _order_pool_candidates() no longer accept preferred_profile."""
+    pool_mod = _pool_mod()
+    assert not hasattr(pool_mod, "_preferred_first")
+    assert "preferred_profile" not in inspect.signature(pool_mod.acquire).parameters
+    assert (
+        "preferred_profile"
+        not in inspect.signature(pool_mod._order_pool_candidates).parameters
+    )
+
+
 @pytest.mark.parametrize(
     ("scenario", "expected_prefix", "expected_fetched"),
     [
-        ("preferred_usable", "profile=p3", ["p3"]),
-        ("preferred_exhausted", "profile=p1", ["p3", "p1"]),
-        ("preferred_leased", "profile=p1", ["p1"]),
+        ("p1_usable", "profile=p1", ["p1"]),
+        ("p1_exhausted_falls_back_to_p2", "profile=p2", ["p1", "p2"]),
+        ("p1_leased_falls_back_to_p2", "profile=p2", ["p2"]),
     ],
 )
-def test_fpg_hp_15_quota_check_dry_run_names_preferred_profile(
+def test_quota_check_dry_run_strictly_follows_pool_priority_ignoring_legacy_profile(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -1755,7 +1767,7 @@ def test_fpg_hp_15_quota_check_dry_run_names_preferred_profile(
     expected_prefix: str,
     expected_fetched: list[str],
 ) -> None:
-    """FPG-HP-15 / SE-10: quota-check probes the persona's preferred profile first and falls back to p1."""
+    """Even when personas.json has a legacy profile='p3', quota-check probes p1 -> p2 -> p3 strictly by priority."""
     pool_mod = _pool_mod()
     dev_config_mod = _dev_config_mod()
     real_home = tmp_path / "real_home"
@@ -1782,19 +1794,18 @@ def test_fpg_hp_15_quota_check_dry_run_names_preferred_profile(
         {
             "schema_version": 1,
             "pool": [
-                {"profile": "p1", "priority": 1},
-                {"profile": "p2", "priority": 2},
-                {"profile": "p3", "priority": 3},
+                {"profile": "p1", "priority": 1, "max_concurrent": 1},
+                {"profile": "p2", "priority": 2, "max_concurrent": 1},
+                {"profile": "p3", "priority": 3, "max_concurrent": 1},
             ],
         },
     )
 
-    if scenario == "preferred_leased":
+    if scenario == "p1_leased_falls_back_to_p2":
         leased = pool_mod.acquire(
             {"repo": "other", "epic": "e0", "task": "t0", "role": "runner"},
             real_home=real_home,
             host_profile="px",
-            preferred_profile="p3",
             fetcher=lambda _p: {
                 "status": "ACTIVE",
                 "gemini5h": {"fraction": 0.90},
@@ -1802,13 +1813,13 @@ def test_fpg_hp_15_quota_check_dry_run_names_preferred_profile(
             },
             resident_probe=lambda _p: False,
         )
-        assert leased.profile == "p3"
+        assert leased.profile == "p1"
 
     fetched: list[str] = []
 
     def recording_fetcher(profile: str) -> dict[str, Any]:
         fetched.append(profile)
-        if scenario == "preferred_exhausted" and profile == "p3":
+        if scenario == "p1_exhausted_falls_back_to_p2" and profile == "p1":
             return {
                 "status": "ACTIVE",
                 "gemini5h": {"fraction": 0.02, "resetTime": "2026-11-17T14:00:00Z"},

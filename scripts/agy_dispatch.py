@@ -719,7 +719,6 @@ def run_on_pool(
             wait_seconds=wait_seconds if attempts == 0 else 0,
             poll_seconds=poll_seconds,
             now=now,
-            preferred_profile=binding.profile,
         )
         if acq.profile is None:
             report = _build_no_profile_report(

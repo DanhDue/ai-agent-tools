@@ -1051,11 +1051,10 @@ def _order_pool_candidates(
     quota_pool: str,
     thresholds: Mapping[str, float],
     now: datetime,
-    preferred_profile: str | None = None,
     weekly_soft_guard: float = DEFAULT_WEEKLY_SOFT_GUARD_FRACTION,
 ) -> list[dict[str, Any]]:
-    """Order candidates: preferred_profile first, then priority, then 2-group EDF + weekly guard."""
-    ordered = sorted(
+    """Order candidates strictly by priority, then 2-group EDF + weekly soft-guard."""
+    return sorted(
         pool,
         key=lambda entry: _candidate_quota_sort_key(
             entry,
@@ -1066,19 +1065,6 @@ def _order_pool_candidates(
             weekly_soft_guard=weekly_soft_guard,
         ),
     )
-    return _preferred_first(ordered, preferred_profile)
-
-
-def _preferred_first(
-    pool: list[dict[str, Any]],
-    preferred_profile: str | None,
-) -> list[dict[str, Any]]:
-    """Move the preferred pool entry to the front; ignore a name that is not in the pool."""
-    if preferred_profile is None:
-        return pool
-    preferred = [entry for entry in pool if entry["profile"] == preferred_profile]
-    others = [entry for entry in pool if entry["profile"] != preferred_profile]
-    return preferred + others
 
 
 def _attempt_acquire_once(
@@ -1095,7 +1081,6 @@ def _attempt_acquire_once(
     current_host: str,
     owner_id: str,
     dry_run: bool,
-    preferred_profile: str | None = None,
 ) -> tuple[Acquisition | None, dict[str, str]]:
     lease_ttl = float(cfg["lease_ttl_seconds"])
     recheck_sec = float(cfg["exhausted_recheck_seconds"])
@@ -1118,7 +1103,6 @@ def _attempt_acquire_once(
         quota_pool=quota_pool,
         thresholds=thresholds,
         now=now,
-        preferred_profile=preferred_profile,
         weekly_soft_guard=weekly_soft_guard,
     )
 
@@ -1267,12 +1251,11 @@ def acquire(
     poll_seconds: float = 15,
     now: datetime | None = None,
     dry_run: bool = False,
-    preferred_profile: str | None = None,
 ) -> Acquisition:
     """Acquire the highest-priority usable agy profile lease, or return skip details.
 
-    A `preferred_profile` that names a pool entry is tried first and the others follow in
-    (priority, profile) order; an unusable preferred profile is skipped with its normal reason.
+    Candidates are evaluated strictly in `(priority, wk_tier, win_tier, edf_ts, ...)` order
+    from `_candidate_quota_sort_key()`; unusable profiles are skipped with their normal reason.
     """
     owner_id = (
         str(owner.get("owner_id") or "").strip()
@@ -1317,7 +1300,6 @@ def acquire(
             current_host=current_host,
             owner_id=owner_id,
             dry_run=dry_run,
-            preferred_profile=preferred_profile,
         )
         if acq is not None:
             return acq
