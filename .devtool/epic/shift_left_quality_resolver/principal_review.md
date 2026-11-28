@@ -35,3 +35,29 @@ Raw output:
 ```text
 Verdict: CHANGES REQUIRED
 ```
+
+## Round 2
+
+- **Date**: 2026-11-28T03:48:18Z
+- **SHA**: 02908bd813d6a414fa66a30b4048a050fe1eb969
+- **Base**: main
+- **CLI**: claude
+- **Model**: opus
+- **Thinking**: high
+- **Status**: completed
+- **Verdict**: CHANGES REQUIRED
+- **Kind**: principal
+- **Scope**: delta from round 1 (3faa8b2)
+- **Raw log**: `build/reviews/shift_left_quality_resolver_principal_round2_02908bd.raw.log`
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Important | task_01_registry_prefix_wrappers_and_provider_schemas.md:BDD SCENARIOS SLQR-EC-01 / shift_left_quality_resolver.md:Module Contracts and CLI Interfaces §2 | The Python positive/negative `uv --directory` pair cannot be checked through `validate_tier_b`, which skips Python (`_stack_lifecycle_registry.py:1196,1211`). Through `_subcommand_matches_prefix()`, the unwrapped mismatched row matches the built-in `ruff check` default (`:198`), and the positive row cannot match the capability prefix because `_cap_command_str()` (`:739-751`) keeps the trailing `.`. Proposed: in HLD §2 and task_01 Decisions, (a) assert the Python pair directly through `_subcommand_matches_prefix(sub, <manifest-derived prefix>)`, not `validate_tier_b`, (b) make `_cap_command_str()` strip trailing positional targets (`.`, `src`, `tests`) from capability-derived prefixes, and (c) make a sub carrying `--directory/--project/--prefix <d>` match only prefixes that declare the same `<d>`, not wrapper-less defaults; change the EC-01 `When` line to name `_subcommand_matches_prefix` for the Python rows. | fixed in 0c0a73a |
+| 2 | Minor | bdd_scenarios.md:SLQR-EC-01 / task_01_registry_prefix_wrappers_and_provider_schemas.md:SLQR-EC-01 | `uv --directory apps/align-worker run ruff check apps/align-worker/src/mod.py` uses a repo-root-relative path, but uv resolves it from `apps/align-worker/`, so the real command would fail (`apps/align-worker/apps/align-worker/src/mod.py`). The negative row has the same flaw. Proposed: use `src/mod.py` in same-wrapper rows (relative to `<dir>`), and state in task_03 that resolver-synthesised scoped targets are rewritten relative to the wrapper directory. | fixed in 0c0a73a |
+| 3 | Minor | task_05_lean_skills_verify_registry_and_acceptance.md:Impact Analysis & Blast Radius L57 / shift_left_quality_resolver.md:L168 / 2026-11-28-shift-left-quality-resolver-design.md:§11 L249 | `live 5-repo (44/44 profile)` and `44/44` remain, which contradicts the revised Decision (synthetic fixtures plus optional `SLQR_ECOSYSTEM_ROOT`). Proposed: replace each with "synthetic 5-repo fixtures plus optional `SLQR_ECOSYSTEM_ROOT` profiles (all discovered profiles PASS)". | fixed in 0c0a73a |
+
+Raw output:
+
+```text
+Verdict: CHANGES REQUIRED
+```
