@@ -305,7 +305,7 @@ def _dev_config_mod() -> ModuleType:
 def test_fpg_hp_14_set_with_provider_model_effort_and_profile(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """FPG-HP-14: set accepts --provider, --model, --effort and --profile in one call."""
+    """FPG-HP-14: set accepts --provider, --model, and --effort in one call."""
     pc = _persona_mod()
     dc = _dev_config_mod()
     real_home = tmp_path / "real_home"

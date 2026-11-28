@@ -465,6 +465,92 @@ def test_checkpoint_records_low_quota_and_optional_warning(tmp_path: Path) -> No
     assert "review_config.json" in hb["checkpoint"]["warning"]
 
 
+def test_checkpoint_isolates_legacy_warnings_by_real_home(tmp_path: Path) -> None:
+    """Checkpoint passes --real-home to detect_legacy_warnings instead of leaking env HOME/REAL_HOME."""
+    repo = tmp_path / "repo"
+    env_home = tmp_path / "env_home"
+    clean_real_home = tmp_path / "clean_real_home"
+    legacy_real_home = tmp_path / "legacy_real_home"
+    _init_git_repo(repo)
+    clean_real_home.mkdir(parents=True, exist_ok=True)
+
+    # Put a legacy profile key in env_home while clean_real_home has none.
+    env_d3 = env_home / ".d3nexus"
+    env_d3.mkdir(parents=True, exist_ok=True)
+    (env_d3 / "personas.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "overrides": {"programmer": {"profile": "stale_env_profile"}},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    clean_proc = _run_resume_cli(
+        repo,
+        [
+            "--real-home",
+            str(clean_real_home),
+            "--checkpoint",
+            "subagent_returned",
+            "--epic",
+            "rh_clean_epic",
+            "--next",
+            "continue cleanly",
+        ],
+        home_dir=env_home,
+    )
+    assert clean_proc.returncode == 0, clean_proc.stderr
+    clean_slug = _state_envelope._sanitize_epic_slug("rh_clean_epic")
+    clean_hb = json.loads(
+        (repo / ".devtool" / "state" / f"{clean_slug}.heartbeat.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert "warning" not in clean_hb["checkpoint"]
+
+    # Reverse: clean env_home, legacy profile key inside explicit --real-home.
+    (env_d3 / "personas.json").unlink()
+    legacy_d3 = legacy_real_home / ".d3nexus"
+    legacy_d3.mkdir(parents=True, exist_ok=True)
+    (legacy_d3 / "personas.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "overrides": {"programmer": {"profile": "stale_explicit_profile"}},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    legacy_proc = _run_resume_cli(
+        repo,
+        [
+            "--real-home",
+            str(legacy_real_home),
+            "--checkpoint",
+            "subagent_returned",
+            "--epic",
+            "rh_legacy_epic",
+            "--next",
+            "surface explicit warning",
+        ],
+        home_dir=env_home,
+    )
+    assert legacy_proc.returncode == 0, legacy_proc.stderr
+    legacy_slug = _state_envelope._sanitize_epic_slug("rh_legacy_epic")
+    legacy_hb = json.loads(
+        (repo / ".devtool" / "state" / f"{legacy_slug}.heartbeat.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert (
+        "global personas.json overrides.programmer.profile"
+        in legacy_hb["checkpoint"]["warning"]
+    )
+
+
 def test_brief_roles_contracts_and_missing_brief_role_argparse_error(
     tmp_path: Path,
 ) -> None:
