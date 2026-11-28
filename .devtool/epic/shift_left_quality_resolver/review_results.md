@@ -27,3 +27,27 @@ Raw output:
 ```text
 Verdict: CHANGES REQUIRED
 ```
+
+## Round 2
+
+- **Date**: 2026-11-28T06:03:37Z
+- **SHA**: 4b4ac04d9ea1a6de5be5180a2b7fba9b025d22b5
+- **Base**: main
+- **CLI**: claude
+- **Model**: opus
+- **Thinking**: high
+- **Status**: completed
+- **Verdict**: PASS
+- **Raw log**: `build/reviews/shift_left_quality_resolver_code_round2_4b4ac04.raw.log`
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Minor | skills/dev-implementation/resources/scripts/resolve_task_quality_plan.py:412 | the cache-bust template search matches only the asset's file name. Two different `app.js`, `main.js` or `style.css` files in separate folders collide, so `--design`/`--check-plan` fail and demand an unrelated template in Allowed files. Proposed: when the `src=`/`href=` value contains a directory, resolve it against the template's folder (or require that the asset path ends with that value) before counting a match; add a test with two same-named assets. |  |
+| 2 | Minor | skills/quality_check/resources/scripts/check_diff_coverage.py:1393-1412 | files covered by a `--package-floors` ratchet are left out of the global package-floor check, but `package_results` still reports `coverage_pct` over all files. A package can show coverage below the floor with `passed: true`. Proposed: report the percentage actually checked (or add an `enforced_coverage_pct` field), and record this override behaviour in the HLD and the SKILL. |  |
+| 3 | Minor | skills/dev-implementation/resources/scripts/check_task_contract.py:1177-1194 | `_dir_contains_python` returns True for a folder that doesn't exist yet or is empty. A new non-Python folder in Allowed files (e.g. `docs/guide/`) is then treated as Python, so the task's lint and type-check commands must target it. Proposed: return True for a missing folder only when the Allowed entry or pattern ends in `.py`; otherwise return False. |  |
+
+Raw output:
+
+```text
+Verdict: PASS
+```
