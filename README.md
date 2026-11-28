@@ -28,6 +28,8 @@ Bản tiếng Việt: [lifecycles.vi.md](docs/lifecycles.vi.md) · [choosing-a-l
 
 Quality provider architecture and contracts:
 **[docs/architecture/quality-provider-system.en.md](docs/architecture/quality-provider-system.en.md)** · Bản tiếng Việt: [quality-provider-system.vi.md](docs/architecture/quality-provider-system.vi.md).
+Polyglot lifecycle blueprint and ecosystem coverage report:
+**[docs/architecture/polyglot-quality-lifecycle-handoff.md](docs/architecture/polyglot-quality-lifecycle-handoff.md)** · Báo cáo độ phủ hệ sinh thái: [shift_left_upgrade_and_ecosystem_coverage_report.md](docs/architecture/shift_left_upgrade_and_ecosystem_coverage_report.md).
 
 The product discovery suite is described in [3.6](#36-the-upstream-product-discovery-suite).
 
