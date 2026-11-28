@@ -19,7 +19,7 @@ Epic: [shift_left_quality_resolver](shift_left_quality_resolver.md)
 
 ## Requirement Analysis
 
-Wire the mechanical Shift-Left quality resolver (`d3nexus resolve-quality --files <planned_files>`) and standalone plan checker (`check_task_contract.py --check-plan <plan.md>`) into `dev-designer` and `writing-plans` in 2–3 compact lines (zero prose matrices), remove retired repository-specific script names from `dev-designer/SKILL.md` and `dev-designer/references/verification-rows.md` (`#0020`), document `gate4_receipt.json` clean-tree preconditions and `--package-floors` / `test_routing` in `finishing-a-development-branch`, `quality_check`, and `setup_quality_check`, register all five `SLQR` test suites in `scripts/verify.sh`, and prove end-to-end clean-shell Pre-Flight execution plus `44/44` live profile validations across the five ecosystem repositories.
+Wire the mechanical Shift-Left quality resolver (`d3nexus resolve-quality --files <planned_files>`) and standalone plan checker (`check_task_contract.py --check-plan <plan.md>`) into `dev-designer` and `writing-plans` in 2–3 compact lines (zero prose matrices), remove retired repository-specific script names from `dev-designer/SKILL.md` and `dev-designer/references/verification-rows.md` (`#0020`), document `gate4_receipt.json` clean-tree preconditions and `--package-floors` / `test_routing` in `finishing-a-development-branch`, `quality_check`, and `setup_quality_check`, register all five `SLQR` test suites in `scripts/verify.sh`, and prove end-to-end clean-shell Pre-Flight execution plus synthetic 5-repo fixtures and optional `SLQR_ECOSYSTEM_ROOT` profile validations (all discovered profiles PASS).
 
 ## Files
 
@@ -54,7 +54,7 @@ Read-only context:
   - `skills/writing-plans/SKILL.md` (`L58-L61`, `L175-L180`, `L223-L229`) & `skills/writing-plans/plan-document-reviewer-prompt.md` (`L20-L28`): replace "copy verbatim" with `d3nexus resolve-quality --files <planned_files>` and add `check_task_contract.py --check-plan <plan.md>` to Self-Review and Reviewer checks.
   - `skills/finishing-a-development-branch/SKILL.md` (`L196-L202`), `skills/quality_check/SKILL.md` (`L77`, `L137-L140`), `skills/setup_quality_check/SKILL.md` (`L16`): document clean working-tree requirement for `noop` receipt reuse, non-PASS `gate4_receipt.json` invalidation, `--package-floors`, `test_routing`, and deduplicated `epic`/`release` scaffolding.
   - `scripts/verify.sh` (`L360-L569`): register all 5 `tests/test_slqr_*.py` suites.
-  - `tests/test_slqr_end_to_end_acceptance.py` (new): clean-shell Pre-Flight CLI tests, UTF-8 byte/word cap checks, `check_document.py --require-toc` checks, and live 5-repo (`44/44` profile) schema+validator parity tests covering `SLQR-HP-05` and `SLQR-AR-04`.
+  - `tests/test_slqr_end_to_end_acceptance.py` (new): clean-shell Pre-Flight CLI tests, UTF-8 byte/word cap checks, `check_document.py --require-toc` checks, and synthetic 5-repo fixtures plus optional `SLQR_ECOSYSTEM_ROOT` profiles (all discovered profiles PASS) schema+validator parity tests covering `SLQR-HP-05` and `SLQR-AR-04`.
 - **Downstream Callers**: `tests/test_tto_docs_and_slimming.py`, `tests/test_ohk2_skill_docs.py`, `scripts/test_lifecycle_document_contract.py`.
 - **Cross-Platform Bridges**: None.
 - **Target Coverage Threshold**: 100% pass across all 5 `SLQR` suites and `scripts/verify.sh`.

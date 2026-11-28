@@ -49,10 +49,10 @@ Then "skills/dev-designer/SKILL.md" stays <= 22528 UTF-8 bytes, retired script n
 ## Dimension 2 Edge Cases and Boundary Conditions
 
 ```gherkin
-Scenario: [SLQR-EC-01] [Tier C - Integration] TierBContractAdapter unwraps monorepo directory flags, mise exec prefixes, and relocated script paths while rejecting mismatched directories
+Scenario: [SLQR-EC-01] [Tier C - Integration] Registry prefix matcher and TierBContractAdapter unwrap monorepo directory flags, mise exec prefixes, and relocated script paths while rejecting mismatched directories
 Given stack manifests declaring "uv --directory apps/align-worker run ruff check .", "mise exec -- swiftlint lint --config quality/.swiftlint.yml --strict", and "python3 {skills_dir}/web-quality-check/resources/scripts/check_vanilla_js.py --target-dir src/preview"
-When TierBContractAdapter.validate_tier_b evaluates task TIER-B rows using "uv --directory apps/align-worker run ruff check apps/align-worker/src/mod.py", "swiftlint lint --config quality/.swiftlint.yml --strict Packages/Core/Sources/Foo.swift", and "python3 \"$D3NEXUS_KIT/skills/web-quality-check/resources/scripts/check_vanilla_js.py\" --target-dir src/preview", alongside a negative row using "uv --directory apps/other-worker run ruff check apps/other-worker/src/mod.py"
-Then all three valid TIER-B subcommands match their respective stack capabilities with 0 problems, while the mismatched "--directory apps/other-worker" subcommand fails to match
+When _subcommand_matches_prefix evaluates Python subcommands "uv --directory apps/align-worker run ruff check src/mod.py" and "uv --directory apps/other-worker run ruff check src/mod.py" against the Python manifest prefixes, and TierBContractAdapter.validate_tier_b evaluates iOS and Web task TIER-B rows using "swiftlint lint --config quality/.swiftlint.yml --strict Packages/Core/Sources/Foo.swift" and "python3 \"$D3NEXUS_KIT/skills/web-quality-check/resources/scripts/check_vanilla_js.py\" --target-dir src/preview"
+Then the matching Python "--directory apps/align-worker" subcommand and both iOS and Web TIER-B rows match with 0 problems, while the mismatched "--directory apps/other-worker" subcommand fails to match any prefix (including wrapper-less built-in defaults)
 
 Scenario: [SLQR-EC-02] [Tier C - Integration] check_diff_coverage handles missing or malformed package_floors file as exit 2 BLOCKED and exempts unmeasured files cleanly
 Given a valid LCOV report covering "src/core/service.py" at 95.0%
