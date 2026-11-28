@@ -78,3 +78,5 @@
 | 2026-11-28T02:53:08.091112+00:00 | pool_priority_only_routing | 1 | a998d50 | Gate 1 design spec approved by Role 1.0 (docs/superpowers/specs/2026-11-28-pool-priority-only-routing-design.md) |  | developer |
 | 2026-11-28T02:53:55.766646+00:00 | shift_left_quality_resolver | 1 | a998d50 | Spec approved |  | developer |
 | 2026-11-28T03:14:57.660296+00:00 | shift_left_quality_resolver | 2 | 52aaaa3 | 5-task 4-wave HLD and Kanban breakdown ready |  | developer |
+| 2026-11-28T04:02:57.604800+00:00 | shift_left_quality_resolver | 2 | 64ed5c6 | Passed Principal Review round 3 and packaged |  | developer |
+| 2026-11-28T04:04:25.890684+00:00 | shift_left_quality_resolver | 3 | 64ed5c6 | Wave 1 (task_01 \|\| task_02) -> Wave 2 (task_03) -> Wave 3 (task_04) -> Wave 4 (task_05) |  | developer |
